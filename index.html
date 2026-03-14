@@ -2,9 +2,54 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║           應變資訊平台 — index.html  主頁面                  ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  檔案結構總覽：                                              ║
+  ║  1. <style>          全站 CSS 樣式                           ║
+  ║     ├─ CSS 變數       顏色、字型、陰影等共用設定             ║
+  ║     ├─ 頂部導覽列     .topbar                               ║
+  ║     ├─ 整體版面       .layout                               ║
+  ║     ├─ 遮罩層         .overlay（側欄打開時的半透明背景）     ║
+  ║     ├─ 左側側欄       .sidebar                              ║
+  ║     ├─ 浮動下拉選單   .fly-menu / .fly-menu-l3              ║
+  ║     ├─ 右側地圖區     .map-area / #map                      ║
+  ║     ├─ 功能內容面板   .content-panel（點選單後顯示）         ║
+  ║     └─ 建立事件 Modal .ce-backdrop / .ce-modal              ║
+  ║                                                              ║
+  ║  2. HTML 結構                                                ║
+  ║     ├─ .topbar        頂部列（☰按鈕 + 平台名稱 + 狀態）     ║
+  ║     ├─ .layout        主要版面容器                           ║
+  ║     │   ├─ .overlay   點擊關閉側欄的遮罩                     ║
+  ║     │   ├─ .sidebar   左側選單                               ║
+  ║     │   └─ .map-area  右側地圖 + 內容面板                    ║
+  ║     ├─ .fly-menu      浮動下拉選單（在 body 底部，避免被裁切）║
+  ║     └─ .ce-backdrop   建立事件 Modal                         ║
+  ║                                                              ║
+  ║  3. <script>          JavaScript 功能                        ║
+  ║     ├─ 全域變數        gMap（Leaflet地圖物件）               ║
+  ║     ├─ PANELS 資料     各功能頁面的說明文字                  ║
+  ║     ├─ openPanel()    開啟功能說明面板                        ║
+  ║     ├─ closePanel()   關閉面板、回到地圖                     ║
+  ║     ├─ closeSidebar() 關閉左側側欄                           ║
+  ║     ├─ closeAllMenus()關閉所有浮動下拉選單                   ║
+  ║     ├─ positionMenu() 計算浮動選單的顯示位置                 ║
+  ║     ├─ DOMContentLoaded 區塊                                 ║
+  ║     │   ├─ 側欄開關事件綁定                                  ║
+  ║     │   ├─ Hover 觸發浮動選單邏輯                            ║
+  ║     │   ├─ L3 第三層選單（事件管理子項）                     ║
+  ║     │   └─ Leaflet 地圖動態載入 + 初始化                    ║
+  ║     └─ 建立事件 Modal JS（變數前綴 _ce）                     ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>應變資訊平台</title>
 <style>
+  /* ────────────────────────────────────────────────────────
+     CSS 變數（全站共用）
+     修改這裡可以一次改變整站的顏色、字型、陰影等
+     ──────────────────────────────────────────────────────── */
   :root {
     --sidebar-w: 240px;
     --header-h: 48px;
@@ -51,6 +96,11 @@
     transition: margin-left .25s cubic-bezier(.4,0,.2,1);
   }
 
+  /* ────────────────────────────────────────────────────────
+     頂部導覽列 (.topbar)
+     包含：☰ 選單按鈕、平台 Logo、系統狀態指示燈
+     z-index: 400 確保永遠在地圖和側欄上方
+     ──────────────────────────────────────────────────────── */
   /* TOP BAR */
   .topbar {
     height: var(--header-h); background: #1e2a3a;
@@ -72,13 +122,31 @@
   .status-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: blink 2.5s ease infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+  /* ────────────────────────────────────────────────────────
+     主要版面容器 (.layout)
+     flex 橫向排列：左側側欄 + 右側地圖
+     position: relative 讓側欄的 absolute 定位有參考點
+     ──────────────────────────────────────────────────────── */
   /* LAYOUT */
   .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
 
+  /* ────────────────────────────────────────────────────────
+     遮罩層 (.overlay)
+     側欄打開時出現的半透明黑色背景
+     點擊遮罩 → 觸發 closeSidebar() 收起側欄
+     z-index: 150（在地圖上方，在側欄下方）
+     ──────────────────────────────────────────────────────── */
   /* OVERLAY */
   .overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.22); z-index: 900; cursor: pointer; }
   .overlay.active { display: block; }
 
+  /* ────────────────────────────────────────────────────────
+     左側側欄 (.sidebar)
+     預設用 translateX(-240px) 隱藏在左側外
+     加上 .open class → translateX(0) 滑入畫面
+     z-index: 1000 確保在遮罩和地圖上方
+     overflow: hidden（子選單改為 fly-menu 浮動方式避免被裁切）
+     ──────────────────────────────────────────────────────── */
   /* SIDEBAR */
   .sidebar {
     position: absolute; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
@@ -94,6 +162,11 @@
   .sidebar-nav::-webkit-scrollbar { width: 3px; }
   .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+  /* ────────────────────────────────────────────────────────
+     選單項目 (.nav-item / .nav-btn)
+     .nav-arrow：有子選單的項目右側 ▶ 箭頭
+     .nav-btn:hover → 背景變淺藍色
+     ──────────────────────────────────────────────────────── */
   /* NAV ITEM */
   .nav-item { position: relative; }
   .nav-btn {
@@ -107,6 +180,10 @@
   .nav-label { flex: 1; }
   .nav-arrow { font-size: 10px; color: #b0bec5; flex-shrink: 0; }
 
+  /* ────────────────────────────────────────────────────────
+     側欄底部 (.sidebar-bottom)
+     固定在側欄最下方的「登出」按鈕區域
+     ──────────────────────────────────────────────────────── */
   /* SIDEBAR BOTTOM */
   .sidebar-bottom { padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
   .logout-btn {
@@ -117,6 +194,16 @@
   }
   .logout-btn:hover { border-color: #dc2626; color: #dc2626; background: #fff5f5; }
 
+  /* ────────────────────────────────────────────────────────
+     浮動下拉選單 (.fly-menu / .fly-menu-l3)
+     【重要】這些 div 放在 <body> 最底部，不在 sidebar 裡面
+     原因：sidebar 有 overflow:hidden，子元素會被裁掉
+     解法：用 position:fixed + JS 動態計算位置
+     .fly-menu      = 第二層選單（從側欄項目展開）
+     .fly-menu-l3   = 第三層選單（從第二層項目展開）
+     顯示：加上 .active class
+     位置：positionMenu() 函數計算
+     ──────────────────────────────────────────────────────── */
   /* FLOATING MENUS — position:fixed, live in body, never clipped */
   .fly-menu {
     display: none; position: fixed;
@@ -148,6 +235,13 @@
   }
   .drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
 
+  /* ────────────────────────────────────────────────────────
+     右側地圖區 (.map-area / #map)
+     isolation: isolate → 建立獨立的 stacking context
+     讓 Leaflet 的所有圖層被關在這個容器裡
+     不會蓋過側欄和選單
+     .sidebar-pinned → 側欄釘住時，地圖往右移 240px
+     ──────────────────────────────────────────────────────── */
   /* MAP */
   .map-area { flex: 1; position: relative; overflow: hidden; isolation: isolate; }
   /* Cap ALL leaflet layers so they never escape map-area stacking context */
@@ -194,6 +288,12 @@
     font-size: 12px; color: #dc2626; font-weight: 700; border: 1px solid #d0d8e4; z-index: 10;
   }
 
+  /* ────────────────────────────────────────────────────────
+     功能內容面板 (.content-panel)
+     點選單項目後，覆蓋在地圖上方顯示功能說明
+     加上 .active class 才會顯示
+     「← 返回地圖」按鈕 → closePanel() 移除 .active
+     ──────────────────────────────────────────────────────── */
   /* CONTENT PANEL */
   .content-panel { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; display: none; z-index: 10; }
   .content-panel.active { display: block; }
@@ -369,6 +469,12 @@
 </head>
 <body>
 
+<!-- ════════════════════════════════════════════════════════
+     頂部導覽列
+     - #menuToggle：☰ 按鈕，點擊呼叫 sidebar.classList.toggle('open')
+     - .topbar-logo：平台名稱 + 圖示
+     - .topbar-status：右側綠色「系統正常」狀態燈
+     ════════════════════════════════════════════════════════ -->
 <!-- TOP BAR -->
 <div class="topbar">
   <button class="menu-toggle" id="menuToggle" title="開啟選單">&#9776;</button>
@@ -379,11 +485,23 @@
   <div class="topbar-status"><span class="status-dot"></span>系統正常</div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════
+     主版面容器
+     ════════════════════════════════════════════════════════ -->
 <!-- LAYOUT -->
 <div class="layout">
+  <!-- 遮罩層：側欄開啟時顯示，點擊觸發 closeSidebar() -->
   <div class="overlay" id="overlay"></div>
 
-  <!-- SIDEBAR -->
+  <!-- ──────────────────────────────────────────────────────
+       左側側欄
+       結構：
+       ├─ .sidebar-title   平台名稱 + 📌 釘住按鈕
+       ├─ .sidebar-nav     選單項目列表
+       │   ├─ [data-menu]  有子選單的項目（hover 時觸發浮動選單）
+       │   └─ 無 data-menu  直接 onclick 執行功能的項目
+       └─ .sidebar-bottom  登出按鈕
+       ────────────────────────────────────────────────────── -->
   <aside class="sidebar" id="sidebar">
     <div class=sidebar-title>
       測試用應變資訊平台
@@ -435,7 +553,15 @@
     </div>
   </aside>
 
-  <!-- MAP AREA -->
+  <!-- ──────────────────────────────────────────────────────
+       右側地圖區
+       結構：
+       ├─ #map             Leaflet 地圖容器（動態載入）
+       ├─ .map-badge       右上角事件狀態資訊卡
+       ├─ .map-controls    右下角 ＋／－ 縮放按鈕
+       ├─ .map-compass     北方指標
+       └─ .content-panel   功能說明面板（覆蓋在地圖上，預設隱藏）
+       ────────────────────────────────────────────────────── -->
   <main class="map-area">
     <div id="map"></div>
     <div id="map-fallback">
@@ -464,7 +590,17 @@
   </main>
 </div>
 
+<!-- ════════════════════════════════════════════════════════
+     浮動下拉選單群組
+     【放在 body 最底部，不能移進 sidebar 裡】
+     各選單對應關係：
+     #menu-dashboard → 事件儀表板（4個子項）
+     #menu-report    → 現場回報（5個子項）
+     #menu-admin     → 後台功能（含第三層 #menu-jishi）
+     #menu-jishi     → 事件管理的第三層選單（4個子項）
+     ════════════════════════════════════════════════════════ -->
 <!-- FLOATING MENUS (in body, position:fixed, never clipped) -->
+<!-- 第二層選單：事件儀表板 -->
 <div class="fly-menu" id="menu-dashboard">
   <button class="drop-btn" onclick="openPanel('目前任務')">目前任務</button>
   <button class="drop-btn" onclick="openPanel('事件出勤人員')">事件出勤人員</button>
@@ -472,6 +608,7 @@
   <button class="drop-btn" onclick="openPanel('歷史事件查詢')">歷史事件查詢</button>
 </div>
 
+<!-- 第二層選單：現場回報 -->
 <div class="fly-menu" id="menu-report">
   <button class="drop-btn" onclick="openPanel('人工回報量測數值')">人工回報量測數值</button>
   <button class="drop-btn" onclick="openPanel('儀器回報量測數值')">儀器回報量測數值</button>
@@ -480,6 +617,8 @@
   <button class="drop-btn" onclick="openPanel('現場其他事情回報')">現場其他事情回報</button>
 </div>
 
+<!-- 第二層選單：後台功能（管理員）
+     #btn-jishi 這個按鈕 hover 時會觸發第三層選單 #menu-jishi -->
 <div class="fly-menu" id="menu-admin">
   <button class="drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
   <button class="drop-btn" onclick="openPanel('編組管理')">&#x1F465; 編組管理</button>
@@ -491,6 +630,7 @@
   <button class="drop-btn" onclick="openPanel('各帳號登入紀錄')">&#x1F510; 各帳號登入紀錄</button>
 </div>
 
+<!-- 第三層選單：事件管理子項目 -->
 <div class="fly-menu-l3" id="menu-jishi">
   <button class="drop-l3-btn" onclick="openCreateEvent()">建立事件</button>
   <button class="drop-l3-btn" onclick="openPanel('任務派送')">任務派送</button>
@@ -499,8 +639,16 @@
 </div>
 
 <script>
-var gMap = null;
+// ════════════════════════════════════════════════════════════
+// JavaScript 區塊
+// ════════════════════════════════════════════════════════════
 
+// ── 全域變數 ──
+var gMap = null;  // Leaflet 地圖物件，initMap() 後才有值
+
+// ── 各功能面板的說明文字 ──
+// 格式：'功能名稱': ['標題', '說明文字']
+// openPanel(title) 會讀取這裡的資料顯示在 .content-panel 裡
 var PANELS = {
   '目前任務':         ['目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
   '事件出勤人員':     ['事件出勤人員','目前無進行中事件，故無出勤人員資料。'],
@@ -526,6 +674,9 @@ var PANELS = {
   '各帳號登入紀錄':   ['各帳號登入紀錄','查詢各帳號的登入時間及 IP 紀錄。'],
 };
 
+// ── 開啟功能說明面板 ──
+// 點選沒有子選單的項目時呼叫（個人資料維護、使用說明等）
+// 會在地圖上方顯示 .content-panel，並關閉側欄和所有選單
 function openPanel(title) {
   var d = PANELS[title] || [title, '此功能尚未開放。'];
   document.getElementById('panelTitle').textContent = d[0];
@@ -537,20 +688,32 @@ function openPanel(title) {
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 
+// ── 關閉功能面板、回到地圖 ──
+// 按「← 返回地圖」時呼叫
+// 移除 .content-panel 的 .active，並重新計算地圖大小
 function closePanel() {
   document.getElementById('contentPanel').classList.remove('active');
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 
+// ── 關閉左側側欄 ──
+// 點選遮罩、點選選單項目後自動呼叫
+// 若側欄被釘住（isPinned=true），此函數不執行
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('active');
 }
 
+// ── 關閉所有浮動下拉選單 ──
+// 將所有 .fly-menu 和 .fly-menu-l3 移除 .active class
 function closeAllMenus() {
   document.querySelectorAll('.fly-menu, .fly-menu-l3').forEach(function(m){ m.classList.remove('active'); });
 }
 
+// ── 計算浮動選單的顯示位置 ──
+// anchor：觸發選單的元素（nav-item 或 drop-btn）
+// 選單預設顯示在 anchor 右側；若超出螢幕右邊則改顯示在左側
+// 若超出螢幕底部則往上偏移
 function positionMenu(menu, anchor) {
   menu.style.left = '-9999px'; menu.style.top = '-9999px';
   menu.style.display = 'block';
@@ -566,7 +729,13 @@ function positionMenu(menu, anchor) {
   menu.style.top  = top  + 'px';
 }
 
+// ════════════════════════════════════════════════════════════
+// DOMContentLoaded：頁面 HTML 載入完成後執行
+// ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
+  // ── 側欄開關邏輯 ──
+  // #menuToggle（☰）點擊 → sidebar.classList.toggle('open')
+  // .open class → CSS translateX(0) 讓側欄滑入
   var sidebar = document.getElementById('sidebar');
   var overlay  = document.getElementById('overlay');
   var leaveTimer = null;
@@ -580,6 +749,10 @@ document.addEventListener('DOMContentLoaded', function() {
   overlay.addEventListener('click', function() { closeSidebar(); closeAllMenus(); });
 
   /* ── Nav items with fly menus ── */
+  // ── 第二層浮動選單：Hover 觸發邏輯 ──
+  // 只有帶 data-menu 屬性的 nav-item 才有子選單
+  // mouseenter → positionMenu() 定位 + 加 .active 顯示
+  // mouseleave → 延遲 120ms 後隱藏（讓滑鼠有時間移到選單上）
   document.querySelectorAll('.nav-item[data-menu]').forEach(function(item) {
     var menu = document.getElementById(item.getAttribute('data-menu'));
     if (!menu) return;
@@ -606,6 +779,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // ── 第三層選單：事件管理 (#btn-jishi → #menu-jishi) ──
+  // 同樣用 mouseenter/mouseleave + 延遲隱藏
   /* ── L3: 事件管理 ── */
   var btnJishi   = document.getElementById('btn-jishi');
   var menuJishi  = document.getElementById('menu-jishi');
@@ -634,6 +809,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
 
+  // ── 側欄釘住功能（📌 按鈕）──
+  // isPinned = true  → 側欄固定顯示，不會被關閉，地圖往右移 240px
+  // isPinned = false → 側欄恢復浮動覆蓋模式
+  // 切換：.sidebar.pinned（CSS transform:translateX(0) 固定）
+  //       .map-area.sidebar-pinned（CSS margin-left: 240px 讓地圖右移）
   // ── PIN LOGIC ──
   var isPinned = false;
   var pinBtn = document.getElementById('pinBtn');
@@ -669,11 +849,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!isPinned) { sidebar.classList.remove('open'); overlay.classList.remove('active'); closeAllMenus(); }
   });
 
+  // ── 點選選單外的區域時，關閉所有浮動選單 ──
   /* close on outside click */
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.fly-menu,.fly-menu-l3,.nav-item')) closeAllMenus();
   });
 
+  // ── 動態載入 Leaflet 地圖函式庫 ──
+  // 先嘗試 unpkg.com，失敗改用 cdnjs.cloudflare.com（雙重保險）
+  // Leaflet 載入完成後呼叫 initMap() 初始化地圖
   /* ── Load Leaflet dynamically ── */
   function loadScript(src, cb, errCb) {
     var s = document.createElement('script');
@@ -685,6 +869,11 @@ document.addEventListener('DOMContentLoaded', function() {
     l.rel = 'stylesheet'; l.href = href;
     document.head.appendChild(l);
   }
+  // ── 初始化 Leaflet 地圖 ──
+  // 地圖中心：台北市（25.046, 121.517），縮放層級 13
+  // 底圖來源：OpenStreetMap
+  // 預設三個示範標記點（指揮中心、量測點 A/B）
+  // 縮放按鈕綁定：#zoomIn / #zoomOut
   function initMap() {
     gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -726,6 +915,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+// ════════════════════════════════════════════════════════════
+// 建立事件 Modal（變數前綴 _ce，函數前綴 ce/open/close）
+// ════════════════════════════════════════════════════════════
+// 結構說明：
+//   _ceMap    → Modal 內的 Leaflet 地圖物件（與主地圖 gMap 分開）
+//   _ceMk     → Modal 地圖上的紅色標記點
+//   _ceLat/Lng→ 目前選取的座標（null = 尚未選取）
+//   _ceTmr    → 地址搜尋防抖計時器（輸入停止 500ms 後才送出搜尋）
+//
+// 主要函數：
+//   openCreateEvent()  → 從選單呼叫，打開 Modal
+//   closeCreateEvent() → 關閉 Modal（按 ✕ 或點背景）
+//   cePick()           → 點選事件類型標籤（輻射彈/核物質/核物料）
+//   ceAIn()            → 地址輸入框 input 事件，觸發防抖搜尋
+//   ceSrch()           → 按搜尋按鈕或 Enter，立即搜尋
+//   _ceFetch()         → 呼叫 Nominatim API 搜尋地址
+//   _ceShow()          → 顯示搜尋結果下拉清單
+//   _ceSel()           → 選取某個搜尋結果 → 地圖飛到該位置
+//   ceVal()            → 驗證所有必填欄位，控制「建立事件」按鈕狀態
+//   ceDo()             → 送出表單，存入 localStorage，顯示成功畫面
+//   ceRst()            → 清除所有欄位，重置 Modal
 // ── CREATE EVENT MODAL ──
 var _ceMap=null,_ceMk=null,_ceLat=null,_ceLng=null,_ceTmr=null;
 
@@ -737,6 +947,11 @@ function _ceIco(){
   return L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,16]});
 }
 
+// 開啟建立事件 Modal
+// 1. 加 .show class 讓背景和 Modal 顯示
+// 2. 自動填入今天日期和當前時間
+// 3. 產生新的事件編號（EVT-YYYYMMDD-XXX）
+// 4. 延遲 120ms 後初始化 Modal 內的地圖（需等 DOM 渲染完）
 function openCreateEvent(){
   document.getElementById('ceBackdrop').classList.add('show');
   var d=new Date();
@@ -771,12 +986,17 @@ function openCreateEvent(){
 function closeCreateEvent(){ document.getElementById('ceBackdrop').classList.remove('show'); }
 function ceBgClick(e){ if(e.target===document.getElementById('ceBackdrop')) closeCreateEvent(); }
 
+// 選取事件類型標籤
+// 先移除所有標籤的顏色 class，再給被點的標籤加上對應顏色
+// p-red=輻射彈、p-orange=核物質、p-blue=核物料
 function cePick(el,t){
   document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
   el.classList.add(el.getAttribute('data-c'));
   document.getElementById('ceType').value=t; ceVal();
 }
 
+// 地址輸入框的 input 事件處理
+// 防抖：停止輸入 500ms 後才呼叫 _ceFetch() 避免過多 API 請求
 function ceAIn(){
   clearTimeout(_ceTmr);
   var v=document.getElementById('ceAddr').value.trim();
@@ -791,6 +1011,10 @@ function ceSrch(){
   if(!v)return; clearTimeout(_ceTmr);
   _ceAst('loading','搜尋中…'); _ceFetch(v,true);
 }
+// 呼叫 OpenStreetMap Nominatim API 搜尋地址
+// q     = 搜尋關鍵字
+// first = true → 直接選第一個結果（按 Enter 或搜尋鈕時）
+//         false → 顯示下拉清單讓使用者選
 function _ceFetch(q,first){
   fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(q),{headers:{'Accept-Language':'zh-TW,zh,en'}})
     .then(function(r){return r.json();})
@@ -811,6 +1035,12 @@ function _ceShow(res){
   box.classList.add('show'); _ceAst('','');
 }
 function _ceHS(){ document.getElementById('ceSugg').classList.remove('show'); }
+// 使用者選取某個地址建議
+// 1. 更新地址輸入框文字
+// 2. 記錄座標到 _ceLat / _ceLng
+// 3. 顯示座標數值
+// 4. 地圖飛到該座標（setView）並放置紅色標記
+// 5. 呼叫 ceVal() 重新驗證表單
 function _ceSel(r){
   _ceHS();
   document.getElementById('ceAddr').value=r.display_name;
@@ -831,6 +1061,10 @@ function _ceAst(t,m){
   var el=document.getElementById('ceAst');
   el.className='ce-ast'+(t?' '+t:''); el.innerHTML=m;
 }
+// 表單驗證
+// 檢查所有必填欄位是否填寫完整：事件名稱、類型、日期、時間、地點座標
+// 全部填寫 → 「建立事件」按鈕亮起（disabled=false）
+// 有缺漏 → 顯示尚未填寫的欄位名稱，按鈕維持灰色
 function ceVal(){
   var ok=document.getElementById('ceName').value.trim()&&
          document.getElementById('ceType').value&&
@@ -851,6 +1085,11 @@ function ceVal(){
     document.getElementById('ceFSt').className='ce-fstatus';
   }
 }
+// 送出表單、建立事件
+// 1. 按鈕改為「建立中…」loading 狀態
+// 2. 收集所有欄位資料成物件
+// 3. 存入 localStorage（key: 'rad_events'，格式：陣列）
+// 4. 500ms 後顯示成功畫面（.ce-ok）
 function ceDo(){
   var btn=document.getElementById('ceSub');
   btn.disabled=true; btn.innerHTML='<span class="ce-spin"></span> 建立中…';
@@ -871,6 +1110,8 @@ function ceDo(){
     document.getElementById('ceOK').classList.add('show');
   },500);
 }
+// 重置 Modal 所有欄位
+// 清除輸入、移除標籤選取、重置地圖標記、產生新事件編號
 function ceRst(){
   document.getElementById('ceOK').classList.remove('show');
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
