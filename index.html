@@ -939,9 +939,34 @@ document.addEventListener('DOMContentLoaded', function() {
 // ── CREATE EVENT MODAL ──
 var _ceMap=null,_ceMk=null,_ceLat=null,_ceLng=null,_ceTmr=null;
 
+// ── Google Apps Script 網址 ──
+// 修改這裡可以換成不同的試算表
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+// ── 流水號產生器 ──
+// 從 localStorage 讀取上次的號碼，每次 +1
+// 格式：EVT-YYYYMMDD-001、EVT-YYYYMMDD-002 ...
+// 每天重新從 001 開始
 function _ceId(){
-  var d=new Date(),s=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
-  return 'EVT-'+s+'-'+Math.floor(Math.random()*900+100);
+  var d = new Date();
+  var today = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  
+  // 讀取 localStorage 裡的流水號紀錄
+  var stored = JSON.parse(localStorage.getItem('rad_counter') || '{"date":"","seq":0}');
+  
+  // 如果是新的一天，流水號從 1 重新開始
+  if (stored.date !== today) {
+    stored = { date: today, seq: 1 };
+  } else {
+    stored.seq += 1;
+  }
+  
+  // 存回 localStorage
+  localStorage.setItem('rad_counter', JSON.stringify(stored));
+  
+  // 流水號補零到三位數（001, 002 ... 999）
+  var seq = String(stored.seq).padStart(3, '0');
+  return 'EVT-' + today + '-' + seq;
 }
 function _ceIco(){
   return L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,16]});
@@ -1088,32 +1113,67 @@ function ceVal(){
 // 送出表單、建立事件
 // 1. 按鈕改為「建立中…」loading 狀態
 // 2. 收集所有欄位資料成物件
-// 3. 存入 localStorage（key: 'rad_events'，格式：陣列）
-// 4. 500ms 後顯示成功畫面（.ce-ok）
+// 3. 同時執行兩件事：
+//    a. 存入 localStorage 備份（key: 'rad_events'）
+//    b. POST 到 Google Apps Script → 寫入 Google 試算表
+// 4. 成功或失敗都顯示結果畫面
+// 送出表單、建立事件
+// 1. 按鈕改為「建立中…」loading 狀態
+// 2. 收集所有欄位資料成物件
+// 3. 同時寫入 localStorage（本機備份）和 Google 試算表
 function ceDo(){
-  var btn=document.getElementById('ceSub');
-  btn.disabled=true; btn.innerHTML='<span class="ce-spin"></span> 建立中…';
-  var ev={
-    id:document.getElementById('ceEvId').textContent,
-    name:document.getElementById('ceName').value.trim(),
-    type:document.getElementById('ceType').value,
-    date:document.getElementById('ceDate').value,
-    time:document.getElementById('ceTime').value,
-    address:document.getElementById('ceAddr').value,
-    lat:_ceLat,lng:_ceLng,
-    note:document.getElementById('ceNote').value.trim(),
-    createdAt:new Date().toISOString(),status:'active'
+  var btn = document.getElementById('ceSub');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ce-spin"></span> 建立中…';
+
+  // ── 收集表單資料 ──
+  var ev = {
+    id:        document.getElementById('ceEvId').textContent,
+    name:      document.getElementById('ceName').value.trim(),
+    type:      document.getElementById('ceType').value,
+    date:      document.getElementById('ceDate').value,
+    time:      document.getElementById('ceTime').value,
+    address:   document.getElementById('ceAddr').value,
+    lat:       _ceLat,
+    lng:       _ceLng,
+    note:      document.getElementById('ceNote').value.trim(),
+    createdAt: new Date().toISOString(),
+    status:    'active'
   };
-  try{var ev2=JSON.parse(localStorage.getItem('rad_events')||'[]');ev2.unshift(ev);localStorage.setItem('rad_events',JSON.stringify(ev2));}catch(e){}
-  setTimeout(function(){
-    document.getElementById('ceOKId').textContent='事件編號：'+ev.id;
+
+  // ── 寫入 localStorage（本機備份，離線也能保留）──
+  try {
+    var local = JSON.parse(localStorage.getItem('rad_events') || '[]');
+    local.unshift(ev);
+    localStorage.setItem('rad_events', JSON.stringify(local));
+  } catch(e) { console.warn('localStorage 寫入失敗:', e); }
+
+  // ── 寫入 Google 試算表 ──
+  // no-cors 模式：Apps Script 不支援 CORS preflight，必須這樣送
+  // 缺點：無法讀取回應內容，但資料還是會寫進去
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(ev)
+  })
+  .then(function() {
+    // no-cors 下 then 一定會觸發（不管成功失敗），直接顯示成功畫面
+    document.getElementById('ceOKId').textContent = '事件編號：' + ev.id;
     document.getElementById('ceOK').classList.add('show');
-  },500);
+  })
+  .catch(function(err) {
+    // 只有網路完全斷線才會到這裡
+    // 資料已存 localStorage，提示使用者
+    console.error('試算表寫入失敗:', err);
+    document.getElementById('ceOKId').textContent = ev.id + '（僅存本機，請確認網路）';
+    document.getElementById('ceOK').classList.add('show');
+  });
 }
-// 重置 Modal 所有欄位
-// 清除輸入、移除標籤選取、重置地圖標記、產生新事件編號
+
 function ceRst(){
   document.getElementById('ceOK').classList.remove('show');
+  document.getElementById('ceOKMsg').textContent = '';
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
   document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
   _ceLat=null; _ceLng=null;
@@ -1198,6 +1258,8 @@ document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_
       <div class="ce-ok-icon">&#x2705;</div>
       <div class="ce-ok-title">事件已建立！</div>
       <div class="ce-ok-id" id="ceOKId"></div>
+      <!-- 寫入試算表的結果訊息（成功=綠色，失敗=橘色）-->
+      <div id="ceOKMsg" style="font-size:12px;margin-top:4px;"></div>
       <div class="ce-ok-btns">
         <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x2795; 建立新事件</button>
         <button class="ce-btn ce-btn-p" onclick="closeCreateEvent()">&#x2190; 返回地圖</button>
