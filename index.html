@@ -29,6 +29,28 @@
   html, body { height: 100%; overflow: hidden; }
   body { font-family: var(--font); background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-size: 14px; }
 
+
+  .sidebar-title {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pin-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; padding: 2px 4px; border-radius: 4px;
+    opacity: 0.4; transition: opacity .2s, transform .2s;
+    flex-shrink: 0; line-height: 1;
+  }
+  .pin-btn:hover { opacity: 1; }
+  .pin-btn.pinned { opacity: 1; transform: rotate(-45deg); }
+  /* When pinned: sidebar stays absolute+open, map shifts right via margin */
+  .sidebar.pinned {
+    transform: translateX(0) !important;
+    box-shadow: none !important;
+  }
+  .map-area.sidebar-pinned {
+    margin-left: var(--sidebar-w);
+    transition: margin-left .25s cubic-bezier(.4,0,.2,1);
+  }
+
   /* TOP BAR */
   .topbar {
     height: var(--header-h); background: #1e2a3a;
@@ -197,7 +219,10 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-title">測試用應變資訊平台</div>
+    <div class=sidebar-title>
+      測試用應變資訊平台
+      <button class=pin-btn id=pinBtn title=固定側欄>&#x1F4CC;</button>
+    </div>
     <nav class="sidebar-nav">
 
       <div class="nav-item" data-menu="menu-dashboard">
@@ -441,6 +466,42 @@ document.addEventListener('DOMContentLoaded', function() {
   function isHovered(el) {
     return el.matches && el.matches(':hover');
   }
+
+
+  // ── PIN LOGIC ──
+  var isPinned = false;
+  var pinBtn = document.getElementById('pinBtn');
+  var layout = document.querySelector('.layout');
+
+  pinBtn.addEventListener('click', function() {
+    isPinned = !isPinned;
+    pinBtn.classList.toggle('pinned', isPinned);
+    sidebar.classList.toggle('pinned', isPinned);
+    overlay.classList.remove('active');
+
+    var mapArea = document.querySelector('.map-area');
+    if (isPinned) {
+      sidebar.classList.add('open');
+      mapArea.classList.add('sidebar-pinned');
+      setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 300);
+    } else {
+      sidebar.classList.remove('open');
+      mapArea.classList.remove('sidebar-pinned');
+      setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 300);
+    }
+  });
+
+  // Override closeSidebar to respect pin
+  var _origCloseSidebar = closeSidebar;
+  closeSidebar = function() {
+    if (isPinned) return; // don't close if pinned
+    _origCloseSidebar();
+  };
+
+  // Override overlay click to respect pin
+  overlay.addEventListener('click', function() {
+    if (!isPinned) { sidebar.classList.remove('open'); overlay.classList.remove('active'); closeAllMenus(); }
+  });
 
   /* close on outside click */
   document.addEventListener('click', function(e) {
