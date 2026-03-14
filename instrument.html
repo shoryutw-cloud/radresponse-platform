@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>儀器管理</title>
+<style>
+  /* ════════════════════════════════════════════════════════
+     儀器管理頁面 instrument.html
+     讀取試算表「儀器管理」分頁，顯示所有儀器
+     支援新增、編輯、刪除，資料同步回 Google 試算表
+  ════════════════════════════════════════════════════════ */
+  :root {
+    --accent:    #1a56db;
+    --text:      #1e2a3a;
+    --muted:     #6b7a92;
+    --border:    #e2e8f0;
+    --hover:     #f1f5ff;
+    --surface:   #ffffff;
+    --bg:        #f0f2f5;
+    --danger:    #dc2626;
+    --success:   #16a34a;
+    --radius:    6px;
+    --shadow:    0 2px 8px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI",
+            "Microsoft JhengHei", "PingFang TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 頁面標題列 ── */
+  .page-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+
+  /* ── 工具列：搜尋 + 新增按鈕 ── */
+  .toolbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 320px;
+  }
+  .search-wrap input {
+    width: 100%;
+    padding: 7px 12px 7px 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .search-wrap input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .search-wrap input::placeholder { color: #b0bec5; }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%); font-size: 14px; color: #b0bec5;
+    pointer-events: none;
+  }
+
+  .toolbar-right { display: flex; align-items: center; gap: 10px; }
+  .item-count {
+    font-size: 12px; color: var(--muted);
+    font-family: var(--font-mono);
+    background: var(--bg); padding: 4px 10px;
+    border-radius: 20px; border: 1px solid var(--border);
+  }
+  .btn-add {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: background .15s; white-space: nowrap;
+  }
+  .btn-add:hover { background: #1648c0; }
+
+  /* ── 主內容區 ── */
+  .content {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+  }
+
+  /* ── 載入中 / 空狀態 ── */
+  .state-box {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .state-box .icon { font-size: 40px; margin-bottom: 12px; }
+  .state-box p { font-size: 14px; }
+
+  /* ── 儀器表格 ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 12px; font-weight: 600;
+    color: var(--muted); letter-spacing: .05em;
+    text-transform: uppercase;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  /* 可排序欄位 */
+  thead th.sortable {
+    cursor: pointer; user-select: none;
+    transition: color .15s;
+  }
+  thead th.sortable:hover { color: var(--accent); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(226,232,240,.6);
+    transition: background .12s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--hover); }
+  tbody td { padding: 12px 16px; color: var(--text); vertical-align: middle; }
+
+  /* 操作按鈕 */
+  .action-btns { display: flex; gap: 6px; }
+  .btn-edit, .btn-del {
+    padding: 4px 10px; border-radius: 4px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid;
+    font-family: var(--font); transition: all .12s; white-space: nowrap;
+  }
+  .btn-edit { border-color: var(--accent); color: var(--accent); background: none; }
+  .btn-edit:hover { background: var(--hover); }
+  .btn-del { border-color: #fecaca; color: var(--danger); background: none; }
+  .btn-del:hover { background: #fef2f2; }
+
+  /* ── Modal：新增/編輯儀器 ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,24,34,.5); z-index: 500;
+    align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 10px;
+    box-shadow: var(--shadow-md); width: 100%; max-width: 520px;
+    animation: slideIn .18s ease; max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+  @keyframes slideIn {
+    from { opacity:0; transform:translateY(-12px) scale(.98) }
+    to   { opacity:1; transform:none }
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 1;
+  }
+  .modal-header h3 { font-size: 16px; font-weight: 700; }
+  .modal-close {
+    width: 28px; height: 28px; border: none; background: none;
+    cursor: pointer; font-size: 18px; color: var(--muted);
+    border-radius: 4px; transition: background .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+
+  /* 表單 */
+  .modal-body { padding: 20px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--muted); letter-spacing: .05em;
+    text-transform: uppercase; margin-bottom: 5px;
+  }
+  .form-group label .req { color: var(--danger); margin-left: 2px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 8px 11px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: var(--font); font-size: 14px; color: var(--text);
+    outline: none; transition: border-color .15s, box-shadow .15s;
+    background: var(--surface);
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .form-group input::placeholder, .form-group textarea::placeholder { color: #b0bec5; }
+  .form-group select {
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+  }
+  .form-group textarea { resize: none; line-height: 1.6; }
+
+  .modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px 16px; border-top: 1px solid var(--border);
+  }
+  .btn-cancel {
+    padding: 8px 16px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: none; color: var(--muted); transition: all .15s;
+  }
+  .btn-cancel:hover { border-color: #94a3b8; color: var(--text); }
+  .btn-save {
+    padding: 8px 20px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none;
+    background: var(--accent); color: #fff; transition: background .15s;
+  }
+  .btn-save:hover { background: #1648c0; }
+  .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  /* ── 確認刪除 Modal ── */
+  .confirm-box {
+    background: var(--surface); border-radius: 10px;
+    box-shadow: var(--shadow-md); width: 100%; max-width: 360px;
+    padding: 24px; text-align: center; animation: slideIn .18s ease;
+  }
+  .confirm-icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .confirm-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .confirm-btns { display: flex; justify-content: center; gap: 10px; }
+  .btn-confirm-del {
+    padding: 8px 20px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none;
+    background: var(--danger); color: #fff; transition: background .15s;
+  }
+  .btn-confirm-del:hover { background: #b91c1c; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1e2a3a; color: #e8f0fa;
+    padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 1000;
+    opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .toast.ok  { background: #15803d; }
+  .toast.err { background: #dc2626; }
+
+  /* spinner */
+  .spin {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: sp .7s linear infinite; vertical-align: middle;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ── 頁面標題 ── -->
+<div class="page-header">
+  <h1>&#x1F527; 儀器管理</h1>
+</div>
+
+<!-- ── 工具列 ── -->
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="search-icon">&#x1F50D;</span>
+    <input type="text" id="searchInput" placeholder="搜尋儀器名稱、型號、編號…" oninput="filterTable()">
+  </div>
+  <div class="toolbar-right">
+    <span class="item-count" id="itemCount">載入中…</span>
+    <button class="btn-add" onclick="openAddModal()">&#x2795; 新增儀器</button>
+  </div>
+</div>
+
+<!-- ── 主內容 ── -->
+<div class="content" id="content">
+  <div class="state-box">
+    <div class="icon">&#x23F3;</div>
+    <p>載入中…</p>
+  </div>
+</div>
+
+<!-- ── 新增/編輯儀器 Modal ── -->
+<div class="modal-backdrop" id="instrModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增儀器</h3>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- 欄位由 JS 動態產生（根據試算表欄位）-->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" id="btnSave" onclick="saveMember()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 確認刪除 Modal ── -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-icon">&#x26A0;&#xFE0F;</div>
+    <div class="confirm-title">確定要刪除這筆儀器？</div>
+    <div class="confirm-desc" id="confirmDesc">此操作無法復原，資料將從試算表中移除。</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="closeConfirm()">取消</button>
+      <button class="btn-confirm-del" id="btnConfirmDel" onclick="confirmDelete()">確定刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// instrument.html JavaScript
+// ════════════════════════════════════════════════════════════
+
+// ── Apps Script 網址 ──
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+// ── 試算表分頁名稱 ──
+var SHEET_NAME = '儀器管理';
+
+// ── 資料快取 ──
+var allData     = [];  // 從試算表讀回的原始資料（含 rowIndex）
+var filteredData = []; // 搜尋過濾後的資料
+var columns     = [];  // 欄位標題（從第一列讀取）
+
+// ── 排序狀態 ──
+var sortCol = 0;   // 目前排序的欄位索引
+var sortAsc = true;
+
+// ── 編輯狀態 ──
+var editMode     = 'add';
+var editRowIndex = null;
+var deleteRowIndex = null;
+
+// ════════════════════════════════════════════════════════════
+// 頁面載入：從試算表讀取儀器資料
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  loadData();
+});
+
+function loadData() {
+  document.getElementById('content').innerHTML =
+    '<div class="state-box"><div class="icon">&#x23F3;</div><p>載入中…</p></div>';
+  document.getElementById('itemCount').textContent = '載入中…';
+
+  fetch(SHEETS_URL + '?action=instrument')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        showStateBox('&#x26A0;&#xFE0F;', data.error);
+        return;
+      }
+      columns = data.columns || [];
+      allData = data.rows || [];
+      filteredData = allData.slice();
+      renderTable(filteredData);
+    })
+    .catch(function() {
+      showStateBox('&#x26A0;&#xFE0F;', '載入失敗，請確認網路連線');
+    });
+}
+
+// ════════════════════════════════════════════════════════════
+// 渲染表格
+// ════════════════════════════════════════════════════════════
+function renderTable(rows) {
+  document.getElementById('itemCount').textContent = rows.length + ' 筆';
+
+  if (rows.length === 0) {
+    showStateBox('&#x1F527;', columns.length > 0 ? '尚無儀器資料' : '試算表無資料');
+    return;
+  }
+
+  // ── 表頭（所有欄位可排序）──
+  var html = '<div class="table-wrap"><table><thead><tr>';
+  columns.forEach(function(col, i) {
+    var isActive = sortCol === i;
+    var arrow = isActive ? (sortAsc ? ' &#x25B2;' : ' &#x25BC;') : ' &#x25B2;&#x25BC;';
+    var arrowColor = isActive ? '#1a56db' : '#ccc';
+    html += '<th class="sortable" onclick="toggleSort(' + i + ')">' +
+      esc(col) +
+      '<span style="font-size:9px;color:' + arrowColor + ';margin-left:4px">' + arrow + '</span>' +
+      '</th>';
+  });
+  html += '<th>操作</th></tr></thead><tbody>';
+
+  // ── 資料列 ──
+  rows.forEach(function(row) {
+    html += '<tr>';
+    row.values.forEach(function(val) {
+      html += '<td>' + esc(String(val)) + '</td>';
+    });
+    html += '<td><div class="action-btns">' +
+      '<button class="btn-edit" onclick="openEditModal(' + row.rowIndex + ')">編輯</button>' +
+      '<button class="btn-del"  onclick="openDeleteConfirm(' + row.rowIndex + ',\'' + esc(row.values[0]) + '\')">刪除</button>' +
+      '</div></td></tr>';
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function showStateBox(icon, msg) {
+  document.getElementById('content').innerHTML =
+    '<div class="state-box"><div class="icon">' + icon + '</div><p>' + msg + '</p></div>';
+}
+
+// ════════════════════════════════════════════════════════════
+// 搜尋過濾
+// ════════════════════════════════════════════════════════════
+function filterTable() {
+  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) {
+    filteredData = allData.slice();
+  } else {
+    filteredData = allData.filter(function(row) {
+      return row.values.some(function(v) {
+        return String(v).toLowerCase().includes(q);
+      });
+    });
+  }
+  // 維持目前排序
+  sortData(filteredData, sortCol, sortAsc);
+  renderTable(filteredData);
+}
+
+// ════════════════════════════════════════════════════════════
+// 排序
+// ════════════════════════════════════════════════════════════
+function toggleSort(colIdx) {
+  if (sortCol === colIdx) {
+    sortAsc = !sortAsc;
+  } else {
+    sortCol = colIdx;
+    sortAsc = true;
+  }
+  sortData(filteredData, sortCol, sortAsc);
+  renderTable(filteredData);
+}
+
+function sortData(rows, colIdx, asc) {
+  rows.sort(function(a, b) {
+    var va = String(a.values[colIdx] || '');
+    var vb = String(b.values[colIdx] || '');
+    return asc ? va.localeCompare(vb, 'zh-TW') : vb.localeCompare(va, 'zh-TW');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// 新增儀器 Modal
+// ════════════════════════════════════════════════════════════
+function openAddModal() {
+  editMode = 'add';
+  editRowIndex = null;
+  document.getElementById('modalTitle').textContent = '新增儀器';
+  buildForm(null);
+  document.getElementById('btnSave').innerHTML = '新增';
+  document.getElementById('instrModal').classList.add('show');
+}
+
+// ════════════════════════════════════════════════════════════
+// 編輯儀器 Modal
+// ════════════════════════════════════════════════════════════
+function openEditModal(rowIndex) {
+  editMode = 'edit';
+  editRowIndex = rowIndex;
+  // 找到該列資料
+  var row = allData.find(function(r){ return r.rowIndex === rowIndex; });
+  document.getElementById('modalTitle').textContent = '編輯儀器';
+  buildForm(row ? row.values : null);
+  document.getElementById('btnSave').innerHTML = '儲存修改';
+  document.getElementById('instrModal').classList.add('show');
+}
+
+// ── 動態產生表單欄位（根據試算表欄位）──
+function buildForm(values) {
+  var html = '';
+  // 每兩個欄位一排（RWD 排版）
+  for (var i = 0; i < columns.length; i += 2) {
+    html += '<div class="form-row">';
+    for (var j = i; j < Math.min(i + 2, columns.length); j++) {
+      var val = values ? String(values[j] || '') : '';
+      html += '<div class="form-group">' +
+        '<label>' + esc(columns[j]) + (j === 0 ? '<span class="req">*</span>' : '') + '</label>' +
+        '<input id="field_' + j + '" value="' + esc(val) + '" placeholder="輸入' + esc(columns[j]) + '">' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('modalBody').innerHTML = html;
+  // 聚焦第一個欄位
+  var first = document.getElementById('field_0');
+  if (first) first.focus();
+}
+
+function closeModal() {
+  document.getElementById('instrModal').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════════════════
+// 儲存（新增或編輯）
+// ════════════════════════════════════════════════════════════
+function saveMember() {
+  // 收集所有欄位值
+  var values = [];
+  for (var i = 0; i < columns.length; i++) {
+    var el = document.getElementById('field_' + i);
+    values.push(el ? el.value.trim() : '');
+  }
+
+  // 第一欄必填
+  if (!values[0]) {
+    showToast(columns[0] + ' 為必填', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 儲存中…';
+
+  var payload = {
+    action:    editMode === 'add' ? 'addInstrument' : 'editInstrument',
+    sheetName: SHEET_NAME,
+    values:    values
+  };
+  if (editMode === 'edit') payload.rowIndex = editRowIndex;
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  })
+  .then(function() {
+    closeModal();
+    showToast(editMode === 'add' ? '儀器已新增' : '儀器已更新', 'ok');
+    setTimeout(function(){ loadData(); }, 800);
+  })
+  .catch(function() {
+    showToast('儲存失敗，請確認網路連線', 'err');
+    btn.disabled = false;
+    btn.innerHTML = editMode === 'add' ? '新增' : '儲存修改';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// 刪除儀器
+// ════════════════════════════════════════════════════════════
+function openDeleteConfirm(rowIndex, name) {
+  deleteRowIndex = rowIndex;
+  document.getElementById('confirmDesc').textContent =
+    '確定要刪除「' + name + '」？此操作無法復原。';
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('show');
+  deleteRowIndex = null;
+}
+
+function confirmDelete() {
+  if (deleteRowIndex === null) return;
+  var btn = document.getElementById('btnConfirmDel');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 刪除中…';
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify({
+      action:    'deleteInstrument',
+      sheetName: SHEET_NAME,
+      rowIndex:  deleteRowIndex
+    })
+  })
+  .then(function() {
+    closeConfirm();
+    showToast('儀器已刪除', 'ok');
+    setTimeout(function(){ loadData(); }, 800);
+  })
+  .catch(function() {
+    showToast('刪除失敗，請確認網路連線', 'err');
+    btn.disabled = false;
+    btn.innerHTML = '確定刪除';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// Toast 提示
+// ════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(function(){ el.className = 'toast'; }, 2500);
+}
+
+// ── 跳脫 HTML 特殊字元 ──
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
