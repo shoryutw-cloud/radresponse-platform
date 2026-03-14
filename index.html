@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>應變資訊平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --sidebar-bg: #ffffff;
+    --sidebar-width: 260px;
+    --header-h: 52px;
+    --accent: #1a56db;
+    --accent-light: #e8effd;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --hover: #f1f5ff;
+    --active: #dbeafe;
+    --active-text: #1a56db;
+    --danger: #dc2626;
+    --warn: #d97706;
+    --success: #16a34a;
+    --menu-arrow: #9aa5b8;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --radius: 6px;
+    --font: 'Noto Sans TC', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    height: var(--header-h);
+    background: #1e2a3a;
+    color: #c8d6e5;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #0f1820;
+    z-index: 200;
+  }
+
+  .topbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #fff;
+  }
+
+  .topbar-logo .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .topbar-logo .logo-text {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #e8f0fa;
+  }
+
+  .topbar-divider { width: 1px; height: 20px; background: #2d3e52; }
+
+  .topbar-link {
+    font-size: 12px;
+    color: #8da0b8;
+    text-decoration: none;
+    display: flex; align-items: center; gap: 4px;
+    transition: color 0.15s;
+  }
+  .topbar-link:hover { color: #c8d6e5; }
+
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: #4ade80;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulse-dot 2.5s ease infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #8da0b8;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    transition: background 0.15s;
+  }
+
+  .topbar-user:hover { background: rgba(255,255,255,0.05); }
+
+  .user-avatar {
+    width: 26px; height: 26px;
+    background: #2a4a7a;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: #7eb4e8;
+    font-weight: 600;
+  }
+
+  /* ── LAYOUT ── */
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sidebar-title {
+    padding: 20px 18px 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+
+  .sidebar-nav {
+    padding: 8px 0;
+    flex: 1;
+  }
+
+  /* NAV ITEM */
+  .nav-item { position: relative; }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 9px 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    text-align: left;
+    gap: 8px;
+    transition: background 0.15s;
+    text-decoration: none;
+  }
+
+  .nav-btn:hover { background: var(--hover); }
+  .nav-btn.active { background: var(--active); color: var(--active-text); }
+
+  .nav-btn .nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
+  .nav-btn .nav-label { flex: 1; }
+
+  .nav-btn .nav-arrow {
+    font-size: 10px;
+    color: var(--menu-arrow);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .nav-btn.open .nav-arrow { transform: rotate(180deg); }
+
+  /* SUBMENU */
+  .submenu {
+    display: none;
+    background: #fafbfd;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .submenu.open { display: block; }
+
+  .sub-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .sub-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 18px 8px 46px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 13px;
+    color: #3d5070;
+    text-align: left;
+    gap: 6px;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+  }
+
+  .sub-btn:hover { background: var(--hover); color: var(--accent); }
+  .sub-btn.active { color: var(--accent); font-weight: 500; }
+  .sub-btn .sub-arrow { margin-left: auto; font-size: 9px; color: var(--menu-arrow); transition: transform 0.2s; }
+  .sub-btn.open .sub-arrow { transform: rotate(90deg); }
+
+  /* LEVEL 3 */
+  .submenu-l3 { display: none; background: #f4f6fa; }
+  .submenu-l3.open { display: block; }
+
+  .sub-l3-btn {
+    display: block;
+    width: 100%;
+    padding: 7px 18px 7px 60px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 12.5px;
+    color: #5a6e88;
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+  }
+
+  .sub-l3-btn:hover { background: var(--hover); color: var(--accent); }
+
+  /* TOOLTIP */
+  .has-tooltip { position: relative; }
+
+  .tooltip {
+    display: none;
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1e2a3a;
+    color: #c8d6e5;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    white-space: nowrap;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+  }
+
+  .tooltip::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: #1e2a3a;
+  }
+
+  .has-tooltip:hover .tooltip { display: block; }
+
+  /* SIDEBAR BOTTOM */
+  .sidebar-bottom {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 16px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    font-weight: 400;
+  }
+
+  .logout-btn:hover { border-color: var(--danger); color: var(--danger); background: #fff5f5; }
+
+  /* ── MAP AREA ── */
+  .map-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+    background: #e8edf2;
+  }
+
+  /* Map placeholder (shown when no real map) */
+  .map-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #dde4ec;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #8da0b8;
+  }
+
+  /* MAP OVERLAY BADGE */
+  .map-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 160px;
+  }
+
+  .map-badge-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .map-badge-row .label { color: var(--text-muted); }
+
+  .map-badge-row .val {
+    font-weight: 600;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .val.green { color: var(--success); }
+  .val.warn { color: var(--warn); }
+  .val.danger { color: var(--danger); }
+
+  /* MAP ZOOM CONTROLS */
+  .map-controls {
+    position: absolute;
+    bottom: 30px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .map-ctrl-btn {
+    width: 32px; height: 32px;
+    background: white;
+    border: 1px solid #d0d8e4;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    color: var(--text-muted);
+    box-shadow: var(--shadow);
+    transition: background 0.15s;
+    font-weight: 300;
+  }
+
+  .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
+
+  /* MAP COMPASS */
+  .map-compass {
+    position: absolute;
+    bottom: 30px;
+    right: 54px;
+    width: 34px; height: 34px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    color: var(--danger);
+    font-weight: 700;
+    border: 1px solid #d0d8e4;
+  }
+
+  /* CONTENT PANEL (shown when menu item clicked) */
+  .content-panel {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    overflow-y: auto;
+    display: none;
+    z-index: 10;
+  }
+
+  .content-panel.active { display: block; }
+
+  .panel-header {
+    position: sticky;
+    top: 0;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1;
+    box-shadow: var(--shadow);
+  }
+
+  .panel-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    transition: opacity 0.15s;
+    font-family: var(--font);
+  }
+
+  .panel-back:hover { opacity: 0.7; }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .panel-body { padding: 24px; max-width: 900px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* ── LEAFLET MAP ── */
+  .leaflet-container { font-family: var(--font) !important; }
+
+  /* MOBILE */
+  @media (max-width: 600px) {
+    :root { --sidebar-width: 240px; }
+    .sidebar { position: absolute; left: -240px; top: var(--header-h); bottom: 0; z-index: 100; transition: left 0.3s; box-shadow: none; }
+    .sidebar.open { left: 0; box-shadow: var(--shadow-md); }
+    .map-area { width: 100%; }
+    .menu-toggle { display: flex !important; }
+  }
+
+  .menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    background: none;
+    border: 1px solid #2d3e52;
+    border-radius: var(--radius);
+    color: #8da0b8;
+    cursor: pointer;
+    font-size: 16px;
+  }
+</style>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <button class="menu-toggle" id="menuToggle">☰</button>
+  <a href="#" class="topbar-logo">
+    <div class="logo-icon">☢</div>
+    <span class="logo-text">應變資訊平台</span>
+  </a>
+  <div class="topbar-divider"></div>
+  <a href="#" class="topbar-link">📝 編輯網站</a>
+  <a href="#" class="topbar-link">💬 0</a>
+  <a href="#" class="topbar-link">＋ 新增</a>
+  <div class="topbar-right">
+    <div class="topbar-status">
+      <span class="status-dot"></span>
+      系統正常
+    </div>
+    <div class="topbar-user">
+      <div class="user-avatar">QQ</div>
+      <span>你好，QQ</span>
+      <span style="font-size:10px;">▾</span>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">測試用應變資訊平台</div>
+
+    <nav class="sidebar-nav">
+
+      <!-- 事件儀表板 -->
+      <div class="nav-item">
+        <button class="nav-btn" onclick="toggleMenu(this)">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">事件儀表板</span>
+          <span class="nav-arrow">▼</span>
+        </button>
+        <div class="submenu">
+          <div class="sub-item has-tooltip">
+            <button class="sub-btn" onclick="openPanel('目前任務', '📝')">目前任務</button>
+            <div class="tooltip">預設顯示目前開設事件，若無開設事件請於歷史事件中查詢。</div>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('事件出勤人員', '👤')">事件出勤人員</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('事件出動儀器', '🔧')">事件出動儀器</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('歷史事件查詢', '🗂️')">歷史事件查詢</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 現場回報 -->
+      <div class="nav-item">
+        <button class="nav-btn" onclick="toggleMenu(this)">
+          <span class="nav-icon">📞</span>
+          <span class="nav-label">現場回報</span>
+          <span class="nav-arrow">▼</span>
+        </button>
+        <div class="submenu">
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('人工回報量測數值', '📊')">人工回報量測數值</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('儀器回報量測數值', '📡')">儀器回報量測數值</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('任務回報', '✅')">任務回報</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('回報數值查詢', '🔍')">回報數值查詢</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('現場其他事情回報', '📋')">現場其他事情回報</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 個人資料維護 -->
+      <div class="nav-item">
+        <button class="nav-btn" onclick="openPanel('個人資料維護', '🪪')">
+          <span class="nav-icon">🪪</span>
+          <span class="nav-label">個人資料維護</span>
+        </button>
+      </div>
+
+      <!-- 使用說明 -->
+      <div class="nav-item">
+        <button class="nav-btn" onclick="openPanel('使用說明', 'ℹ️')">
+          <span class="nav-icon">ℹ️</span>
+          <span class="nav-label">使用說明</span>
+        </button>
+      </div>
+
+      <!-- 後台功能 -->
+      <div class="nav-item">
+        <button class="nav-btn" onclick="toggleMenu(this)">
+          <span class="nav-icon">🔑</span>
+          <span class="nav-label">後台功能（管理員才有）</span>
+          <span class="nav-arrow">▼</span>
+        </button>
+        <div class="submenu">
+
+          <!-- 事件管理 (L3) -->
+          <div class="sub-item">
+            <button class="sub-btn" onclick="toggleL3(this)">
+              📋 事件管理
+              <span class="sub-arrow">▶</span>
+            </button>
+            <div class="submenu-l3">
+              <button class="sub-l3-btn" onclick="openPanel('建立事件', '➕')">建立事件</button>
+              <button class="sub-l3-btn" onclick="openPanel('任務派送', '📤')">任務派送</button>
+              <button class="sub-l3-btn" onclick="openPanel('出勤人員異動', '👥')">出勤人員異動</button>
+              <button class="sub-l3-btn" onclick="openPanel('出動儀器異動', '⚙️')">出動儀器異動</button>
+            </div>
+          </div>
+
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('編組管理', '👥')">👥 編組管理</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('儀器管理', '🔧')">🔧 儀器管理</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('新增地圖Icon圖示', '📍')">📍 新增地圖Icon圖示</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('出勤通知簡訊紀錄', '📱')">📱 出勤通知簡訊紀錄</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('事件異動紀錄', '📜')">📜 事件異動紀錄</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('各帳號異動紀錄', '🗒️')">🗒️ 各帳號異動紀錄</button>
+          </div>
+          <div class="sub-item">
+            <button class="sub-btn" onclick="openPanel('各帳號登入紀錄', '🔐')">🔐 各帳號登入紀錄</button>
+          </div>
+        </div>
+      </div>
+
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="logout-btn">⬅ 登出</button>
+    </div>
+  </aside>
+
+  <!-- MAP AREA -->
+  <main class="map-area" id="mapArea">
+    <div id="map"></div>
+
+    <!-- Map info badge -->
+    <div class="map-badge">
+      <div style="font-size:11px;font-weight:600;color:#3d5070;margin-bottom:4px;letter-spacing:0.05em;text-transform:uppercase;">事件狀態</div>
+      <div class="map-badge-row">
+        <span class="label">進行中事件</span>
+        <span class="val green">0</span>
+      </div>
+      <div class="map-badge-row">
+        <span class="label">出勤人員</span>
+        <span class="val">—</span>
+      </div>
+      <div class="map-badge-row">
+        <span class="label">出動儀器</span>
+        <span class="val">—</span>
+      </div>
+    </div>
+
+    <!-- Zoom controls -->
+    <div class="map-controls">
+      <button class="map-ctrl-btn" onclick="mapZoom(1)">＋</button>
+      <button class="map-ctrl-btn" onclick="mapZoom(-1)">－</button>
+    </div>
+
+    <!-- Compass -->
+    <div class="map-compass">北</div>
+
+    <!-- Content Panel (overlays map) -->
+    <div class="content-panel" id="contentPanel">
+      <div class="panel-header">
+        <button class="panel-back" onclick="closePanel()">← 返回地圖</button>
+        <span style="color:#d0d8e4;">|</span>
+        <span class="panel-title" id="panelTitle">—</span>
+      </div>
+      <div class="panel-body" id="panelBody"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── INIT MAP ──
+const map = L.map('map', {
+  zoomControl: false,
+  attributionControl: true
+}).setView([25.046, 121.517], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+// Example markers
+const markers = [
+  { lat: 25.046, lng: 121.517, label: '指揮中心', color: '#1a56db' },
+  { lat: 25.052, lng: 121.508, label: '量測點 A', color: '#16a34a' },
+  { lat: 25.039, lng: 121.525, label: '量測點 B', color: '#d97706' },
+];
+
+markers.forEach(m => {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      background:${m.color};
+      color:#fff;
+      border-radius:50%;
+      width:14px;height:14px;
+      border:2px solid white;
+      box-shadow:0 1px 4px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [14,14],
+    iconAnchor: [7,7]
+  });
+  L.marker([m.lat, m.lng], { icon })
+    .addTo(map)
+    .bindPopup(`<b>${m.label}</b>`);
+});
+
+function mapZoom(dir) {
+  if (dir > 0) map.zoomIn(); else map.zoomOut();
+}
+
+// ── MENU TOGGLE ──
+function toggleMenu(btn) {
+  const submenu = btn.nextElementSibling;
+  const isOpen = submenu.classList.contains('open');
+
+  // Close all other submenus at same level
+  btn.closest('.sidebar-nav').querySelectorAll('.submenu').forEach(s => {
+    if (s !== submenu) {
+      s.classList.remove('open');
+      s.previousElementSibling?.classList.remove('open');
+    }
+  });
+
+  submenu.classList.toggle('open', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+}
+
+function toggleL3(btn) {
+  const submenu = btn.nextElementSibling;
+  submenu.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+// ── CONTENT PANELS ──
+const PANEL_CONTENT = {
+  '目前任務': '<div class="empty-state"><div class="icon">📝</div><h3>目前無開設事件</h3><p>目前沒有進行中的事件。<br>若需查詢歷史事件，請至「歷史事件查詢」。</p></div>',
+  '事件出勤人員': '<div class="empty-state"><div class="icon">👤</div><h3>事件出勤人員</h3><p>目前無進行中事件，故無出勤人員資料。</p></div>',
+  '事件出動儀器': '<div class="empty-state"><div class="icon">🔧</div><h3>事件出動儀器</h3><p>目前無進行中事件，故無出動儀器資料。</p></div>',
+  '歷史事件查詢': '<div class="empty-state"><div class="icon">🗂️</div><h3>歷史事件查詢</h3><p>尚無歷史事件紀錄。</p></div>',
+  '人工回報量測數值': '<div class="empty-state"><div class="icon">📊</div><h3>人工回報量測數值</h3><p>請選擇事件後進行量測數值回報。</p></div>',
+  '儀器回報量測數值': '<div class="empty-state"><div class="icon">📡</div><h3>儀器回報量測數值</h3><p>目前無連線儀器。</p></div>',
+  '任務回報': '<div class="empty-state"><div class="icon">✅</div><h3>任務回報</h3><p>目前無指派任務。</p></div>',
+  '回報數值查詢': '<div class="empty-state"><div class="icon">🔍</div><h3>回報數值查詢</h3><p>尚無回報數值紀錄。</p></div>',
+  '現場其他事情回報': '<div class="empty-state"><div class="icon">📋</div><h3>現場其他事情回報</h3><p>填寫現場狀況回報表單。</p></div>',
+  '個人資料維護': '<div class="empty-state"><div class="icon">🪪</div><h3>個人資料維護</h3><p>管理您的帳號資料、聯絡方式及所屬編組。</p></div>',
+  '使用說明': '<div class="empty-state"><div class="icon">ℹ️</div><h3>使用說明</h3><p>請參閱操作手冊或聯絡系統管理員。</p></div>',
+  '建立事件': '<div class="empty-state"><div class="icon">➕</div><h3>建立事件</h3><p>填寫新事件資訊以開設應變事件。</p></div>',
+  '任務派送': '<div class="empty-state"><div class="icon">📤</div><h3>任務派送</h3><p>派送任務至出勤人員。</p></div>',
+  '出勤人員異動': '<div class="empty-state"><div class="icon">👥</div><h3>出勤人員異動</h3><p>新增或移除出勤人員。</p></div>',
+  '出動儀器異動': '<div class="empty-state"><div class="icon">⚙️</div><h3>出動儀器異動</h3><p>管理出動儀器清單。</p></div>',
+  '編組管理': '<div class="empty-state"><div class="icon">👥</div><h3>編組管理</h3><p>管理應變編組及人員配置。</p></div>',
+  '儀器管理': '<div class="empty-state"><div class="icon">🔧</div><h3>儀器管理</h3><p>維護儀器清單及校正紀錄。</p></div>',
+  '新增地圖Icon圖示': '<div class="empty-state"><div class="icon">📍</div><h3>新增地圖 Icon 圖示</h3><p>在地圖上新增標記或圖示。</p></div>',
+  '出勤通知簡訊紀錄': '<div class="empty-state"><div class="icon">📱</div><h3>出勤通知簡訊紀錄</h3><p>查詢發送的出勤通知簡訊紀錄。</p></div>',
+  '事件異動紀錄': '<div class="empty-state"><div class="icon">📜</div><h3>事件異動紀錄</h3><p>查詢事件建立及修改的歷史紀錄。</p></div>',
+  '各帳號異動紀錄': '<div class="empty-state"><div class="icon">🗒️</div><h3>各帳號異動紀錄</h3><p>查詢帳號資料變更紀錄。</p></div>',
+  '各帳號登入紀錄': '<div class="empty-state"><div class="icon">🔐</div><h3>各帳號登入紀錄</h3><p>查詢各帳號的登入時間及 IP 紀錄。</p></div>',
+};
+
+function openPanel(title, icon) {
+  document.getElementById('panelTitle').textContent = `${icon} ${title}`;
+  document.getElementById('panelBody').innerHTML = PANEL_CONTENT[title] || '<div class="empty-state"><div class="icon">🔧</div><h3>功能開發中</h3><p>此功能尚未開放。</p></div>';
+  document.getElementById('contentPanel').classList.add('active');
+
+  // Mark active
+  document.querySelectorAll('.sub-btn, .sub-l3-btn, .nav-btn').forEach(b => b.classList.remove('active'));
+}
+
+function closePanel() {
+  document.getElementById('contentPanel').classList.remove('active');
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+// ── MOBILE TOGGLE ──
+document.getElementById('menuToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+// Close sidebar on map click (mobile)
+document.getElementById('mapArea').addEventListener('click', () => {
+  if (window.innerWidth <= 600) {
+    document.getElementById('sidebar').classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>
