@@ -517,12 +517,13 @@ function renderAllTable(members, col, asc) {
   }
 
   // 欄位定義：key / 顯示名稱 / 可排序
+  // 欄位順序：職稱/姓名/手機/電話/所屬編組/所屬組室（排序在最右）
   var COLS = [
-    { key:'group',  label:'所屬編組', sort:true  },
     { key:'title',  label:'職稱',     sort:false },
     { key:'name',   label:'姓名',     sort:false },
     { key:'mobile', label:'手機',     sort:false },
     { key:'phone',  label:'電話',     sort:false },
+    { key:'group',  label:'所屬編組', sort:false },
     { key:'dept',   label:'所屬組室', sort:true  }
   ];
 
@@ -546,12 +547,12 @@ function renderAllTable(members, col, asc) {
 
   sorted.forEach(function(m) {
     html += '<tr>' +
-      '<td><span style="font-size:11px;background:#e8effd;color:#1a56db;padding:2px 8px;border-radius:20px;white-space:nowrap">' +
-        esc(m.group) + '</span></td>' +
       '<td class="title-cell">' + esc(m.title) + '</td>' +
       '<td>' + esc(m.name) + '</td>' +
       '<td>' + esc(m.mobile) + '</td>' +
       '<td>' + esc(m.phone) + '</td>' +
+      '<td><span style="font-size:11px;background:#e8effd;color:#1a56db;padding:2px 8px;border-radius:20px;white-space:nowrap">' +
+        esc(m.group) + '</span></td>' +
       '<td>' + esc(m.dept) + '</td>' +
       '</tr>';
   });
