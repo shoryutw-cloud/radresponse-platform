@@ -484,6 +484,10 @@ var currentGroup = 'tech-rdd'; // 預設顯示技術組-輻射彈（必須是這
 var editMode = 'add';
 var editRowIndex = null;
 
+// ── 編組名單排序狀態 ──
+var groupSortCol = '';   // 目前排序欄位 key（空字串=不排序）
+var groupSortAsc = true; // true=升冪 false=降冪
+
 // ── 待刪除的列號 ──
 var deleteRowIndex = null;
 
@@ -501,8 +505,10 @@ function filterGroup() {
           .some(function(v){ return String(v).toLowerCase().includes(q); });
       })
     : currentMembers.slice();
-  document.getElementById('gcount').textContent = filtered.length + ' / ' + currentMembers.length + ' 人';
-  renderTableFiltered(filtered);
+  // 過濾後維持目前排序
+  var sortedFiltered = sortMembers(filtered.slice());
+  document.getElementById('gcount').textContent = sortedFiltered.length + ' / ' + currentMembers.length + ' 人';
+  renderTableFiltered(sortedFiltered);
 }
 
 // ── 渲染過濾後的表格（不含標題列和新增按鈕，只換 tbody）──
@@ -689,6 +695,9 @@ function renderTable(data) {
   // 快取供搜尋使用
   currentMembers = members.slice();
   currentSheetName = data.sheetName || '';
+  // 切換分頁時重置排序
+  groupSortCol = '';
+  groupSortAsc = true;
   // 顯示搜尋列
   document.getElementById('groupToolbar').style.display = 'flex';
   document.getElementById('gcount').textContent = members.length + ' 人';
@@ -697,6 +706,33 @@ function renderTable(data) {
 }
 
 // ── 實際渲染（搜尋時只傳過濾後的 members）──
+
+// ── 切換編組名單排序 ──
+// col = 欄位 key（title/name/mobile/phone/dept/team）
+function toggleGroupSort(col) {
+  if (groupSortCol === col) {
+    groupSortAsc = !groupSortAsc;
+  } else {
+    groupSortCol = col;
+    groupSortAsc = true;
+  }
+  // 對目前成員資料重新排序並渲染
+  var sorted = sortMembers(currentMembers.slice());
+  renderTableData({ members: sorted, sheetName: currentSheetName }, true);
+}
+
+// ── 對成員陣列排序 ──
+function sortMembers(members) {
+  if (!groupSortCol) return members;
+  return members.sort(function(a, b) {
+    var va = String(a[groupSortCol] || '');
+    var vb = String(b[groupSortCol] || '');
+    return groupSortAsc
+      ? va.localeCompare(vb, 'zh-TW')
+      : vb.localeCompare(va, 'zh-TW');
+  });
+}
+
 function renderTableData(data, showHeader) {
   var members = data.members || [];
 
@@ -721,12 +757,28 @@ function renderTableData(data, showHeader) {
 
   // 技術組（3個）才顯示「隊別」欄
   var isTechGroup = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
-  html += '<div class="table-wrap"><table>' +
-    '<thead><tr>' +
-    '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th>' +
-    (isTechGroup ? '<th>隊別</th>' : '') +
-    '<th>操作</th>' +
-    '</tr></thead><tbody>';
+
+  // ── 表頭：所有欄位可排序 ──
+  var COLS = [
+    { key:'title',  label:'職稱'   },
+    { key:'name',   label:'姓名'   },
+    { key:'mobile', label:'手機'   },
+    { key:'phone',  label:'電話'   },
+    { key:'dept',   label:'所屬組室'},
+  ];
+  if (isTechGroup) COLS.push({ key:'team', label:'隊別' });
+
+  html += '<div class="table-wrap"><table><thead><tr>';
+  COLS.forEach(function(c) {
+    var isActive = groupSortCol === c.key;
+    var arrow = isActive ? (groupSortAsc ? ' &#x25B2;' : ' &#x25BC;') : ' &#x25B2;&#x25BC;';
+    var arrowColor = isActive ? '#1a56db' : '#ccc';
+    html += '<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="toggleGroupSort(\'' + c.key + '\')">' +
+      c.label +
+      '<span style="font-size:9px;color:' + arrowColor + ';margin-left:4px">' + arrow + '</span>' +
+      '</th>';
+  });
+  html += '<th>操作</th></tr></thead><tbody>';
 
   members.forEach(function(m) {
     var isSub = SUB_TITLES.indexOf(m.title) >= 0;
