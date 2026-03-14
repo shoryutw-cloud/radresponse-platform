@@ -1305,12 +1305,17 @@ function _ceLoadPersonnel() {
     return fetch(SHEETS_URL + '?action=group&id=' + t.id)
       .then(function(r){ return r.json(); })
       .then(function(d){ _ceCache[t.id] = d.members||[]; return { id:t.id, label:t.label, members:_ceCache[t.id] }; })
-      .catch(function(){ return { id:t.id, label:t.label, members:[] }; });
+      .catch(function(err){ console.error('[出勤人員] fetch 失敗:', t.id, err); return { id:t.id, label:t.label, members:[] }; });
   });
   Promise.all(promises).then(function(results) { _ceRenderPersonnel(results, techId); });
 }
 
 function _ceRenderPersonnel(groups, techId) {
+  // DEBUG：印出讀回的資料，開啟瀏覽器 F12 → Console 查看
+  console.log('[出勤人員] techId:', techId);
+  groups.forEach(function(g) {
+    console.log('[出勤人員]', g.id, g.label, '→', g.members.length, '人', g.members.length ? g.members[0] : '(空)');
+  });
   var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
   groups.forEach(function(g) {
     if (!g.members.length) return;
