@@ -502,10 +502,10 @@
        │   └─ 無 data-menu  直接 onclick 執行功能的項目
        └─ .sidebar-bottom  登出按鈕
        ────────────────────────────────────────────────────── -->
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar open pinned" id="sidebar">
     <div class=sidebar-title>
       測試用應變資訊平台
-      <button class=pin-btn id=pinBtn title=固定側欄>&#x1F4CC;</button>
+      <button class="pin-btn pinned" id="pinBtn" title="固定側欄">&#x1F4CC;</button>
     </div>
     <nav class="sidebar-nav">
 
@@ -562,7 +562,7 @@
        ├─ .map-compass     北方指標
        └─ .content-panel   功能說明面板（覆蓋在地圖上，預設隱藏）
        ────────────────────────────────────────────────────── -->
-  <main class="map-area">
+  <main class="map-area sidebar-pinned" id="mapArea">
     <div id="map"></div>
     <div id="map-fallback">
       <div style="font-size:48px">&#x1F5FA;&#xFE0F;</div>
@@ -815,7 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // 切換：.sidebar.pinned（CSS transform:translateX(0) 固定）
   //       .map-area.sidebar-pinned（CSS margin-left: 240px 讓地圖右移）
   // ── PIN LOGIC ──
-  var isPinned = false;
+  var isPinned = true; // 預設釘住
   var pinBtn = document.getElementById('pinBtn');
   var layout = document.querySelector('.layout');
 
@@ -965,7 +965,25 @@ function openCreateEvent(){
   // 立刻關閉所有浮動選單和側欄（避免選單殘留在畫面上）
   closeAllMenus();
   closeSidebar();
-  // 每次開啟都先重置成功畫面，確保顯示全新表單
+
+  // ── 完整清空所有欄位（確保每次都是全新表單）──
+  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
+  _ceLat = null; _ceLng = null;
+  document.getElementById('ceCo').style.display = 'none';
+  document.getElementById('ceAst').innerHTML = '';
+  document.getElementById('ceMH').style.display = '';
+  document.getElementById('ceSub').disabled = false;
+  document.getElementById('ceSub').innerHTML = '&#x2705; 建立事件';
+  if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
+  // 重設日期時間為現在
+  var d = new Date();
+  document.getElementById('ceDate').value = d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+
+  // 隱藏成功畫面、顯示 Modal
   document.getElementById('ceOK').classList.remove('show');
   document.getElementById('ceBackdrop').classList.add('show');
   var d=new Date();
