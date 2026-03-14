@@ -213,6 +213,158 @@
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* CREATE EVENT MODAL */
+  .ce-backdrop {
+    display:none; position:fixed; inset:0;
+    background:rgba(15,24,34,.6); z-index:2000;
+    align-items:center; justify-content:center; padding:20px;
+    backdrop-filter:blur(3px);
+  }
+  .ce-backdrop.show { display:flex; }
+  .ce-modal {
+    background:#fff; border-radius:12px;
+    box-shadow:0 8px 48px rgba(0,0,0,.25);
+    width:100%; max-width:960px; max-height:calc(100vh - 40px);
+    display:flex; flex-direction:column; overflow:hidden;
+    animation:ceIn .2s ease;
+  }
+  @keyframes ceIn { from{opacity:0;transform:translateY(-14px) scale(.98)} to{opacity:1;transform:none} }
+  .ce-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px 14px; border-bottom:1px solid #e2e8f0; flex-shrink:0;
+  }
+  .ce-header h2 { font-size:17px; font-weight:700; color:#1e2a3a; }
+  .ce-hright { display:flex; align-items:center; gap:10px; }
+  .ce-evid {
+    font-family:ui-monospace,monospace; font-size:11px; color:#6b7a92;
+    background:#f0f2f5; padding:3px 8px; border-radius:4px; border:1px solid #e2e8f0;
+  }
+  .ce-close {
+    width:30px; height:30px; border-radius:6px; border:none; background:none;
+    cursor:pointer; font-size:18px; color:#6b7a92; display:flex;
+    align-items:center; justify-content:center; transition:background .15s;
+  }
+  .ce-close:hover { background:#f0f2f5; color:#1e2a3a; }
+  .ce-body { display:flex; flex:1; overflow:hidden; min-height:0; }
+  .ce-form {
+    width:340px; flex-shrink:0; padding:20px 24px;
+    overflow-y:auto; border-right:1px solid #e2e8f0;
+  }
+  .ce-form::-webkit-scrollbar{width:3px}
+  .ce-form::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px}
+  .ce-group { margin-bottom:16px; }
+  .ce-lbl {
+    display:block; font-size:11px; font-weight:600; color:#6b7a92;
+    letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;
+  }
+  .ce-lbl .req { color:#dc2626; margin-left:2px; }
+  .ce-inp, .ce-sel, .ce-ta {
+    width:100%; padding:8px 11px; border:1px solid #e2e8f0; border-radius:6px;
+    font-family:var(--font); font-size:13px; color:#1e2a3a;
+    background:#fff; outline:none; transition:border-color .15s,box-shadow .15s;
+  }
+  .ce-inp:focus,.ce-sel:focus,.ce-ta:focus {
+    border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.1);
+  }
+  .ce-inp::placeholder,.ce-ta::placeholder { color:#b0bec5; }
+  .ce-sel {
+    appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; padding-right:28px;
+  }
+  .ce-ta { resize:none; line-height:1.6; }
+  .ce-dtrow { display:flex; gap:8px; }
+  .ce-dtrow > div { flex:1; }
+  .ce-pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .ce-pill {
+    padding:5px 12px; border-radius:20px; cursor:pointer; font-size:12px;
+    font-weight:500; border:1.5px solid #e2e8f0; color:#6b7a92; background:#fff;
+    transition:all .15s; user-select:none;
+  }
+  .ce-pill:hover { border-color:#1a56db; color:#1a56db; }
+  .ce-pill.p-red    { border-color:#dc2626; background:#fef2f2; color:#dc2626; font-weight:600; }
+  .ce-pill.p-orange { border-color:#d97706; background:#fffbeb; color:#d97706; font-weight:600; }
+  .ce-pill.p-blue   { border-color:#1a56db; background:#e8effd; color:#1a56db; font-weight:600; }
+  .ce-awrap { position:relative; }
+  .ce-awrap .ce-inp { padding-right:34px; }
+  .ce-asearch {
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:#6b7a92; font-size:15px; padding:2px;
+    transition:color .15s;
+  }
+  .ce-asearch:hover { color:#1a56db; }
+  .ce-sugg {
+    position:absolute; top:calc(100% + 3px); left:0; right:0;
+    background:#fff; border:1px solid #e2e8f0; border-radius:6px;
+    box-shadow:0 4px 16px rgba(0,0,0,.1); z-index:3000;
+    max-height:160px; overflow-y:auto; display:none;
+  }
+  .ce-sugg.show { display:block; }
+  .ce-si {
+    padding:8px 12px; cursor:pointer; font-size:12px; color:#1e2a3a;
+    border-bottom:1px solid #f0f4f8; transition:background .1s;
+  }
+  .ce-si:last-child { border-bottom:none; }
+  .ce-si:hover { background:#f1f5ff; }
+  .ce-si-m { font-weight:500; }
+  .ce-si-s { font-size:11px; color:#6b7a92; margin-top:1px; }
+  .ce-ast { font-size:11px; margin-top:4px; min-height:15px; }
+  .ce-ast.ok  { color:#16a34a; }
+  .ce-ast.err { color:#dc2626; }
+  .ce-ast.loading { color:#6b7a92; }
+  .ce-coords { display:flex; gap:6px; margin-top:6px; }
+  .ce-cbox { flex:1; background:#f0f2f5; border:1px solid #e2e8f0; border-radius:5px; padding:5px 9px; }
+  .ce-clbl { font-size:10px; color:#6b7a92; font-family:ui-monospace,monospace; }
+  .ce-cval { font-size:12px; font-family:ui-monospace,monospace; color:#1e2a3a; font-weight:500; margin-top:1px; }
+  .ce-div { border:none; border-top:1px solid #e2e8f0; margin:14px 0; }
+  .ce-mapcol { flex:1; position:relative; overflow:hidden; }
+  #ce-map { width:100%; height:100%; background:#e8edf2; }
+  .ce-maphint {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    background:rgba(30,42,58,.82); color:#e8f0fa; font-size:11px;
+    padding:5px 12px; border-radius:20px; pointer-events:none;
+    white-space:nowrap; z-index:10;
+  }
+  .ce-mapcol .leaflet-pane,.ce-mapcol .leaflet-tile,
+  .ce-mapcol .leaflet-marker-icon,.ce-mapcol .leaflet-marker-shadow,
+  .ce-mapcol .leaflet-tile-container,.ce-mapcol .leaflet-map-pane,
+  .ce-mapcol .leaflet-overlay-pane,.ce-mapcol .leaflet-shadow-pane,
+  .ce-mapcol .leaflet-marker-pane,.ce-mapcol .leaflet-tooltip-pane,
+  .ce-mapcol .leaflet-popup-pane,.ce-mapcol .leaflet-control { z-index:1 !important; }
+  .ce-mapcol .leaflet-top,.ce-mapcol .leaflet-bottom { z-index:2 !important; }
+  .ce-footer {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 24px; border-top:1px solid #e2e8f0; flex-shrink:0; gap:10px;
+  }
+  .ce-fstatus { font-size:12px; color:#6b7a92; }
+  .ce-fstatus.ok { color:#16a34a; }
+  .ce-fbtns { display:flex; gap:8px; }
+  .ce-btn {
+    padding:8px 18px; border-radius:6px; font-family:var(--font); font-size:13px;
+    font-weight:500; cursor:pointer; border:none; transition:all .15s; white-space:nowrap;
+  }
+  .ce-btn-g { background:none; border:1px solid #e2e8f0; color:#6b7a92; }
+  .ce-btn-g:hover { border-color:#94a3b8; color:#1e2a3a; }
+  .ce-btn-p { background:#1a56db; color:#fff; }
+  .ce-btn-p:hover { background:#1648c0; }
+  .ce-btn-p:disabled { background:#94a3b8; cursor:not-allowed; }
+  .ce-ok {
+    display:none; position:absolute; inset:0; background:rgba(255,255,255,.96);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:12px; z-index:50; border-radius:12px;
+  }
+  .ce-ok.show { display:flex; }
+  .ce-ok-icon { font-size:52px; }
+  .ce-ok-title { font-size:18px; font-weight:700; color:#1e2a3a; }
+  .ce-ok-id { font-family:ui-monospace,monospace; font-size:12px; color:#6b7a92; }
+  .ce-ok-btns { display:flex; gap:8px; margin-top:6px; }
+  .ce-spin {
+    display:inline-block; width:13px; height:13px;
+    border:2px solid rgba(255,255,255,.3); border-top-color:#fff;
+    border-radius:50%; animation:spin .7s linear infinite;
+  }
+
 </style>
 </head>
 <body>
@@ -340,7 +492,7 @@
 </div>
 
 <div class="fly-menu-l3" id="menu-jishi">
-  <button class="drop-l3-btn" onclick="openPanel('建立事件')">建立事件</button>
+  <button class="drop-l3-btn" onclick="openCreateEvent()">建立事件</button>
   <button class="drop-l3-btn" onclick="openPanel('任務派送')">任務派送</button>
   <button class="drop-l3-btn" onclick="openPanel('出勤人員異動')">出勤人員異動</button>
   <button class="drop-l3-btn" onclick="openPanel('出動儀器異動')">出動儀器異動</button>
@@ -572,6 +724,246 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   );
 });
+
+
+// ── CREATE EVENT MODAL ──
+var _ceMap=null,_ceMk=null,_ceLat=null,_ceLng=null,_ceTmr=null;
+
+function _ceId(){
+  var d=new Date(),s=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  return 'EVT-'+s+'-'+Math.floor(Math.random()*900+100);
+}
+function _ceIco(){
+  return L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,16]});
+}
+
+function openCreateEvent(){
+  document.getElementById('ceBackdrop').classList.add('show');
+  var d=new Date();
+  document.getElementById('ceDate').value=d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('ceEvId').textContent=_ceId();
+  ceVal();
+  setTimeout(function(){
+    if(typeof L==='undefined'){return;}
+    if(!_ceMap){
+      _ceMap=L.map('ce-map',{zoomControl:true}).setView([25.046,121.517],12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(_ceMap);
+      _ceMap.on('click',function(e){
+        _ceLat=e.latlng.lat; _ceLng=e.latlng.lng;
+        if(_ceMk) _ceMk.setLatLng([_ceLat,_ceLng]);
+        else _ceMk=L.marker([_ceLat,_ceLng],{icon:_ceIco()}).addTo(_ceMap);
+        document.getElementById('ceLt').textContent=_ceLat.toFixed(6);
+        document.getElementById('ceLn').textContent=_ceLng.toFixed(6);
+        document.getElementById('ceCo').style.display='flex';
+        document.getElementById('ceMH').style.display='none';
+        _ceAst('loading','取得地址中…');
+        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+_ceLat+'&lon='+_ceLng,{headers:{'Accept-Language':'zh-TW,zh,en'}})
+          .then(function(r){return r.json();})
+          .then(function(d){if(d&&d.display_name){document.getElementById('ceAddr').value=d.display_name;_ceAst('ok','&#x2714; 地點已定位');}ceVal();})
+          .catch(function(){ceVal();});
+      });
+    } else { _ceMap.invalidateSize(); }
+  },120);
+  closeSidebar();
+}
+
+function closeCreateEvent(){ document.getElementById('ceBackdrop').classList.remove('show'); }
+function ceBgClick(e){ if(e.target===document.getElementById('ceBackdrop')) closeCreateEvent(); }
+
+function cePick(el,t){
+  document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
+  el.classList.add(el.getAttribute('data-c'));
+  document.getElementById('ceType').value=t; ceVal();
+}
+
+function ceAIn(){
+  clearTimeout(_ceTmr);
+  var v=document.getElementById('ceAddr').value.trim();
+  _ceHS();
+  if(v.length<2){_ceAst('','');return;}
+  _ceAst('loading','搜尋中…');
+  _ceTmr=setTimeout(function(){_ceFetch(v,false);},500);
+}
+function ceAKey(e){if(e.key==='Enter'){e.preventDefault();ceSrch();}}
+function ceSrch(){
+  var v=document.getElementById('ceAddr').value.trim();
+  if(!v)return; clearTimeout(_ceTmr);
+  _ceAst('loading','搜尋中…'); _ceFetch(v,true);
+}
+function _ceFetch(q,first){
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(q),{headers:{'Accept-Language':'zh-TW,zh,en'}})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data||!data.length){_ceAst('err','找不到此地點');_ceHS();return;}
+      if(first) _ceSel(data[0]); else _ceShow(data);
+    })
+    .catch(function(){_ceAst('err','搜尋失敗，請確認網路連線');});
+}
+function _ceShow(res){
+  var box=document.getElementById('ceSugg'); box.innerHTML='';
+  res.forEach(function(r){
+    var p=r.display_name.split(',');
+    var d=document.createElement('div'); d.className='ce-si';
+    d.innerHTML='<div class="ce-si-m">'+p[0].trim()+'</div><div class="ce-si-s">'+p.slice(1,3).join(',').trim()+'</div>';
+    d.addEventListener('click',function(){_ceSel(r);}); box.appendChild(d);
+  });
+  box.classList.add('show'); _ceAst('','');
+}
+function _ceHS(){ document.getElementById('ceSugg').classList.remove('show'); }
+function _ceSel(r){
+  _ceHS();
+  document.getElementById('ceAddr').value=r.display_name;
+  _ceLat=parseFloat(r.lat); _ceLng=parseFloat(r.lon);
+  document.getElementById('ceLt').textContent=_ceLat.toFixed(6);
+  document.getElementById('ceLn').textContent=_ceLng.toFixed(6);
+  document.getElementById('ceCo').style.display='flex';
+  document.getElementById('ceMH').style.display='none';
+  _ceAst('ok','&#x2714; 地點已定位');
+  if(_ceMap){
+    _ceMap.setView([_ceLat,_ceLng],15);
+    if(_ceMk) _ceMk.setLatLng([_ceLat,_ceLng]);
+    else _ceMk=L.marker([_ceLat,_ceLng],{icon:_ceIco()}).addTo(_ceMap);
+  }
+  ceVal();
+}
+function _ceAst(t,m){
+  var el=document.getElementById('ceAst');
+  el.className='ce-ast'+(t?' '+t:''); el.innerHTML=m;
+}
+function ceVal(){
+  var ok=document.getElementById('ceName').value.trim()&&
+         document.getElementById('ceType').value&&
+         document.getElementById('ceDate').value&&
+         document.getElementById('ceTime').value&&
+         _ceLat!==null;
+  document.getElementById('ceSub').disabled=!ok;
+  if(ok){
+    document.getElementById('ceFSt').innerHTML='所有必填欄位已完成 &#x2714;';
+    document.getElementById('ceFSt').className='ce-fstatus ok';
+  } else {
+    var ms=[];
+    if(!document.getElementById('ceName').value.trim()) ms.push('事件名稱');
+    if(!document.getElementById('ceType').value) ms.push('事件類型');
+    if(!document.getElementById('ceDate').value||!document.getElementById('ceTime').value) ms.push('日期時間');
+    if(_ceLat===null) ms.push('事件地點');
+    document.getElementById('ceFSt').innerHTML='尚未填寫：'+ms.join('、');
+    document.getElementById('ceFSt').className='ce-fstatus';
+  }
+}
+function ceDo(){
+  var btn=document.getElementById('ceSub');
+  btn.disabled=true; btn.innerHTML='<span class="ce-spin"></span> 建立中…';
+  var ev={
+    id:document.getElementById('ceEvId').textContent,
+    name:document.getElementById('ceName').value.trim(),
+    type:document.getElementById('ceType').value,
+    date:document.getElementById('ceDate').value,
+    time:document.getElementById('ceTime').value,
+    address:document.getElementById('ceAddr').value,
+    lat:_ceLat,lng:_ceLng,
+    note:document.getElementById('ceNote').value.trim(),
+    createdAt:new Date().toISOString(),status:'active'
+  };
+  try{var ev2=JSON.parse(localStorage.getItem('rad_events')||'[]');ev2.unshift(ev);localStorage.setItem('rad_events',JSON.stringify(ev2));}catch(e){}
+  setTimeout(function(){
+    document.getElementById('ceOKId').textContent='事件編號：'+ev.id;
+    document.getElementById('ceOK').classList.add('show');
+  },500);
+}
+function ceRst(){
+  document.getElementById('ceOK').classList.remove('show');
+  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
+  document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
+  _ceLat=null; _ceLng=null;
+  document.getElementById('ceCo').style.display='none';
+  document.getElementById('ceAst').innerHTML='';
+  document.getElementById('ceMH').style.display='';
+  document.getElementById('ceSub').innerHTML='&#x2705; 建立事件';
+  if(_ceMk&&_ceMap){_ceMap.removeLayer(_ceMk);_ceMk=null;_ceMap.setView([25.046,121.517],12);}
+  var d=new Date();
+  document.getElementById('ceDate').value=d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('ceEvId').textContent=_ceId();
+  ceVal();
+}
+document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_ceHS();});
+
 </script>
+
+<div class="ce-backdrop" id="ceBackdrop" onclick="ceBgClick(event)">
+  <div class="ce-modal" id="ceModal">
+    <div class="ce-header">
+      <h2>&#x1F4CB; 建立新事件</h2>
+      <div class="ce-hright">
+        <span class="ce-evid" id="ceEvId">EVT&#x2014;</span>
+        <button class="ce-close" onclick="closeCreateEvent()">&#x2715;</button>
+      </div>
+    </div>
+    <div class="ce-body">
+      <div class="ce-form">
+        <div class="ce-group">
+          <label class="ce-lbl">事件名稱 <span class="req">*</span></label>
+          <input class="ce-inp" id="ceName" placeholder="輸入事件名稱" oninput="ceVal()">
+        </div>
+        <div class="ce-group">
+          <label class="ce-lbl">事件類型 <span class="req">*</span></label>
+          <div class="ce-pills">
+            <div class="ce-pill" data-c="p-red"    onclick="cePick(this,'輻射彈事件')">&#x1F4A5; 輻射彈事件</div>
+            <div class="ce-pill" data-c="p-orange" onclick="cePick(this,'核物質事件')">&#x26A0;&#xFE0F; 核物質事件</div>
+            <div class="ce-pill" data-c="p-blue"   onclick="cePick(this,'核物料事件')">&#x2622;&#xFE0F; 核物料事件</div>
+          </div>
+          <input type="hidden" id="ceType">
+        </div>
+        <div class="ce-group">
+          <label class="ce-lbl">日期與時間 <span class="req">*</span></label>
+          <div class="ce-dtrow">
+            <div><input class="ce-inp" type="date" id="ceDate" oninput="ceVal()"></div>
+            <div><input class="ce-inp" type="time" id="ceTime" oninput="ceVal()"></div>
+          </div>
+        </div>
+        <hr class="ce-div">
+        <div class="ce-group">
+          <label class="ce-lbl">事件地點 <span class="req">*</span></label>
+          <div class="ce-awrap" id="ceAWrap">
+            <input class="ce-inp" id="ceAddr" placeholder="輸入地址或地名搜尋&#x2026;" oninput="ceAIn()" onkeydown="ceAKey(event)" autocomplete="off">
+            <button class="ce-asearch" onclick="ceSrch()">&#x1F50D;</button>
+            <div class="ce-sugg" id="ceSugg"></div>
+          </div>
+          <div class="ce-ast" id="ceAst"></div>
+          <div class="ce-coords" id="ceCo" style="display:none">
+            <div class="ce-cbox"><div class="ce-clbl">LAT</div><div class="ce-cval" id="ceLt">&#x2014;</div></div>
+            <div class="ce-cbox"><div class="ce-clbl">LNG</div><div class="ce-cval" id="ceLn">&#x2014;</div></div>
+          </div>
+        </div>
+        <div class="ce-group">
+          <label class="ce-lbl">備註</label>
+          <textarea class="ce-ta" id="ceNote" placeholder="補充說明&#x2026;" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="ce-mapcol">
+        <div id="ce-map"></div>
+        <div class="ce-maphint" id="ceMH">在左側輸入地址，或直接點擊地圖選取位置</div>
+      </div>
+    </div>
+    <div class="ce-footer">
+      <div class="ce-fstatus" id="ceFSt">請填寫所有必填欄位（<span style="color:#dc2626">*</span>）</div>
+      <div class="ce-fbtns">
+        <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x21BA; 清除</button>
+        <button class="ce-btn ce-btn-p" id="ceSub" onclick="ceDo()" disabled>&#x2705; 建立事件</button>
+      </div>
+    </div>
+    <div class="ce-ok" id="ceOK">
+      <div class="ce-ok-icon">&#x2705;</div>
+      <div class="ce-ok-title">事件已建立！</div>
+      <div class="ce-ok-id" id="ceOKId"></div>
+      <div class="ce-ok-btns">
+        <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x2795; 建立新事件</button>
+        <button class="ce-btn ce-btn-p" onclick="closeCreateEvent()">&#x2190; 返回地圖</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
