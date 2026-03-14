@@ -348,7 +348,8 @@
 
 <!-- ── 五個編組分頁標籤 ── -->
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('tech-rdd',this)">技術組（輻射彈）</button>
+  <button class="tab active" onclick="switchTab('all',this)">&#x1F4CB; 所有成員</button>
+  <button class="tab" onclick="switchTab('tech-rdd',this)">技術組（輻射彈）</button>
   <button class="tab" onclick="switchTab('tech-material',this)">技術組（放射性物料）</button>
   <button class="tab" onclick="switchTab('tech-substance',this)">技術組（放射性物質）</button>
   <button class="tab" onclick="switchTab('staff',this)">參謀組</button>
@@ -424,7 +425,7 @@
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 
 // ── 目前選取的編組 ID ──
-var currentGroup = 'tech-rdd';
+var currentGroup = 'all'; // 預設顯示所有成員
 
 // ── 目前編輯狀態 ──
 // mode: 'add' 或 'edit'
@@ -439,12 +440,137 @@ var deleteRowIndex = null;
 // 切換分頁
 // ════════════════════════════════════════════════════════════
 function switchTab(groupId, tabEl) {
-  // 更新 tab 樣式
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
   tabEl.classList.add('active');
-
   currentGroup = groupId;
-  loadGroup(groupId);
+  if (groupId === 'all') {
+    loadAllGroups();
+  } else {
+    loadGroup(groupId);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// 所有成員：合併五組 + 排序功能
+// ════════════════════════════════════════════════════════════
+
+// 排序狀態
+var allMembersData = []; // 合併後的快取資料
+var sortCol = 'dept';    // 預設排序欄：所屬組室
+var sortAsc = true;      // true=升冪 false=降冪
+
+// ── 讀取全部五組成員，合併顯示 ──
+function loadAllGroups() {
+  document.getElementById('content').innerHTML =
+    '<div class="state-box"><div class="icon">&#x23F3;</div><p>載入所有成員中…</p></div>';
+
+  var GROUP_IDS = ['tech-rdd','tech-material','tech-substance','staff','press'];
+  var GROUP_NAMES = {
+    'tech-rdd':       '技術組-輻射彈',
+    'tech-material':  '技術組-放射性物料',
+    'tech-substance': '技術組-放射性物質',
+    'staff':          '參謀組',
+    'press':          '新聞組'
+  };
+
+  // 並行 fetch 五組
+  var promises = GROUP_IDS.map(function(gid) {
+    return fetch(SHEETS_URL + '?action=group&id=' + gid)
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        var members = data.members || [];
+        members.forEach(function(m){ m.group = GROUP_NAMES[gid] || gid; });
+        return members;
+      })
+      .catch(function(){ return []; });
+  });
+
+  Promise.all(promises).then(function(results) {
+    allMembersData = [].concat.apply([], results);
+    renderAllTable(allMembersData, sortCol, sortAsc);
+  }).catch(function() {
+    showContent('<div class="state-box"><div class="icon">&#x26A0;&#xFE0F;</div><p>載入失敗，請確認網路連線</p></div>');
+  });
+}
+
+// ── 渲染所有成員表格 ──
+function renderAllTable(members, col, asc) {
+  // 排序資料
+  var sorted = members.slice().sort(function(a, b) {
+    var va = String(a[col] || '');
+    var vb = String(b[col] || '');
+    return asc ? va.localeCompare(vb, 'zh-TW') : vb.localeCompare(va, 'zh-TW');
+  });
+
+  // 標題列
+  var html = '<div class="group-header">' +
+    '<div style="display:flex;align-items:center">' +
+    '<span class="group-title">所有成員</span>' +
+    '<span class="group-count">' + members.length + ' 人</span>' +
+    '</div></div>';
+
+  if (sorted.length === 0) {
+    html += '<div class="state-box"><div class="icon">&#x1F465;</div><p>尚無成員資料</p></div>';
+    showContent(html);
+    return;
+  }
+
+  // 欄位定義：key / 顯示名稱 / 可排序
+  var COLS = [
+    { key:'group',  label:'所屬編組', sort:true  },
+    { key:'title',  label:'職稱',     sort:false },
+    { key:'name',   label:'姓名',     sort:false },
+    { key:'mobile', label:'手機',     sort:false },
+    { key:'phone',  label:'電話',     sort:false },
+    { key:'dept',   label:'所屬組室', sort:true  }
+  ];
+
+  html += '<div class="table-wrap"><table><thead><tr>';
+  COLS.forEach(function(c) {
+    if (c.sort) {
+      // 可排序欄位加上箭頭和點擊事件
+      var isActive = sortCol === c.key;
+      var arrow = isActive ? (asc ? ' &#x25B2;' : ' &#x25BC;') : ' &#x25B2;&#x25BC;';
+      var arrowColor = isActive ? '#1a56db' : '#ccc';
+      html += '<th onclick="toggleSort(\'' + c.key + '\')" ' +
+        'style="cursor:pointer;user-select:none;white-space:nowrap">' +
+        c.label +
+        '<span style="font-size:9px;color:' + arrowColor + ';margin-left:4px">' + arrow + '</span>' +
+        '</th>';
+    } else {
+      html += '<th>' + c.label + '</th>';
+    }
+  });
+  html += '</tr></thead><tbody>';
+
+  sorted.forEach(function(m) {
+    html += '<tr>' +
+      '<td><span style="font-size:11px;background:#e8effd;color:#1a56db;padding:2px 8px;border-radius:20px;white-space:nowrap">' +
+        esc(m.group) + '</span></td>' +
+      '<td class="title-cell">' + esc(m.title) + '</td>' +
+      '<td>' + esc(m.name) + '</td>' +
+      '<td>' + esc(m.mobile) + '</td>' +
+      '<td>' + esc(m.phone) + '</td>' +
+      '<td>' + esc(m.dept) + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  showContent(html);
+}
+
+// ── 切換排序欄位 / 升降冪 ──
+// 同欄位再點一次 → 切換升降冪
+// 點新欄位 → 預設升冪
+function toggleSort(col) {
+  if (sortCol === col) {
+    sortAsc = !sortAsc;
+  } else {
+    sortCol = col;
+    sortAsc = true;
+  }
+  renderAllTable(allMembersData, sortCol, sortAsc);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -678,7 +804,7 @@ function showToast(msg, type) {
 // 頁面載入：預設顯示第一個編組
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
-  loadGroup('tech-rdd');
+  loadAllGroups(); // 預設顯示所有成員
 });
 </script>
 </body>
