@@ -566,11 +566,18 @@
        ├─ .map-compass     北方指標
        └─ .content-panel   功能說明面板（覆蓋在地圖上，預設隱藏）
        ────────────────────────────────────────────────────── -->
-  <main class="map-area sidebar-pinned" id="mapArea">
-    <div id="map"></div>
-    <div id="map-fallback">
-      <div style="font-size:48px">&#x1F5FA;&#xFE0F;</div>
-      <div>地圖載入中，請確認網路連線...</div>
+  <main class="map-area sidebar-pinned" id="mapArea" style="position:relative">
+    <!-- 地圖層：預設顯示 -->
+    <div id="mapLayer" style="position:absolute;inset:0;z-index:1">
+      <div id="map" style="width:100%;height:100%"></div>
+      <div id="map-fallback">
+        <div style="font-size:48px">&#x1F5FA;&#xFE0F;</div>
+        <div>地圖載入中，請確認網路連線...</div>
+      </div>
+    </div>
+    <!-- iframe 層：點選功能頁面時顯示，預設隱藏 -->
+    <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:none">
+      <iframe id="contentFrame" src="" style="width:100%;height:100%;border:none"></iframe>
     </div>
     <div class="map-badge">
       <div style="font-size:11px;font-weight:600;color:#3d5070;margin-bottom:2px;letter-spacing:.05em;text-transform:uppercase">事件狀態</div>
@@ -625,7 +632,7 @@
      #btn-jishi 這個按鈕 hover 時會觸發第三層選單 #menu-jishi -->
 <div class="fly-menu" id="menu-admin">
   <button class="drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
-  <button class="drop-btn" onclick="openPanel('編組管理')">&#x1F465; 編組管理</button>
+  <button class="drop-btn" onclick="showIframe('group.html')">&#x1F465; 編組管理</button>
   <button class="drop-btn" onclick="openPanel('儀器管理')">&#x1F527; 儀器管理</button>
   <button class="drop-btn" onclick="openPanel('新增地圖Icon圖示')">&#x1F4CD; 新增地圖Icon圖示</button>
   <button class="drop-btn" onclick="openPanel('出勤通知簡訊紀錄')">&#x1F4F1; 出勤通知簡訊紀錄</button>
@@ -681,6 +688,24 @@ var PANELS = {
 // ── 開啟功能說明面板 ──
 // 點選沒有子選單的項目時呼叫（個人資料維護、使用說明等）
 // 會在地圖上方顯示 .content-panel，並關閉側欄和所有選單
+// -- 切換右欄顯示 iframe 功能頁面 --
+// src = 要載入的 HTML 檔名（例如 group.html）
+function showIframe(src) {
+  document.getElementById('mapLayer').style.display = 'none';
+  var layer = document.getElementById('iframeLayer');
+  var frame = document.getElementById('contentFrame');
+  layer.style.display = 'block';
+  frame.src = src;
+  closeAllMenus();
+  closeSidebar();
+}
+
+// -- 切換回地圖 --
+function showMap() {
+  document.getElementById('iframeLayer').style.display = 'none';
+  document.getElementById('mapLayer').style.display = 'block';
+  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
+}
 function openPanel(title) {
   var d = PANELS[title] || [title, '此功能尚未開放。'];
   document.getElementById('panelTitle').textContent = d[0];
@@ -1289,8 +1314,8 @@ function ceRstKeepOpen(){
           <label class="ce-lbl">事件類型 <span class="req">*</span></label>
           <div class="ce-pills">
             <div class="ce-pill" data-c="p-red"    onclick="cePick(this,'輻射彈事件')">&#x1F4A5; 輻射彈事件</div>
-            <div class="ce-pill" data-c="p-orange" onclick="cePick(this,'核物質事件')">&#x26A0;&#xFE0F; 核物質事件</div>
-            <div class="ce-pill" data-c="p-blue"   onclick="cePick(this,'核物料事件')">&#x2622;&#xFE0F; 核物料事件</div>
+            <div class="ce-pill" data-c="p-orange" onclick="cePick(this,'放射性物質事件')">&#x26A0;&#xFE0F; 放射性物質事件</div>
+            <div class="ce-pill" data-c="p-blue"   onclick="cePick(this,'放射性物料事件')">&#x2622;&#xFE0F; 放射性物料事件</div>
           </div>
           <input type="hidden" id="ceType">
         </div>
