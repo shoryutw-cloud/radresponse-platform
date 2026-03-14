@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>編組管理</title>
+<style>
+  /* ════════════════════════════════════════════════════════
+     編組管理頁面 group.html
+     這個頁面會被嵌入 index.html 的 iframe 裡
+     所以不需要頂部導覽列，背景透明即可
+  ════════════════════════════════════════════════════════ */
+  :root {
+    --accent:   #1a56db;
+    --text:     #1e2a3a;
+    --muted:    #6b7a92;
+    --border:   #e2e8f0;
+    --hover:    #f1f5ff;
+    --surface:  #ffffff;
+    --bg:       #f0f2f5;
+    --danger:   #dc2626;
+    --success:  #16a34a;
+    --radius:   6px;
+    --shadow:   0 2px 8px rgba(0,0,0,0.08);
+    --shadow-md:0 4px 16px rgba(0,0,0,0.12);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI",
+            "Microsoft JhengHei", "PingFang TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 頁面標題列 ── */
+  .page-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+  .page-header .hint { font-size: 12px; color: var(--muted); }
+
+  /* ── 分頁標籤（五個編組）── */
+  .tabs {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: var(--font);
+  }
+  .tab:hover { color: var(--accent); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ── 主內容區 ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  /* ── 編組標題 + 新增按鈕 ── */
+  .group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .group-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .group-count {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    margin-left: 10px;
+  }
+  .btn-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-add:hover { background: #1648c0; }
+
+  /* ── 載入中 / 空狀態 ── */
+  .state-box {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .state-box .icon { font-size: 40px; margin-bottom: 12px; }
+  .state-box p { font-size: 14px; }
+
+  /* ── 成員表格 ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(226,232,240,.6);
+    transition: background .12s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--hover); }
+  tbody td {
+    padding: 12px 16px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  /* 職稱欄位：紅色顯示分組長和組員（對應截圖）*/
+  td.title-cell { font-weight: 500; }
+  td.title-cell.sub { color: var(--danger); }
+
+  /* 操作按鈕欄 */
+  .action-btns { display: flex; gap: 6px; }
+  .btn-edit, .btn-del {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    font-family: var(--font);
+    transition: all .12s;
+    white-space: nowrap;
+  }
+  .btn-edit {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: none;
+  }
+  .btn-edit:hover { background: var(--hover); }
+  .btn-del {
+    border-color: #fecaca;
+    color: var(--danger);
+    background: none;
+  }
+  .btn-del:hover { background: #fef2f2; }
+
+  /* ── Modal：新增/編輯成員 ── */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,24,34,.5);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    width: 100%;
+    max-width: 480px;
+    animation: slideIn .18s ease;
+  }
+  @keyframes slideIn {
+    from { opacity:0; transform:translateY(-12px) scale(.98) }
+    to   { opacity:1; transform:none }
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 { font-size: 16px; font-weight: 700; }
+  .modal-close {
+    width: 28px; height: 28px;
+    border: none; background: none; cursor: pointer;
+    font-size: 18px; color: var(--muted);
+    border-radius: 4px; transition: background .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+  .modal-body { padding: 20px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 11px; font-weight: 600;
+    color: var(--muted); letter-spacing: .05em;
+    text-transform: uppercase; margin-bottom: 5px;
+  }
+  .form-group label .req { color: var(--danger); margin-left: 2px; }
+  .form-group input {
+    width: 100%; padding: 8px 11px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: var(--font); font-size: 14px; color: var(--text);
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .form-group input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .form-group input::placeholder { color: #b0bec5; }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .btn-cancel {
+    padding: 8px 16px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: none; color: var(--muted); transition: all .15s;
+  }
+  .btn-cancel:hover { border-color: #94a3b8; color: var(--text); }
+  .btn-save {
+    padding: 8px 20px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none;
+    background: var(--accent); color: #fff; transition: background .15s;
+  }
+  .btn-save:hover { background: #1648c0; }
+  .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  /* ── 確認刪除 Modal ── */
+  .confirm-box {
+    background: var(--surface);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    width: 100%; max-width: 360px;
+    padding: 24px;
+    text-align: center;
+    animation: slideIn .18s ease;
+  }
+  .confirm-icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .confirm-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .confirm-btns { display: flex; justify-content: center; gap: 10px; }
+  .btn-confirm-del {
+    padding: 8px 20px; border-radius: var(--radius);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none;
+    background: var(--danger); color: #fff; transition: background .15s;
+  }
+  .btn-confirm-del:hover { background: #b91c1c; }
+
+  /* ── Toast 提示 ── */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1e2a3a; color: #e8f0fa;
+    padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; z-index: 1000;
+    opacity: 0; transition: opacity .3s;
+    pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .toast.ok  { background: #15803d; }
+  .toast.err { background: #dc2626; }
+
+  /* spinner */
+  .spin {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: sp .7s linear infinite; vertical-align: middle;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ── 頁面標題 ── -->
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:10px">
+    <h1>&#x1F465; 編組管理</h1>
+    <span style="font-size:12px;color:var(--muted);background:var(--bg);padding:3px 9px;border-radius:20px;border:1px solid var(--border)">
+      唯讀模式：新增/修改後自動同步至 Google 試算表
+    </span>
+  </div>
+</div>
+
+<!-- ── 五個編組分頁標籤 ── -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('tech-rdd',this)">技術組（輻射彈）</button>
+  <button class="tab" onclick="switchTab('tech-material',this)">技術組（放射性物料）</button>
+  <button class="tab" onclick="switchTab('tech-substance',this)">技術組（放射性物質）</button>
+  <button class="tab" onclick="switchTab('staff',this)">參謀組</button>
+  <button class="tab" onclick="switchTab('press',this)">新聞組</button>
+</div>
+
+<!-- ── 主內容 ── -->
+<div class="content" id="content">
+  <div class="state-box">
+    <div class="icon">&#x23F3;</div>
+    <p>載入中…</p>
+  </div>
+</div>
+
+<!-- ── 新增/編輯成員 Modal ── -->
+<div class="modal-backdrop" id="memberModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增成員</h3>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>職稱 <span class="req">*</span></label>
+        <input id="fTitle" placeholder="例：組長、副組長、組員1…">
+      </div>
+      <div class="form-group">
+        <label>姓名 <span class="req">*</span></label>
+        <input id="fName" placeholder="輸入姓名">
+      </div>
+      <div class="form-group">
+        <label>手機</label>
+        <input id="fMobile" placeholder="0912-345-678">
+      </div>
+      <div class="form-group">
+        <label>電話</label>
+        <input id="fPhone" placeholder="02-2345-6789">
+      </div>
+      <div class="form-group">
+        <label>所屬組室</label>
+        <input id="fDept" placeholder="例：輻射防護組">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" id="btnSave" onclick="saveMember()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 確認刪除 Modal ── -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-icon">&#x26A0;&#xFE0F;</div>
+    <div class="confirm-title">確定要刪除這位成員？</div>
+    <div class="confirm-desc" id="confirmDesc">此操作無法復原，資料將從試算表中移除。</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="closeConfirm()">取消</button>
+      <button class="btn-confirm-del" id="btnConfirmDel" onclick="confirmDelete()">確定刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast 提示 ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// group.html JavaScript
+// ════════════════════════════════════════════════════════════
+
+// ── Apps Script 網址（與 index.html 相同）──
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+// ── 目前選取的編組 ID ──
+var currentGroup = 'tech-rdd';
+
+// ── 目前編輯狀態 ──
+// mode: 'add' 或 'edit'
+// editRow: 編輯時的試算表列號
+var editMode = 'add';
+var editRowIndex = null;
+
+// ── 待刪除的列號 ──
+var deleteRowIndex = null;
+
+// ════════════════════════════════════════════════════════════
+// 切換分頁
+// ════════════════════════════════════════════════════════════
+function switchTab(groupId, tabEl) {
+  // 更新 tab 樣式
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  tabEl.classList.add('active');
+
+  currentGroup = groupId;
+  loadGroup(groupId);
+}
+
+// ════════════════════════════════════════════════════════════
+// 從 Apps Script 讀取編組成員
+// ════════════════════════════════════════════════════════════
+function loadGroup(groupId) {
+  // 顯示載入中
+  document.getElementById('content').innerHTML =
+    '<div class="state-box"><div class="icon">&#x23F3;</div><p>載入中…</p></div>';
+
+  fetch(SHEETS_URL + '?action=group&id=' + groupId)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        showContent('<div class="state-box"><div class="icon">&#x26A0;&#xFE0F;</div><p>' + data.error + '</p></div>');
+        return;
+      }
+      renderTable(data);
+    })
+    .catch(function(err) {
+      showContent('<div class="state-box"><div class="icon">&#x26A0;&#xFE0F;</div><p>載入失敗，請確認網路連線</p></div>');
+    });
+}
+
+// ════════════════════════════════════════════════════════════
+// 渲染成員表格
+// ════════════════════════════════════════════════════════════
+function renderTable(data) {
+  var members = data.members || [];
+
+  // ── 標題列 ──
+  var html = '<div class="group-header">' +
+    '<div style="display:flex;align-items:center">' +
+    '<span class="group-title">' + data.sheetName + '</span>' +
+    '<span class="group-count">' + members.length + ' 人</span>' +
+    '</div>' +
+    '<button class="btn-add" onclick="openAddModal()">&#x2795; 新增成員</button>' +
+    '</div>';
+
+  if (members.length === 0) {
+    html += '<div class="state-box"><div class="icon">&#x1F465;</div><p>尚無成員，點「新增成員」開始建立</p></div>';
+    showContent(html);
+    return;
+  }
+
+  // ── 表格 ──
+  // 分組長、組員以紅色顯示（對應截圖設計）
+  var SUB_TITLES = ['分組長','組員1','組員2','組員3','組員4','組員5','組員6','組員7','組員8'];
+
+  html += '<div class="table-wrap"><table>' +
+    '<thead><tr>' +
+    '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th><th>操作</th>' +
+    '</tr></thead><tbody>';
+
+  members.forEach(function(m) {
+    var isSub = SUB_TITLES.indexOf(m.title) >= 0;
+    html += '<tr>' +
+      '<td class="title-cell' + (isSub ? ' sub' : '') + '">' + esc(m.title) + '</td>' +
+      '<td>' + esc(m.name) + '</td>' +
+      '<td>' + esc(m.mobile) + '</td>' +
+      '<td>' + esc(m.phone) + '</td>' +
+      '<td>' + esc(m.dept) + '</td>' +
+      '<td><div class="action-btns">' +
+        '<button class="btn-edit" onclick="openEditModal(' + m.rowIndex + ',\'' +
+          esc(m.title) + '\',\'' + esc(m.name) + '\',\'' +
+          esc(m.mobile) + '\',\'' + esc(m.phone) + '\',\'' + esc(m.dept) + '\')">編輯</button>' +
+        '<button class="btn-del" onclick="openDeleteConfirm(' + m.rowIndex + ',\'' + esc(m.name) + '\')">刪除</button>' +
+      '</div></td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  showContent(html);
+}
+
+function showContent(html) {
+  document.getElementById('content').innerHTML = html;
+}
+
+// ── 跳脫 HTML 特殊字元（防止 XSS）──
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ════════════════════════════════════════════════════════════
+// 新增成員 Modal
+// ════════════════════════════════════════════════════════════
+function openAddModal() {
+  editMode = 'add';
+  editRowIndex = null;
+  document.getElementById('modalTitle').textContent = '新增成員';
+  // 清空欄位
+  ['fTitle','fName','fMobile','fPhone','fDept'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('btnSave').innerHTML = '新增';
+  document.getElementById('memberModal').classList.add('show');
+  document.getElementById('fTitle').focus();
+}
+
+// ════════════════════════════════════════════════════════════
+// 編輯成員 Modal
+// ════════════════════════════════════════════════════════════
+function openEditModal(rowIndex, title, name, mobile, phone, dept) {
+  editMode = 'edit';
+  editRowIndex = rowIndex;
+  document.getElementById('modalTitle').textContent = '編輯成員';
+  document.getElementById('fTitle').value  = title;
+  document.getElementById('fName').value   = name;
+  document.getElementById('fMobile').value = mobile;
+  document.getElementById('fPhone').value  = phone;
+  document.getElementById('fDept').value   = dept;
+  document.getElementById('btnSave').innerHTML = '儲存修改';
+  document.getElementById('memberModal').classList.add('show');
+  document.getElementById('fTitle').focus();
+}
+
+function closeModal() {
+  document.getElementById('memberModal').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════════════════
+// 儲存成員（新增或編輯）
+// ════════════════════════════════════════════════════════════
+function saveMember() {
+  var title  = document.getElementById('fTitle').value.trim();
+  var name   = document.getElementById('fName').value.trim();
+  var mobile = document.getElementById('fMobile').value.trim();
+  var phone  = document.getElementById('fPhone').value.trim();
+  var dept   = document.getElementById('fDept').value.trim();
+
+  // 驗證必填
+  if (!title || !name) {
+    showToast('職稱和姓名為必填', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 儲存中…';
+
+  var payload = {
+    action:   editMode === 'add' ? 'addMember' : 'editMember',
+    groupId:  currentGroup,
+    title:    title,
+    name:     name,
+    mobile:   mobile,
+    phone:    phone,
+    dept:     dept
+  };
+  if (editMode === 'edit') payload.rowIndex = editRowIndex;
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  })
+  .then(function() {
+    closeModal();
+    showToast(editMode === 'add' ? '成員已新增' : '成員已更新', 'ok');
+    // 重新讀取最新資料
+    setTimeout(function(){ loadGroup(currentGroup); }, 800);
+  })
+  .catch(function() {
+    showToast('儲存失敗，請確認網路連線', 'err');
+    btn.disabled = false;
+    btn.innerHTML = editMode === 'add' ? '新增' : '儲存修改';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// 刪除成員
+// ════════════════════════════════════════════════════════════
+function openDeleteConfirm(rowIndex, name) {
+  deleteRowIndex = rowIndex;
+  document.getElementById('confirmDesc').textContent =
+    '確定要刪除「' + name + '」？此操作無法復原。';
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('show');
+  deleteRowIndex = null;
+}
+
+function confirmDelete() {
+  if (deleteRowIndex === null) return;
+  var btn = document.getElementById('btnConfirmDel');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 刪除中…';
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify({
+      action:   'deleteMember',
+      groupId:  currentGroup,
+      rowIndex: deleteRowIndex
+    })
+  })
+  .then(function() {
+    closeConfirm();
+    showToast('成員已刪除', 'ok');
+    setTimeout(function(){ loadGroup(currentGroup); }, 800);
+  })
+  .catch(function() {
+    showToast('刪除失敗，請確認網路連線', 'err');
+    btn.disabled = false;
+    btn.innerHTML = '確定刪除';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// Toast 提示訊息
+// ════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(function(){
+    el.className = 'toast';
+  }, 2500);
+}
+
+// ════════════════════════════════════════════════════════════
+// 頁面載入：預設顯示第一個編組
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  loadGroup('tech-rdd');
+});
+</script>
+</body>
+</html>
