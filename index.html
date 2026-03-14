@@ -318,6 +318,46 @@
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.6; }
 
+
+  /* ── 建立事件第二頁：出勤人員 ── */
+  .ce-page { display:none; flex:1; overflow:hidden; min-height:0; }
+  .ce-page.active { display:flex; }
+  .ce-personnel { flex:1; overflow-y:auto; padding:20px 24px; }
+  .ce-personnel::-webkit-scrollbar { width:3px; }
+  .ce-personnel::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
+  .ce-p-loading { text-align:center; padding:40px; color:#6b7a92; font-size:15px; }
+  .ce-sel-count {
+    font-size:13px; color:#6b7a92; margin-bottom:14px; padding:8px 12px;
+    background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;
+  }
+  .ce-sel-count strong { color:#1a56db; font-size:15px; }
+  .ce-squad { margin-bottom:12px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+  .ce-squad-hd {
+    display:flex; align-items:center; gap:10px; padding:10px 16px;
+    background:#f8fafc; border-bottom:1px solid #e2e8f0; user-select:none;
+  }
+  .ce-squad-title { font-size:15px; font-weight:600; color:#1e2a3a; flex:1; }
+  .ce-squad-cnt {
+    font-size:12px; color:#6b7a92; font-family:ui-monospace,monospace;
+    background:#e2e8f0; padding:2px 8px; border-radius:20px; white-space:nowrap;
+  }
+  .ce-chk-all {
+    font-size:12px; color:#1a56db; cursor:pointer; padding:3px 10px;
+    border-radius:4px; border:1px solid #1a56db; background:none;
+    font-family:var(--font); transition:all .15s; white-space:nowrap;
+  }
+  .ce-chk-all:hover { background:#e8effd; }
+  .ce-squad-bd { padding:12px 16px; }
+  .ce-member-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .ce-mbr {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
+    border:1.5px solid #e2e8f0; border-radius:6px; cursor:pointer;
+    transition:all .15s; background:#fff; font-size:14px; color:#1e2a3a; user-select:none;
+  }
+  .ce-mbr:hover { border-color:#1a56db; background:#f1f5ff; }
+  .ce-mbr.checked { border-color:#1a56db; background:#e8effd; color:#1a56db; font-weight:600; }
+  .ce-mbr input[type=checkbox] { display:none; }
+
   /* CREATE EVENT MODAL */
   .ce-backdrop {
     display:none; position:fixed; inset:0;
@@ -1033,9 +1073,13 @@ function _ceIco(){
 // 3. 產生新的事件編號（EVT-YYYYMMDD-XXX）
 // 4. 延遲 120ms 後初始化 Modal 內的地圖（需等 DOM 渲染完）
 function openCreateEvent(){
-  // 立刻關閉所有浮動選單和側欄（避免選單殘留在畫面上）
-  closeAllMenus();
-  closeSidebar();
+  closeAllMenus(); closeSidebar();
+
+  var _p2=document.getElementById('cePage2'), _p1=document.getElementById('cePage1');
+  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns');
+  if(_p2)_p2.classList.remove('active'); if(_p1)_p1.classList.add('active');
+  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none';
+  _ceCache={};
 
   // ── 完整清空所有欄位（確保每次都是全新表單）──
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){
@@ -1047,7 +1091,7 @@ function openCreateEvent(){
   document.getElementById('ceAst').innerHTML = '';
   document.getElementById('ceMH').style.display = '';
   document.getElementById('ceSub').disabled = false;
-  document.getElementById('ceSub').innerHTML = '&#x2705; 建立事件';
+  document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
   if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
   // 重設日期時間為現在
   var d = new Date();
@@ -1211,6 +1255,141 @@ function ceVal(){
     document.getElementById('ceFSt').className='ce-fstatus';
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// 建立事件 第二頁：出勤人員選擇
+// ════════════════════════════════════════════════════════════
+
+var CE_TYPE_GROUP = {
+  '輻射彈事件':     'tech-rdd',
+  '放射性物質事件': 'tech-substance',
+  '放射性物料事件': 'tech-material'
+};
+var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
+var _ceCache = {}; // 人員快取，避免重複讀取
+
+function ceGoPage2() {
+  document.getElementById('cePage1').classList.remove('active');
+  document.getElementById('cePage2').classList.add('active');
+  document.getElementById('ceF1Btns').style.display = 'none';
+  document.getElementById('ceF2Btns').style.display = 'flex';
+  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
+  _ceLoadPersonnel();
+}
+
+function ceGoPage1() {
+  document.getElementById('cePage2').classList.remove('active');
+  document.getElementById('cePage1').classList.add('active');
+  document.getElementById('ceF2Btns').style.display = 'none';
+  document.getElementById('ceF1Btns').style.display = 'flex';
+  ceVal();
+}
+
+function _ceLoadPersonnel() {
+  var techId = CE_TYPE_GROUP[document.getElementById('ceType').value];
+  var box = document.getElementById('cePersonnel');
+  box.innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
+  var targets = [
+    { id: techId,  label: '技術組' },
+    { id: 'staff', label: '參謀組' },
+    { id: 'press', label: '新聞組' }
+  ];
+  var promises = targets.map(function(t) {
+    if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
+    return fetch(SHEETS_URL + '?action=group&id=' + t.id)
+      .then(function(r){ return r.json(); })
+      .then(function(d){ _ceCache[t.id] = d.members||[]; return { id:t.id, label:t.label, members:_ceCache[t.id] }; })
+      .catch(function(){ return { id:t.id, label:t.label, members:[] }; });
+  });
+  Promise.all(promises).then(function(results) { _ceRenderPersonnel(results, techId); });
+}
+
+function _ceRenderPersonnel(groups, techId) {
+  var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
+  groups.forEach(function(g) {
+    if (!g.members.length) return;
+    if (g.id === techId) {
+      var squads = {};
+      g.members.forEach(function(m){ var s=(m.team||'').trim()||'未分配'; if(!squads[s])squads[s]=[]; squads[s].push(m); });
+      CE_SQUAD_ORDER.forEach(function(s){ if(squads[s]) html += _ceSquadBlock(s, squads[s]); });
+      if (squads['未分配']) html += _ceSquadBlock('未分配', squads['未分配']);
+    } else {
+      html += _ceSquadBlock(g.label, g.members);
+    }
+  });
+  document.getElementById('cePersonnel').innerHTML = html;
+  _ceUpdateSelCount();
+}
+
+function _ceSquadBlock(title, members) {
+  var sid = 'sq' + title.replace(/[^a-zA-Z0-9]/g,'');
+  var h = '<div class="ce-squad">' +
+    '<div class="ce-squad-hd">' +
+    '<span class="ce-squad-title">' + _ceEsc(title) + '</span>' +
+    '<span class="ce-squad-cnt" id="cnt' + sid + '">0 / ' + members.length + '</span>' +
+    '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_ceChkAll(this,event)">全選</button>' +
+    '</div><div class="ce-squad-bd" id="bd' + sid + '"><div class="ce-member-list">';
+  members.forEach(function(m, i) {
+    var mid = sid + i;
+    h += '<label class="ce-mbr" id="lbl' + mid + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_ceTglMbr(this)">' +
+      '<input type="checkbox" id="cb' + mid + '" data-name="' + _ceEsc(m.name) + '" data-squad="' + _ceEsc(title) + '">' +
+      _ceEsc(m.name) + '</label>';
+  });
+  h += '</div></div></div>';
+  return h;
+}
+
+function _ceTglMbr(el) {
+  var mid = el.getAttribute('data-mid');
+  var sid = el.getAttribute('data-sid');
+  var cb  = document.getElementById('cb' + mid);
+  cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+  _ceUpdSqCnt(sid);
+  _ceUpdateSelCount();
+}
+
+function _ceChkAll(el, e) {
+  e.stopPropagation();
+  var sid = el.getAttribute('data-sid');
+  var bd  = document.getElementById('bd' + sid);
+  var cbs = bd.querySelectorAll('input[type=checkbox]');
+  var all = Array.from(cbs).every(function(c){ return c.checked; });
+  cbs.forEach(function(c) {
+    c.checked = !all;
+    var l = document.getElementById('lbl' + c.id.replace('cb',''));
+    if (l) l.classList.toggle('checked', !all);
+  });
+  _ceUpdSqCnt(sid);
+  _ceUpdateSelCount();
+}
+
+function _ceUpdSqCnt(sid) {
+  var bd = document.getElementById('bd' + sid);
+  var cbs = bd.querySelectorAll('input[type=checkbox]');
+  var n = Array.from(cbs).filter(function(c){ return c.checked; }).length;
+  var el = document.getElementById('cnt' + sid);
+  if (el) el.textContent = n + ' / ' + cbs.length;
+}
+
+function _ceUpdateSelCount() {
+  var n = document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').length;
+  var el = document.getElementById('ceSelN');
+  if (el) el.textContent = n;
+}
+
+function _ceGetPersonnel() {
+  var r = [];
+  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
+    r.push({ name: cb.getAttribute('data-name'), squad: cb.getAttribute('data-squad') });
+  });
+  return r;
+}
+
+function _ceEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // 送出表單、建立事件
 // 1. 按鈕改為「建立中…」loading 狀態
 // 2. 收集所有欄位資料成物件
@@ -1222,10 +1401,10 @@ function ceVal(){
 // 1. 按鈕改為「建立中…」loading 狀態
 // 2. 收集所有欄位資料成物件
 // 3. 同時寫入 localStorage（本機備份）和 Google 試算表
-function ceDo(){
-  var btn = document.getElementById('ceSub');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="ce-spin"></span> 建立中…';
+function ceDo(skipPersonnel){
+  var isP2 = (skipPersonnel !== undefined);
+  var btn = isP2 ? document.getElementById('ceSubP2') : document.getElementById('ceSub');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
 
   // ── 收集表單資料 ──
   var ev = {
@@ -1239,7 +1418,8 @@ function ceDo(){
     lng:       _ceLng,
     note:      document.getElementById('ceNote').value.trim(),
     createdAt: new Date().toISOString(),
-    status:    'active'
+    status:    'active',
+    personnelStr: skipPersonnel ? '' : _ceGetPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', ')
   };
 
   // ── 寫入 localStorage（本機備份，離線也能保留）──
@@ -1273,6 +1453,12 @@ function ceDo(){
 }
 
 function ceRst(){
+
+  var _p2=document.getElementById('cePage2'), _p1=document.getElementById('cePage1');
+  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns');
+  if(_p2)_p2.classList.remove('active'); if(_p1)_p1.classList.add('active');
+  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none';
+  _ceCache={};
   document.getElementById('ceOK').classList.remove('show');
   document.getElementById('ceOKMsg').textContent = '';
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
@@ -1281,7 +1467,7 @@ function ceRst(){
   document.getElementById('ceCo').style.display='none';
   document.getElementById('ceAst').innerHTML='';
   document.getElementById('ceMH').style.display='';
-  document.getElementById('ceSub').innerHTML='&#x2705; 建立事件';
+  document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
   if(_ceMk&&_ceMap){_ceMap.removeLayer(_ceMk);_ceMk=null;_ceMap.setView([25.046,121.517],12);}
   var d=new Date();
   document.getElementById('ceDate').value=d.toISOString().split('T')[0];
@@ -1305,7 +1491,7 @@ function ceRstKeepOpen(){
   document.getElementById('ceAst').innerHTML = '';
   document.getElementById('ceMH').style.display = '';
   document.getElementById('ceSub').disabled = false;
-  document.getElementById('ceSub').innerHTML = '&#x2705; 建立事件';
+  document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
   // 地圖重置
   if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
   // 重新向試算表查詢最新筆數，產生正確的下一個編號
@@ -1345,6 +1531,9 @@ function ceRstKeepOpen(){
       </div>
     </div>
     <div class="ce-body">
+
+      <!-- 第一頁：事件基本資料 -->
+      <div class="ce-page active" id="cePage1">
       <div class="ce-form">
         <div class="ce-group">
           <label class="ce-lbl">事件名稱 <span class="req">*</span></label>
@@ -1389,12 +1578,28 @@ function ceRstKeepOpen(){
         <div id="ce-map"></div>
         <div class="ce-maphint" id="ceMH">在左側輸入地址，或直接點擊地圖選取位置</div>
       </div>
+      </div><!-- end cePage1 -->
+
+      <!-- 第二頁：選擇出勤人員 -->
+      <div class="ce-page" id="cePage2">
+        <div class="ce-personnel" id="cePersonnel">
+          <div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>
+        </div>
+      </div><!-- end cePage2 -->
+
     </div>
     <div class="ce-footer">
       <div class="ce-fstatus" id="ceFSt">請填寫所有必填欄位（<span style="color:#dc2626">*</span>）</div>
       <div class="ce-fbtns">
-        <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x21BA; 清除</button>
-        <button class="ce-btn ce-btn-p" id="ceSub" onclick="ceDo()" disabled>&#x2705; 建立事件</button>
+        <div id="ceF1Btns" style="display:flex;gap:8px">
+          <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x21BA; 清除</button>
+          <button class="ce-btn ce-btn-p" id="ceSub" onclick="ceGoPage2()" disabled>下一步 &#x27A1;</button>
+        </div>
+        <div id="ceF2Btns" style="display:none;gap:8px">
+          <button class="ce-btn ce-btn-g" onclick="ceGoPage1()">&#x2B05; 上一步</button>
+          <button class="ce-btn ce-btn-g" onclick="ceDo(true)">略過</button>
+          <button class="ce-btn ce-btn-p" id="ceSubP2" onclick="ceDo(false)">&#x2705; 建立事件</button>
+        </div>
       </div>
     </div>
     <div class="ce-ok" id="ceOK">
