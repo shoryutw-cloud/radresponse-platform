@@ -978,6 +978,11 @@ function _ceIco(){
 // 3. 產生新的事件編號（EVT-YYYYMMDD-XXX）
 // 4. 延遲 120ms 後初始化 Modal 內的地圖（需等 DOM 渲染完）
 function openCreateEvent(){
+  // 立刻關閉所有浮動選單和側欄（避免選單殘留在畫面上）
+  closeAllMenus();
+  closeSidebar();
+  // 每次開啟都先重置成功畫面，確保顯示全新表單
+  document.getElementById('ceOK').classList.remove('show');
   document.getElementById('ceBackdrop').classList.add('show');
   var d=new Date();
   document.getElementById('ceDate').value=d.toISOString().split('T')[0];
