@@ -690,7 +690,7 @@ var PANELS = {
 // 會在地圖上方顯示 .content-panel，並關閉側欄和所有選單
 // -- 切換右欄顯示 iframe 功能頁面 --
 // src = 要載入的 HTML 檔名（例如 group.html）
-// 同時隱藏地圖相關的覆蓋元素（事件狀態卡、縮放按鈕、北方指標）
+// 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
 function showIframe(src) {
   document.getElementById('mapLayer').style.display = 'none';
   // 隱藏地圖上的所有覆蓋元素
@@ -703,12 +703,15 @@ function showIframe(src) {
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
   frame.src = src;
+  // 更新網址 hash（例如 group.html → #group）
+  var hash = src.replace('.html', '');
+  window.location.hash = hash;
   closeAllMenus();
   closeSidebar();
 }
 
 // -- 切換回地圖 --
-// 恢復顯示地圖覆蓋元素
+// 恢復顯示地圖覆蓋元素，並清除網址 hash
 function showMap() {
   document.getElementById('iframeLayer').style.display = 'none';
   document.getElementById('mapLayer').style.display = 'block';
@@ -718,6 +721,8 @@ function showMap() {
     var el = document.querySelector(sel);
     if (el) el.style.visibility = '';
   });
+  // 清除 hash（回到地圖狀態）
+  history.pushState('', document.title, window.location.pathname + window.location.search);
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 function openPanel(title) {
@@ -776,6 +781,27 @@ function positionMenu(menu, anchor) {
 // DOMContentLoaded：頁面 HTML 載入完成後執行
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
+
+  // ── Hash 路由：頁面載入 / F5 重整時，根據網址 hash 決定顯示哪個頁面 ──
+  // 例如 index.html#group → 自動載入 group.html
+  function restoreFromHash() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash && hash !== '') {
+      showIframe(hash + '.html');
+    }
+  }
+  restoreFromHash();
+
+  // 監聽瀏覽器上一頁/下一頁按鈕（popstate 事件）
+  window.addEventListener('popstate', function() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash && hash !== '') {
+      showIframe(hash + '.html');
+    } else {
+      showMap();
+    }
+  });
+
   // ── 側欄開關邏輯 ──
   // #menuToggle（☰）點擊 → sidebar.classList.toggle('open')
   // .open class → CSS translateX(0) 讓側欄滑入
