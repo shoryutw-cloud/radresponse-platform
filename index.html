@@ -1009,7 +1009,8 @@ function openCreateEvent(){
 }
 
 function closeCreateEvent(){ document.getElementById('ceBackdrop').classList.remove('show'); }
-function ceBgClick(e){ if(e.target===document.getElementById('ceBackdrop')) closeCreateEvent(); }
+// 點背景不關閉 Modal（已停用）
+function ceBgClick(e){ /* 故意不關閉，只能按 X 或建立完成才關 */ }
 
 // 選取事件類型標籤
 // 先移除所有標籤的顏色 class，再給被點的標籤加上對應顏色
@@ -1190,6 +1191,33 @@ function ceRst(){
 }
 document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_ceHS();});
 
+// ── 建立新事件（保持 Modal 開啟）──
+// 與 ceRst() 相同，但不關閉 Modal
+// 讓使用者可以連續建立多筆事件（002、003...）
+function ceRstKeepOpen(){
+  // 隱藏成功畫面
+  document.getElementById('ceOK').classList.remove('show');
+  // 清除所有欄位（同 ceRst）
+  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.querySelectorAll('.ce-pill').forEach(function(p){ p.className='ce-pill'; });
+  _ceLat = null; _ceLng = null;
+  document.getElementById('ceCo').style.display = 'none';
+  document.getElementById('ceAst').innerHTML = '';
+  document.getElementById('ceMH').style.display = '';
+  document.getElementById('ceSub').disabled = false;
+  document.getElementById('ceSub').innerHTML = '&#x2705; 建立事件';
+  // 地圖重置
+  if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
+  // 產生下一個流水號
+  document.getElementById('ceEvId').textContent = _ceId();
+  // 重設日期時間為現在
+  var d = new Date();
+  document.getElementById('ceDate').value = d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  ceVal();
+  // Modal 保持開啟，讓使用者繼續填下一筆
+}
+
 </script>
 
 <div class="ce-backdrop" id="ceBackdrop" onclick="ceBgClick(event)">
@@ -1261,7 +1289,7 @@ document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_
       <!-- 寫入試算表的結果訊息（成功=綠色，失敗=橘色）-->
       <div id="ceOKMsg" style="font-size:12px;margin-top:4px;"></div>
       <div class="ce-ok-btns">
-        <button class="ce-btn ce-btn-g" onclick="ceRst()">&#x2795; 建立新事件</button>
+        <button class="ce-btn ce-btn-g" onclick="ceRstKeepOpen()">&#x2795; 建立新事件</button>
         <button class="ce-btn ce-btn-p" onclick="closeCreateEvent()">&#x2190; 返回地圖</button>
       </div>
     </div>
