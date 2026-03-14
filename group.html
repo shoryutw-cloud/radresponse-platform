@@ -438,6 +438,11 @@
         <label>所屬組室</label>
         <input id="fDept" placeholder="例：輻射防護組">
       </div>
+      <!-- 隊別欄位：技術組才顯示，由 JS 控制 display -->
+      <div class="form-group" id="fTeamGroup" style="display:none">
+        <label class="ce-lbl">隊別</label>
+        <input id="fTeam" placeholder="例：第一隊、第二隊">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">取消</button>
@@ -714,9 +719,13 @@ function renderTableData(data, showHeader) {
   // 分組長、組員以紅色顯示（對應截圖設計）
   var SUB_TITLES = ['分組長','組員1','組員2','組員3','組員4','組員5','組員6','組員7','組員8'];
 
+  // 技術組（3個）才顯示「隊別」欄
+  var isTechGroup = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
   html += '<div class="table-wrap"><table>' +
     '<thead><tr>' +
-    '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th><th>操作</th>' +
+    '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th>' +
+    (isTechGroup ? '<th>隊別</th>' : '') +
+    '<th>操作</th>' +
     '</tr></thead><tbody>';
 
   members.forEach(function(m) {
@@ -727,10 +736,11 @@ function renderTableData(data, showHeader) {
       '<td>' + esc(m.mobile) + '</td>' +
       '<td>' + esc(m.phone) + '</td>' +
       '<td>' + esc(m.dept) + '</td>' +
+      (isTechGroup ? '<td>' + esc(m.team || '') + '</td>' : '') +
       '<td><div class="action-btns">' +
         '<button class="btn-edit" onclick="openEditModal(' + m.rowIndex + ',\'' +
           esc(m.title) + '\',\'' + esc(m.name) + '\',\'' +
-          esc(m.mobile) + '\',\'' + esc(m.phone) + '\',\'' + esc(m.dept) + '\')">編輯</button>' +
+          esc(m.mobile) + '\',\'' + esc(m.phone) + '\',\'' + esc(m.dept) + '\',\'' + esc(m.team||'') + '\')">編輯</button>' +
         '<button class="btn-del" onclick="openDeleteConfirm(' + m.rowIndex + ',\'' + esc(m.name) + '\')">刪除</button>' +
       '</div></td>' +
       '</tr>';
@@ -772,10 +782,14 @@ function openAddModal() {
   editMode = 'add';
   editRowIndex = null;
   document.getElementById('modalTitle').textContent = '新增成員';
-  // 清空欄位
   ['fTitle','fName','fMobile','fPhone','fDept'].forEach(function(id){
     document.getElementById(id).value = '';
   });
+  var teamField = document.getElementById('fTeam');
+  if (teamField) teamField.value = '';
+  // 技術組才顯示隊別欄位
+  var isTech = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
+  document.getElementById('fTeamGroup').style.display = isTech ? '' : 'none';
   document.getElementById('btnSave').innerHTML = '新增';
   document.getElementById('memberModal').classList.add('show');
   document.getElementById('fTitle').focus();
@@ -784,7 +798,7 @@ function openAddModal() {
 // ════════════════════════════════════════════════════════════
 // 編輯成員 Modal
 // ════════════════════════════════════════════════════════════
-function openEditModal(rowIndex, title, name, mobile, phone, dept) {
+function openEditModal(rowIndex, title, name, mobile, phone, dept, team) {
   editMode = 'edit';
   editRowIndex = rowIndex;
   document.getElementById('modalTitle').textContent = '編輯成員';
@@ -793,6 +807,11 @@ function openEditModal(rowIndex, title, name, mobile, phone, dept) {
   document.getElementById('fMobile').value = mobile;
   document.getElementById('fPhone').value  = phone;
   document.getElementById('fDept').value   = dept;
+  // 技術組才顯示隊別欄位
+  var isTech = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
+  document.getElementById('fTeamGroup').style.display = isTech ? '' : 'none';
+  var teamField = document.getElementById('fTeam');
+  if (teamField) teamField.value = team || '';
   document.getElementById('btnSave').innerHTML = '儲存修改';
   document.getElementById('memberModal').classList.add('show');
   document.getElementById('fTitle').focus();
@@ -822,6 +841,8 @@ function saveMember() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> 儲存中…';
 
+  var isTech = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
+  var team = isTech ? (document.getElementById('fTeam').value.trim()) : '';
   var payload = {
     action:   editMode === 'add' ? 'addMember' : 'editMember',
     groupId:  currentGroup,
@@ -829,7 +850,8 @@ function saveMember() {
     name:     name,
     mobile:   mobile,
     phone:    phone,
-    dept:     dept
+    dept:     dept,
+    team:     team
   };
   if (editMode === 'edit') payload.rowIndex = editRowIndex;
 
