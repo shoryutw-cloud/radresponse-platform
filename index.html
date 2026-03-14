@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>應變資訊平台</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --sidebar-w: 240px;
@@ -21,8 +19,10 @@
     --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
     --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
     --radius: 6px;
-    --font: 'Noto Sans TC', sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    /* 完全使用系統字型，零外部依賴 */
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,13 +38,13 @@
   .menu-toggle {
     display: flex; align-items: center; justify-content: center;
     width: 34px; height: 34px; background: none; border: none;
-    border-radius: var(--radius); color: #8da0b8; cursor: pointer; font-size: 18px;
-    transition: background .2s, color .2s; flex-shrink: 0;
+    border-radius: var(--radius); color: #8da0b8; cursor: pointer; font-size: 20px;
+    transition: background .2s, color .2s; flex-shrink: 0; line-height: 1;
   }
-  .menu-toggle:hover { background: rgba(255,255,255,0.07); color: #e8f0fa; }
+  .menu-toggle:hover { background: rgba(255,255,255,0.09); color: #e8f0fa; }
   .topbar-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
   .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; font-weight: 700; }
-  .logo-text { font-size: 13px; font-weight: 500; color: #e8f0fa; white-space: nowrap; }
+  .logo-text { font-size: 13px; font-weight: 600; color: #e8f0fa; white-space: nowrap; }
   .topbar-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--font-mono); color: #4ade80; }
   .status-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: blink 2.5s ease infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -63,7 +63,7 @@
     display: flex; flex-direction: column; z-index: 200;
     transform: translateX(calc(-1 * var(--sidebar-w)));
     transition: transform .25s var(--ease), box-shadow .25s var(--ease);
-    overflow: hidden; /* clipping is fine — dropdowns are in body */
+    overflow: hidden;
   }
   .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
   .sidebar-title { padding: 18px 16px 14px; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.4; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -82,7 +82,6 @@
   .nav-btn:hover { background: var(--hover); }
   .nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
   .nav-label { flex: 1; }
-  /* Arrow — always visible for items that have a dropdown */
   .nav-arrow { font-size: 10px; color: #b0bec5; flex-shrink: 0; }
 
   /* SIDEBAR BOTTOM */
@@ -95,20 +94,14 @@
   }
   .logout-btn:hover { border-color: #dc2626; color: #dc2626; background: #fff5f5; }
 
-  /* FLOATING DROPDOWN — appended to body, positioned via JS */
+  /* FLOATING MENUS — position:fixed, live in body, never clipped */
   .fly-menu {
-    display: none;
-    position: fixed; /* fixed so it escapes all overflow clipping */
-    min-width: 200px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-md);
-    z-index: 9999;
-    padding: 4px 0;
+    display: none; position: fixed;
+    min-width: 200px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-md); z-index: 9999; padding: 4px 0;
   }
   .fly-menu.active { display: block; }
-
   .drop-btn {
     display: flex; align-items: center; width: 100%; padding: 9px 16px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
@@ -118,7 +111,6 @@
   .drop-btn:hover { background: var(--hover); color: var(--accent); }
   .drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #b0bec5; }
 
-  /* LEVEL 3 fly menu */
   .fly-menu-l3 {
     display: none; position: fixed;
     min-width: 180px; background: var(--surface);
@@ -136,6 +128,11 @@
   /* MAP */
   .map-area { flex: 1; position: relative; overflow: hidden; }
   #map { width: 100%; height: 100%; background: #e8edf2; }
+  #map-fallback {
+    display: none; width: 100%; height: 100%;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; color: #6b7a92; font-size: 14px;
+  }
   .map-badge {
     position: absolute; top: 14px; right: 14px; background: white;
     border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 10px 14px;
@@ -185,9 +182,9 @@
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <button class="menu-toggle" id="menuToggle" title="開啟選單">☰</button>
+  <button class="menu-toggle" id="menuToggle" title="開啟選單">&#9776;</button>
   <a href="#" class="topbar-logo">
-    <div class="logo-icon">☢</div>
+    <div class="logo-icon">&#9762;</div>
     <span class="logo-text">應變資訊平台</span>
   </a>
   <div class="topbar-status"><span class="status-dot"></span>系統正常</div>
@@ -200,150 +197,148 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-title">測試用應變資訊平台</div>
-    <nav class="sidebar-nav" id="sidebarNav">
+    <nav class="sidebar-nav">
 
-      <!-- 事件儀表板 -->
       <div class="nav-item" data-menu="menu-dashboard">
         <button class="nav-btn">
-          <span class="nav-icon">📝</span>
+          <span class="nav-icon">&#x1F4DD;</span>
           <span class="nav-label">事件儀表板</span>
-          <span class="nav-arrow">▶</span>
+          <span class="nav-arrow">&#9654;</span>
         </button>
       </div>
 
-      <!-- 現場回報 -->
       <div class="nav-item" data-menu="menu-report">
         <button class="nav-btn">
-          <span class="nav-icon">📞</span>
+          <span class="nav-icon">&#x1F4DE;</span>
           <span class="nav-label">現場回報</span>
-          <span class="nav-arrow">▶</span>
+          <span class="nav-arrow">&#9654;</span>
         </button>
       </div>
 
-      <!-- 個人資料維護 -->
       <div class="nav-item">
-        <button class="nav-btn" onclick="openPanel('個人資料維護','🪪')">
-          <span class="nav-icon">🪪</span>
+        <button class="nav-btn" onclick="openPanel('個人資料維護')">
+          <span class="nav-icon">&#x1FABA;</span>
           <span class="nav-label">個人資料維護</span>
         </button>
       </div>
 
-      <!-- 使用說明 -->
       <div class="nav-item">
-        <button class="nav-btn" onclick="openPanel('使用說明','ℹ️')">
-          <span class="nav-icon">ℹ️</span>
+        <button class="nav-btn" onclick="openPanel('使用說明')">
+          <span class="nav-icon">&#x2139;&#xFE0F;</span>
           <span class="nav-label">使用說明</span>
         </button>
       </div>
 
-      <!-- 後台功能 -->
       <div class="nav-item" data-menu="menu-admin">
         <button class="nav-btn">
-          <span class="nav-icon">🔑</span>
+          <span class="nav-icon">&#x1F511;</span>
           <span class="nav-label">後台功能（管理員才有）</span>
-          <span class="nav-arrow">▶</span>
+          <span class="nav-arrow">&#9654;</span>
         </button>
       </div>
 
     </nav>
     <div class="sidebar-bottom">
-      <button class="logout-btn">⬅ 登出</button>
+      <button class="logout-btn">&#x2190; 登出</button>
     </div>
   </aside>
 
   <!-- MAP AREA -->
   <main class="map-area">
     <div id="map"></div>
+    <div id="map-fallback">
+      <div style="font-size:48px">&#x1F5FA;&#xFE0F;</div>
+      <div>地圖載入中，請確認網路連線...</div>
+    </div>
     <div class="map-badge">
       <div style="font-size:11px;font-weight:600;color:#3d5070;margin-bottom:2px;letter-spacing:.05em;text-transform:uppercase">事件狀態</div>
       <div class="map-badge-row"><span>進行中事件</span><span class="val green">0</span></div>
-      <div class="map-badge-row"><span>出勤人員</span><span class="val">—</span></div>
-      <div class="map-badge-row"><span>出動儀器</span><span class="val">—</span></div>
+      <div class="map-badge-row"><span>出勤人員</span><span class="val">&#8212;</span></div>
+      <div class="map-badge-row"><span>出動儀器</span><span class="val">&#8212;</span></div>
     </div>
     <div class="map-controls">
-      <button class="map-ctrl-btn" id="zoomIn">＋</button>
-      <button class="map-ctrl-btn" id="zoomOut">－</button>
+      <button class="map-ctrl-btn" id="zoomIn">&#xff0b;</button>
+      <button class="map-ctrl-btn" id="zoomOut">&#xff0d;</button>
     </div>
     <div class="map-compass">北</div>
     <div class="content-panel" id="contentPanel">
       <div class="panel-header">
-        <button class="panel-back" onclick="closePanel()">← 返回地圖</button>
+        <button class="panel-back" onclick="closePanel()">&#8592; 返回地圖</button>
         <span style="color:#d0d8e4">|</span>
-        <span class="panel-title" id="panelTitle">—</span>
+        <span class="panel-title" id="panelTitle">&#8212;</span>
       </div>
       <div class="panel-body" id="panelBody"></div>
     </div>
   </main>
 </div>
 
-<!-- FLOATING MENUS — appended to body so overflow:hidden never clips them -->
-
+<!-- FLOATING MENUS (in body, position:fixed, never clipped) -->
 <div class="fly-menu" id="menu-dashboard">
-  <button class="drop-btn" onclick="openPanel('目前任務','📝')">目前任務</button>
-  <button class="drop-btn" onclick="openPanel('事件出勤人員','👤')">事件出勤人員</button>
-  <button class="drop-btn" onclick="openPanel('事件出動儀器','🔧')">事件出動儀器</button>
-  <button class="drop-btn" onclick="openPanel('歷史事件查詢','🗂️')">歷史事件查詢</button>
+  <button class="drop-btn" onclick="openPanel('目前任務')">目前任務</button>
+  <button class="drop-btn" onclick="openPanel('事件出勤人員')">事件出勤人員</button>
+  <button class="drop-btn" onclick="openPanel('事件出動儀器')">事件出動儀器</button>
+  <button class="drop-btn" onclick="openPanel('歷史事件查詢')">歷史事件查詢</button>
 </div>
 
 <div class="fly-menu" id="menu-report">
-  <button class="drop-btn" onclick="openPanel('人工回報量測數值','📊')">人工回報量測數值</button>
-  <button class="drop-btn" onclick="openPanel('儀器回報量測數值','📡')">儀器回報量測數值</button>
-  <button class="drop-btn" onclick="openPanel('任務回報','✅')">任務回報</button>
-  <button class="drop-btn" onclick="openPanel('回報數值查詢','🔍')">回報數值查詢</button>
-  <button class="drop-btn" onclick="openPanel('現場其他事情回報','📋')">現場其他事情回報</button>
+  <button class="drop-btn" onclick="openPanel('人工回報量測數值')">人工回報量測數值</button>
+  <button class="drop-btn" onclick="openPanel('儀器回報量測數值')">儀器回報量測數值</button>
+  <button class="drop-btn" onclick="openPanel('任務回報')">任務回報</button>
+  <button class="drop-btn" onclick="openPanel('回報數值查詢')">回報數值查詢</button>
+  <button class="drop-btn" onclick="openPanel('現場其他事情回報')">現場其他事情回報</button>
 </div>
 
 <div class="fly-menu" id="menu-admin">
-  <button class="drop-btn" id="btn-jishi" data-l3="menu-jishi">📋 事件管理 <span class="drop-arrow">▶</span></button>
-  <button class="drop-btn" onclick="openPanel('編組管理','👥')">👥 編組管理</button>
-  <button class="drop-btn" onclick="openPanel('儀器管理','🔧')">🔧 儀器管理</button>
-  <button class="drop-btn" onclick="openPanel('新增地圖Icon圖示','📍')">📍 新增地圖Icon圖示</button>
-  <button class="drop-btn" onclick="openPanel('出勤通知簡訊紀錄','📱')">📱 出勤通知簡訊紀錄</button>
-  <button class="drop-btn" onclick="openPanel('事件異動紀錄','📜')">📜 事件異動紀錄</button>
-  <button class="drop-btn" onclick="openPanel('各帳號異動紀錄','🗒️')">🗒️ 各帳號異動紀錄</button>
-  <button class="drop-btn" onclick="openPanel('各帳號登入紀錄','🔐')">🔐 各帳號登入紀錄</button>
+  <button class="drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
+  <button class="drop-btn" onclick="openPanel('編組管理')">&#x1F465; 編組管理</button>
+  <button class="drop-btn" onclick="openPanel('儀器管理')">&#x1F527; 儀器管理</button>
+  <button class="drop-btn" onclick="openPanel('新增地圖Icon圖示')">&#x1F4CD; 新增地圖Icon圖示</button>
+  <button class="drop-btn" onclick="openPanel('出勤通知簡訊紀錄')">&#x1F4F1; 出勤通知簡訊紀錄</button>
+  <button class="drop-btn" onclick="openPanel('事件異動紀錄')">&#x1F4DC; 事件異動紀錄</button>
+  <button class="drop-btn" onclick="openPanel('各帳號異動紀錄')">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
+  <button class="drop-btn" onclick="openPanel('各帳號登入紀錄')">&#x1F510; 各帳號登入紀錄</button>
 </div>
 
 <div class="fly-menu-l3" id="menu-jishi">
-  <button class="drop-l3-btn" onclick="openPanel('建立事件','➕')">建立事件</button>
-  <button class="drop-l3-btn" onclick="openPanel('任務派送','📤')">任務派送</button>
-  <button class="drop-l3-btn" onclick="openPanel('出勤人員異動','👥')">出勤人員異動</button>
-  <button class="drop-l3-btn" onclick="openPanel('出動儀器異動','⚙️')">出動儀器異動</button>
+  <button class="drop-l3-btn" onclick="openPanel('建立事件')">建立事件</button>
+  <button class="drop-l3-btn" onclick="openPanel('任務派送')">任務派送</button>
+  <button class="drop-l3-btn" onclick="openPanel('出勤人員異動')">出勤人員異動</button>
+  <button class="drop-l3-btn" onclick="openPanel('出動儀器異動')">出動儀器異動</button>
 </div>
 
 <script>
 var gMap = null;
 
 var PANELS = {
-  '目前任務':         ['📝','目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
-  '事件出勤人員':     ['👤','事件出勤人員','目前無進行中事件，故無出勤人員資料。'],
-  '事件出動儀器':     ['🔧','事件出動儀器','目前無進行中事件，故無出動儀器資料。'],
-  '歷史事件查詢':     ['🗂️','歷史事件查詢','尚無歷史事件紀錄。'],
-  '人工回報量測數值': ['📊','人工回報量測數值','請選擇事件後進行量測數值回報。'],
-  '儀器回報量測數值': ['📡','儀器回報量測數值','目前無連線儀器。'],
-  '任務回報':         ['✅','任務回報','目前無指派任務。'],
-  '回報數值查詢':     ['🔍','回報數值查詢','尚無回報數值紀錄。'],
-  '現場其他事情回報': ['📋','現場其他事情回報','填寫現場狀況回報表單。'],
-  '個人資料維護':     ['🪪','個人資料維護','管理您的帳號資料、聯絡方式及所屬編組。'],
-  '使用說明':         ['ℹ️','使用說明','請參閱操作手冊或聯絡系統管理員。'],
-  '建立事件':         ['➕','建立事件','填寫新事件資訊以開設應變事件。'],
-  '任務派送':         ['📤','任務派送','派送任務至出勤人員。'],
-  '出勤人員異動':     ['👥','出勤人員異動','新增或移除出勤人員。'],
-  '出動儀器異動':     ['⚙️','出動儀器異動','管理出動儀器清單。'],
-  '編組管理':         ['👥','編組管理','管理應變編組及人員配置。'],
-  '儀器管理':         ['🔧','儀器管理','維護儀器清單及校正紀錄。'],
-  '新增地圖Icon圖示': ['📍','新增地圖 Icon 圖示','在地圖上新增標記或圖示。'],
-  '出勤通知簡訊紀錄': ['📱','出勤通知簡訊紀錄','查詢發送的出勤通知簡訊紀錄。'],
-  '事件異動紀錄':     ['📜','事件異動紀錄','查詢事件建立及修改的歷史紀錄。'],
-  '各帳號異動紀錄':   ['🗒️','各帳號異動紀錄','查詢帳號資料變更紀錄。'],
-  '各帳號登入紀錄':   ['🔐','各帳號登入紀錄','查詢各帳號的登入時間及 IP 紀錄。'],
+  '目前任務':         ['目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
+  '事件出勤人員':     ['事件出勤人員','目前無進行中事件，故無出勤人員資料。'],
+  '事件出動儀器':     ['事件出動儀器','目前無進行中事件，故無出動儀器資料。'],
+  '歷史事件查詢':     ['歷史事件查詢','尚無歷史事件紀錄。'],
+  '人工回報量測數值': ['人工回報量測數值','請選擇事件後進行量測數值回報。'],
+  '儀器回報量測數值': ['儀器回報量測數值','目前無連線儀器。'],
+  '任務回報':         ['任務回報','目前無指派任務。'],
+  '回報數值查詢':     ['回報數值查詢','尚無回報數值紀錄。'],
+  '現場其他事情回報': ['現場其他事情回報','填寫現場狀況回報表單。'],
+  '個人資料維護':     ['個人資料維護','管理您的帳號資料、聯絡方式及所屬編組。'],
+  '使用說明':         ['使用說明','請參閱操作手冊或聯絡系統管理員。'],
+  '建立事件':         ['建立事件','填寫新事件資訊以開設應變事件。'],
+  '任務派送':         ['任務派送','派送任務至出勤人員。'],
+  '出勤人員異動':     ['出勤人員異動','新增或移除出勤人員。'],
+  '出動儀器異動':     ['出動儀器異動','管理出動儀器清單。'],
+  '編組管理':         ['編組管理','管理應變編組及人員配置。'],
+  '儀器管理':         ['儀器管理','維護儀器清單及校正紀錄。'],
+  '新增地圖Icon圖示': ['新增地圖 Icon 圖示','在地圖上新增標記或圖示。'],
+  '出勤通知簡訊紀錄': ['出勤通知簡訊紀錄','查詢發送的出勤通知簡訊紀錄。'],
+  '事件異動紀錄':     ['事件異動紀錄','查詢事件建立及修改的歷史紀錄。'],
+  '各帳號異動紀錄':   ['各帳號異動紀錄','查詢帳號資料變更紀錄。'],
+  '各帳號登入紀錄':   ['各帳號登入紀錄','查詢各帳號的登入時間及 IP 紀錄。'],
 };
 
 function openPanel(title) {
-  var d = PANELS[title] || ['🔧', title, '此功能尚未開放。'];
-  document.getElementById('panelTitle').textContent = d[0] + ' ' + d[1];
+  var d = PANELS[title] || [title, '此功能尚未開放。'];
+  document.getElementById('panelTitle').textContent = d[0];
   document.getElementById('panelBody').innerHTML =
-    '<div class="empty-state"><div class="icon">'+d[0]+'</div><h3>'+d[1]+'</h3><p>'+d[2]+'</p></div>';
+    '<div class="empty-state"><div class="icon">&#x1F4CB;</div><h3>'+d[0]+'</h3><p>'+d[1]+'</p></div>';
   document.getElementById('contentPanel').classList.add('active');
   closeAllMenus();
   closeSidebar();
@@ -355,171 +350,152 @@ function closePanel() {
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 
-/* ── FLY MENU LOGIC ── */
-var activeMenu = null;
-var activeL3 = null;
-var hoverTimer = null;
-var leaveTimer = null;
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+}
 
 function closeAllMenus() {
   document.querySelectorAll('.fly-menu, .fly-menu-l3').forEach(function(m){ m.classList.remove('active'); });
-  activeMenu = null;
-  activeL3 = null;
 }
 
 function positionMenu(menu, anchor) {
-  // anchor = the nav-item or drop-btn element
+  menu.style.left = '-9999px'; menu.style.top = '-9999px';
+  menu.style.display = 'block';
+  var mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.display = '';
   var r = anchor.getBoundingClientRect();
-  // try right side first
   var left = r.right + 2;
   var top  = r.top;
-  // if overflow right, flip left
-  if (left + menu.offsetWidth > window.innerWidth - 8) {
-    left = r.left - menu.offsetWidth - 2;
-  }
-  // if overflow bottom, shift up
-  if (top + menu.offsetHeight > window.innerHeight - 8) {
-    top = window.innerHeight - menu.offsetHeight - 8;
-  }
+  if (left + mw > window.innerWidth - 8)  left = r.left - mw - 2;
+  if (top  + mh > window.innerHeight - 8) top  = window.innerHeight - mh - 8;
+  if (top < 4) top = 4;
   menu.style.left = left + 'px';
   menu.style.top  = top  + 'px';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-
-  /* Sidebar toggle */
   var sidebar = document.getElementById('sidebar');
   var overlay  = document.getElementById('overlay');
+  var leaveTimer = null;
 
+  /* ── Sidebar toggle ── */
   document.getElementById('menuToggle').addEventListener('click', function() {
     var open = sidebar.classList.toggle('open');
     overlay.classList.toggle('active', open);
     if (!open) closeAllMenus();
   });
+  overlay.addEventListener('click', function() { closeSidebar(); closeAllMenus(); });
 
-  function closeSidebarFn() {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('active');
-    closeAllMenus();
-  }
-  overlay.addEventListener('click', closeSidebarFn);
-
-  /* Nav items with dropdown */
+  /* ── Nav items with fly menus ── */
   document.querySelectorAll('.nav-item[data-menu]').forEach(function(item) {
-    var menuId = item.getAttribute('data-menu');
-    var menu   = document.getElementById(menuId);
+    var menu = document.getElementById(item.getAttribute('data-menu'));
+    if (!menu) return;
 
     item.addEventListener('mouseenter', function() {
       if (!sidebar.classList.contains('open')) return;
       clearTimeout(leaveTimer);
-      // close any other open menu
-      document.querySelectorAll('.fly-menu').forEach(function(m){ if(m !== menu) m.classList.remove('active'); });
+      // close sibling menus
+      document.querySelectorAll('.fly-menu').forEach(function(m){ if(m!==menu) m.classList.remove('active'); });
       closeL3();
       menu.classList.add('active');
       positionMenu(menu, item);
-      activeMenu = menu;
     });
-
-    item.addEventListener('mouseleave', function(e) {
+    item.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function(){
-        if (!menu.matches(':hover')) {
-          menu.classList.remove('active');
-          activeMenu = null;
-        }
+        if (!isHovered(menu)) { menu.classList.remove('active'); }
       }, 120);
     });
-
     menu.addEventListener('mouseenter', function(){ clearTimeout(leaveTimer); });
     menu.addEventListener('mouseleave', function(){
       leaveTimer = setTimeout(function(){
-        menu.classList.remove('active');
-        activeMenu = null;
-        closeL3();
+        if (!isHovered(item)) { menu.classList.remove('active'); closeL3(); }
       }, 120);
     });
   });
 
-  /* L3: 事件管理 */
-  function closeL3() {
-    var l3 = document.getElementById('menu-jishi');
-    if (l3) l3.classList.remove('active');
-    activeL3 = null;
-  }
+  /* ── L3: 事件管理 ── */
+  var btnJishi   = document.getElementById('btn-jishi');
+  var menuJishi  = document.getElementById('menu-jishi');
 
-  var btnJishi = document.getElementById('btn-jishi');
-  var menuJishi = document.getElementById('menu-jishi');
+  function closeL3() { if(menuJishi) menuJishi.classList.remove('active'); }
 
   if (btnJishi && menuJishi) {
     btnJishi.addEventListener('mouseenter', function() {
       clearTimeout(leaveTimer);
       menuJishi.classList.add('active');
       positionMenu(menuJishi, btnJishi);
-      activeL3 = menuJishi;
     });
     btnJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function(){
-        if (!menuJishi.matches(':hover')) {
-          menuJishi.classList.remove('active');
-          activeL3 = null;
-        }
+        if (!isHovered(menuJishi)) menuJishi.classList.remove('active');
       }, 120);
     });
     menuJishi.addEventListener('mouseenter', function(){ clearTimeout(leaveTimer); });
     menuJishi.addEventListener('mouseleave', function(){
-      leaveTimer = setTimeout(function(){
-        menuJishi.classList.remove('active');
-        activeL3 = null;
-      }, 120);
+      leaveTimer = setTimeout(function(){ menuJishi.classList.remove('active'); }, 120);
     });
   }
 
-  /* Close menus on outside click */
+  function isHovered(el) {
+    return el.matches && el.matches(':hover');
+  }
+
+  /* close on outside click */
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.fly-menu') && !e.target.closest('.fly-menu-l3') && !e.target.closest('.nav-item')) {
-      closeAllMenus();
-    }
+    if (!e.target.closest('.fly-menu,.fly-menu-l3,.nav-item')) closeAllMenus();
   });
 
-  /* Map init */
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(css);
-
-  var js = document.createElement('script');
-  js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-  js.onload = function() {
+  /* ── Load Leaflet dynamically ── */
+  function loadScript(src, cb, errCb) {
+    var s = document.createElement('script');
+    s.src = src; s.onload = cb; s.onerror = errCb;
+    document.head.appendChild(s);
+  }
+  function loadCSS(href) {
+    var l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = href;
+    document.head.appendChild(l);
+  }
+  function initMap() {
     gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors', maxZoom: 19
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     }).addTo(gMap);
     [
-      { lat: 25.046, lng: 121.517, label: '指揮中心', color: '#1a56db' },
-      { lat: 25.052, lng: 121.508, label: '量測點 A', color: '#16a34a' },
-      { lat: 25.039, lng: 121.525, label: '量測點 B', color: '#d97706' },
+      { lat:25.046, lng:121.517, label:'指揮中心', color:'#1a56db' },
+      { lat:25.052, lng:121.508, label:'量測點 A', color:'#16a34a' },
+      { lat:25.039, lng:121.525, label:'量測點 B', color:'#d97706' },
     ].forEach(function(m) {
-      L.marker([m.lat, m.lng], {
-        icon: L.divIcon({
-          className: '',
-          html: '<div style="background:'+m.color+';border-radius:50%;width:14px;height:14px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>',
-          iconSize: [14,14], iconAnchor: [7,7]
-        })
-      }).addTo(gMap).bindPopup('<b>'+m.label+'</b>');
+      L.marker([m.lat,m.lng], { icon: L.divIcon({
+        className:'',
+        html:'<div style="background:'+m.color+';border-radius:50%;width:14px;height:14px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>',
+        iconSize:[14,14], iconAnchor:[7,7]
+      })}).addTo(gMap).bindPopup('<b>'+m.label+'</b>');
     });
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
-  };
-  js.onerror = function() {
-    document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7a92;font-size:14px">⚠ 地圖載入失敗，請確認網路連線</div>';
-  };
-  document.head.appendChild(js);
+  }
+  function showMapError() {
+    document.getElementById('map').style.display = 'none';
+    document.getElementById('map-fallback').style.display = 'flex';
+  }
 
+  /* Try unpkg first, fall back to cdnjs */
+  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  loadScript(
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    initMap,
+    function() {
+      loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+      loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+        initMap,
+        showMapError
+      );
+    }
+  );
 });
-
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('active');
-}
 </script>
 </body>
 </html>
