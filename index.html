@@ -690,8 +690,15 @@ var PANELS = {
 // 會在地圖上方顯示 .content-panel，並關閉側欄和所有選單
 // -- 切換右欄顯示 iframe 功能頁面 --
 // src = 要載入的 HTML 檔名（例如 group.html）
+// 同時隱藏地圖相關的覆蓋元素（事件狀態卡、縮放按鈕、北方指標）
 function showIframe(src) {
   document.getElementById('mapLayer').style.display = 'none';
+  // 隱藏地圖上的所有覆蓋元素
+  var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
+  hideEls.forEach(function(sel) {
+    var el = document.querySelector(sel);
+    if (el) el.style.visibility = 'hidden';
+  });
   var layer = document.getElementById('iframeLayer');
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
@@ -701,9 +708,16 @@ function showIframe(src) {
 }
 
 // -- 切換回地圖 --
+// 恢復顯示地圖覆蓋元素
 function showMap() {
   document.getElementById('iframeLayer').style.display = 'none';
   document.getElementById('mapLayer').style.display = 'block';
+  // 恢復地圖覆蓋元素
+  var showEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
+  showEls.forEach(function(sel) {
+    var el = document.querySelector(sel);
+    if (el) el.style.visibility = '';
+  });
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 function openPanel(title) {
