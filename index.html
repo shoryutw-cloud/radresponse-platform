@@ -1366,21 +1366,27 @@ function ceGoPage2FromP3() {
 }
 
 // ── 從 GAS 讀取儀器清單 ──
-// GAS v7 action=instrument 回傳格式：
-// { "columns": ["項次","名稱",...,"使用者"], "rows": [{rowIndex:2, values:[...]}, ...] }
+// GAS v7 action=instrument 回傳：{ columns:[...], rows:[{rowIndex,values},...] }
 function _ceLoadInstruments() {
   var wrap = document.getElementById('ceInstrWrap');
-  if (_ceInstrCache) {
-    _ceRenderInstruments(_ceInstrCache);
-    return;
-  }
+  if (_ceInstrCache) { _ceRenderInstruments(_ceInstrCache); return; }
   wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
+  console.log('[儀器] JSONP 呼叫:', SHEETS_URL + '?action=instrument');
   _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
-    if (data && data.columns && data.rows) {
+    console.log('[儀器] GAS 回傳:', JSON.stringify(data));
+    if (!data) {
+      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 連線逾時，請重新進入此頁面。</div>';
+      return;
+    }
+    if (data.error) {
+      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; GAS 錯誤：' + _ceEsc(String(data.error)) + '</div>';
+      return;
+    }
+    if (data.columns && data.rows) {
       _ceInstrCache = data;
       _ceRenderInstruments(data);
     } else {
-      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 無法讀取儀器清單，請確認網路或 GAS 設定。</div>';
+      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 資料格式不符（請按 F12 查看主控台）</div>';
     }
   });
 }
@@ -1411,8 +1417,14 @@ function _ceRenderInstruments(data) {
     return;
   }
 
-  // 最後一欄是「使用者」，其餘顯示在表格
-  var userColIdx     = columns.length - 1;
+  // 找「使用者」欄（按名稱搜尋，不依賴位置）
+  // 若找不到，退而使用最後一欄
+  var userColIdx = -1;
+  columns.forEach(function(h, idx) {
+    if (String(h).trim() === '使用者') userColIdx = idx;
+  });
+  if (userColIdx < 0) userColIdx = columns.length - 1;
+  console.log('[儀器] 欄位:', columns, '使用者欄 index:', userColIdx);
   var displayColumns = columns.slice(0, userColIdx);
 
   // 取得技術組成員名單供下拉
