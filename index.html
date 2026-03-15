@@ -717,6 +717,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (except !== l3) l3.classList.remove('active');
   }
 
+  var btnJishi  = document.getElementById('btn-jishi');
+  var dropJishi = document.getElementById('drop-jishi');
+  var dropAdmin = document.getElementById('drop-admin');
+
+  function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
+
+  // ── 判斷滑鼠是否還在整個選單系統內 ──
+  // 傳入「目前這組的 navItem + drop」，若滑鼠在其他任何選單元件上也不關閉
+  function isInMenuSystem() {
+    var els = document.querySelectorAll('.tnav-item, .top-drop, .top-drop-l3');
+    return Array.from(els).some(function(el) { return el.matches(':hover'); });
+  }
+
   Object.keys(NAV_MAP).forEach(function(navId) {
     var navItem = document.getElementById(navId);
     var drop    = document.getElementById(NAV_MAP[navId]);
@@ -730,24 +743,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     navItem.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!drop.matches(':hover')) drop.classList.remove('active');
-      }, 120);
+        // 滑鼠不在任何選單元件上才關閉
+        if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
+      }, 150);
     });
     drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     drop.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!navItem.matches(':hover')) { drop.classList.remove('active'); closeL3(); }
-      }, 120);
+        if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
+      }, 150);
     });
   });
 
   // ── L3：事件管理 hover ──
-  var btnJishi  = document.getElementById('btn-jishi');
-  var dropJishi = document.getElementById('drop-jishi');
-  var dropAdmin = document.getElementById('drop-admin');
-
-  function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
-
   if (btnJishi && dropJishi && dropAdmin) {
     btnJishi.addEventListener('mouseenter', function() {
       clearTimeout(leaveTimer);
@@ -756,12 +764,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     btnJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
-      }, 120);
+        if (!isInMenuSystem()) dropJishi.classList.remove('active');
+      }, 150);
     });
     dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     dropJishi.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function() { dropJishi.classList.remove('active'); }, 120);
+      leaveTimer = setTimeout(function() {
+        if (!isInMenuSystem()) { dropJishi.classList.remove('active'); }
+        // 若滑鼠回到 drop-admin 但不在 L3，關閉 L3
+        if (!dropJishi.matches(':hover') && !btnJishi.matches(':hover')) {
+          dropJishi.classList.remove('active');
+        }
+      }, 150);
     });
   }
 
