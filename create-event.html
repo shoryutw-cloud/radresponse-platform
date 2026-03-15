@@ -268,6 +268,30 @@
   .ce-ok-msg { font-size: 12px; color: var(--text-muted); }
   .ce-ok-btns { display: flex; gap: 10px; margin-top: 8px; }
 
+  /* ── 附件上傳 ── */
+  .ce-attach-wrap { margin-top: 4px; }
+  .ce-attach-label {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border: 1.5px dashed var(--border);
+    border-radius: var(--radius); cursor: pointer;
+    font-size: 13px; color: var(--text-muted);
+    transition: all .15s; background: white;
+  }
+  .ce-attach-label:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
+  .ce-attach-label input[type=file] { display: none; }
+  .ce-attach-icon { font-size: 16px; flex-shrink: 0; }
+  .ce-attach-status {
+    font-size: 12px; margin-top: 5px; min-height: 16px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ce-attach-status.ok   { color: #16a34a; }
+  .ce-attach-status.err  { color: #dc2626; }
+  .ce-attach-status.loading { color: var(--text-muted); }
+  .ce-attach-name {
+    font-size: 12px; color: var(--text); font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+  }
+
   /* ── loading spinner ── */
   .ce-spin {
     display: inline-block; width: 13px; height: 13px;
@@ -359,6 +383,18 @@
       <div class="ce-group">
         <label class="ce-lbl">備註</label>
         <textarea class="ce-ta" id="ceNote" placeholder="補充說明…" rows="3"></textarea>
+      </div>
+      <div class="ce-group">
+        <label class="ce-lbl">附件（PDF / 圖片）</label>
+        <div class="ce-attach-wrap">
+          <label class="ce-attach-label">
+            <span class="ce-attach-icon">📎</span>
+            <span id="ceAttachText">點擊選擇檔案（PDF、JPG、PNG）</span>
+            <input type="file" id="ceAttachFile" accept=".pdf,.jpg,.jpeg,.png,.gif"
+                   onchange="ceAttachChange(this)">
+          </label>
+          <div class="ce-attach-status" id="ceAttachStatus"></div>
+        </div>
       </div>
     </div>
     <div class="ce-map-col">
@@ -453,6 +489,50 @@ function _jsonpGet(url, cb) {
   s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
   s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
   document.head.appendChild(s);
+}
+
+// ── 附件上傳 ──
+var _attachUrl = '';
+var _attachUploading = false;
+
+function ceAttachChange(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    ceAttachSetStatus('err', '檔案過大（上限 10 MB）');
+    input.value = ''; return;
+  }
+  document.getElementById('ceAttachText').textContent = file.name;
+  ceAttachSetStatus('loading', '上傳中…');
+  _attachUploading = true; _attachUrl = '';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'uploadFile', fileName: file.name, mimeType: file.type, data: base64 })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      _attachUploading = false;
+      if (res && res.url) {
+        _attachUrl = res.url;
+        ceAttachSetStatus('ok', '✔ 已上傳：' + file.name);
+      } else {
+        ceAttachSetStatus('err', '上傳失敗：' + (res && res.error ? res.error : '未知錯誤'));
+      }
+    })
+    .catch(function() { _attachUploading = false; ceAttachSetStatus('err', '上傳失敗，請確認網路連線'); });
+  };
+  reader.readAsDataURL(file);
+}
+
+function ceAttachSetStatus(type, msg) {
+  var el = document.getElementById('ceAttachStatus');
+  el.className = 'ce-attach-status' + (type ? ' ' + type : '');
+  el.textContent = msg;
 }
 
 function _esc(s) {
@@ -623,6 +703,10 @@ function _ceAst(t, m) {
 // ── 清除第一頁 ──
 function clearP1() {
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){ document.getElementById(id).value = ''; });
+  _attachUrl = ''; _attachUploading = false;
+  document.getElementById('ceAttachFile').value = '';
+  document.getElementById('ceAttachText').textContent = '點擊選擇檔案（PDF、JPG、PNG）';
+  ceAttachSetStatus('', '');
   document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
   _ceLat = null; _ceLng = null;
   document.getElementById('ceCo').style.display = 'none';
@@ -854,6 +938,10 @@ function _getInstruments() {
 // 送出（建立事件）
 // ════════════════════════════════════════
 function ceDo(skipInstruments) {
+  if (_attachUploading) {
+    alert('附件上傳中，請稍候再建立事件。');
+    return;
+  }
   var btn = document.getElementById('ceSubP3');
   if (!skipInstruments && btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
 
@@ -870,7 +958,8 @@ function ceDo(skipInstruments) {
     createdAt:     new Date().toISOString(),
     status:        'active',
     personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', '),
-    instrumentStr: skipInstruments ? '' : _getInstruments()
+    instrumentStr: skipInstruments ? '' : _getInstruments(),
+    attachmentUrl: _attachUrl || ''
   };
 
   // localStorage 備份
