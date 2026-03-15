@@ -369,7 +369,8 @@ function renderSquadBlock(title, members, lookup) {
 // ── 從 URL 讀取 idx 參數 ──
 function getStartIdx() {
   try {
-    var m = window.location.search.match(/[?&]idx=(\d+)/);
+    var qs = window.location.search;
+    var m  = qs.match(/[?&]idx=([0-9]+)/);
     return m ? parseInt(m[1], 10) : 0;
   } catch(e) { return 0; }
 }
@@ -381,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
       _events = data.events;
     }
     var startIdx = getStartIdx();
+    console.log('[' +  + fname +  + '] URL:', window.location.search, '| startIdx:', startIdx);
     _curIdx = startIdx;
     loadAndRender(startIdx);
   });
