@@ -2,12 +2,9 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<!--
-  ╔══════════════════════════════════════════════════════════════╗
-  ║           應變資訊平台 — index.html  主頁面                  ║
-  ╠══════════════════════════════════════════════════════════════╣
-  ║  檔案結構總覽：                                              ║
-  ║  1. <style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>應變資訊平台</title>
+<style>
   /* ────── CSS 變數 ────── */
   :root {
     --header-h: 52px;
@@ -35,13 +32,13 @@
   /* ────── TOP BAR ────── */
   .topbar {
     height: var(--header-h); background: #1e2a3a;
-    display: flex; align-items: center; padding: 0 20px; gap: 0;
+    display: flex; align-items: center; padding: 0 24px; gap: 0;
     flex-shrink: 0; border-bottom: 1px solid #0f1820;
     position: relative; z-index: 400;
   }
   .topbar-logo {
     display: flex; align-items: center; gap: 8px;
-    text-decoration: none; flex-shrink: 0; margin-right: 16px;
+    text-decoration: none; flex-shrink: 0; margin-right: auto;
   }
   .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
@@ -50,7 +47,8 @@
 
   /* ────── TOP NAV（桌機版，橫排）────── */
   .top-nav {
-    display: flex; align-items: stretch; height: 100%; flex: 1;
+    display: flex; align-items: stretch; height: 100%;
+    margin-left: 0;
   }
   .tnav-item { position: relative; display: flex; align-items: stretch; }
   .tnav-btn {
@@ -102,7 +100,7 @@
 
   /* ────── 登出按鈕（右側）────── */
   .topbar-logout {
-    margin-left: auto; flex-shrink: 0;
+    margin-left: 8px; flex-shrink: 0;
     padding: 6px 14px; background: none;
     border: 1px solid rgba(255,255,255,0.18); border-radius: var(--radius);
     color: #8da0b8; font-family: var(--font); font-size: 13px; cursor: pointer;
@@ -110,56 +108,22 @@
   }
   .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
 
-  /* ────── 手機版漢堡選單 ────── */
-  .mobile-toggle {
-    display: none; align-items: center; justify-content: center;
-    width: 36px; height: 36px; background: none; border: none;
-    border-radius: var(--radius); color: #8da0b8; cursor: pointer; font-size: 20px;
-    transition: background .2s, color .2s; flex-shrink: 0; margin-right: 8px;
-  }
-  .mobile-toggle:hover { background: rgba(255,255,255,0.09); color: #e8f0fa; }
 
-  /* 手機選單 overlay */
-  .mobile-menu {
-    display: none; position: fixed; top: var(--header-h); left: 0; right: 0;
-    background: #1e2a3a; z-index: 5000; border-bottom: 1px solid #0f1820;
-    flex-direction: column; max-height: calc(100vh - var(--header-h)); overflow-y: auto;
-    box-shadow: var(--shadow-lg);
+  /* ────── RWD ────── */
+  /* 平板（< 900px）：topbar 允許水平捲動，字體略縮 */
+  @media (max-width: 900px) {
+    .topbar { overflow-x: auto; overflow-y: hidden; padding: 0 12px; gap: 0; }
+    .tnav-btn { padding: 0 10px; font-size: 13px; }
+    .logo-text { font-size: 15px; }
+    .topbar-logout { padding: 5px 10px; font-size: 12px; }
   }
-  .mobile-menu.open { display: flex; }
-  .mobile-menu-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 20px; color: #b8cce0; font-size: 15px; font-weight: 500;
-    border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer;
-    background: none; border-left: none; border-right: none; border-top: none;
-    font-family: var(--font); text-align: left; width: 100%;
-    transition: background .12s;
+  /* 手機（< 600px）：logo 文字隱藏，節省空間 */
+  @media (max-width: 600px) {
+    .logo-text { display: none; }
+    .topbar-logo { margin-right: 8px; }
+    .tnav-btn { padding: 0 8px; font-size: 12px; }
+    .tnav-arrow { display: none; }
   }
-  .mobile-menu-item:hover { background: rgba(255,255,255,0.07); color: #e8f0fa; }
-  .mobile-menu-item .m-arrow { font-size: 10px; opacity: .5; transition: transform .2s; }
-  .mobile-menu-item.expanded .m-arrow { transform: rotate(90deg); }
-  .mobile-sub {
-    display: none; background: rgba(0,0,0,0.2);
-  }
-  .mobile-sub.open { display: block; }
-  .mobile-sub-btn {
-    display: block; width: 100%; padding: 11px 20px 11px 36px;
-    background: none; border: none; color: #8da0b8; font-family: var(--font);
-    font-size: 14px; text-align: left; cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: background .12s, color .12s;
-  }
-  .mobile-sub-btn:hover { background: rgba(255,255,255,0.07); color: #e8f0fa; }
-  .mobile-sub-sub { display: none; background: rgba(0,0,0,0.15); }
-  .mobile-sub-sub.open { display: block; }
-  .mobile-sub-sub-btn {
-    display: block; width: 100%; padding: 10px 20px 10px 52px;
-    background: none; border: none; color: #6b8aa8; font-family: var(--font);
-    font-size: 13px; text-align: left; cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    transition: background .12s, color .12s;
-  }
-  .mobile-sub-sub-btn:hover { background: rgba(255,255,255,0.06); color: #e8f0fa; }
 
   /* ────── LAYOUT ────── */
   .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
@@ -220,18 +184,13 @@
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.6; }
-
-  /* ────── RWD ────── */
-  @media (max-width: 900px) {
-    .top-nav { display: none; }
-    .mobile-toggle { display: flex; }
     .logo-text { font-size: 15px; }
-    .topbar-logout { padding: 5px 10px; font-size: 12px; }
+    /* 手機版：logo 左、漢堡右 */
+    .topbar-logo { margin-right: 0; }
   }
   @media (max-width: 480px) {
-    .logo-text { display: none; }
-    .topbar { padding: 0 12px; gap: 0; }
-    .topbar-logo { margin-right: 0; }
+    .logo-text { font-size: 13px; }
+    .topbar { padding: 0 12px; }
   }
 
   /* ── 建立事件第二頁：出勤人員 ── */
@@ -473,6 +432,7 @@
 </head>
 <body>
 
+
 <!-- ════════════════════════════════════════════════════════
      頂部導覽列
      - #menuToggle：☰ 按鈕，點擊呼叫 sidebar.classList.toggle('open')
@@ -481,10 +441,7 @@
      ════════════════════════════════════════════════════════ -->
 <!-- TOP BAR -->
 <div class="topbar">
-  <!-- 手機漢堡按鈕 -->
-  <button class="mobile-toggle" id="mobileToggle" title="開啟選單">&#9776;</button>
-
-  <!-- Logo -->
+  <!-- Logo（靠左）-->
   <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁">
     <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
       <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
@@ -492,7 +449,7 @@
     <span class="logo-text">輻射事件應變資訊平台</span>
   </a>
 
-  <!-- 桌機橫向導覽列 -->
+  <!-- 桌機橫向導覽列（靠右）-->
   <nav class="top-nav" id="topNav">
     <div class="tnav-item" id="tnav-dashboard">
       <button class="tnav-btn">&#x1F4DD; 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
@@ -512,62 +469,6 @@
   <button class="topbar-logout">&#x2190; 登出</button>
 </div>
 
-<!-- 手機版選單 -->
-<div class="mobile-menu" id="mobileMenu">
-  <!-- 事件儀表板 -->
-  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-dashboard',this)">
-    &#x1F4DD; 事件儀表板 <span class="m-arrow">&#9654;</span>
-  </button>
-  <div class="mobile-sub" id="msub-dashboard">
-    <button class="mobile-sub-btn" onclick="openPanel('目前任務');closeMobileMenu()">目前任務</button>
-    <button class="mobile-sub-btn" onclick="openPanel('事件出勤人員');closeMobileMenu()">事件出勤人員</button>
-    <button class="mobile-sub-btn" onclick="openPanel('事件出動儀器');closeMobileMenu()">事件出動儀器</button>
-    <button class="mobile-sub-btn" onclick="openPanel('歷史事件查詢');closeMobileMenu()">歷史事件查詢</button>
-  </div>
-  <!-- 現場回報 -->
-  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-report',this)">
-    &#x1F4DE; 現場回報 <span class="m-arrow">&#9654;</span>
-  </button>
-  <div class="mobile-sub" id="msub-report">
-    <button class="mobile-sub-btn" onclick="openPanel('人工回報量測數值');closeMobileMenu()">人工回報量測數值</button>
-    <button class="mobile-sub-btn" onclick="openPanel('儀器回報量測數值');closeMobileMenu()">儀器回報量測數值</button>
-    <button class="mobile-sub-btn" onclick="openPanel('任務回報');closeMobileMenu()">任務回報</button>
-    <button class="mobile-sub-btn" onclick="openPanel('回報數值查詢');closeMobileMenu()">回報數值查詢</button>
-    <button class="mobile-sub-btn" onclick="openPanel('現場其他事情回報');closeMobileMenu()">現場其他事情回報</button>
-  </div>
-  <!-- 設定 -->
-  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-settings',this)">
-    &#x2699;&#xFE0F; 設定 <span class="m-arrow">&#9654;</span>
-  </button>
-  <div class="mobile-sub" id="msub-settings">
-    <button class="mobile-sub-btn" onclick="openPanel('個人資料維護');closeMobileMenu()">個人資料維護</button>
-    <button class="mobile-sub-btn" onclick="openPanel('使用說明');closeMobileMenu()">使用說明</button>
-  </div>
-  <!-- 後台功能 -->
-  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-admin',this)">
-    &#x1F511; 後台功能 <span class="m-arrow">&#9654;</span>
-  </button>
-  <div class="mobile-sub" id="msub-admin">
-    <button class="mobile-sub-btn" onclick="mobileToggleSub('msub-jishi',this)">
-      &#x1F4CB; 事件管理 <span class="m-arrow">&#9654;</span>
-    </button>
-    <div class="mobile-sub-sub" id="msub-jishi">
-      <button class="mobile-sub-sub-btn" onclick="openCreateEvent();closeMobileMenu()">建立事件</button>
-      <button class="mobile-sub-sub-btn" onclick="openPanel('任務派送');closeMobileMenu()">任務派送</button>
-      <button class="mobile-sub-sub-btn" onclick="openPanel('出勤人員異動');closeMobileMenu()">出勤人員異動</button>
-      <button class="mobile-sub-sub-btn" onclick="openPanel('出動儀器異動');closeMobileMenu()">出動儀器異動</button>
-    </div>
-    <button class="mobile-sub-btn" onclick="showIframe('group.html');closeMobileMenu()">&#x1F465; 編組管理</button>
-    <button class="mobile-sub-btn" onclick="showIframe('instrument.html');closeMobileMenu()">&#x1F527; 儀器管理</button>
-    <button class="mobile-sub-btn" onclick="openPanel('新增地圖Icon圖示');closeMobileMenu()">&#x1F4CD; 新增地圖Icon圖示</button>
-    <button class="mobile-sub-btn" onclick="openPanel('出勤通知簡訊紀錄');closeMobileMenu()">&#x1F4F1; 出勤通知簡訊紀錄</button>
-    <button class="mobile-sub-btn" onclick="openPanel('事件異動紀錄');closeMobileMenu()">&#x1F4DC; 事件異動紀錄</button>
-    <button class="mobile-sub-btn" onclick="openPanel('各帳號異動紀錄');closeMobileMenu()">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
-    <button class="mobile-sub-btn" onclick="openPanel('各帳號登入紀錄');closeMobileMenu()">&#x1F510; 各帳號登入紀錄</button>
-  </div>
-  <!-- 登出 -->
-  <button class="mobile-menu-item" style="color:#fca5a5">&#x2190; 登出</button>
-</div>
 
 <!-- LAYOUT -->
 <div class="layout">
@@ -849,9 +750,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // ════════════════════════════════════════════
   // 手機版選單
   // ════════════════════════════════════════════
-  document.getElementById('mobileToggle').addEventListener('click', function() {
-    document.getElementById('mobileMenu').classList.toggle('open');
-  });
 
   // ── Leaflet 地圖載入 ──
   function loadScript(src, cb, errCb) {
@@ -894,18 +792,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// ── 手機版：展開/收合子選單 ──
-function mobileToggleSub(subId, btn) {
-  var sub = document.getElementById(subId);
-  if (!sub) return;
-  var isOpen = sub.classList.toggle('open');
-  if (btn) btn.classList.toggle('expanded', isOpen);
-}
 
-// ── 關閉手機選單 ──
-function closeMobileMenu() {
-  document.getElementById('mobileMenu').classList.remove('open');
-}
 
 // ── closeAllMenus（全站共用：關閉桌機下拉 + 手機選單）──
 function closeAllMenus() {
