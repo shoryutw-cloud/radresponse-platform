@@ -256,6 +256,13 @@
   }
   .layer-collapse-btn:hover { background: var(--bg); }
 
+  /* ── 量測標記 popup ── */
+  .msr-popup { font-family: var(--font); min-width: 140px; }
+  .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
+                   font-family: var(--font-mono); }
+  .msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
+  .msr-popup-info { font-size: 12px; color: #6b7a92; margin-top: 3px; }
+
   /* ── 右下角返回按鈕 ── */
   .back-btn {
     position: fixed; bottom: 24px; right: 24px; z-index: 1000;
@@ -700,12 +707,15 @@ function flyToEvent(idx) {
   });
   // 更新半透明圓形
   buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
+  loadMeasurements(idx);
 }
 
 // ── 圖層物件：每個事件獨立存放 ──
 // _evLayers[idx] = { circle, line, sector }
 var _evLayers = {};
 var _windDeg  = 270; // 預設東風
+var _msrMarkers = []; // 量測標記
+var _msrCache   = {}; // { eventId: [measurements] }
 
 // ── 角度換算工具（bearing in degrees, distance in meters）──
 function destPoint(lat, lng, bearingDeg, distM) {
@@ -795,6 +805,66 @@ function removeLayers() {
   _events.forEach(function(_, i) { removeEventLayers(i); });
 }
 
+// ── 載入並顯示量測標記 ──
+function loadMeasurements(idx) {
+  if (!gMap) return;
+  var ev = _events[idx];
+  if (!ev) return;
+
+  // 若有快取直接用
+  if (_msrCache[ev.id]) {
+    renderMsrMarkers(ev.id);
+    return;
+  }
+
+  _jsonpGet(SHEETS_URL + '?action=measurements&eventId=' + encodeURIComponent(ev.id), function(data) {
+    _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
+    renderMsrMarkers(ev.id);
+  });
+}
+
+function renderMsrMarkers(eventId) {
+  // 清除舊標記
+  _msrMarkers.forEach(function(m) { m.remove(); });
+  _msrMarkers = [];
+
+  var list = _msrCache[eventId] || [];
+  list.forEach(function(msr) {
+    var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    var val = parseFloat(msr.value);
+
+    // 依數值決定顏色：>10 紅, >1 橘, >0.1 黃, 其他綠
+    var col = val > 10 ? '#dc2626' : val > 1 ? '#f97316' : val > 0.1 ? '#eab308' : '#16a34a';
+
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="background:' + col + ';color:white;border-radius:4px;' +
+            'padding:3px 7px;font-size:12px;font-weight:700;white-space:nowrap;' +
+            'box-shadow:0 2px 6px rgba(0,0,0,.3);font-family:monospace;border:2px solid white">' +
+            val.toFixed(3) + '</div>',
+      iconAnchor: [30, 12]
+    });
+
+    var marker = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    var timeStr = '';
+    try {
+      var d = new Date(msr.time);
+      if (!isNaN(d.getTime())) timeStr = d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+    } catch(e) {}
+
+    marker.bindPopup(
+      '<div class="msr-popup">' +
+      '<span class="msr-popup-val">' + val.toFixed(3) + '</span>' +
+      '<span class="msr-popup-unit">μSv/h</span>' +
+      '<div class="msr-popup-info">' + (msr.reporter || '') + (timeStr ? ' · ' + timeStr : '') + '</div>' +
+      (msr.instrument ? '<div class="msr-popup-info">' + msr.instrument + '</div>' : '') +
+      '</div>'
+    );
+    _msrMarkers.push(marker);
+  });
+}
+
 // ── 渲染圖層控制面板（只顯示目前事件）──
 function renderLayerPanel() {
   var body = document.getElementById('layerPanelBody');
@@ -810,10 +880,22 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" checked onchange="toggleMsrLayer('+i+')"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
     '</div></div>';
 }
 
 // ── 圖層面板收合 ──
+function toggleMsrLayer(idx) {
+  var cb = document.getElementById('lyr_' + idx + '_msr');
+  if (!cb) return;
+  if (cb.checked) {
+    loadMeasurements(idx);
+  } else {
+    _msrMarkers.forEach(function(m) { m.remove(); });
+    _msrMarkers = [];
+  }
+}
+
 function toggleLayerPanel() {
   var panel = document.getElementById('layerPanel');
   var btn   = document.getElementById('layerCollapseBtn');
