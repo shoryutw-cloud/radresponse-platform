@@ -125,6 +125,19 @@
   /* 分隔線 */
   .ev-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
 
+  /* 快捷按鈕 */
+  .ev-shortcuts {
+    display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  .ev-shortcut-btn {
+    flex: 1; padding: 6px 8px; border-radius: 5px;
+    border: 1px solid var(--border); background: none;
+    font-family: var(--font); font-size: 12px; color: var(--text-muted);
+    cursor: pointer; transition: all .15s; text-align: center; white-space: nowrap;
+  }
+  .ev-shortcut-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
+
   /* 無事件狀態 */
   .ev-empty {
     text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px;
@@ -390,7 +403,23 @@ function renderCard(idx) {
   }
   html += '</div>';
 
+  // 快捷按鈕
+  html += '<div class="ev-shortcuts">';
+  html += '<button class="ev-shortcut-btn" onclick="goPersonnel()">&#x1F465; 出勤人員</button>';
+  html += '<button class="ev-shortcut-btn" onclick="goInstruments()">&#x1F527; 出動儀器</button>';
+  html += '</div>';
+
   body.innerHTML = html;
+}
+
+// ── 跳到出勤人員／出動儀器（帶入目前事件 idx）──
+function goPersonnel() {
+  try { parent.showIframe('event-personnel.html?idx=' + _curIdx); }
+  catch(e) { location.href = 'event-personnel.html?idx=' + _curIdx; }
+}
+function goInstruments() {
+  try { parent.showIframe('event-instruments.html?idx=' + _curIdx); }
+  catch(e) { location.href = 'event-instruments.html?idx=' + _curIdx; }
 }
 
 // ── 地圖飛到事件座標 ──

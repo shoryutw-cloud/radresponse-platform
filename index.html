@@ -584,7 +584,6 @@ var PANELS = {
 // 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
 function showIframe(src) {
   document.getElementById('mapLayer').style.display = 'none';
-  // 隱藏地圖上的所有覆蓋元素
   var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
   hideEls.forEach(function(sel) {
     var el = document.querySelector(sel);
@@ -593,10 +592,12 @@ function showIframe(src) {
   var layer = document.getElementById('iframeLayer');
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
-  frame.src = src;
-  // 更新網址 hash（例如 group.html → #group）
-  var hash = src.replace('.html', '');
-  window.location.hash = hash;
+  // 加 _t 時間戳確保每次都重新載入（即使同一個 src）
+  var sep = src.indexOf('?') > -1 ? '&' : '?';
+  frame.src = src + sep + '_t=' + Date.now();
+  // hash 只取檔名（去掉 query string）
+  var hashBase = src.split('?')[0].replace('.html', '');
+  window.location.hash = hashBase;
   closeAllMenus();
   closeSidebar();
 }
