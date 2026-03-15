@@ -925,14 +925,10 @@ function _getInstruments() {
   var rows = _ceInstrCache.rows || [];
   var result = [];
   document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
-    var i = parseInt(cb.id.replace('icb',''), 10);
+    var i    = parseInt(cb.id.replace('icb',''), 10);
     var vals = (rows[i] || {}).values || [];
-    var name     = vals[1] || ('儀器' + i);
-    var model    = vals[4] ? '(' + vals[4] + ')' : '';
-    var detector = vals[2] ? '[' + vals[2] + ']' : ''; // C欄：偵檢類型
-    var sel      = document.getElementById('isel' + i);
-    var user     = sel ? sel.value : '';
-    result.push(name + model + detector + (user ? ':' + user : ''));
+    var name = vals[1] || ('儀器' + i); // 只存儀器名稱
+    if (result.indexOf(name) === -1) result.push(name); // 去重
   });
   return result.join(', ');
 }
@@ -960,7 +956,7 @@ function ceDo(skipInstruments) {
     note:          document.getElementById('ceNote').value.trim(),
     createdAt:     new Date().toISOString(),
     status:        'active',
-    personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', '),
+    personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.name; }).join(', '),
     instrumentStr: skipInstruments ? '' : _getInstruments(),
     attachmentUrl: _attachUrl || ''
   };
