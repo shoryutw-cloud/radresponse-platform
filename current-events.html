@@ -489,15 +489,16 @@ function loadEvents(startIdx) {
   });
 }
 
-// ── 從 URL 讀取 idx 參數 ──
-function getStartIdx() {
-  try {
-    var qs = window.location.search;
-    var m  = qs.match(/[?&]idx=([0-9]+)/);
-    return m ? parseInt(m[1], 10) : 0;
-  } catch(e) { return 0; }
-}
-
+// ── 接收 postMessage 傳入的 idx（從 index.html showIframe 送來）──
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
+    var idx = e.data.idx;
+    if (idx >= 0 && idx < _events.length) {
+      _curIdx = idx;
+      loadAndRender(idx);
+    }
+  }
+});
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
   function loadCSS(href) {
@@ -514,9 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }).addTo(gMap);
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
-    var _si = getStartIdx();
-    console.log('[current-events] URL:', window.location.search, '| startIdx:', _si);
-    loadEvents(_si);
+    loadEvents(0);
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');

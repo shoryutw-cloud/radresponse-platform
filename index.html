@@ -592,11 +592,28 @@ function showIframe(src) {
   var layer = document.getElementById('iframeLayer');
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
-  // 加 _t 時間戳確保每次都重新載入（即使同一個 src）
-  var sep = src.indexOf('?') > -1 ? '&' : '?';
-  frame.src = src + sep + '_t=' + Date.now();
-  // hash 只取檔名（去掉 query string）
-  var hashBase = src.split('?')[0].replace('.html', '');
+
+  // 解析 src 中的 idx 參數，之後用 postMessage 傳給 iframe
+  var idxMatch = src.match(/[?&]idx=([0-9]+)/);
+  var idxVal   = idxMatch ? parseInt(idxMatch[1], 10) : null;
+
+  // 去掉 query string，只保留純檔名
+  var cleanSrc = src.split('?')[0];
+  // 加時間戳確保每次重新載入
+  frame.src = cleanSrc + '?_t=' + Date.now();
+
+  // iframe 載入完成後，若有 idx 則用 postMessage 傳送
+  if (idxVal !== null) {
+    frame.onload = function() {
+      try {
+        frame.contentWindow.postMessage({ type: 'setIdx', idx: idxVal }, '*');
+      } catch(e) {}
+      frame.onload = null;
+    };
+  }
+
+  // hash 只取檔名
+  var hashBase = cleanSrc.replace('.html', '');
   window.location.hash = hashBase;
   closeAllMenus();
   closeSidebar();
