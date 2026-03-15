@@ -170,9 +170,9 @@ function _esc(s) {
 }
 
 function goBack() {
-  console.log('[event-instruments.html] goBack _curIdx='+_curIdx);
-  try { parent.showIframe('current-events.html?idx=' + _curIdx); }
-  catch(e) { console.log('[event-instruments.html] parent.showIframe failed', e); }
+  try { sessionStorage.setItem('currentEventIdx', _curIdx); } catch(e) {}
+  try { parent.showIframe('current-events.html'); }
+  catch(e) {}
 }
 
 // ── 事件導覽 ──
@@ -318,32 +318,22 @@ function renderInstruments(instruments) {
 }
 
 // ── 告知父層 iframe 已準備好，請求 idx ──
-function notifyReady() {
-  try { parent.postMessage({ type: 'iframeReady' }, '*'); } catch(e) {}
+, '*'); } catch(e) {}
 }
 
 // ── 接收 setIdx ──
-var _pendingIdx = null;
-window.addEventListener('message', function(e) {
-  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
-    _pendingIdx = e.data.idx;
-    if (_events.length > 0) {
-      var idx = Math.min(_pendingIdx, _events.length - 1);
-      _curIdx = idx; _pendingIdx = null;
-      loadAndRender(idx);
-    }
-  }
-});
 
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
-    if (data && data.events) _events = data.events;
-    if (_pendingIdx !== null && _pendingIdx < _events.length) {
-      _curIdx = _pendingIdx; _pendingIdx = null;
-    }
+    _events = (data && data.events) ? data.events : [];
+    var savedIdx = 0;
+    try {
+      var s = sessionStorage.getItem('currentEventIdx');
+      if (s !== null) savedIdx = parseInt(s, 10) || 0;
+    } catch(e) {}
+    _curIdx = (savedIdx < _events.length) ? savedIdx : 0;
     loadAndRender(_curIdx);
-    notifyReady();
   });
 });
 </script>
