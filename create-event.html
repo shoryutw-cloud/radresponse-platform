@@ -385,7 +385,7 @@
         <textarea class="ce-ta" id="ceNote" placeholder="補充說明…" rows="3"></textarea>
       </div>
       <div class="ce-group">
-        <label class="ce-lbl">附件（PDF / 圖片）</label>
+        <label class="ce-lbl">附件（PDF / 圖片）<span class="req">*</span></label>
         <div class="ce-attach-wrap">
           <label class="ce-attach-label">
             <span class="ce-attach-icon">📎</span>
@@ -520,6 +520,7 @@ function ceAttachChange(input) {
       if (res && res.url) {
         _attachUrl = res.url;
         ceAttachSetStatus('ok', '✔ 已上傳：' + file.name);
+        ceVal(); // 附件上傳完成，重新驗證
       } else {
         ceAttachSetStatus('err', '上傳失敗：' + (res && res.error ? res.error : '未知錯誤'));
       }
@@ -619,7 +620,8 @@ function ceVal() {
            document.getElementById('ceType').value &&
            document.getElementById('ceDate').value &&
            document.getElementById('ceTime').value &&
-           _ceLat !== null;
+           _ceLat !== null &&
+           _attachUrl !== '';  // 附件必填
   document.getElementById('ceSub').disabled = !ok;
   if (ok) {
     document.getElementById('ceFSt').innerHTML = '所有必填欄位已完成 &#x2714;';
@@ -630,6 +632,7 @@ function ceVal() {
     if (!document.getElementById('ceType').value) ms.push('事件類型');
     if (!document.getElementById('ceDate').value || !document.getElementById('ceTime').value) ms.push('日期時間');
     if (_ceLat === null) ms.push('事件地點');
+    if (!_attachUrl) ms.push('附件');
     document.getElementById('ceFSt').innerHTML = '尚未填寫：' + ms.join('、');
     document.getElementById('ceFSt').className = 'ce-fstatus';
   }
