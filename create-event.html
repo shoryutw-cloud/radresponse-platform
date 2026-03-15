@@ -25,12 +25,13 @@
   body { font-family: var(--font); background: var(--bg); color: var(--text);
          display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
 
-  /* ── 頁首（白底，整合步驟指示器）── */
+  /* ── 頁首（白底，步驟絕對置中）── */
   .ce-header {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center;
     padding: 0 24px; background: white;
     border-bottom: 2px solid var(--border);
     flex-shrink: 0; height: 52px;
+    position: relative;
   }
   .ce-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .ce-title { font-size: 15px; font-weight: 700; color: var(--text); }
@@ -39,15 +40,16 @@
     background: var(--bg); padding: 3px 8px;
     border-radius: 4px; border: 1px solid var(--border);
   }
-  /* 步驟指示器整合進頁首 */
+  /* 步驟指示器：絕對置中，不受左右元素影響 */
   .ce-steps {
-    display: flex; align-items: center; flex: 1;
-    height: 100%; gap: 0;
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 0;
+    pointer-events: none;
   }
   .ce-step {
     display: flex; align-items: center; gap: 7px;
     font-size: 13px; color: var(--text-muted); white-space: nowrap;
-    padding: 0 4px;
   }
   .ce-step-num {
     width: 22px; height: 22px; border-radius: 50%;
@@ -60,9 +62,10 @@
   .ce-step.active .ce-step-label { color: var(--accent); font-weight: 600; }
   .ce-step.done .ce-step-num { background: #16a34a; color: white; }
   .ce-step.done .ce-step-label { color: #16a34a; }
-  .ce-step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 8px; min-width: 16px; max-width: 60px; }
+  .ce-step-sep { width: 48px; height: 1px; background: var(--border); margin: 0 8px; }
   .ce-back-btn {
-    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 5px;
+    margin-left: auto; flex-shrink: 0;
     background: none; border: 1px solid var(--border);
     border-radius: var(--radius); padding: 5px 12px;
     color: var(--text-muted); font-family: var(--font); font-size: 13px;
@@ -768,7 +771,8 @@ function _renderInstruments(data) {
 
   var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
   html += '<table class="ce-instr-tbl"><thead><tr>';
-  html += '<th class="ce-instr-chk">出動</th>';
+  // 全選 checkbox
+  html += '<th class="ce-instr-chk"><input type="checkbox" id="icbAll" title="全選／取消全選" onchange="_instrChgAll(this)" style="width:16px;height:16px;cursor:pointer;accent-color:#1a56db;margin:0;vertical-align:middle"></th>';
   displayCols.forEach(function(h){ html += '<th>' + _esc(h) + '</th>'; });
   html += '<th>' + _esc(columns[userColIdx] || '使用者') + '</th>';
   html += '</tr></thead><tbody>';
@@ -791,6 +795,23 @@ function _renderInstruments(data) {
   wrap.innerHTML = html;
 }
 
+// 全選 / 取消全選
+function _instrChgAll(allCb) {
+  var rows = (_ceInstrCache && _ceInstrCache.rows) ? _ceInstrCache.rows : [];
+  rows.forEach(function(_, i) {
+    var cb  = document.getElementById('icb'  + i);
+    var sel = document.getElementById('isel' + i);
+    var row = document.getElementById('irow' + i);
+    if (!cb) return;
+    cb.checked = allCb.checked;
+    if (sel) { sel.disabled = !allCb.checked; if (!allCb.checked) sel.value = ''; }
+    if (row) row.classList.toggle('ce-isel', allCb.checked);
+  });
+  var n = allCb.checked ? rows.length : 0;
+  var el = document.getElementById('ceInstrN');
+  if (el) el.textContent = n;
+}
+
 function _instrChg(i) {
   var cb = document.getElementById('icb' + i);
   var sel = document.getElementById('isel' + i);
@@ -798,9 +819,14 @@ function _instrChg(i) {
   sel.disabled = !cb.checked;
   if (!cb.checked) sel.value = '';
   if (row) row.classList.toggle('ce-isel', cb.checked);
-  var n = document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').length;
+  // 更新計數（排除全選 checkbox 本身）
+  var cbs = document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]');
+  var checked = Array.from(cbs).filter(function(x){ return x.checked; });
   var el = document.getElementById('ceInstrN');
-  if (el) el.textContent = n;
+  if (el) el.textContent = checked.length;
+  // 同步全選狀態
+  var allCb = document.getElementById('icbAll');
+  if (allCb) allCb.checked = (checked.length === cbs.length) && cbs.length > 0;
 }
 
 function _getInstruments() {
