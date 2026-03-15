@@ -221,29 +221,40 @@ function _esc(s) {
 }
 
 // 格式化日期時間 → 2026年3月15日 14時34分
+// GAS 可能回傳：
+//   日期："2026-03-15" 或 "Sun Mar 15 2026 00:00:00 GMT+0800..."
+//   時間："14:34" 或 "Sat Dec 30 1899 14:34:00 GMT+0800..."（Sheets 時間型別）
 function formatDateTime(dateVal, timeVal) {
   var dateStr = '', timeStr = '';
 
-  // 處理日期：可能是 Date 物件字串 或 YYYY-MM-DD
+  // ── 日期 ──
   try {
-    var d = new Date(dateVal);
-    if (!isNaN(d.getTime())) {
-      dateStr = d.getFullYear() + '年' +
-                (d.getMonth() + 1) + '月' +
-                d.getDate() + '日';
+    var ds = String(dateVal || '');
+    // YYYY-MM-DD 格式
+    var ymMatch = ds.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (ymMatch) {
+      dateStr = ymMatch[1] + '年' + parseInt(ymMatch[2]) + '月' + parseInt(ymMatch[3]) + '日';
+    } else {
+      // Date 物件字串：取年份不是 1899 的才當日期用
+      var d = new Date(ds);
+      if (!isNaN(d.getTime()) && d.getFullYear() !== 1899) {
+        dateStr = d.getFullYear() + '年' +
+                  (d.getMonth() + 1) + '月' +
+                  d.getDate() + '日';
+      }
     }
   } catch(e) {}
 
-  // 處理時間：可能是 Date 物件字串 或 HH:MM
+  // ── 時間 ──
   try {
-    // 先試 HH:MM 格式
-    var tm = String(timeVal || '');
-    var hmMatch = tm.match(/(\d{1,2}):(\d{2})/);
+    var ts = String(timeVal || '');
+    // HH:MM 格式（直接取）
+    var hmMatch = ts.match(/(\d{1,2}):(\d{2})/);
     if (hmMatch) {
-      timeStr = hmMatch[1] + '時' + hmMatch[2] + '分';
+      timeStr = parseInt(hmMatch[1]) + '時' + hmMatch[2] + '分';
     } else {
-      // 試 Date 字串
-      var td = new Date(timeVal);
+      // Date 物件字串（含 1899 的 Sheets 時間型別）
+      var td = new Date(ts);
       if (!isNaN(td.getTime())) {
         timeStr = td.getHours() + '時' +
                   String(td.getMinutes()).padStart(2,'0') + '分';
