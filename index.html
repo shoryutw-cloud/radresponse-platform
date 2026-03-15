@@ -141,6 +141,20 @@
     align-items: center; justify-content: center;
     flex-direction: column; gap: 12px; color: #6b7a92; font-size: 14px;
   }
+  /* 儀表板卡片 */
+  .dash-card {
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 24px 20px; display: flex; flex-direction: column; align-items: center;
+    gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: box-shadow .15s;
+  }
+  .dash-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.13); }
+  .dash-card-icon { font-size: 28px; padding: 12px; border-radius: 50%; }
+  .dash-card-label { font-size: 13px; font-weight: 600; color: #6b7a92;
+                     letter-spacing: .04em; text-transform: uppercase; }
+  .dash-card-val { font-size: 48px; font-weight: 700; line-height: 1.1;
+                   font-family: ui-monospace, monospace; }
+  .dash-card-sub { font-size: 12px; color: #94a3b8; }
+
   .map-badge {
     position: absolute; top: 14px; right: 14px; background: white;
     border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 10px 14px;
@@ -473,11 +487,32 @@
 <!-- LAYOUT -->
 <div class="layout">
   <main class="map-area" id="mapArea" style="position:relative">
-    <div id="mapLayer" style="position:absolute;inset:0;z-index:1">
-      <div id="map" style="width:100%;height:100%"></div>
-      <div id="map-fallback">
-        <div style="font-size:48px">&#x1F5FA;&#xFE0F;</div>
-        <div>地圖載入中，請確認網路連線...</div>
+    <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;overflow-y:auto">
+      <div id="dashboard" style="max-width:600px;margin:60px auto;padding:24px;display:flex;flex-direction:column;gap:24px">
+        <div style="text-align:center;margin-bottom:8px">
+          <div style="font-size:32px">🛡️</div>
+          <div style="font-size:22px;font-weight:700;color:#1e2a3a;margin-top:8px">輻射事件應變資訊平台</div>
+          <div style="font-size:13px;color:#6b7a92;margin-top:4px">即時掌握事件動態</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="dash-card" id="dashActive" onclick="showIframe('current-events.html')" style="cursor:pointer">
+            <div class="dash-card-icon" style="background:#fff0e6;color:#f97316">🚨</div>
+            <div class="dash-card-label">目前事件數</div>
+            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316">—</div>
+            <div class="dash-card-sub">點擊查看詳情</div>
+          </div>
+          <div class="dash-card" id="dashClosed">
+            <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a">✅</div>
+            <div class="dash-card-label">歷史事件數</div>
+            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a">—</div>
+            <div class="dash-card-sub">已結束事件</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:8px">
+          <button onclick="showIframe('current-events.html')" style="padding:12px 32px;background:#1a56db;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">
+            📍 查看目前事件地圖
+          </button>
+        </div>
       </div>
     </div>
     <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:none">
@@ -633,20 +668,24 @@ window.addEventListener('message', function(e) {
   }
 });
 
-// -- 切換回地圖 --
-// 恢復顯示地圖覆蓋元素，並清除網址 hash
+// -- 切換回儀表板首頁 --
 function showMap() {
   document.getElementById('iframeLayer').style.display = 'none';
   document.getElementById('mapLayer').style.display = 'block';
-  // 恢復地圖覆蓋元素
-  var showEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
-  showEls.forEach(function(sel) {
-    var el = document.querySelector(sel);
-    if (el) el.style.visibility = '';
-  });
-  // 清除 hash（回到地圖狀態）
   history.pushState('', document.title, window.location.pathname + window.location.search);
-  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
+  loadDashStats();
+}
+
+// ── 載入儀表板統計數字 ──
+function loadDashStats() {
+  _jsonpGet(SHEETS_URL + '?action=eventStats', function(data) {
+    if (data) {
+      var actEl = document.getElementById('dashActiveVal');
+      var cloEl = document.getElementById('dashClosedVal');
+      if (actEl) actEl.textContent = (data.active !== undefined) ? data.active : '—';
+      if (cloEl) cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    }
+  });
 }
 function openPanel(title) {
   var d = PANELS[title] || [title, '此功能尚未開放。'];
@@ -673,6 +712,9 @@ function closePanel() {
 // DOMContentLoaded：頁面 HTML 載入完成後執行
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
+
+  // 載入儀表板統計
+  loadDashStats();
 
   // ── Hash 路由 ──
   function restoreFromHash() {
