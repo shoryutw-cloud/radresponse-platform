@@ -927,8 +927,16 @@ function _getInstruments() {
   document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
     var i    = parseInt(cb.id.replace('icb',''), 10);
     var vals = (rows[i] || {}).values || [];
-    var name = vals[1] || ('儀器' + i); // 只存儀器名稱
-    if (result.indexOf(name) === -1) result.push(name); // 去重
+    var name     = vals[1] || '';
+    var model    = vals[4] || '';
+    var detector = vals[2] || ''; // C欄：偵檢類型
+    if (!name) return;
+    // 格式：名稱(型號)[偵檢類型]
+    // 懸浮卡讀 [偵檢類型]，出動儀器頁讀名稱(型號)
+    var key = name;
+    if (model)    key += '(' + model + ')';
+    if (detector) key += '[' + detector + ']';
+    result.push(key);
   });
   return result.join(', ');
 }
