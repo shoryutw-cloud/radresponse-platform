@@ -223,19 +223,30 @@
     padding: 10px 14px; border-bottom: 1px solid var(--border);
     font-size: 13px; font-weight: 700; color: var(--text); user-select: none;
   }
-  .layer-panel-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .layer-panel-body { padding: 8px 0; display: flex; flex-direction: column;
+                        max-height: calc(100vh - 200px); overflow-y: auto; }
+  .layer-panel-body::-webkit-scrollbar { width: 3px; }
+  .layer-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .layer-panel.collapsed .layer-panel-body { display: none; }
   .layer-panel.collapsed .layer-panel-header { border-bottom: none; }
+  /* 每個事件的圖層區塊 */
+  .layer-ev-block { padding: 8px 14px; border-bottom: 1px solid var(--border); }
+  .layer-ev-block:last-child { border-bottom: none; }
+  .layer-ev-name {
+    font-size: 12px; font-weight: 700; color: var(--text);
+    margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .layer-ev-cbs { display: flex; flex-direction: column; gap: 4px; }
   .layer-row {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 13px; color: var(--text); cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none;
   }
   .layer-row input[type=checkbox] {
-    width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent);
+    width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent);
     flex-shrink: 0;
   }
   .layer-dot {
-    width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
+    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
   }
   .layer-collapse-btn {
     width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
@@ -342,22 +353,8 @@
     &#x1F5FA;&#xFE0F; 圖層顯示
     <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()">&#x25B2;</button>
   </div>
-  <div class="layer-panel-body">
-    <label class="layer-row">
-      <input type="checkbox" id="layerCircle" checked onchange="updateLayers()">
-      <span class="layer-dot" style="background:#f97316;opacity:.6;border:2px solid #f97316"></span>
-      100m 範圍圓
-    </label>
-    <label class="layer-row">
-      <input type="checkbox" id="layerLine" checked onchange="updateLayers()">
-      <span class="layer-dot" style="background:#3b82f6;opacity:.8;border:2px solid #3b82f6"></span>
-      1km 邊界線
-    </label>
-    <label class="layer-row">
-      <input type="checkbox" id="layerSector" checked onchange="updateLayers()">
-      <span class="layer-dot" style="background:#8b5cf6;opacity:.6;border:2px solid #8b5cf6"></span>
-      5km 影響扇形
-    </label>
+  <div class="layer-panel-body" id="layerPanelBody">
+    <div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">載入中…</div>
   </div>
 </div>
 
@@ -487,11 +484,8 @@ function saveEdit() {
     ev.doseMax     = payload.doseMax;
     ev.impactRange = payload.impactRange;
     ev.status      = payload.status;
-    // 更新風向圖層
-    if (windVal !== '') {
-      _windDeg = (parseFloat(windVal) + 180) % 360; // 風向→下風方向
-      updateLayers();
-    }
+    // 重建該事件圖層（風向可能更新）
+    buildEventLayers(_curIdx);
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
@@ -690,16 +684,13 @@ function flyToEvent(idx) {
     if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
   });
   // 更新半透明圓形
-  updateLayers(lat, lng);
+  buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
 }
 
-// ── 圖層物件 ──
-var _layerCircle  = null;
-var _layerLine    = null;
-var _layerSector  = null;
-var _layerLat     = null;
-var _layerLng     = null;
-var _windDeg      = 270; // 東風=往西吹=270度（Leaflet bearing: 0=北,90=東,180=南,270=西）
+// ── 圖層物件：每個事件獨立存放 ──
+// _evLayers[idx] = { circle, line, sector }
+var _evLayers = {};
+var _windDeg  = 270; // 預設東風
 
 // ── 角度換算工具（bearing in degrees, distance in meters）──
 function destPoint(lat, lng, bearingDeg, distM) {
@@ -713,56 +704,99 @@ function destPoint(lat, lng, bearingDeg, distM) {
   return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
 }
 
-// ── 建立/移動三個圖層 ──
-function updateLayers(lat, lng) {
-  if (!gMap) return;
-  if (lat !== undefined) { _layerLat = lat; _layerLng = lng; }
-  if (_layerLat === null) return;
-  var la = _layerLat, lo = _layerLng;
+// ── 建立某個事件的圖層 ──
+function buildEventLayers(idx) {
+  var ev = _events[idx];
+  if (!ev || !gMap) return;
+  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+  if (isNaN(la) || isNaN(lo)) return;
 
-  // ── (1) 100m 圓 ──
-  removeLayers();
-  if (document.getElementById('layerCircle') && document.getElementById('layerCircle').checked) {
-    _layerCircle = L.circle([la, lo], {
+  // 取該事件的風向（有設定用設定值，否則預設270）
+  var wd = (ev.windDir && ev.windDir !== '') ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+
+  // 移除舊圖層
+  removeEventLayers(idx);
+  if (!_evLayers[idx]) _evLayers[idx] = {};
+
+  // checkbox 狀態
+  var showCircle = isLayerOn(idx, 'circle');
+  var showLine   = isLayerOn(idx, 'line');
+  var showSector = isLayerOn(idx, 'sector');
+
+  // (1) 100m 圓
+  if (showCircle) {
+    _evLayers[idx].circle = L.circle([la, lo], {
       radius: 100, color: '#f97316', fillColor: '#f97316',
       fillOpacity: 0.15, weight: 2, dashArray: '6 4', opacity: 0.8
     }).addTo(gMap);
   }
 
-  // ── (2) 1km 邊界線（下風方向1km處，垂直風向，長1km）──
-  if (document.getElementById('layerLine') && document.getElementById('layerLine').checked) {
-    // 下風中心點（事發地沿風向走1km）
-    var lineCenter = destPoint(la, lo, _windDeg, 1000);
-    // 垂直風向 = windDeg + 90 / windDeg - 90
-    var perpA = destPoint(lineCenter[0], lineCenter[1], (_windDeg + 90) % 360, 500);
-    var perpB = destPoint(lineCenter[0], lineCenter[1], (_windDeg - 90 + 360) % 360, 500);
-    _layerLine = L.polyline([perpA, perpB], {
+  // (2) 1km 邊界線
+  if (showLine) {
+    var lineCenter = destPoint(la, lo, wd, 1000);
+    var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
+    var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
+    _evLayers[idx].line = L.polyline([perpA, perpB], {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
   }
 
-  // ── (3) 5km 扇形（±22.5° 風向，以事發地為頂點）──
-  if (document.getElementById('layerSector') && document.getElementById('layerSector').checked) {
-    var steps = 40;
-    var halfAngle = 22.5;
-    var radius = 5000;
-    var pts = [[la, lo]]; // 從頂點開始
-    for (var i = 0; i <= steps; i++) {
-      var angle = (_windDeg - halfAngle) + (halfAngle * 2 * i / steps);
-      pts.push(destPoint(la, lo, angle, radius));
+  // (3) 5km 扇形
+  if (showSector) {
+    var pts = [[la, lo]];
+    for (var i = 0; i <= 40; i++) {
+      pts.push(destPoint(la, lo, (wd - 22.5) + 45 * i / 40, 5000));
     }
-    pts.push([la, lo]); // 回到頂點
-    _layerSector = L.polygon(pts, {
+    pts.push([la, lo]);
+    _evLayers[idx].sector = L.polygon(pts, {
       color: '#8b5cf6', fillColor: '#8b5cf6',
       fillOpacity: 0.12, weight: 2, opacity: 0.7
     }).addTo(gMap);
   }
 }
 
+function removeEventLayers(idx) {
+  var lyr = _evLayers[idx];
+  if (!lyr) return;
+  if (lyr.circle) { lyr.circle.remove(); lyr.circle = null; }
+  if (lyr.line)   { lyr.line.remove();   lyr.line   = null; }
+  if (lyr.sector) { lyr.sector.remove(); lyr.sector = null; }
+}
+
+// checkbox 狀態（預設全開）
+function isLayerOn(idx, type) {
+  var cb = document.getElementById('lyr_' + idx + '_' + type);
+  return cb ? cb.checked : true;
+}
+
+// ── 重建所有事件的圖層 ──
+function updateLayers(lat, lng) {
+  // 相容舊有呼叫（傳入 lat/lng 時只重建當前事件）
+  _events.forEach(function(_, i) { buildEventLayers(i); });
+}
+
 function removeLayers() {
-  if (_layerCircle)  { _layerCircle.remove();  _layerCircle  = null; }
-  if (_layerLine)    { _layerLine.remove();     _layerLine    = null; }
-  if (_layerSector)  { _layerSector.remove();   _layerSector  = null; }
+  _events.forEach(function(_, i) { removeEventLayers(i); });
+}
+
+// ── 渲染圖層控制面板 ──
+function renderLayerPanel() {
+  var body = document.getElementById('layerPanelBody');
+  if (!body) return;
+  if (!_events.length) {
+    body.innerHTML = '<div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">無進行中事件</div>';
+    return;
+  }
+  body.innerHTML = _events.map(function(ev, i) {
+    var name = ev.name || ('事件 ' + (i+1));
+    return '<div class="layer-ev-block">' +
+      '<div class="layer-ev-name">' + _esc(name) + '</div>' +
+      '<div class="layer-ev-cbs">' +
+        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
+        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 邊界線</label>' +
+        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
+      '</div></div>';
+  }).join('');
 }
 
 // ── 圖層面板收合 ──
@@ -843,8 +877,9 @@ function loadEvents() {
     _pendingIdx = null;
     renderCard(_curIdx);
     placeMarkers();
+    renderLayerPanel();          // 渲染圖層控制面板
+    updateLayers();              // 建立所有事件圖層
     if (_events.length) flyToEvent(_curIdx);
-    // 告知父層「我已準備好，請送 setIdx 過來」
     notifyReady();
   });
 }
