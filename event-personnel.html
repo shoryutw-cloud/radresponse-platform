@@ -124,8 +124,8 @@
     .page-header { padding: 0 14px; }
     .page-body { padding: 14px 14px; }
     .ev-nav-info { max-width: 140px; }
-    .member-table th:nth-child(4),
-    .member-table td:nth-child(4) { display: none; } /* 隱藏所屬組室 */
+    .member-table th:nth-child(5),
+    .member-table td:nth-child(5) { display: none; } /* 隱藏所屬組室 */
   }
 </style>
 </head>
@@ -155,6 +155,7 @@
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 
 var SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
+var NON_TECH_SQUADS = ['參謀組','新聞組']; // 非技術組但有獨立分頁
 var CE_TYPE_GROUP = {
   '輻射彈事件':     'tech-rdd',
   '放射性物質事件': 'tech-substance',
@@ -163,7 +164,7 @@ var CE_TYPE_GROUP = {
 
 var _events = [];
 var _curIdx = 0;
-var _groupCache = {}; // 已載入的群組資料 { name: {title, phone, dept} }
+var _groupCache = {}; // 已載入的群組資料 { name: {title, mobile, phone, dept} }
 var _jsonpCounter = 0;
 
 function _jsonpGet(url, cb) {
@@ -228,10 +229,15 @@ function loadAndRender(idx) {
 
   // 取得對應的技術組 id
   var groupId = CE_TYPE_GROUP[ev.type] || 'tech-rdd';
+  var targets = [groupId, 'staff', 'press'];
+  var done = 0;
 
-  // 載入群組資料（有快取就跳過）
-  loadGroupData(groupId, function() {
-    renderPersonnel(ev, personnel);
+  // 同時載入技術組、參謀組、新聞組（有快取就跳過）
+  targets.forEach(function(gid) {
+    loadGroupData(gid, function() {
+      done++;
+      if (done === targets.length) renderPersonnel(ev, personnel);
+    });
   });
 }
 
@@ -242,7 +248,12 @@ function loadGroupData(groupId, cb) {
     if (data && data.members) {
       _groupCache[groupId] = {};
       data.members.forEach(function(m) {
-        _groupCache[groupId][m.name] = { title: m.title, phone: m.phone || m.mobile || '', dept: m.dept || '' };
+        _groupCache[groupId][m.name] = {
+          title:  m.title  || '',
+          mobile: m.mobile || '',
+          phone:  m.phone  || '',
+          dept:   m.dept   || ''
+        };
       });
     }
     cb();
@@ -253,42 +264,50 @@ function loadGroupData(groupId, cb) {
 function renderPersonnel(ev, personnel) {
   var body = document.getElementById('pageBody');
   var groupId = CE_TYPE_GROUP[ev.type] || 'tech-rdd';
-  var lookup = _groupCache[groupId] || {};
+
+  // 建立全域 lookup（技術組 + 參謀組 + 新聞組）
+  var lookup = {};
+  Object.keys(_groupCache).forEach(function(gid) {
+    Object.keys(_groupCache[gid]).forEach(function(name) {
+      lookup[name] = _groupCache[gid][name];
+    });
+  });
 
   // 依隊別分組
   var squads = {};
-  var unassigned = [];
   personnel.forEach(function(p) {
-    if (SQUAD_ORDER.indexOf(p.squad) !== -1) {
-      if (!squads[p.squad]) squads[p.squad] = [];
-      squads[p.squad].push(p);
-    } else {
-      unassigned.push(p);
-    }
+    var key = p.squad || '未分配';
+    if (!squads[key]) squads[key] = [];
+    squads[key].push(p);
   });
 
-  var totalTech = personnel.length;
+  var total = personnel.length;
   var html = '';
 
   // 統計列
   html += '<div class="stat-bar">';
-  html += '<div class="stat-card"><div class="stat-label">出勤總人數</div><div class="stat-value">' + totalTech + '</div></div>';
-  // 各小隊人數
-  SQUAD_ORDER.forEach(function(s) {
-    if (squads[s] && squads[s].length) {
+  html += '<div class="stat-card"><div class="stat-label">出勤總人數</div><div class="stat-value">' + total + '</div></div>';
+  var allGroups = SQUAD_ORDER.concat(NON_TECH_SQUADS).concat(['未分配']);
+  allGroups.forEach(function(s) {
+    if (squads[s] && squads[s].length && s !== '未分配') {
       html += '<div class="stat-card"><div class="stat-label">' + _esc(s) + '</div><div class="stat-value" style="font-size:18px">' + squads[s].length + '</div></div>';
     }
   });
   html += '</div>';
 
-  // 各小隊區塊（依固定順序）
+  // 技術組各小隊
   SQUAD_ORDER.forEach(function(sname) {
     if (!squads[sname] || !squads[sname].length) return;
     html += renderSquadBlock(sname, squads[sname], lookup);
   });
+  // 參謀組、新聞組
+  NON_TECH_SQUADS.forEach(function(sname) {
+    if (!squads[sname] || !squads[sname].length) return;
+    html += renderSquadBlock(sname, squads[sname], lookup);
+  });
   // 未分配
-  if (unassigned.length) {
-    html += renderSquadBlock('未分配', unassigned, lookup);
+  if (squads['未分配'] && squads['未分配'].length) {
+    html += renderSquadBlock('未分配', squads['未分配'], lookup);
   }
 
   body.innerHTML = html;
@@ -301,16 +320,17 @@ function renderSquadBlock(title, members, lookup) {
   h += '<span class="squad-count">' + members.length + ' 人</span>';
   h += '</div>';
   h += '<table class="member-table"><thead><tr>';
-  h += '<th>職稱</th><th>姓名</th><th>電話</th><th>所屬組室</th>';
+  h += '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th>';
   h += '</tr></thead><tbody>';
 
   members.forEach(function(p) {
     var info = lookup[p.name] || {};
     h += '<tr>';
-    h += '<td class="td-title">' + _esc(info.title || '—') + '</td>';
-    h += '<td class="td-name">' + _esc(p.name) + '</td>';
-    h += '<td class="td-phone">' + _esc(info.phone || '—') + '</td>';
-    h += '<td class="td-dept">' + _esc(info.dept || '—') + '</td>';
+    h += '<td class="td-title">' + _esc(info.title  || '—') + '</td>';
+    h += '<td class="td-name">'  + _esc(p.name)              + '</td>';
+    h += '<td class="td-phone">' + _esc(info.mobile || '—') + '</td>';
+    h += '<td class="td-phone">' + _esc(info.phone  || '—') + '</td>';
+    h += '<td class="td-dept">'  + _esc(info.dept   || '—') + '</td>';
     h += '</tr>';
   });
 
