@@ -35,7 +35,7 @@
   .ev-card {
     position: fixed; top: 16px; left: 16px; z-index: 1000;
     background: var(--surface); border-radius: var(--radius);
-    box-shadow: var(--shadow-lg); width: 280px;
+    box-shadow: var(--shadow-lg); width: 310px;
     border: 1px solid var(--border);
     transition: width .2s, box-shadow .2s;
   }
@@ -47,7 +47,7 @@
     cursor: default; user-select: none; gap: 8px;
   }
   .ev-card-title {
-    font-size: 13px; font-weight: 700; color: var(--text);
+    font-size: 14px; font-weight: 700; color: var(--text);
     display: flex; align-items: center; gap: 6px;
   }
   .ev-status-dot {
@@ -85,7 +85,7 @@
 
   /* ── 卡片內容 ── */
   .ev-card-body {
-    padding: 12px 14px; display: flex; flex-direction: column; gap: 9px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
     transition: all .2s; overflow: hidden;
   }
   .ev-card.collapsed .ev-card-body { display: none; }
@@ -95,15 +95,29 @@
     display: flex; gap: 8px; align-items: flex-start;
   }
   .ev-lbl {
-    font-size: 11px; font-weight: 600; color: var(--text-muted);
-    letter-spacing: .04em; white-space: nowrap; min-width: 88px;
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .02em; white-space: nowrap; min-width: 96px;
     padding-top: 1px;
   }
   .ev-val {
-    font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word;
+    font-size: 14px; color: var(--text); line-height: 1.4; word-break: break-word;
   }
-  .ev-val.accent { color: var(--accent); font-weight: 600; }
-  .ev-val.em { font-weight: 600; font-size: 14px; }
+  .ev-val.accent { color: var(--accent); font-weight: 700; }
+  .ev-val.em { font-weight: 700; font-size: 15px; }
+
+  /* 劑量率醒目樣式 */
+  .ev-row-dose {
+    background: #fff8f0; border-radius: 6px;
+    padding: 6px 8px; margin: 0 -4px;
+    border-left: 3px solid #f97316;
+  }
+  .ev-dose-val {
+    font-size: 16px !important; font-weight: 700 !important;
+    color: #ea580c !important; font-family: var(--font-mono);
+  }
+  .ev-dose-max {
+    color: #dc2626 !important;
+  }
 
   /* 類型標籤 */
   .ev-type-badge {
@@ -117,7 +131,7 @@
   /* 偵檢類型 tags */
   .ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
   .ev-tag {
-    font-size: 11px; padding: 2px 8px; border-radius: 4px;
+    font-size: 12px; padding: 2px 9px; border-radius: 4px;
     background: #f0f2f5; color: var(--text-muted);
     border: 1px solid var(--border);
   }
@@ -387,6 +401,32 @@ function renderCard(idx) {
 
   html += '<hr class="ev-divider">';
 
+  // 目前劑量率（醒目顯示）
+  html += '<div class="ev-row ev-row-dose">';
+  html += '<span class="ev-lbl">目前劑量率</span>';
+  html += '<span class="ev-val ev-dose-val" id="evDoseRate">—</span>';
+  html += '</div>';
+
+  // 最大劑量率
+  html += '<div class="ev-row ev-row-dose">';
+  html += '<span class="ev-lbl">最大劑量率</span>';
+  html += '<span class="ev-val ev-dose-val ev-dose-max" id="evDoseMax">—</span>';
+  html += '</div>';
+
+  // 風向
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">風向</span>';
+  html += '<span class="ev-val" id="evWindDir">—</span>';
+  html += '</div>';
+
+  // 預估影響範圍
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">預估影響範圍</span>';
+  html += '<span class="ev-val" id="evImpactRange">—</span>';
+  html += '</div>';
+
+  html += '<hr class="ev-divider">';
+
   // 赴現場人數（技術組）
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">赴現場人數</span>';
@@ -403,32 +443,6 @@ function renderCard(idx) {
   } else {
     html += '<span class="ev-val" style="color:#b0bec5">—</span>';
   }
-  html += '</div>';
-
-  html += '<hr class="ev-divider">';
-
-  // 目前劑量率
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">目前劑量率</span>';
-  html += '<span class="ev-val" id="evDoseRate">—</span>';
-  html += '</div>';
-
-  // 有紀錄以來最大劑量率
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">最大劑量率</span>';
-  html += '<span class="ev-val" id="evDoseMax">—</span>';
-  html += '</div>';
-
-  // 風向
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">風向</span>';
-  html += '<span class="ev-val" id="evWindDir">—</span>';
-  html += '</div>';
-
-  // 預估影響範圍
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">預估影響範圍</span>';
-  html += '<span class="ev-val" id="evImpactRange">—</span>';
   html += '</div>';
 
   // 快捷按鈕
