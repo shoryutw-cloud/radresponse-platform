@@ -197,27 +197,30 @@ function parseInstruments(str) {
   if (!str) return [];
   return str.split(',').map(function(item) {
     item = item.trim();
-    var nameMatch  = item.match(/^([^([\:]+)/);
+    // 格式：名稱(型號)[偵檢類型]
+    var nameMatch  = item.match(/^([^([]+)/);
     var modelMatch = item.match(/\(([^)]+)\)/);
     var detMatch   = item.match(/\[([^\]]+)\]/);
-    var userMatch  = item.match(/:([^:]+)$/);
     return {
-      name:     (nameMatch  ? nameMatch[1].trim()  : item),
-      model:    (modelMatch ? modelMatch[1].trim()  : ''),
-      detector: (detMatch   ? detMatch[1].trim()    : ''),
-      user:     (userMatch  ? userMatch[1].trim()   : '')
+      name:     nameMatch  ? nameMatch[1].trim()  : item,
+      model:    modelMatch ? modelMatch[1].trim() : '',
+      detector: detMatch   ? detMatch[1].trim()   : ''
     };
   }).filter(function(i) { return i.name; });
 }
 
 // ── 從儀器清單找對應資料（用名稱+型號比對）──
+// 已配對的索引（避免同名儀器重複配對到同一列）
+var _matchedRows = [];
+
 function lookupInstr(name, model, instrList) {
   for (var i = 0; i < instrList.length; i++) {
+    if (_matchedRows.indexOf(i) !== -1) continue; // 已被配對，跳過
     var row = instrList[i].values || [];
-    // row: [項次, 名稱, 偵檢類型, 廠牌, 型號, 存放地點, 保管人, 使用者]
     var rName  = String(row[1] || '').trim();
     var rModel = String(row[4] || '').trim();
     if (rName === name && (!model || rModel === model)) {
+      _matchedRows.push(i); // 標記已配對
       return {
         seq:      String(row[0] || ''),
         detector: String(row[2] || ''),
@@ -265,6 +268,7 @@ function loadAndRender(idx) {
 
 // ── 渲染儀器表格 ──
 function renderInstruments(instruments) {
+  _matchedRows = []; // 每次渲染前重置配對記錄
   var body = document.getElementById('pageBody');
   var list = _instrCache || [];
 
