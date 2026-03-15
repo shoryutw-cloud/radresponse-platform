@@ -477,49 +477,43 @@ function placeMarkers() {
 }
 
 // ── 載入事件 ──
-function loadEvents(startIdx) {
-  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
-    if (data && data.events) {
-      _events = data.events;
+// ── pendingIdx：setIdx message 比 _events 早到時暫存 ──
+var _pendingIdx = null;
+
+// ── 接收父層的 setIdx ──
+window.addEventListener('message', function(e) {
+  if (!e.data) return;
+  if (e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
+    if (_events.length > 0) {
+      // events 已載入，直接切換
+      var idx = Math.min(e.data.idx, _events.length - 1);
+      _curIdx = idx;
+      renderCard(idx);
+      flyToEvent(idx);
     } else {
-      _events = [];
+      // events 還沒回來，暫存等 loadEvents 完成後套用
+      _pendingIdx = e.data.idx;
     }
-    // 若指定 startIdx 且合法就跳到該筆，否則從第 0 筆
-    // 若有 postMessage 傳來的 idx，優先使用
-    var useIdx = (_pendingIdx !== null && _pendingIdx < _events.length) ? _pendingIdx : 
-                 (typeof startIdx === 'number' && startIdx < _events.length ? startIdx : 0);
+  }
+});
+
+function loadEvents() {
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    _events = (data && data.events) ? data.events : [];
+    // 套用 pendingIdx（postMessage 比 JSONP 早到的情況）
+    if (_pendingIdx !== null && _pendingIdx < _events.length) {
+      _curIdx = _pendingIdx;
+    } else {
+      _curIdx = 0;
+    }
     _pendingIdx = null;
-    _curIdx = useIdx;
     renderCard(_curIdx);
     placeMarkers();
     if (_events.length) flyToEvent(_curIdx);
+    // 告知父層「我已準備好，請送 setIdx 過來」
+    notifyReady();
   });
 }
-
-// ── 接收 setIdx（等 _events 載入完才能生效）──
-var _pendingIdx = null;
-window.addEventListener('message', function(e) {
-  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
-    _pendingIdx = e.data.idx;
-    if (_events.length > 0) {
-      var idx = Math.min(_pendingIdx, _events.length - 1);
-      _curIdx = idx; _pendingIdx = null;
-      renderCard(idx); flyToEvent(idx);
-    }
-  }
-});
-// ── 接收 setIdx（等 _events 載入完才能生效）──
-var _pendingIdx = null;
-window.addEventListener('message', function(e) {
-  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
-    _pendingIdx = e.data.idx;
-    if (_events.length > 0) {
-      var idx = Math.min(_pendingIdx, _events.length - 1);
-      _curIdx = idx; _pendingIdx = null;
-      renderCard(idx); flyToEvent(idx);
-    }
-  }
-});
 
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
@@ -537,7 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }).addTo(gMap);
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
-    loadEvents(0);
+    loadEvents();
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
