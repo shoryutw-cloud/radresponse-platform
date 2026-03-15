@@ -231,6 +231,7 @@ var gMap = null;
 var _events = [];    // 所有進行中事件
 var _curIdx = 0;     // 目前顯示哪一筆
 var _markers = [];   // 地圖標記
+var _circle  = null; // 半透明影響範圍圓形
 var _jsonpCounter = 0;
 
 // ── JSONP ──
@@ -461,7 +462,7 @@ function goInstruments() {
   catch(e) {}
 }
 
-// ── 地圖飛到事件座標 ──
+// ── 地圖飛到事件座標，並更新影響範圍圓形 ──
 function flyToEvent(idx) {
   var ev = _events[idx];
   if (!gMap || !ev) return;
@@ -473,6 +474,26 @@ function flyToEvent(idx) {
     var el = m.getElement ? m.getElement() : null;
     if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
   });
+  // 更新半透明圓形
+  updateCircle(lat, lng);
+}
+
+// ── 半透明影響範圍圓形（100 公尺）──
+function updateCircle(lat, lng) {
+  if (!gMap) return;
+  if (_circle) {
+    _circle.setLatLng([lat, lng]);
+  } else {
+    _circle = L.circle([lat, lng], {
+      radius:      100,
+      color:       '#f97316',
+      fillColor:   '#f97316',
+      fillOpacity: 0.15,
+      weight:      2,
+      dashArray:   '6 4',
+      opacity:     0.7
+    }).addTo(gMap);
+  }
 }
 
 // ── 在地圖放置所有事件標記 ──
