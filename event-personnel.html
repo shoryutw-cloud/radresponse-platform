@@ -93,16 +93,25 @@
   }
 
   /* ── 人員表格 ── */
-  .member-table { width: 100%; border-collapse: collapse; }
+  .member-table {
+    width: 100%; border-collapse: collapse;
+    table-layout: fixed; /* 固定欄寬，所有小隊對齊 */
+  }
+  .member-table col.col-title  { width: 90px; }
+  .member-table col.col-name   { width: 110px; }
+  .member-table col.col-mobile { width: 150px; }
+  .member-table col.col-phone  { width: 150px; }
+  .member-table col.col-dept   { width: auto; }
   .member-table th {
     font-size: 11px; color: var(--text-muted); font-weight: 600;
     text-transform: uppercase; letter-spacing: .05em;
     padding: 8px 16px; background: #f8fafc;
-    border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
+    border-bottom: 1px solid var(--border); text-align: left;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .member-table td {
     padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f0f4f8;
-    vertical-align: middle;
+    vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .member-table tr:last-child td { border-bottom: none; }
   .member-table tr:hover td { background: #f8fafc; }
@@ -319,7 +328,11 @@ function renderSquadBlock(title, members, lookup) {
   h += '<span class="squad-name">' + _esc(title) + '</span>';
   h += '<span class="squad-count">' + members.length + ' 人</span>';
   h += '</div>';
-  h += '<table class="member-table"><thead><tr>';
+  h += '<table class="member-table">';
+  h += '<colgroup>';
+  h += '<col class="col-title"><col class="col-name"><col class="col-mobile"><col class="col-phone"><col class="col-dept">';
+  h += '</colgroup>';
+  h += '<thead><tr>';
   h += '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th>';
   h += '</tr></thead><tbody>';
 
