@@ -515,6 +515,44 @@
     border-radius:50%; animation:spin .7s linear infinite;
   }
 
+  /* ── 建立事件第三頁：出動儀器 ── */
+  #cePage3 { overflow:hidden; }
+  .ce-instr-wrap { flex:1; overflow-y:auto; padding:20px 24px; min-height:0; }
+  .ce-instr-wrap::-webkit-scrollbar { width:3px; }
+  .ce-instr-wrap::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
+  .ce-instr-count {
+    font-size:13px; color:#6b7a92; margin-bottom:14px; padding:8px 12px;
+    background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;
+  }
+  .ce-instr-count strong { color:#1a56db; font-size:15px; }
+  .ce-instr-tbl { width:100%; border-collapse:collapse; }
+  .ce-instr-tbl th {
+    font-size:12px; color:#6b7a92; font-weight:600; text-transform:uppercase;
+    letter-spacing:.05em; padding:8px 10px; background:#f8fafc;
+    border-bottom:2px solid #e2e8f0; text-align:left; white-space:nowrap;
+  }
+  .ce-instr-tbl td { padding:9px 10px; vertical-align:middle; font-size:14px; border-bottom:1px solid #f0f4f8; }
+  .ce-instr-tbl tr:last-child td { border-bottom:none; }
+  .ce-instr-tbl tr:hover td { background:#f8fafc; }
+  .ce-instr-tbl tr.ce-isel td { background:#eff6ff; }
+  .ce-instr-chk { width:36px; text-align:center; }
+  .ce-instr-chk input[type=checkbox] {
+    width:16px; height:16px; cursor:pointer; accent-color:#1a56db;
+    margin:0; vertical-align:middle;
+  }
+  .ce-instr-user-sel {
+    width:100%; min-width:110px; padding:5px 24px 5px 8px;
+    border:1px solid #e2e8f0; border-radius:5px; font-size:13px;
+    font-family:var(--font); background:#fff; color:#1e2a3a;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center;
+    transition:border-color .15s;
+  }
+  .ce-instr-user-sel:disabled { background:#f0f2f5; color:#b0bec5; cursor:not-allowed; }
+  .ce-instr-user-sel:focus { border-color:#1a56db; outline:none; box-shadow:0 0 0 3px rgba(26,86,219,.1); }
+  .ce-instr-empty { text-align:center; padding:40px; color:#6b7a92; font-size:15px; }
+
 </style>
 </head>
 <body>
@@ -1304,6 +1342,152 @@ function ceGoPage1() {
   ceVal();
 }
 
+// ── 頁2 → 頁3：帶入 skipPersonnel 參數 ──
+var _ceSkipPersonnel = false;  // 全域：是否跳過人員選擇
+var _ceInstrCache = null;      // 儀器快取（避免重複讀取試算表）
+
+function ceGoPage3(skipPersonnel) {
+  _ceSkipPersonnel = !!skipPersonnel;
+  document.getElementById('cePage2').classList.remove('active');
+  document.getElementById('cePage3').classList.add('active');
+  document.getElementById('ceF2Btns').style.display = 'none';
+  document.getElementById('ceF3Btns').style.display = 'flex';
+  document.getElementById('ceFSt').textContent = '請勾選出動儀器並指定使用者（可略過）';
+  _ceLoadInstruments();
+}
+
+// ── 頁3 → 頁2：返回人員選擇頁 ──
+function ceGoPage2FromP3() {
+  document.getElementById('cePage3').classList.remove('active');
+  document.getElementById('cePage2').classList.add('active');
+  document.getElementById('ceF3Btns').style.display = 'none';
+  document.getElementById('ceF2Btns').style.display = 'flex';
+  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
+}
+
+// ── 從 GAS 讀取儀器清單 ──
+// GAS 需支援 ?action=instruments 回傳格式：
+// { "headers": ["欄位1","欄位2",...,"使用者"], "rows": [[...], [...]] }
+function _ceLoadInstruments() {
+  var wrap = document.getElementById('ceInstrWrap');
+  if (_ceInstrCache) {
+    _ceRenderInstruments(_ceInstrCache);
+    return;
+  }
+  wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
+  _jsonpGet(SHEETS_URL + '?action=instruments', function(data) {
+    if (data && data.headers && data.rows) {
+      _ceInstrCache = data;
+      _ceRenderInstruments(data);
+    } else {
+      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 無法讀取儀器清單，請確認網路或 GAS 設定。</div>';
+    }
+  });
+}
+
+// ── 取得頁2勾選的技術組人員名單（供使用者下拉）──
+function _ceGetSelectedTechNames() {
+  var techSquads = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
+  var names = [];
+  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
+    var squad = cb.getAttribute('data-squad') || '';
+    if (techSquads.indexOf(squad) !== -1) {
+      names.push(cb.getAttribute('data-name'));
+    }
+  });
+  return names;
+}
+
+// ── 渲染儀器清單表格 ──
+// data = { headers: [...], rows: [[...], ...] }
+// 最後一個 header 欄位是「使用者」，改渲染為下拉選單
+function _ceRenderInstruments(data) {
+  var wrap = document.getElementById('ceInstrWrap');
+  var headers = data.headers || [];
+  var rows = data.rows || [];
+
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="ce-instr-empty">&#x1F4ED; 儀器清單目前為空。</div>';
+    return;
+  }
+
+  // 最後一欄是「使用者」，其餘是顯示欄位
+  var userColIdx = headers.length - 1;
+  var displayHeaders = headers.slice(0, userColIdx);
+
+  // 取得技術組成員名單供下拉
+  var techNames = _ceGetSelectedTechNames();
+
+  var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
+  html += '<table class="ce-instr-tbl"><thead><tr>';
+  html += '<th class="ce-instr-chk">出動</th>';
+  displayHeaders.forEach(function(h) { html += '<th>' + _ceEsc(h) + '</th>'; });
+  html += '<th>' + _ceEsc(headers[userColIdx] || '使用者') + '</th>';
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(function(row, i) {
+    var cbId = 'icb' + i;
+    var selId = 'isel' + i;
+    html += '<tr id="irow' + i + '">';
+    // 勾選欄
+    html += '<td class="ce-instr-chk"><input type="checkbox" id="' + cbId + '" onchange="_ceInstrChg(' + i + ')" /></td>';
+    // 顯示欄位
+    displayHeaders.forEach(function(h, j) {
+      html += '<td>' + _ceEsc(row[j] || '') + '</td>';
+    });
+    // 使用者下拉
+    html += '<td><select class="ce-instr-user-sel" id="' + selId + '" disabled>';
+    html += '<option value="">— 請先勾選 —</option>';
+    if (techNames.length) {
+      techNames.forEach(function(n) {
+        html += '<option value="' + _ceEsc(n) + '">' + _ceEsc(n) + '</option>';
+      });
+    } else {
+      html += '<option value="" disabled>（無勾選技術組成員）</option>';
+    }
+    html += '</select></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ── 儀器 checkbox 切換：啟用/停用使用者下拉 ──
+function _ceInstrChg(i) {
+  var cb  = document.getElementById('icb'  + i);
+  var sel = document.getElementById('isel' + i);
+  var row = document.getElementById('irow' + i);
+  sel.disabled = !cb.checked;
+  if (!cb.checked) { sel.value = ''; }
+  if (row) row.classList.toggle('ce-isel', cb.checked);
+  // 更新計數
+  var n = document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').length;
+  var el = document.getElementById('ceInstrN');
+  if (el) el.textContent = n;
+}
+
+// ── 收集勾選的儀器資料（送出時用）──
+// 回傳字串：「儀器名稱:使用者, ...」
+function _ceGetInstruments() {
+  if (!_ceInstrCache) return '';
+  var headers = _ceInstrCache.headers || [];
+  var rows = _ceInstrCache.rows || [];
+  var userColIdx = headers.length - 1;
+  // 取儀器名稱欄（通常是第 0 欄，可依實際 header 調整）
+  var nameIdx = 0;
+  var result = [];
+  document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
+    var i = parseInt(cb.id.replace('icb',''), 10);
+    var row = rows[i] || [];
+    var name = row[nameIdx] || ('儀器' + i);
+    var sel = document.getElementById('isel' + i);
+    var user = sel ? sel.value : '';
+    result.push(name + (user ? ':' + user : ''));
+  });
+  return result.join(', ');
+}
+
 function _ceLoadPersonnel() {
   var techId = CE_TYPE_GROUP[document.getElementById('ceType').value];
   var box = document.getElementById('cePersonnel');
@@ -1433,39 +1617,34 @@ function _ceEsc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// 送出表單、建立事件
-// 1. 按鈕改為「建立中…」loading 狀態
-// 2. 收集所有欄位資料成物件
-// 3. 同時執行兩件事：
-//    a. 存入 localStorage 備份（key: 'rad_events'）
-//    b. POST 到 Google Apps Script → 寫入 Google 試算表
-// 4. 成功或失敗都顯示結果畫面
-// 送出表單、建立事件
-// 1. 按鈕改為「建立中…」loading 狀態
-// 2. 收集所有欄位資料成物件
-// 3. 同時寫入 localStorage（本機備份）和 Google 試算表
-function ceDo(skipPersonnel){
-  var isP2 = (skipPersonnel !== undefined);
-  var btn = isP2 ? document.getElementById('ceSubP2') : document.getElementById('ceSub');
+// 送出表單、建立事件（從第三頁呼叫）
+// skipInstruments = true  → 按「略過儀器」，不收集儀器
+// skipInstruments = false → 按「建立事件」，收集勾選儀器
+// _ceSkipPersonnel 全域變數：是否在頁2按了「略過人員」
+function ceDo(skipInstruments){
+  var btn = skipInstruments
+    ? null  // 略過按鈕不鎖定
+    : document.getElementById('ceSubP3');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
 
   // ── 收集表單資料 ──
   var ev = {
-    id:        document.getElementById('ceEvId').textContent,
-    name:      document.getElementById('ceName').value.trim(),
-    type:      document.getElementById('ceType').value,
-    date:      document.getElementById('ceDate').value,
-    time:      document.getElementById('ceTime').value,
-    address:   document.getElementById('ceAddr').value,
-    lat:       _ceLat,
-    lng:       _ceLng,
-    note:      document.getElementById('ceNote').value.trim(),
-    createdAt: new Date().toISOString(),
-    status:    'active',
-    personnelStr: skipPersonnel ? '' : _ceGetPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', ')
+    id:            document.getElementById('ceEvId').textContent,
+    name:          document.getElementById('ceName').value.trim(),
+    type:          document.getElementById('ceType').value,
+    date:          document.getElementById('ceDate').value,
+    time:          document.getElementById('ceTime').value,
+    address:       document.getElementById('ceAddr').value,
+    lat:           _ceLat,
+    lng:           _ceLng,
+    note:          document.getElementById('ceNote').value.trim(),
+    createdAt:     new Date().toISOString(),
+    status:        'active',
+    personnelStr:  _ceSkipPersonnel ? '' : _ceGetPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', '),
+    instrumentStr: skipInstruments ? '' : _ceGetInstruments()
   };
 
-  // ── 寫入 localStorage（本機備份，離線也能保留）──
+  // ── 寫入 localStorage（本機備份）──
   try {
     var local = JSON.parse(localStorage.getItem('rad_events') || '[]');
     local.unshift(ev);
@@ -1473,8 +1652,6 @@ function ceDo(skipPersonnel){
   } catch(e) { console.warn('localStorage 寫入失敗:', e); }
 
   // ── 寫入 Google 試算表 ──
-  // no-cors 模式：Apps Script 不支援 CORS preflight，必須這樣送
-  // 缺點：無法讀取回應內容，但資料還是會寫進去
   fetch(SHEETS_URL, {
     method:  'POST',
     mode:    'no-cors',
@@ -1482,13 +1659,10 @@ function ceDo(skipPersonnel){
     body:    JSON.stringify(ev)
   })
   .then(function() {
-    // no-cors 下 then 一定會觸發（不管成功失敗），直接顯示成功畫面
     document.getElementById('ceOKId').textContent = '事件編號：' + ev.id;
     document.getElementById('ceOK').classList.add('show');
   })
   .catch(function(err) {
-    // 只有網路完全斷線才會到這裡
-    // 資料已存 localStorage，提示使用者
     console.error('試算表寫入失敗:', err);
     document.getElementById('ceOKId').textContent = ev.id + '（僅存本機，請確認網路）';
     document.getElementById('ceOK').classList.add('show');
@@ -1498,10 +1672,13 @@ function ceDo(skipPersonnel){
 function ceRst(){
 
   var _p2=document.getElementById('cePage2'), _p1=document.getElementById('cePage1');
-  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns');
-  if(_p2)_p2.classList.remove('active'); if(_p1)_p1.classList.add('active');
-  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none';
+  var _p3=document.getElementById('cePage3');
+  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns'), _f3=document.getElementById('ceF3Btns');
+  if(_p2)_p2.classList.remove('active'); if(_p3)_p3.classList.remove('active'); if(_p1)_p1.classList.add('active');
+  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none'; if(_f3)_f3.style.display='none';
   _ceCache={};
+  _ceSkipPersonnel = false;
+  _ceInstrCache = null;
   document.getElementById('ceOK').classList.remove('show');
   document.getElementById('ceOKMsg').textContent = '';
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
@@ -1535,6 +1712,14 @@ function ceRstKeepOpen(){
   document.getElementById('ceMH').style.display = '';
   document.getElementById('ceSub').disabled = false;
   document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
+  // 重置頁面狀態回到第一頁
+  ['cePage2','cePage3'].forEach(function(id){ document.getElementById(id).classList.remove('active'); });
+  document.getElementById('cePage1').classList.add('active');
+  document.getElementById('ceF1Btns').style.display = 'flex';
+  document.getElementById('ceF2Btns').style.display = 'none';
+  document.getElementById('ceF3Btns').style.display = 'none';
+  _ceSkipPersonnel = false;
+  _ceInstrCache = null;
   // 地圖重置
   if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
   // 重新向試算表查詢最新筆數，產生正確的下一個編號
@@ -1625,6 +1810,13 @@ function ceRstKeepOpen(){
         </div>
       </div><!-- end cePage2 -->
 
+      <!-- 第三頁：選擇出動儀器 -->
+      <div class="ce-page" id="cePage3">
+        <div class="ce-instr-wrap" id="ceInstrWrap">
+          <div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>
+        </div>
+      </div><!-- end cePage3 -->
+
     </div>
     <div class="ce-footer">
       <div class="ce-fstatus" id="ceFSt">請填寫所有必填欄位（<span style="color:#dc2626">*</span>）</div>
@@ -1635,8 +1827,13 @@ function ceRstKeepOpen(){
         </div>
         <div id="ceF2Btns" style="display:none;gap:8px">
           <button class="ce-btn ce-btn-g" onclick="ceGoPage1()">&#x2B05; 上一步</button>
-          <button class="ce-btn ce-btn-g" onclick="ceDo(true)">略過</button>
-          <button class="ce-btn ce-btn-p" id="ceSubP2" onclick="ceDo(false)">&#x2705; 建立事件</button>
+          <button class="ce-btn ce-btn-g" onclick="ceGoPage3(true)">略過人員</button>
+          <button class="ce-btn ce-btn-p" id="ceSubP2" onclick="ceGoPage3(false)">下一步 &#x27A1;</button>
+        </div>
+        <div id="ceF3Btns" style="display:none;gap:8px">
+          <button class="ce-btn ce-btn-g" onclick="ceGoPage2FromP3()">&#x2B05; 上一步</button>
+          <button class="ce-btn ce-btn-g" onclick="ceDo(true)">略過儀器</button>
+          <button class="ce-btn ce-btn-p" id="ceSubP3" onclick="ceDo(false)">&#x2705; 建立事件</button>
         </div>
       </div>
     </div>
