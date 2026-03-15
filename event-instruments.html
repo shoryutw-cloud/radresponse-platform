@@ -317,11 +317,11 @@ function renderInstruments(instruments) {
   body.innerHTML = html;
 }
 
-// ── 告知父層 iframe 已準備好，請求 idx ──
-, '*'); } catch(e) {}
+// ── goBack ──
+function goBack() {
+  try { sessionStorage.setItem('currentEventIdx', _curIdx); } catch(e) {}
+  try { parent.showIframe('current-events.html'); } catch(e) {}
 }
-
-// ── 接收 setIdx ──
 
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var s = sessionStorage.getItem('currentEventIdx');
       if (s !== null) savedIdx = parseInt(s, 10) || 0;
     } catch(e) {}
-    _curIdx = (savedIdx < _events.length) ? savedIdx : 0;
+    _curIdx = (savedIdx >= 0 && savedIdx < _events.length) ? savedIdx : 0;
     loadAndRender(_curIdx);
   });
 });
