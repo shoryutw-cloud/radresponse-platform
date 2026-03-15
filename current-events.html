@@ -517,6 +517,7 @@ function navEvent(dir) {
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
   renderCard(_curIdx);
   flyToEvent(_curIdx);
+  renderLayerPanel(); // 同步更新圖層面板
 }
 
 // ── 解析 personnelStr 取得人數（格式：姓名, 姓名, ...）──
@@ -794,7 +795,7 @@ function removeLayers() {
   _events.forEach(function(_, i) { removeEventLayers(i); });
 }
 
-// ── 渲染圖層控制面板 ──
+// ── 渲染圖層控制面板（只顯示目前事件）──
 function renderLayerPanel() {
   var body = document.getElementById('layerPanelBody');
   if (!body) return;
@@ -802,16 +803,14 @@ function renderLayerPanel() {
     body.innerHTML = '<div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">無進行中事件</div>';
     return;
   }
-  body.innerHTML = _events.map(function(ev, i) {
-    var name = ev.name || ('事件 ' + (i+1));
-    return '<div class="layer-ev-block">' +
-      '<div class="layer-ev-name">' + _esc(name) + '</div>' +
-      '<div class="layer-ev-cbs">' +
-        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
-        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
-        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
-      '</div></div>';
-  }).join('');
+  var i = _curIdx;
+  body.innerHTML =
+    '<div class="layer-ev-block">' +
+    '<div class="layer-ev-cbs">' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
+    '</div></div>';
 }
 
 // ── 圖層面板收合 ──
