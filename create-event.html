@@ -389,7 +389,7 @@
     <div class="ce-ok-msg" id="ceOKMsg"></div>
     <div class="ce-ok-btns">
       <button class="ce-btn ce-btn-g" onclick="ceReset()">&#x2795; 建立新事件</button>
-      <button class="ce-btn ce-btn-p" onclick="goBack()">&#x2190; 返回地圖</button>
+      <button class="ce-btn ce-btn-p" onclick="goCurrentEvents()">&#x2139; 前往目前事件</button>
     </div>
   </div>
 </div>
@@ -476,6 +476,10 @@ function _ceIco() {
 // ── 返回地圖 ──
 function goBack() {
   try { parent.showMap(); } catch(e) { history.back(); }
+}
+
+function goCurrentEvents() {
+  try { parent.showIframe('current-events.html'); } catch(e) { location.href = 'current-events.html'; }
 }
 
 // ════════════════════════════════════════
