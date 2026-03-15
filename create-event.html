@@ -25,50 +25,50 @@
   body { font-family: var(--font); background: var(--bg); color: var(--text);
          display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
 
-  /* ── 頁首 ── */
+  /* ── 頁首（白底，整合步驟指示器）── */
   .ce-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px; background: #1e2a3a; border-bottom: 1px solid #0f1820;
-    flex-shrink: 0;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 24px; background: white;
+    border-bottom: 2px solid var(--border);
+    flex-shrink: 0; height: 52px;
   }
-  .ce-header-left { display: flex; align-items: center; gap: 10px; }
-  .ce-title { font-size: 17px; font-weight: 700; color: #e8f0fa; }
+  .ce-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .ce-title { font-size: 15px; font-weight: 700; color: var(--text); }
   .ce-evid {
-    font-family: var(--font-mono); font-size: 11px; color: #8da0b8;
-    background: rgba(255,255,255,0.08); padding: 3px 8px;
-    border-radius: 4px; border: 1px solid rgba(255,255,255,0.12);
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    background: var(--bg); padding: 3px 8px;
+    border-radius: 4px; border: 1px solid var(--border);
   }
-  .ce-back-btn {
-    display: flex; align-items: center; gap: 5px;
-    background: none; border: 1px solid rgba(255,255,255,0.18);
-    border-radius: var(--radius); padding: 6px 14px;
-    color: #8da0b8; font-family: var(--font); font-size: 13px;
-    cursor: pointer; transition: all .15s;
-  }
-  .ce-back-btn:hover { border-color: #8da0b8; color: #e8f0fa; }
-
-  /* ── 步驟指示器 ── */
+  /* 步驟指示器整合進頁首 */
   .ce-steps {
-    display: flex; align-items: center; gap: 0;
-    padding: 12px 24px; background: white;
-    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; flex: 1;
+    height: 100%; gap: 0;
   }
   .ce-step {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 7px;
     font-size: 13px; color: var(--text-muted); white-space: nowrap;
+    padding: 0 4px;
   }
   .ce-step-num {
-    width: 24px; height: 24px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700;
+    font-size: 11px; font-weight: 700;
     background: #e2e8f0; color: var(--text-muted);
-    transition: all .2s;
+    transition: all .2s; flex-shrink: 0;
   }
   .ce-step.active .ce-step-num { background: var(--accent); color: white; }
   .ce-step.active .ce-step-label { color: var(--accent); font-weight: 600; }
   .ce-step.done .ce-step-num { background: #16a34a; color: white; }
   .ce-step.done .ce-step-label { color: #16a34a; }
-  .ce-step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 12px; min-width: 20px; }
+  .ce-step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 8px; min-width: 16px; max-width: 60px; }
+  .ce-back-btn {
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    background: none; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 5px 12px;
+    color: var(--text-muted); font-family: var(--font); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  .ce-back-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   /* ── 主體 ── */
   .ce-body { flex: 1; overflow: hidden; min-height: 0; display: flex; }
@@ -235,7 +235,7 @@
   /* ── 頁尾（按鈕列）── */
   .ce-footer {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px; border-top: 1px solid var(--border);
+    padding: 10px 24px; border-top: 1px solid var(--border);
     background: white; flex-shrink: 0; gap: 10px;
   }
   .ce-fstatus { font-size: 13px; color: var(--text-muted); flex: 1; }
@@ -277,41 +277,40 @@
   @media (max-width: 700px) {
     .ce-form-col { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
     #cePage1 { flex-direction: column; }
-    .ce-map-col { height: 240px; }
-    .ce-header { padding: 12px 16px; }
-    .ce-footer { padding: 12px 16px; }
-    .ce-steps { padding: 10px 16px; }
+    .ce-map-col { height: 220px; }
+    .ce-header { padding: 0 12px; }
+    .ce-footer { padding: 8px 12px; }
     .ce-step-label { display: none; }
+    .ce-title { font-size: 13px; }
   }
 </style>
 </head>
 <body>
 
-<!-- 頁首 -->
+<!-- 頁首（含步驟指示器）-->
 <div class="ce-header">
   <div class="ce-header-left">
     <span class="ce-title">&#x1F4CB; 建立新事件</span>
     <span class="ce-evid" id="ceEvId">查詢中…</span>
   </div>
+  <!-- 步驟指示器 -->
+  <div class="ce-steps">
+    <div class="ce-step active" id="step1">
+      <div class="ce-step-num">1</div>
+      <span class="ce-step-label">事件基本資料</span>
+    </div>
+    <div class="ce-step-sep"></div>
+    <div class="ce-step" id="step2">
+      <div class="ce-step-num">2</div>
+      <span class="ce-step-label">出勤人員</span>
+    </div>
+    <div class="ce-step-sep"></div>
+    <div class="ce-step" id="step3">
+      <div class="ce-step-num">3</div>
+      <span class="ce-step-label">出動儀器</span>
+    </div>
+  </div>
   <button class="ce-back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
-</div>
-
-<!-- 步驟指示器 -->
-<div class="ce-steps">
-  <div class="ce-step active" id="step1">
-    <div class="ce-step-num">1</div>
-    <span class="ce-step-label">事件基本資料</span>
-  </div>
-  <div class="ce-step-sep"></div>
-  <div class="ce-step" id="step2">
-    <div class="ce-step-num">2</div>
-    <span class="ce-step-label">出勤人員</span>
-  </div>
-  <div class="ce-step-sep"></div>
-  <div class="ce-step" id="step3">
-    <div class="ce-step-num">3</div>
-    <span class="ce-step-label">出動儀器</span>
-  </div>
 </div>
 
 <!-- 主體 -->
