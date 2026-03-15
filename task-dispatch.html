@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任務派送</title>
+<style>
+  :root {
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --surface: #ffffff;
+    --bg: #f0f2f5;
+    --hover: #f1f5ff;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
+
+  /* ── 頁首 ── */
+  .page-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 24px; background: white;
+    border-bottom: 2px solid var(--border);
+    flex-shrink: 0; height: 52px;
+  }
+  .page-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .back-btn {
+    margin-left: auto; display: flex; align-items: center; gap: 5px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px;
+    color: var(--text-muted); font-family: var(--font); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── 步驟指示器 ── */
+  .steps {
+    display: flex; align-items: center; padding: 10px 24px;
+    background: white; border-bottom: 1px solid var(--border);
+    flex-shrink: 0; gap: 0;
+  }
+  .step { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-muted); }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    background: #e2e8f0; color: var(--text-muted); transition: all .2s;
+  }
+  .step.active .step-num { background: var(--accent); color: white; }
+  .step.active .step-label { color: var(--accent); font-weight: 600; }
+  .step.done .step-num { background: #16a34a; color: white; }
+  .step.done .step-label { color: #16a34a; }
+  .step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 10px; max-width: 60px; }
+
+  /* ── 主體 ── */
+  .page-body { flex: 1; overflow-y: auto; min-height: 0; }
+  .page-body::-webkit-scrollbar { width: 4px; }
+  .page-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .step-panel { display: none; padding: 24px; max-width: 700px; margin: 0 auto; }
+  .step-panel.active { display: block; }
+
+  /* ── 表單元件 ── */
+  .form-group { margin-bottom: 20px; }
+  .form-lbl {
+    display: block; font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .form-lbl .req { color: #dc2626; margin-left: 2px; }
+  .form-inp, .form-sel, .form-ta {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 14px;
+    color: var(--text); background: white; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-inp:focus, .form-sel:focus, .form-ta:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .form-sel {
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+  }
+  .form-ta { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+  /* 優先等級 pills */
+  .priority-pills { display: flex; gap: 8px; }
+  .priority-pill {
+    flex: 1; padding: 10px; border-radius: var(--radius);
+    border: 2px solid var(--border); cursor: pointer;
+    text-align: center; font-size: 14px; font-weight: 600;
+    transition: all .15s; user-select: none; background: white;
+  }
+  .priority-pill:hover { border-color: #94a3b8; }
+  .priority-pill.selected-high   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+  .priority-pill.selected-medium { border-color: #d97706; background: #fffbeb; color: #d97706; }
+  .priority-pill.selected-low    { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
+
+  /* ── 第一步：事件選擇 ── */
+  .event-list { display: flex; flex-direction: column; gap: 8px; }
+  .event-card {
+    padding: 14px 16px; background: white; border: 2px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .event-card:hover { border-color: var(--accent); background: var(--hover); }
+  .event-card.selected { border-color: var(--accent); background: #eff6ff; }
+  .event-card-info { flex: 1; }
+  .event-card-name { font-size: 15px; font-weight: 700; color: var(--text); }
+  .event-card-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .event-type-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+  .badge-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+  .badge-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
+  .event-check { font-size: 18px; color: var(--accent); flex-shrink: 0; }
+
+  /* ── 第二步：組別選擇 ── */
+  .squad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .squad-btn {
+    padding: 12px 8px; background: white; border: 2px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; text-align: center;
+    font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--text);
+    transition: all .15s; user-select: none;
+  }
+  .squad-btn:hover { border-color: var(--accent); background: var(--hover); }
+  .squad-btn.selected { border-color: var(--accent); background: #eff6ff; color: var(--accent); }
+  .squad-btn.disabled { opacity: .4; cursor: not-allowed; }
+  .squad-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+
+  /* ── 成功畫面 ── */
+  .success-box {
+    display: none; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 20px; gap: 14px; text-align: center;
+  }
+  .success-box.show { display: flex; }
+  .success-icon { font-size: 56px; }
+  .success-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .success-sub { font-size: 14px; color: var(--text-muted); }
+
+  /* ── 頁尾 ── */
+  .page-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px; border-top: 1px solid var(--border);
+    background: white; flex-shrink: 0; gap: 10px;
+  }
+  .footer-status { font-size: 13px; color: var(--text-muted); flex: 1; }
+  .footer-status.ok { color: #16a34a; }
+  .footer-btns { display: flex; gap: 8px; }
+  .btn {
+    padding: 9px 20px; border-radius: 6px; font-family: var(--font);
+    font-size: 14px; font-weight: 500; cursor: pointer; border: none;
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn-g { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-g:hover { border-color: #94a3b8; color: var(--text); }
+  .btn-p { background: var(--accent); color: white; }
+  .btn-p:hover { background: #1648c0; }
+  .btn-p:disabled { background: #94a3b8; cursor: not-allowed; }
+  .ce-spin {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── 載入中 ── */
+  .loading-box { text-align: center; padding: 40px; color: var(--text-muted); }
+
+  /* ── RWD ── */
+  @media (max-width: 600px) {
+    .page-header { padding: 0 14px; }
+    .step-panel { padding: 16px; }
+    .page-footer { padding: 10px 14px; }
+    .squad-grid { grid-template-columns: repeat(2, 1fr); }
+    .steps { padding: 10px 14px; }
+    .step-label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 頁首 -->
+<div class="page-header">
+  <div class="page-title">📋 任務派送</div>
+  <button class="back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
+</div>
+
+<!-- 步驟指示器 -->
+<div class="steps">
+  <div class="step active" id="step1">
+    <div class="step-num">1</div>
+    <span class="step-label">選擇事件</span>
+  </div>
+  <div class="step-sep"></div>
+  <div class="step" id="step2">
+    <div class="step-num">2</div>
+    <span class="step-label">選擇組別</span>
+  </div>
+  <div class="step-sep"></div>
+  <div class="step" id="step3">
+    <div class="step-num">3</div>
+    <span class="step-label">任務內容</span>
+  </div>
+</div>
+
+<!-- 主體 -->
+<div class="page-body">
+
+  <!-- 第一步：選擇事件 -->
+  <div class="step-panel active" id="panel1">
+    <div class="loading-box" id="evLoading">⏳ 載入事件中…</div>
+    <div class="event-list" id="evList"></div>
+  </div>
+
+  <!-- 第二步：選擇組別 -->
+  <div class="step-panel" id="panel2">
+    <div class="form-group">
+      <label class="form-lbl">派送對象 <span class="req">*</span></label>
+      <div class="squad-hint" id="squadHint">請選擇要派送的組別（只顯示此事件的出勤組別）</div>
+      <div class="squad-grid" id="squadGrid"></div>
+    </div>
+  </div>
+
+  <!-- 第三步：任務內容 -->
+  <div class="step-panel" id="panel3">
+    <div class="form-group">
+      <label class="form-lbl">任務標題 <span class="req">*</span></label>
+      <input class="form-inp" id="taskTitle" placeholder="輸入任務標題" oninput="validateStep3()">
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">任務說明 <span class="req">*</span></label>
+      <textarea class="form-ta" id="taskContent" placeholder="輸入任務詳細說明…" oninput="validateStep3()"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">優先等級 <span class="req">*</span></label>
+      <div class="priority-pills">
+        <div class="priority-pill" data-val="高" onclick="selectPriority(this)">🔴 高</div>
+        <div class="priority-pill" data-val="中" onclick="selectPriority(this)">🟡 中</div>
+        <div class="priority-pill" data-val="低" onclick="selectPriority(this)">🟢 低</div>
+      </div>
+      <input type="hidden" id="taskPriority">
+    </div>
+  </div>
+
+  <!-- 成功畫面 -->
+  <div class="success-box" id="successBox">
+    <div class="success-icon">✅</div>
+    <div class="success-title">任務已派送！</div>
+    <div class="success-sub" id="successSub"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-g" onclick="resetForm()">➕ 再派一個任務</button>
+      <button class="btn btn-p" onclick="goBack()">← 返回地圖</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 頁尾 -->
+<div class="page-footer" id="pageFooter">
+  <div class="footer-status" id="footerStatus">請先選擇事件</div>
+  <div class="footer-btns" id="footerBtns">
+    <div id="btnGroup1" style="display:flex;gap:8px">
+      <button class="btn btn-p" id="btnNext1" onclick="goStep2()" disabled>下一步 ➡</button>
+    </div>
+    <div id="btnGroup2" style="display:none;gap:8px">
+      <button class="btn btn-g" onclick="goStep1()">← 上一步</button>
+      <button class="btn btn-p" id="btnNext2" onclick="goStep3()" disabled>下一步 ➡</button>
+    </div>
+    <div id="btnGroup3" style="display:none;gap:8px">
+      <button class="btn btn-g" onclick="goStep2()">← 上一步</button>
+      <button class="btn btn-p" id="btnSubmit" onclick="submitTask()" disabled>📤 派送任務</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','參謀組','新聞組'];
+
+var _events = [];
+var _selectedEvent = null;
+var _selectedSquad = null;
+var _jsonpCounter = 0;
+
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+function _esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function goBack() {
+  try { parent.showMap(); } catch(e) { history.back(); }
+}
+
+// ── 步驟切換 ──
+function setStep(n) {
+  [1,2,3].forEach(function(i) {
+    var el = document.getElementById('step' + i);
+    var panel = document.getElementById('panel' + i);
+    el.classList.remove('active','done');
+    if (panel) panel.classList.remove('active');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  });
+  document.getElementById('panel' + n).classList.add('active');
+  ['btnGroup1','btnGroup2','btnGroup3'].forEach(function(id, idx) {
+    document.getElementById(id).style.display = (idx + 1 === n) ? 'flex' : 'none';
+  });
+  document.getElementById('successBox').classList.remove('show');
+}
+
+// ── 第一步：載入事件 ──
+function loadEvents() {
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    _events = (data && data.events) ? data.events : [];
+    document.getElementById('evLoading').style.display = 'none';
+    var list = document.getElementById('evList');
+    if (!_events.length) {
+      list.innerHTML = '<div class="loading-box">📭 目前無進行中事件</div>';
+      return;
+    }
+    list.innerHTML = _events.map(function(ev, i) {
+      var typeClass = 'badge-material';
+      if ((ev.type||'').indexOf('輻射彈') !== -1) typeClass = 'badge-rdd';
+      else if ((ev.type||'').indexOf('物質') !== -1) typeClass = 'badge-substance';
+      return '<div class="event-card" id="evc' + i + '" onclick="selectEvent(' + i + ')">' +
+        '<div class="event-card-info">' +
+        '<div class="event-card-name">' + _esc(ev.name) + '</div>' +
+        '<div class="event-card-meta">' + _esc(ev.date||'') + ' ' + _esc(ev.time||'') +
+        ' ｜ ' + _esc((ev.address||'').split(',')[0]) + '</div>' +
+        '</div>' +
+        '<span class="event-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span>' +
+        '<span class="event-check" id="evcheck' + i + '" style="display:none">✔</span>' +
+        '</div>';
+    }).join('');
+  });
+}
+
+function selectEvent(i) {
+  _selectedEvent = _events[i];
+  document.querySelectorAll('.event-card').forEach(function(c) { c.classList.remove('selected'); });
+  document.querySelectorAll('.event-check').forEach(function(c) { c.style.display = 'none'; });
+  document.getElementById('evc' + i).classList.add('selected');
+  document.getElementById('evcheck' + i).style.display = '';
+  document.getElementById('btnNext1').disabled = false;
+  document.getElementById('footerStatus').textContent = '已選：' + _selectedEvent.name;
+  document.getElementById('footerStatus').className = 'footer-status ok';
+}
+
+// ── 第二步：組別 ──
+function goStep2() {
+  if (!_selectedEvent) return;
+  setStep(2);
+  renderSquads();
+  document.getElementById('footerStatus').textContent = '請選擇派送組別';
+  document.getElementById('footerStatus').className = 'footer-status';
+}
+
+function renderSquads() {
+  // 從 personnelStr 解析出有哪些組別的人
+  var names = (_selectedEvent.personnelStr || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var grid = document.getElementById('squadGrid');
+
+  // 顯示所有固定組別（有無出勤都顯示，無出勤的 disable）
+  // 但任務可以派給任何組別，不限出勤者
+  grid.innerHTML = SQUAD_ORDER.map(function(sq) {
+    return '<button class="squad-btn" data-squad="' + _esc(sq) + '" onclick="selectSquad(this)">' + _esc(sq) + '</button>';
+  }).join('');
+
+  _selectedSquad = null;
+  document.getElementById('btnNext2').disabled = true;
+}
+
+function selectSquad(btn) {
+  document.querySelectorAll('.squad-btn').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  _selectedSquad = btn.getAttribute('data-squad');
+  document.getElementById('btnNext2').disabled = false;
+  document.getElementById('footerStatus').textContent = '已選：' + _selectedSquad;
+  document.getElementById('footerStatus').className = 'footer-status ok';
+}
+
+// ── 第三步：任務內容 ──
+function goStep3() {
+  if (!_selectedSquad) return;
+  setStep(3);
+  document.getElementById('footerStatus').textContent = '請填寫任務內容';
+  document.getElementById('footerStatus').className = 'footer-status';
+  validateStep3();
+}
+
+function selectPriority(el) {
+  document.querySelectorAll('.priority-pill').forEach(function(p){
+    p.className = 'priority-pill';
+  });
+  var val = el.getAttribute('data-val');
+  el.classList.add('selected-' + (val === '高' ? 'high' : val === '中' ? 'medium' : 'low'));
+  document.getElementById('taskPriority').value = val;
+  validateStep3();
+}
+
+function validateStep3() {
+  var ok = document.getElementById('taskTitle').value.trim() &&
+           document.getElementById('taskContent').value.trim() &&
+           document.getElementById('taskPriority').value;
+  document.getElementById('btnSubmit').disabled = !ok;
+  if (ok) {
+    document.getElementById('footerStatus').textContent = '所有欄位已填寫完成 ✔';
+    document.getElementById('footerStatus').className = 'footer-status ok';
+  } else {
+    var ms = [];
+    if (!document.getElementById('taskTitle').value.trim()) ms.push('任務標題');
+    if (!document.getElementById('taskContent').value.trim()) ms.push('任務說明');
+    if (!document.getElementById('taskPriority').value) ms.push('優先等級');
+    document.getElementById('footerStatus').textContent = '尚未填寫：' + ms.join('、');
+    document.getElementById('footerStatus').className = 'footer-status';
+  }
+}
+
+function goStep1() {
+  setStep(1);
+  document.getElementById('footerStatus').textContent = _selectedEvent ? '已選：' + _selectedEvent.name : '請先選擇事件';
+  document.getElementById('footerStatus').className = _selectedEvent ? 'footer-status ok' : 'footer-status';
+}
+
+// ── 送出任務 ──
+function submitTask() {
+  var btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ce-spin"></span> 派送中…';
+
+  var task = {
+    action:   'addTask',
+    eventId:  _selectedEvent.id,
+    target:   _selectedSquad,
+    title:    document.getElementById('taskTitle').value.trim(),
+    content:  document.getElementById('taskContent').value.trim(),
+    priority: document.getElementById('taskPriority').value
+  };
+
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(task)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    document.getElementById('panel3').classList.remove('active');
+    document.getElementById('pageFooter').style.display = 'none';
+    var sub = '事件：' + _selectedEvent.name + '｜對象：' + _selectedSquad +
+              '｜優先等級：' + task.priority;
+    document.getElementById('successSub').textContent = sub;
+    document.getElementById('successBox').classList.add('show');
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '📤 派送任務';
+    alert('派送失敗，請確認網路連線。');
+  });
+}
+
+// ── 重置 ──
+function resetForm() {
+  _selectedEvent = null;
+  _selectedSquad = null;
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskContent').value = '';
+  document.getElementById('taskPriority').value = '';
+  document.querySelectorAll('.priority-pill').forEach(function(p){ p.className = 'priority-pill'; });
+  document.getElementById('pageFooter').style.display = '';
+  document.getElementById('btnNext1').disabled = true;
+  setStep(1);
+  // 重新載入事件（可能有新事件）
+  document.getElementById('evLoading').style.display = '';
+  document.getElementById('evList').innerHTML = '';
+  loadEvents();
+  document.getElementById('footerStatus').textContent = '請先選擇事件';
+  document.getElementById('footerStatus').className = 'footer-status';
+}
+
+// ── 初始化 ──
+document.addEventListener('DOMContentLoaded', function() {
+  loadEvents();
+});
+</script>
+</body>
+</html>
