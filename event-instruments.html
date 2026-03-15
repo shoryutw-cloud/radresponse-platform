@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事件出動儀器</title>
+<style>
+  :root {
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --surface: #ffffff;
+    --bg: #f0f2f5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
+
+  /* ── 頁首 ── */
+  .page-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 24px; background: white;
+    border-bottom: 2px solid var(--border);
+    flex-shrink: 0; height: 52px; position: relative;
+  }
+  .page-title { font-size: 15px; font-weight: 700; color: var(--text);
+                display: flex; align-items: center; gap: 8px; }
+  .ev-nav {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted);
+  }
+  .ev-nav-btn {
+    width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; color: var(--text-muted);
+    transition: all .12s;
+  }
+  .ev-nav-btn:hover { background: var(--bg); color: var(--accent); border-color: var(--accent); }
+  .ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .ev-nav-info { font-size: 13px; color: var(--text-muted); max-width: 280px;
+                 text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-nav-count { font-family: var(--font-mono); font-size: 11px;
+                  background: var(--bg); padding: 2px 8px; border-radius: 4px;
+                  border: 1px solid var(--border); color: var(--text-muted); }
+  .back-btn {
+    margin-left: auto; display: flex; align-items: center; gap: 5px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px;
+    color: var(--text-muted); font-family: var(--font); font-size: 13px;
+    cursor: pointer; transition: all .15s; flex-shrink: 0;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── 主體 ── */
+  .page-body { flex: 1; overflow-y: auto; padding: 20px 24px; min-height: 0; }
+  .page-body::-webkit-scrollbar { width: 4px; }
+  .page-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── 統計列 ── */
+  .stat-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-card {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 18px; display: flex; flex-direction: column; gap: 2px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600;
+                letter-spacing: .05em; text-transform: uppercase; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--accent);
+                font-family: var(--font-mono); }
+
+  /* ── 儀器表格 ── */
+  .instr-wrap {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .instr-table { width: 100%; border-collapse: collapse; }
+  .instr-table thead th {
+    font-size: 13px; color: var(--text-muted); font-weight: 600;
+    padding: 10px 20px; background: #f1f5f9;
+    border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap;
+  }
+  .instr-table tbody td {
+    padding: 12px 20px; font-size: 14px;
+    border-bottom: 1px solid #f0f4f8; vertical-align: middle;
+  }
+  .instr-table tbody tr:last-child td { border-bottom: none; }
+  .instr-table tbody tr:hover td { background: #f8fafc; }
+  .td-seq   { font-family: var(--font-mono); color: var(--text-muted); font-size: 13px; width: 60px; }
+  .td-name  { font-weight: 600; color: var(--text); }
+  .td-mono  { font-family: var(--font-mono); font-size: 13px; color: #3d5070; }
+  .td-muted { color: var(--text-muted); }
+  .td-user  { font-weight: 600; color: var(--accent); }
+
+  /* 偵檢類型標籤 */
+  .det-badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px;
+    border-radius: 4px; background: #f0f2f5; color: var(--text-muted);
+    border: 1px solid var(--border); white-space: nowrap;
+  }
+
+  /* ── 狀態畫面 ── */
+  .state-box {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: var(--text-muted); gap: 12px;
+  }
+  .state-icon { font-size: 48px; }
+  .state-text { font-size: 15px; }
+
+  /* ── RWD ── */
+  @media (max-width: 700px) {
+    .page-header { padding: 0 14px; }
+    .page-body { padding: 14px; }
+    .ev-nav-info { max-width: 140px; }
+    /* 隱藏廠牌、存放地點 */
+    .instr-table thead th:nth-child(4),
+    .instr-table tbody td:nth-child(4),
+    .instr-table thead th:nth-child(6),
+    .instr-table tbody td:nth-child(6) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 頁首 -->
+<div class="page-header">
+  <div class="page-title">&#x1F527; 事件出動儀器</div>
+
+  <div class="ev-nav" id="evNav" style="display:none">
+    <button class="ev-nav-btn" id="evPrev" onclick="navEvent(-1)">&#9664;</button>
+    <div class="ev-nav-info" id="evNavInfo">—</div>
+    <span class="ev-nav-count" id="evNavCount">1/1</span>
+    <button class="ev-nav-btn" id="evNext" onclick="navEvent(1)">&#9654;</button>
+  </div>
+
+  <button class="back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
+</div>
+
+<!-- 主體 -->
+<div class="page-body" id="pageBody">
+  <div class="state-box"><div class="state-icon">&#x23F3;</div><div class="state-text">載入中…</div></div>
+</div>
+
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+var _events = [];
+var _curIdx = 0;
+var _instrCache = null; // 儀器管理清單快取
+var _jsonpCounter = 0;
+
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+function _esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function goBack() {
+  try { parent.showMap(); } catch(e) { history.back(); }
+}
+
+// ── 事件導覽 ──
+function navEvent(dir) {
+  _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
+  loadAndRender(_curIdx);
+}
+
+function updateNav() {
+  var nav = document.getElementById('evNav');
+  if (_events.length <= 1) { nav.style.display = 'none'; return; }
+  nav.style.display = 'flex';
+  document.getElementById('evNavInfo').textContent = _events[_curIdx].name || '—';
+  document.getElementById('evNavCount').textContent = (_curIdx + 1) + '/' + _events.length;
+  document.getElementById('evPrev').disabled = (_curIdx === 0);
+  document.getElementById('evNext').disabled = (_curIdx === _events.length - 1);
+}
+
+// ── 解析 instrumentStr ──
+// 格式：名稱(型號)[偵檢類型]:使用者, ...
+function parseInstruments(str) {
+  if (!str) return [];
+  return str.split(',').map(function(item) {
+    item = item.trim();
+    var nameMatch  = item.match(/^([^([\:]+)/);
+    var modelMatch = item.match(/\(([^)]+)\)/);
+    var detMatch   = item.match(/\[([^\]]+)\]/);
+    var userMatch  = item.match(/:([^:]+)$/);
+    return {
+      name:     (nameMatch  ? nameMatch[1].trim()  : item),
+      model:    (modelMatch ? modelMatch[1].trim()  : ''),
+      detector: (detMatch   ? detMatch[1].trim()    : ''),
+      user:     (userMatch  ? userMatch[1].trim()   : '')
+    };
+  }).filter(function(i) { return i.name; });
+}
+
+// ── 從儀器清單找對應資料（用名稱+型號比對）──
+function lookupInstr(name, model, instrList) {
+  for (var i = 0; i < instrList.length; i++) {
+    var row = instrList[i].values || [];
+    // row: [項次, 名稱, 偵檢類型, 廠牌, 型號, 存放地點, 保管人, 使用者]
+    var rName  = String(row[1] || '').trim();
+    var rModel = String(row[4] || '').trim();
+    if (rName === name && (!model || rModel === model)) {
+      return {
+        seq:      String(row[0] || ''),
+        detector: String(row[2] || ''),
+        brand:    String(row[3] || ''),
+        model:    String(row[4] || ''),
+        location: String(row[5] || ''),
+        keeper:   String(row[6] || '')
+      };
+    }
+  }
+  return null;
+}
+
+// ── 載入並渲染 ──
+function loadAndRender(idx) {
+  updateNav();
+  var body = document.getElementById('pageBody');
+
+  if (!_events.length) {
+    body.innerHTML = '<div class="state-box"><div class="state-icon">&#x1F4ED;</div><div class="state-text">目前無進行中事件</div></div>';
+    return;
+  }
+
+  var ev = _events[idx];
+  var instruments = parseInstruments(ev.instrumentStr);
+
+  if (!instruments.length) {
+    body.innerHTML = '<div class="state-box"><div class="state-icon">&#x1F527;</div><div class="state-text">此事件無出動儀器紀錄</div></div>';
+    return;
+  }
+
+  body.innerHTML = '<div class="state-box"><div class="state-icon">&#x23F3;</div><div class="state-text">比對儀器資料中…</div></div>';
+
+  // 載入儀器清單（有快取就直接渲染）
+  if (_instrCache) {
+    renderInstruments(instruments);
+  } else {
+    _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+      if (data && data.rows) _instrCache = data.rows;
+      else _instrCache = [];
+      renderInstruments(instruments);
+    });
+  }
+}
+
+// ── 渲染儀器表格 ──
+function renderInstruments(instruments) {
+  var body = document.getElementById('pageBody');
+  var list = _instrCache || [];
+
+  // 統計：不重複偵檢類型
+  var detTypes = [];
+  instruments.forEach(function(i) {
+    var det = i.detector;
+    if (det && detTypes.indexOf(det) === -1) detTypes.push(det);
+  });
+
+  var html = '';
+
+  // 統計列
+  html += '<div class="stat-bar">';
+  html += '<div class="stat-card"><div class="stat-label">出動儀器數量</div><div class="stat-value">' + instruments.length + '</div></div>';
+  detTypes.forEach(function(d) {
+    var cnt = instruments.filter(function(i){ return i.detector === d; }).length;
+    html += '<div class="stat-card"><div class="stat-label">' + _esc(d) + '</div><div class="stat-value" style="font-size:18px">' + cnt + '</div></div>';
+  });
+  html += '</div>';
+
+  // 儀器表格
+  html += '<div class="instr-wrap">';
+  html += '<table class="instr-table"><thead><tr>';
+  html += '<th>項次</th><th>名稱</th><th>偵檢類型</th><th>廠牌</th><th>型號</th><th>存放地點</th><th>保管人</th><th>使用者</th>';
+  html += '</tr></thead><tbody>';
+
+  instruments.forEach(function(instr) {
+    var info = lookupInstr(instr.name, instr.model, list);
+    var seq      = info ? info.seq      : '—';
+    var detector = instr.detector || (info ? info.detector : '') || '—';
+    var brand    = info ? info.brand    : '—';
+    var model    = instr.model || (info ? info.model : '') || '—';
+    var location = info ? info.location : '—';
+    var keeper   = info ? info.keeper   : '—';
+
+    html += '<tr>';
+    html += '<td class="td-seq">'   + _esc(seq)      + '</td>';
+    html += '<td class="td-name">'  + _esc(instr.name) + '</td>';
+    html += '<td><span class="det-badge">' + _esc(detector) + '</span></td>';
+    html += '<td class="td-muted">' + _esc(brand)    + '</td>';
+    html += '<td class="td-mono">'  + _esc(model)    + '</td>';
+    html += '<td class="td-muted">' + _esc(location) + '</td>';
+    html += '<td class="td-muted">' + _esc(keeper)   + '</td>';
+    html += '<td class="td-user">'  + _esc(instr.user || '—') + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  body.innerHTML = html;
+}
+
+// ── 初始化 ──
+document.addEventListener('DOMContentLoaded', function() {
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (data && data.events) _events = data.events;
+    _curIdx = 0;
+    loadAndRender(0);
+  });
+});
+</script>
+</body>
+</html>
