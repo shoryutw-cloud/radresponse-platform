@@ -1366,8 +1366,8 @@ function ceGoPage2FromP3() {
 }
 
 // ── 從 GAS 讀取儀器清單 ──
-// GAS 需支援 ?action=instruments 回傳格式：
-// { "headers": ["欄位1","欄位2",...,"使用者"], "rows": [[...], [...]] }
+// GAS v7 action=instrument 回傳格式：
+// { "columns": ["項次","名稱",...,"使用者"], "rows": [{rowIndex:2, values:[...]}, ...] }
 function _ceLoadInstruments() {
   var wrap = document.getElementById('ceInstrWrap');
   if (_ceInstrCache) {
@@ -1375,8 +1375,8 @@ function _ceLoadInstruments() {
     return;
   }
   wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
-  _jsonpGet(SHEETS_URL + '?action=instruments', function(data) {
-    if (data && data.headers && data.rows) {
+  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+    if (data && data.columns && data.rows) {
       _ceInstrCache = data;
       _ceRenderInstruments(data);
     } else {
@@ -1399,21 +1399,21 @@ function _ceGetSelectedTechNames() {
 }
 
 // ── 渲染儀器清單表格 ──
-// data = { headers: [...], rows: [[...], ...] }
-// 最後一個 header 欄位是「使用者」，改渲染為下拉選單
+// data = { columns: [...], rows: [{rowIndex:N, values:[...]}, ...] }（GAS v7 格式）
+// 最後一欄是「使用者」，渲染為下拉選單
 function _ceRenderInstruments(data) {
   var wrap = document.getElementById('ceInstrWrap');
-  var headers = data.headers || [];
-  var rows = data.rows || [];
+  var columns = data.columns || [];
+  var rows    = data.rows    || [];
 
   if (!rows.length) {
     wrap.innerHTML = '<div class="ce-instr-empty">&#x1F4ED; 儀器清單目前為空。</div>';
     return;
   }
 
-  // 最後一欄是「使用者」，其餘是顯示欄位
-  var userColIdx = headers.length - 1;
-  var displayHeaders = headers.slice(0, userColIdx);
+  // 最後一欄是「使用者」，其餘顯示在表格
+  var userColIdx     = columns.length - 1;
+  var displayColumns = columns.slice(0, userColIdx);
 
   // 取得技術組成員名單供下拉
   var techNames = _ceGetSelectedTechNames();
@@ -1421,19 +1421,20 @@ function _ceRenderInstruments(data) {
   var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
   html += '<table class="ce-instr-tbl"><thead><tr>';
   html += '<th class="ce-instr-chk">出動</th>';
-  displayHeaders.forEach(function(h) { html += '<th>' + _ceEsc(h) + '</th>'; });
-  html += '<th>' + _ceEsc(headers[userColIdx] || '使用者') + '</th>';
+  displayColumns.forEach(function(h) { html += '<th>' + _ceEsc(h) + '</th>'; });
+  html += '<th>' + _ceEsc(columns[userColIdx] || '使用者') + '</th>';
   html += '</tr></thead><tbody>';
 
-  rows.forEach(function(row, i) {
-    var cbId = 'icb' + i;
+  rows.forEach(function(rowObj, i) {
+    var vals  = rowObj.values || [];
+    var cbId  = 'icb'  + i;
     var selId = 'isel' + i;
     html += '<tr id="irow' + i + '">';
     // 勾選欄
     html += '<td class="ce-instr-chk"><input type="checkbox" id="' + cbId + '" onchange="_ceInstrChg(' + i + ')" /></td>';
-    // 顯示欄位
-    displayHeaders.forEach(function(h, j) {
-      html += '<td>' + _ceEsc(row[j] || '') + '</td>';
+    // 顯示欄位（跳過最後一欄）
+    displayColumns.forEach(function(h, j) {
+      html += '<td>' + _ceEsc(vals[j] || '') + '</td>';
     });
     // 使用者下拉
     html += '<td><select class="ce-instr-user-sel" id="' + selId + '" disabled>';
@@ -1468,22 +1469,22 @@ function _ceInstrChg(i) {
 }
 
 // ── 收集勾選的儀器資料（送出時用）──
-// 回傳字串：「儀器名稱:使用者, ...」
+// GAS v7 rows 格式：[{rowIndex:N, values:[...]}, ...]
+// 欄位對應試算表：A=項次(0) B=名稱(1) C=偵檢類型(2) D=廠牌(3) E=型號(4) F=存放地點(5) G=保管人(6) H=使用者(7)
+// 回傳字串：「名稱(型號):使用者, ...」
 function _ceGetInstruments() {
   if (!_ceInstrCache) return '';
-  var headers = _ceInstrCache.headers || [];
   var rows = _ceInstrCache.rows || [];
-  var userColIdx = headers.length - 1;
-  // 取儀器名稱欄（通常是第 0 欄，可依實際 header 調整）
-  var nameIdx = 0;
   var result = [];
   document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
-    var i = parseInt(cb.id.replace('icb',''), 10);
-    var row = rows[i] || [];
-    var name = row[nameIdx] || ('儀器' + i);
-    var sel = document.getElementById('isel' + i);
-    var user = sel ? sel.value : '';
-    result.push(name + (user ? ':' + user : ''));
+    var i      = parseInt(cb.id.replace('icb',''), 10);
+    var rowObj = rows[i] || {};
+    var vals   = rowObj.values || [];
+    var name   = vals[1] || ('儀器' + i);      // B欄：名稱
+    var model  = vals[4] ? '(' + vals[4] + ')' : ''; // E欄：型號
+    var sel    = document.getElementById('isel' + i);
+    var user   = sel ? sel.value : '';
+    result.push(name + model + (user ? ':' + user : ''));
   });
   return result.join(', ');
 }
