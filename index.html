@@ -596,6 +596,7 @@ function showIframe(src) {
   // 解析 src 中的 idx 參數，存到全域變數，等 iframe ready 後送出
   var idxMatch = src.match(/[?&]idx=([0-9]+)/);
   _pendingIframeIdx = idxMatch ? parseInt(idxMatch[1], 10) : null;
+  console.log('[index] showIframe src='+src+' pendingIdx='+_pendingIframeIdx);
 
   // 去掉 query string，只保留純檔名
   var cleanSrc = src.split('?')[0];
@@ -619,16 +620,19 @@ window.addEventListener('message', function(e) {
 
   // iframe 說「我準備好了，請給我 idx」
   if (e.data && e.data.type === 'iframeReady') {
+    console.log('[index] got iframeReady, pendingIdx='+_pendingIframeIdx);
     if (_pendingIframeIdx !== null) {
       try {
+        console.log('[index] sending setIdx='+_pendingIframeIdx);
         frame.contentWindow.postMessage({ type: 'setIdx', idx: _pendingIframeIdx }, '*');
-      } catch(err) {}
+      } catch(err) { console.log('[index] postMessage error:', err); }
       _pendingIframeIdx = null;
     }
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
   if (e.data && e.data.type === 'navigate') {
+    console.log('[index] navigate to '+e.data.src+' idx='+e.data.idx);
     showIframe(e.data.src + '?idx=' + e.data.idx);
   }
 });
