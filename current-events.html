@@ -351,7 +351,12 @@
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
     &#x1F5FA;&#xFE0F; 圖層顯示
-    <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()">&#x25B2;</button>
+    <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+      <button class="layer-collapse-btn" id="layerEvPrev" onclick="navEvent(-1)" title="上一筆">&#9664;</button>
+      <span id="layerNavCount" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);min-width:28px;text-align:center">1/1</span>
+      <button class="layer-collapse-btn" id="layerEvNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
+      <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()" style="margin-left:2px">&#x25B2;</button>
+    </div>
   </div>
   <div class="layer-panel-body" id="layerPanelBody">
     <div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">載入中…</div>
@@ -559,6 +564,14 @@ function renderCard(idx) {
   } else {
     nav.style.display = 'none';
   }
+
+  // 同步圖層面板導覽
+  var lnc = document.getElementById('layerNavCount');
+  var lpp = document.getElementById('layerEvPrev');
+  var lpn = document.getElementById('layerEvNext');
+  if (lnc) lnc.textContent = (idx + 1) + '/' + _events.length;
+  if (lpp) lpp.disabled = (idx === 0);
+  if (lpn) lpn.disabled = (idx === _events.length - 1);
 
   var ev = _events[idx];
   var techCount  = parseTechCount(ev.personnelStr || '');
