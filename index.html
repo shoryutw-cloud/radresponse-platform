@@ -143,15 +143,15 @@
   }
   /* 儀表板卡片 */
   .dash-card {
-    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-    padding: 24px 20px; display: flex; flex-direction: column; align-items: center;
-    gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: box-shadow .15s;
+    background: white; border: 2px solid #e2e8f0; border-radius: 16px;
+    padding: 32px 24px; display: flex; flex-direction: column; align-items: center;
+    gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: all .2s;
   }
-  .dash-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.13); }
-  .dash-card-icon { font-size: 28px; padding: 12px; border-radius: 50%; }
+  .dash-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.12); transform: translateY(-2px); }
+  .dash-card-icon { border-radius: 50%; }
   .dash-card-label { font-size: 13px; font-weight: 600; color: #6b7a92;
-                     letter-spacing: .04em; text-transform: uppercase; }
-  .dash-card-val { font-size: 48px; font-weight: 700; line-height: 1.1;
+                     letter-spacing: .06em; text-transform: uppercase; }
+  .dash-card-val { font-size: 64px; font-weight: 800; line-height: 1;
                    font-family: ui-monospace, monospace; }
   .dash-card-sub { font-size: 12px; color: #94a3b8; }
 
@@ -488,29 +488,38 @@
 <div class="layout">
   <main class="map-area" id="mapArea" style="position:relative">
     <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;overflow-y:auto">
-      <div id="dashboard" style="max-width:600px;margin:60px auto;padding:24px;display:flex;flex-direction:column;gap:24px">
-        <div style="text-align:center;margin-bottom:8px">
-          <div style="font-size:32px">🛡️</div>
-          <div style="font-size:22px;font-weight:700;color:#1e2a3a;margin-top:8px">輻射事件應變資訊平台</div>
-          <div style="font-size:13px;color:#6b7a92;margin-top:4px">即時掌握事件動態</div>
+      <div id="dashboard" style="max-width:700px;margin:0 auto;padding:48px 32px;display:flex;flex-direction:column;gap:36px;min-height:100%;justify-content:center">
+        <!-- 標題區 -->
+        <div style="text-align:center">
+          <div style="font-size:72px;line-height:1;margin-bottom:16px">🛡️</div>
+          <div style="font-size:30px;font-weight:800;color:#1e2a3a;letter-spacing:-.02em">輻射事件應變資訊平台</div>
+          <div style="font-size:15px;color:#6b7a92;margin-top:8px;letter-spacing:.04em">RADIATION INCIDENT RESPONSE PLATFORM</div>
+          <div style="width:48px;height:3px;background:#1a56db;border-radius:2px;margin:16px auto 0"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div class="dash-card" id="dashActive" onclick="showIframe('current-events.html')" style="cursor:pointer">
-            <div class="dash-card-icon" style="background:#fff0e6;color:#f97316">🚨</div>
-            <div class="dash-card-label">目前事件數</div>
-            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316">—</div>
-            <div class="dash-card-sub">點擊查看詳情</div>
+
+        <!-- 統計卡片 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa">
+            <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:36px;padding:16px;width:72px;height:72px;display:flex;align-items:center;justify-content:center">🚨</div>
+            <div class="dash-card-label" style="font-size:14px;margin-top:4px">目前事件數</div>
+            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:64px">—</div>
+            <div class="dash-card-sub" style="color:#f97316;font-size:13px;font-weight:500">▶ 點擊查看地圖</div>
           </div>
-          <div class="dash-card" id="dashClosed">
-            <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a">✅</div>
-            <div class="dash-card-label">歷史事件數</div>
-            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a">—</div>
-            <div class="dash-card-sub">已結束事件</div>
+          <div class="dash-card" style="border-color:#bbf7d0">
+            <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:36px;padding:16px;width:72px;height:72px;display:flex;align-items:center;justify-content:center">✅</div>
+            <div class="dash-card-label" style="font-size:14px;margin-top:4px">歷史事件數</div>
+            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:64px">—</div>
+            <div class="dash-card-sub" style="font-size:13px">已結束事件</div>
           </div>
         </div>
-        <div style="text-align:center;margin-top:8px">
-          <button onclick="showIframe('current-events.html')" style="padding:12px 32px;background:#1a56db;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">
-            📍 查看目前事件地圖
+
+        <!-- 快捷按鈕 -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button onclick="showIframe('current-events.html')" style="padding:16px;background:#1a56db;color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .15s" onmouseover="this.style.background='#1648c0'" onmouseout="this.style.background='#1a56db'">
+            <span style="font-size:20px">📍</span> 查看目前事件地圖
+          </button>
+          <button onclick="showIframe('create-event.html')" style="padding:14px;background:white;color:#1e2a3a;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s" onmouseover="this.style.borderColor='#1a56db';this.style.color='#1a56db'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e2a3a'">
+            <span style="font-size:18px">➕</span> 建立新事件
           </button>
         </div>
       </div>
