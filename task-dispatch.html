@@ -186,6 +186,37 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── 已選資訊標籤 ── */
+  .selected-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .sel-info-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-radius: var(--radius);
+    background: #eff6ff; border: 1px solid #bfdbfe;
+  }
+  .sel-info-lbl {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .04em; white-space: nowrap; min-width: 64px;
+  }
+  .sel-info-val { font-size: 14px; font-weight: 600; color: var(--accent); }
+  .sel-info-accent { color: #7c3aed; }
+
+  /* ── 兩欄版面 ── */
+  .step-panel-wide { max-width: 100% !important; padding: 20px 24px !important; }
+  .two-col { display: flex; gap: 24px; align-items: flex-start; }
+  .info-col {
+    width: 220px; flex-shrink: 0;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow-sm); position: sticky; top: 0;
+  }
+  .info-col-title {
+    padding: 10px 14px; font-size: 12px; font-weight: 700;
+    color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase;
+    background: #f8fafc; border-bottom: 1px solid var(--border);
+  }
+  .info-col-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .main-col { flex: 1; min-width: 0; }
+
   /* ── 載入中 ── */
   .loading-box { text-align: center; padding: 40px; color: var(--text-muted); }
 
@@ -236,34 +267,53 @@
   </div>
 
   <!-- 第二步：選擇組別 -->
-  <div class="step-panel" id="panel2">
-    <div class="selected-info" id="step2Info"></div>
-    <div class="form-group">
-      <label class="form-lbl">派送對象 <span class="req">*</span></label>
-      <div class="squad-hint">請選擇要派送的組別</div>
-      <div class="squad-grid" id="squadGrid"></div>
+  <div class="step-panel step-panel-wide" id="panel2">
+    <div class="two-col">
+      <!-- 左欄：事件資訊 -->
+      <div class="info-col">
+        <div class="info-col-title">已選事件</div>
+        <div id="step2Info" class="info-col-body"></div>
+      </div>
+      <!-- 右欄：組別選擇 -->
+      <div class="main-col">
+        <div class="form-group">
+          <label class="form-lbl">派送對象 <span class="req">*</span>
+            <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;text-transform:none;letter-spacing:0">可多選</span>
+          </label>
+          <div class="squad-grid" id="squadGrid"></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- 第三步：任務內容 -->
-  <div class="step-panel" id="panel3">
-    <div class="selected-info" id="step3Info"></div>
-    <div class="form-group">
-      <label class="form-lbl">任務標題 <span class="req">*</span></label>
-      <input class="form-inp" id="taskTitle" placeholder="輸入任務標題" oninput="validateStep3()">
-    </div>
-    <div class="form-group">
-      <label class="form-lbl">任務說明 <span class="req">*</span></label>
-      <textarea class="form-ta" id="taskContent" placeholder="輸入任務詳細說明…" oninput="validateStep3()"></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-lbl">優先等級</label>
-      <div class="priority-pills">
-        <div class="priority-pill" data-val="高" onclick="selectPriority(this)">🔴 高</div>
-        <div class="priority-pill" data-val="中" onclick="selectPriority(this)">🟡 中</div>
-        <div class="priority-pill" data-val="低" onclick="selectPriority(this)">🟢 低</div>
+  <div class="step-panel step-panel-wide" id="panel3">
+    <div class="two-col">
+      <!-- 左欄：事件+組別資訊 -->
+      <div class="info-col">
+        <div class="info-col-title">派送資訊</div>
+        <div id="step3Info" class="info-col-body"></div>
       </div>
-      <input type="hidden" id="taskPriority">
+      <!-- 右欄：任務表單 -->
+      <div class="main-col">
+        <div class="form-group">
+          <label class="form-lbl">任務標題 <span class="req">*</span></label>
+          <input class="form-inp" id="taskTitle" placeholder="輸入任務標題" oninput="validateStep3()">
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">任務說明 <span class="req">*</span></label>
+          <textarea class="form-ta" id="taskContent" placeholder="輸入任務詳細說明…" oninput="validateStep3()"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">優先等級</label>
+          <div class="priority-pills">
+            <div class="priority-pill" data-val="高" onclick="selectPriority(this)">🔴 高</div>
+            <div class="priority-pill" data-val="中" onclick="selectPriority(this)">🟡 中</div>
+            <div class="priority-pill" data-val="低" onclick="selectPriority(this)">🟢 低</div>
+          </div>
+          <input type="hidden" id="taskPriority">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -304,7 +354,7 @@ var SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','
 
 var _events = [];
 var _selectedEvent = null;
-var _selectedSquad = null;
+var _selectedSquads = []; // 多選組別
 var _jsonpCounter = 0;
 
 function _jsonpGet(url, cb) {
@@ -385,8 +435,12 @@ function goStep2() {
   setStep(2);
   renderSquads();
   document.getElementById('step2Info').innerHTML =
-    '<div class="sel-info-row"><span class="sel-info-lbl">事件</span>' +
-    '<span class="sel-info-val">' + _esc(_selectedEvent.name) + '</span></div>';
+    '<div class="sel-info-row"><span class="sel-info-lbl">名稱</span>' +
+    '<span class="sel-info-val">' + _esc(_selectedEvent.name) + '</span></div>' +
+    '<div class="sel-info-row"><span class="sel-info-lbl">類型</span>' +
+    '<span class="sel-info-val">' + _esc(_selectedEvent.type||'') + '</span></div>' +
+    '<div class="sel-info-row"><span class="sel-info-lbl">時間</span>' +
+    '<span class="sel-info-val" style="font-size:12px">' + _esc((_selectedEvent.date||'') + ' ' + (_selectedEvent.time||'')) + '</span></div>';
   document.getElementById('footerStatus').textContent = '請選擇派送組別';
   document.getElementById('footerStatus').className = 'footer-status';
 }
@@ -402,28 +456,46 @@ function renderSquads() {
     return '<button class="squad-btn" data-squad="' + _esc(sq) + '" onclick="selectSquad(this)">' + _esc(sq) + '</button>';
   }).join('');
 
-  _selectedSquad = null;
+  _selectedSquads = [];
   document.getElementById('btnNext2').disabled = true;
 }
 
 function selectSquad(btn) {
-  document.querySelectorAll('.squad-btn').forEach(function(b){ b.classList.remove('selected'); });
-  btn.classList.add('selected');
-  _selectedSquad = btn.getAttribute('data-squad');
-  document.getElementById('btnNext2').disabled = false;
-  document.getElementById('footerStatus').textContent = '已選：' + _selectedSquad;
-  document.getElementById('footerStatus').className = 'footer-status ok';
+  var sq = btn.getAttribute('data-squad');
+  var idx = _selectedSquads.indexOf(sq);
+  if (idx === -1) {
+    _selectedSquads.push(sq);
+    btn.classList.add('selected');
+  } else {
+    _selectedSquads.splice(idx, 1);
+    btn.classList.remove('selected');
+  }
+  var ok = _selectedSquads.length > 0;
+  document.getElementById('btnNext2').disabled = !ok;
+  if (ok) {
+    document.getElementById('footerStatus').textContent = '已選：' + _selectedSquads.join('、');
+    document.getElementById('footerStatus').className = 'footer-status ok';
+  } else {
+    document.getElementById('footerStatus').textContent = '請選擇派送組別';
+    document.getElementById('footerStatus').className = 'footer-status';
+  }
 }
 
 // ── 第三步：任務內容 ──
 function goStep3() {
-  if (!_selectedSquad) return;
+  if (!_selectedSquads.length) return;
   setStep(3);
+  var squadTags = _selectedSquads.map(function(s){
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;' +
+           'background:#f3f0ff;color:#7c3aed;font-size:12px;margin:2px 2px 0 0">' + _esc(s) + '</span>';
+  }).join('');
   document.getElementById('step3Info').innerHTML =
-    '<div class="sel-info-row"><span class="sel-info-lbl">事件</span>' +
+    '<div class="sel-info-row"><span class="sel-info-lbl">名稱</span>' +
     '<span class="sel-info-val">' + _esc(_selectedEvent.name) + '</span></div>' +
+    '<div class="sel-info-row"><span class="sel-info-lbl">類型</span>' +
+    '<span class="sel-info-val">' + _esc(_selectedEvent.type||'') + '</span></div>' +
     '<div class="sel-info-row"><span class="sel-info-lbl">派送對象</span>' +
-    '<span class="sel-info-val sel-info-accent">' + _esc(_selectedSquad) + '</span></div>';
+    '<span class="sel-info-val" style="line-height:1.8">' + squadTags + '</span></div>';
   document.getElementById('footerStatus').textContent = '請填寫任務內容';
   document.getElementById('footerStatus').className = 'footer-status';
   validateStep3();
@@ -467,26 +539,29 @@ function submitTask() {
   btn.disabled = true;
   btn.innerHTML = '<span class="ce-spin"></span> 派送中…';
 
-  var task = {
-    action:   'addTask',
-    eventId:  _selectedEvent.id,
-    target:   _selectedSquad,
-    title:    document.getElementById('taskTitle').value.trim(),
-    content:  document.getElementById('taskContent').value.trim(),
-    priority: document.getElementById('taskPriority').value
-  };
+  var title    = document.getElementById('taskTitle').value.trim();
+  var content  = document.getElementById('taskContent').value.trim();
+  var priority = document.getElementById('taskPriority').value;
 
-  fetch(SHEETS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(task)
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(res) {
+  // 對每個組別各送一筆任務
+  var promises = _selectedSquads.map(function(sq) {
+    return fetch(SHEETS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'addTask', eventId: _selectedEvent.id,
+        target: sq, title: title, content: content, priority: priority
+      })
+    }).then(function(r){ return r.json(); });
+  });
+
+  Promise.all(promises)
+  .then(function() {
     document.getElementById('panel3').classList.remove('active');
     document.getElementById('pageFooter').style.display = 'none';
-    var sub = '事件：' + _selectedEvent.name + '｜對象：' + _selectedSquad +
-              '｜優先等級：' + task.priority;
+    var sub = '事件：' + _selectedEvent.name +
+              '｜對象：' + _selectedSquads.join('、') +
+              (priority ? '｜優先：' + priority : '');
     document.getElementById('successSub').textContent = sub;
     document.getElementById('successBox').classList.add('show');
   })
@@ -500,7 +575,7 @@ function submitTask() {
 // ── 重置 ──
 function resetForm() {
   _selectedEvent = null;
-  _selectedSquad = null;
+  _selectedSquads = [];
   document.getElementById('taskTitle').value = '';
   document.getElementById('taskContent').value = '';
   document.getElementById('taskPriority').value = '';
