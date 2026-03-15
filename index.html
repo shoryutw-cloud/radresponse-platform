@@ -666,19 +666,46 @@ document.addEventListener('DOMContentLoaded', function() {
     'tnav-admin':     'drop-admin'
   };
 
-  // 定位下拉選單於 trigger 正下方
+  // ── 定位下拉選單於 trigger 正下方（自動偵測是否超出螢幕邊界）──
   function positionDrop(drop, trigger) {
     drop.style.left = '-9999px'; drop.style.top = '-9999px';
     drop.style.display = 'block';
-    var dw = drop.offsetWidth;
+    var dw = drop.offsetWidth, dh = drop.offsetHeight;
     drop.style.display = '';
-    var r = trigger.getBoundingClientRect();
+    var r    = trigger.getBoundingClientRect();
+    var vw   = window.innerWidth, vh = window.innerHeight;
+    // 水平：預設對齊 trigger 左側，超出右邊則靠右對齊
     var left = r.left;
-    var top  = r.bottom + 1;
-    if (left + dw > window.innerWidth - 8) left = window.innerWidth - dw - 8;
+    if (left + dw > vw - 8) left = r.right - dw;
     if (left < 4) left = 4;
+    // 垂直：預設在 trigger 下方，超出底部則往上
+    var top = r.bottom + 1;
+    if (top + dh > vh - 8) top = r.top - dh - 1;
+    if (top < 4) top = 4;
     drop.style.left = left + 'px';
     drop.style.top  = top  + 'px';
+  }
+
+  // ── 定位 L3（側邊展開，自動判斷左右）──
+  function positionL3(l3, parentDrop, triggerBtn) {
+    l3.style.left = '-9999px'; l3.style.top = '-9999px';
+    l3.style.display = 'block';
+    var lw = l3.offsetWidth, lh = l3.offsetHeight;
+    l3.style.display = '';
+    var pr  = parentDrop.getBoundingClientRect();
+    var tr  = triggerBtn.getBoundingClientRect();
+    var vw  = window.innerWidth, vh = window.innerHeight;
+    // 預設展開在 L2 右側
+    var left = pr.right + 2;
+    // 若右側放不下，改展開在 L2 左側
+    if (left + lw > vw - 8) left = pr.left - lw - 2;
+    if (left < 4) left = 4;
+    // 垂直對齊觸發行
+    var top = tr.top;
+    if (top + lh > vh - 8) top = vh - lh - 8;
+    if (top < 4) top = 4;
+    l3.style.left = left + 'px';
+    l3.style.top  = top  + 'px';
   }
 
   // 關閉所有桌機下拉（除了指定的）
@@ -717,19 +744,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── L3：事件管理 hover ──
   var btnJishi  = document.getElementById('btn-jishi');
   var dropJishi = document.getElementById('drop-jishi');
+  var dropAdmin = document.getElementById('drop-admin');
 
   function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
 
-  if (btnJishi && dropJishi) {
+  if (btnJishi && dropJishi && dropAdmin) {
     btnJishi.addEventListener('mouseenter', function() {
       clearTimeout(leaveTimer);
       dropJishi.classList.add('active');
-      positionDrop(dropJishi, btnJishi);
-      // L3 定位在 L2 右側
-      var r  = btnJishi.getBoundingClientRect();
-      var d2 = document.getElementById('drop-admin').getBoundingClientRect();
-      dropJishi.style.left = (d2.right + 2) + 'px';
-      dropJishi.style.top  = r.top + 'px';
+      positionL3(dropJishi, dropAdmin, btnJishi);
     });
     btnJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
