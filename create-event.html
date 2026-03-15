@@ -556,7 +556,7 @@ function _ceIco() {
 
 // ── 返回地圖 ──
 function goBack() {
-  try { parent.showMap(); } catch(e) { history.back(); }
+  try { parent.showIframe('current-events.html'); } catch(e) { location.href = 'current-events.html'; }
 }
 
 function goCurrentEvents() {
