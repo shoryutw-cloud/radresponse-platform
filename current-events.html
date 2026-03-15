@@ -732,8 +732,9 @@ function buildEventLayers(idx) {
     }).addTo(gMap);
   }
 
-  // (2) 1km 邊界線
-  if (showLine) {
+  // (2) 1km 邊界線（需有風向才顯示）
+  var hasWind = ev.windDir && ev.windDir !== '';
+  if (showLine && hasWind) {
     var lineCenter = destPoint(la, lo, wd, 1000);
     var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
     var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
@@ -742,8 +743,8 @@ function buildEventLayers(idx) {
     }).addTo(gMap);
   }
 
-  // (3) 5km 扇形
-  if (showSector) {
+  // (3) 5km 扇形（需有風向才顯示）
+  if (showSector && hasWind) {
     var pts = [[la, lo]];
     for (var i = 0; i <= 40; i++) {
       pts.push(destPoint(la, lo, (wd - 22.5) + 45 * i / 40, 5000));
