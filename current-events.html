@@ -405,6 +405,32 @@ function renderCard(idx) {
   }
   html += '</div>';
 
+  html += '<hr class="ev-divider">';
+
+  // 目前劑量率
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">目前劑量率</span>';
+  html += '<span class="ev-val" id="evDoseRate">—</span>';
+  html += '</div>';
+
+  // 有紀錄以來最大劑量率
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">最大劑量率</span>';
+  html += '<span class="ev-val" id="evDoseMax">—</span>';
+  html += '</div>';
+
+  // 風向
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">風向</span>';
+  html += '<span class="ev-val" id="evWindDir">—</span>';
+  html += '</div>';
+
+  // 預估影響範圍
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">預估影響範圍</span>';
+  html += '<span class="ev-val" id="evImpactRange">—</span>';
+  html += '</div>';
+
   // 快捷按鈕
   html += '<div class="ev-shortcuts">';
   html += '<button class="ev-shortcut-btn" onclick="goPersonnel()">&#x1F465; 出勤人員</button>';
