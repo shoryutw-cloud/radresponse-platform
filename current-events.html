@@ -220,6 +220,40 @@ function _esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// 格式化日期時間 → 2026年3月15日 14時34分
+function formatDateTime(dateVal, timeVal) {
+  var dateStr = '', timeStr = '';
+
+  // 處理日期：可能是 Date 物件字串 或 YYYY-MM-DD
+  try {
+    var d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      dateStr = d.getFullYear() + '年' +
+                (d.getMonth() + 1) + '月' +
+                d.getDate() + '日';
+    }
+  } catch(e) {}
+
+  // 處理時間：可能是 Date 物件字串 或 HH:MM
+  try {
+    // 先試 HH:MM 格式
+    var tm = String(timeVal || '');
+    var hmMatch = tm.match(/(\d{1,2}):(\d{2})/);
+    if (hmMatch) {
+      timeStr = hmMatch[1] + '時' + hmMatch[2] + '分';
+    } else {
+      // 試 Date 字串
+      var td = new Date(timeVal);
+      if (!isNaN(td.getTime())) {
+        timeStr = td.getHours() + '時' +
+                  String(td.getMinutes()).padStart(2,'0') + '分';
+      }
+    }
+  } catch(e) {}
+
+  return (dateStr + (timeStr ? ' ' + timeStr : '')) || '—';
+}
+
 function goBack() {
   try { parent.showMap(); } catch(e) { history.back(); }
 }
@@ -316,7 +350,7 @@ function renderCard(idx) {
   // 日期與時間
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">日期與時間</span>';
-  html += '<span class="ev-val">' + _esc((ev.date||'') + ' ' + (ev.time||'')) + '</span>';
+  html += '<span class="ev-val">' + _esc(formatDateTime(ev.date, ev.time)) + '</span>';
   html += '</div>';
 
   // 事件地點
