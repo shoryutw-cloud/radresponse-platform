@@ -326,6 +326,8 @@ function parseDetectorTypes(instrStr) {
 
 // ── 渲染卡片 ──
 function renderCard(idx) {
+  // 每次切換事件都寫入 sessionStorage，讓其他頁面知道目前是哪筆
+  try { sessionStorage.setItem('currentEventIdx', idx); } catch(e) {}
   var body   = document.getElementById('evCardBody');
   var dot    = document.getElementById('evDot');
   var nav    = document.getElementById('evNav');
@@ -417,14 +419,12 @@ function notifyReady() {
   try { parent.postMessage({ type: 'iframeReady' }, '*'); } catch(e) {}
 }
 function goPersonnel() {
-  console.log('[current-events] goPersonnel _curIdx='+_curIdx);
-  try { parent.showIframe('event-personnel.html?idx=' + _curIdx); }
-  catch(e) { console.log('[current-events] parent.showIframe failed', e); }
+  try { parent.showIframe('event-personnel.html'); }
+  catch(e) {}
 }
 function goInstruments() {
-  console.log('[current-events] goInstruments _curIdx='+_curIdx);
-  try { parent.showIframe('event-instruments.html?idx=' + _curIdx); }
-  catch(e) { console.log('[current-events] parent.showIframe failed', e); }
+  try { parent.showIframe('event-instruments.html'); }
+  catch(e) {}
 }
 
 // ── 地圖飛到事件座標 ──
