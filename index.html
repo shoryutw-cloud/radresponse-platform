@@ -764,20 +764,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     btnJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!isInMenuSystem()) dropJishi.classList.remove('active');
+        // 只有滑鼠移到 L3 本身才保持開啟
+        if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
       }, 150);
     });
     dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     dropJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!isInMenuSystem()) { dropJishi.classList.remove('active'); }
-        // 若滑鼠回到 drop-admin 但不在 L3，關閉 L3
-        if (!dropJishi.matches(':hover') && !btnJishi.matches(':hover')) {
-          dropJishi.classList.remove('active');
-        }
+        if (!btnJishi.matches(':hover')) dropJishi.classList.remove('active');
       }, 150);
     });
   }
+
+  // ── drop-admin 的其他選項 mouseenter 時，立即關閉 L3 ──
+  dropAdmin.querySelectorAll('.top-drop-btn').forEach(function(btn) {
+    if (btn === btnJishi) return; // 略過事件管理本身
+    btn.addEventListener('mouseenter', function() {
+      clearTimeout(leaveTimer);
+      closeL3();
+    });
+  });
 
   // ── 點選選單外關閉 ──
   document.addEventListener('click', function(e) {
