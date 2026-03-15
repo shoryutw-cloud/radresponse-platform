@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建立新事件</title>
+<style>
+  :root {
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --hover: #f1f5ff;
+    --surface: #ffffff;
+    --bg: #f0f2f5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
+    --radius: 6px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
+
+  /* ── 頁首 ── */
+  .ce-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: #1e2a3a; border-bottom: 1px solid #0f1820;
+    flex-shrink: 0;
+  }
+  .ce-header-left { display: flex; align-items: center; gap: 10px; }
+  .ce-title { font-size: 17px; font-weight: 700; color: #e8f0fa; }
+  .ce-evid {
+    font-family: var(--font-mono); font-size: 11px; color: #8da0b8;
+    background: rgba(255,255,255,0.08); padding: 3px 8px;
+    border-radius: 4px; border: 1px solid rgba(255,255,255,0.12);
+  }
+  .ce-back-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: none; border: 1px solid rgba(255,255,255,0.18);
+    border-radius: var(--radius); padding: 6px 14px;
+    color: #8da0b8; font-family: var(--font); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  .ce-back-btn:hover { border-color: #8da0b8; color: #e8f0fa; }
+
+  /* ── 步驟指示器 ── */
+  .ce-steps {
+    display: flex; align-items: center; gap: 0;
+    padding: 12px 24px; background: white;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .ce-step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-muted); white-space: nowrap;
+  }
+  .ce-step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: #e2e8f0; color: var(--text-muted);
+    transition: all .2s;
+  }
+  .ce-step.active .ce-step-num { background: var(--accent); color: white; }
+  .ce-step.active .ce-step-label { color: var(--accent); font-weight: 600; }
+  .ce-step.done .ce-step-num { background: #16a34a; color: white; }
+  .ce-step.done .ce-step-label { color: #16a34a; }
+  .ce-step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 12px; min-width: 20px; }
+
+  /* ── 主體 ── */
+  .ce-body { flex: 1; overflow: hidden; min-height: 0; display: flex; }
+  .ce-page { display: none; flex: 1; overflow: hidden; min-height: 0; }
+  .ce-page.active { display: flex; }
+
+  /* ── 第一頁：表單 + 地圖 ── */
+  .ce-form-col {
+    width: 340px; flex-shrink: 0; padding: 20px 24px;
+    overflow-y: auto; border-right: 1px solid var(--border);
+  }
+  .ce-form-col::-webkit-scrollbar { width: 3px; }
+  .ce-form-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .ce-map-col { flex: 1; position: relative; overflow: hidden; }
+  #ce-map { width: 100%; height: 100%; background: #e8edf2; }
+  .ce-map-hint {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(30,42,58,.82); color: #e8f0fa; font-size: 11px;
+    padding: 5px 12px; border-radius: 20px; pointer-events: none;
+    white-space: nowrap; z-index: 10;
+  }
+  .ce-map-col .leaflet-pane, .ce-map-col .leaflet-tile,
+  .ce-map-col .leaflet-marker-icon, .ce-map-col .leaflet-marker-shadow,
+  .ce-map-col .leaflet-tile-container, .ce-map-col .leaflet-map-pane,
+  .ce-map-col .leaflet-overlay-pane, .ce-map-col .leaflet-shadow-pane,
+  .ce-map-col .leaflet-marker-pane, .ce-map-col .leaflet-tooltip-pane,
+  .ce-map-col .leaflet-popup-pane, .ce-map-col .leaflet-control { z-index: 1 !important; }
+  .ce-map-col .leaflet-top, .ce-map-col .leaflet-bottom { z-index: 2 !important; }
+
+  /* ── 表單元件 ── */
+  .ce-group { margin-bottom: 16px; }
+  .ce-lbl {
+    display: block; font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .ce-lbl .req { color: #dc2626; margin-left: 2px; }
+  .ce-inp, .ce-ta {
+    width: 100%; padding: 8px 11px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 14px;
+    color: var(--text); background: white; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .ce-inp:focus, .ce-ta:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .ce-inp::placeholder, .ce-ta::placeholder { color: #b0bec5; }
+  .ce-ta { resize: none; line-height: 1.6; }
+  .ce-dtrow { display: flex; gap: 8px; }
+  .ce-dtrow > div { flex: 1; }
+  .ce-div { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+  /* 事件類型標籤 */
+  .ce-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ce-pill {
+    padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px;
+    font-weight: 500; border: 1.5px solid var(--border); color: var(--text-muted);
+    background: white; transition: all .15s; user-select: none;
+  }
+  .ce-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .ce-pill.p-red    { border-color: #dc2626; background: #fef2f2; color: #dc2626; font-weight: 600; }
+  .ce-pill.p-orange { border-color: #d97706; background: #fffbeb; color: #d97706; font-weight: 600; }
+  .ce-pill.p-blue   { border-color: #1a56db; background: #e8effd; color: #1a56db; font-weight: 600; }
+
+  /* 地址搜尋 */
+  .ce-awrap { position: relative; }
+  .ce-awrap .ce-inp { padding-right: 34px; }
+  .ce-asearch {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    font-size: 15px; padding: 2px; transition: color .15s;
+  }
+  .ce-asearch:hover { color: var(--accent); }
+  .ce-sugg {
+    position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+    background: white; border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0,0,0,.1); z-index: 3000;
+    max-height: 160px; overflow-y: auto; display: none;
+  }
+  .ce-sugg.show { display: block; }
+  .ce-si { padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--text);
+           border-bottom: 1px solid #f0f4f8; transition: background .1s; }
+  .ce-si:last-child { border-bottom: none; }
+  .ce-si:hover { background: var(--hover); }
+  .ce-si-m { font-weight: 500; }
+  .ce-si-s { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .ce-ast { font-size: 12px; margin-top: 4px; min-height: 14px; }
+  .ce-ast.ok { color: #16a34a; } .ce-ast.err { color: #dc2626; } .ce-ast.loading { color: var(--text-muted); }
+  .ce-coords { display: flex; gap: 6px; margin-top: 6px; }
+  .ce-cbox { flex: 1; background: #f0f2f5; border: 1px solid var(--border); border-radius: 5px; padding: 5px 9px; }
+  .ce-clbl { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .ce-cval { font-size: 13px; font-family: var(--font-mono); color: var(--text); font-weight: 500; margin-top: 1px; }
+
+  /* ── 第二頁：出勤人員 ── */
+  .ce-personnel { flex: 1; overflow-y: auto; padding: 20px 24px; min-height: 0; }
+  .ce-personnel::-webkit-scrollbar { width: 3px; }
+  .ce-personnel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .ce-p-loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 15px; }
+  .ce-sel-count {
+    font-size: 13px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
+    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
+  }
+  .ce-sel-count strong { color: var(--accent); font-size: 15px; }
+  .ce-squad { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .ce-squad-hd {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    background: #f8fafc; border-bottom: 1px solid var(--border); user-select: none;
+  }
+  .ce-squad-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+  .ce-squad-cnt {
+    font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);
+    background: var(--border); padding: 2px 8px; border-radius: 20px;
+  }
+  .ce-chk-all {
+    font-size: 12px; color: var(--accent); cursor: pointer; padding: 3px 10px;
+    border-radius: 4px; border: 1px solid var(--accent); background: none;
+    font-family: var(--font); transition: all .15s;
+  }
+  .ce-chk-all:hover { background: var(--hover); }
+  .ce-squad-bd { padding: 12px 16px; }
+  .ce-member-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ce-mbr {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+    border: 1.5px solid var(--border); border-radius: 6px; cursor: pointer;
+    transition: all .15s; background: white; font-size: 13px; color: var(--text); user-select: none;
+  }
+  .ce-mbr:hover { border-color: var(--accent); background: var(--hover); }
+  .ce-mbr.checked { border-color: var(--accent); background: #e8effd; color: var(--accent); font-weight: 600; }
+  .ce-mbr input[type=checkbox] { display: none; }
+
+  /* ── 第三頁：出動儀器 ── */
+  .ce-instr-wrap { flex: 1; overflow-y: auto; padding: 20px 24px; min-height: 0; }
+  .ce-instr-wrap::-webkit-scrollbar { width: 3px; }
+  .ce-instr-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .ce-instr-count {
+    font-size: 13px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
+    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
+  }
+  .ce-instr-count strong { color: var(--accent); font-size: 15px; }
+  .ce-instr-tbl { width: 100%; border-collapse: collapse; }
+  .ce-instr-tbl th {
+    font-size: 12px; color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px;
+    background: #f8fafc; border-bottom: 2px solid var(--border);
+    text-align: left; white-space: nowrap;
+  }
+  .ce-instr-tbl td { padding: 9px 10px; vertical-align: middle; font-size: 13px; border-bottom: 1px solid #f0f4f8; }
+  .ce-instr-tbl tr:last-child td { border-bottom: none; }
+  .ce-instr-tbl tr:hover td { background: #f8fafc; }
+  .ce-instr-tbl tr.ce-isel td { background: #eff6ff; }
+  .ce-instr-chk { width: 36px; text-align: center; }
+  .ce-instr-chk input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+  .ce-instr-user-sel {
+    width: 100%; min-width: 110px; padding: 5px 24px 5px 8px;
+    border: 1px solid var(--border); border-radius: 5px; font-size: 13px;
+    font-family: var(--font); background: white; color: var(--text); appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+    transition: border-color .15s;
+  }
+  .ce-instr-user-sel:disabled { background: #f0f2f5; color: #b0bec5; cursor: not-allowed; }
+  .ce-instr-user-sel:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+  .ce-instr-empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+
+  /* ── 頁尾（按鈕列）── */
+  .ce-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; border-top: 1px solid var(--border);
+    background: white; flex-shrink: 0; gap: 10px;
+  }
+  .ce-fstatus { font-size: 13px; color: var(--text-muted); flex: 1; }
+  .ce-fstatus.ok { color: #16a34a; }
+  .ce-fbtns { display: flex; gap: 8px; flex-shrink: 0; }
+  .ce-btn {
+    padding: 9px 20px; border-radius: var(--radius); font-family: var(--font);
+    font-size: 14px; font-weight: 500; cursor: pointer; border: none;
+    transition: all .15s; white-space: nowrap;
+  }
+  .ce-btn-g { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+  .ce-btn-g:hover { border-color: #94a3b8; color: var(--text); }
+  .ce-btn-p { background: var(--accent); color: white; }
+  .ce-btn-p:hover { background: #1648c0; }
+  .ce-btn-p:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  /* ── 成功畫面 ── */
+  .ce-ok {
+    display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.97);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 50;
+  }
+  .ce-ok.show { display: flex; }
+  .ce-ok-icon { font-size: 56px; }
+  .ce-ok-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .ce-ok-id { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+  .ce-ok-msg { font-size: 12px; color: var(--text-muted); }
+  .ce-ok-btns { display: flex; gap: 10px; margin-top: 8px; }
+
+  /* ── loading spinner ── */
+  .ce-spin {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RWD ── */
+  @media (max-width: 700px) {
+    .ce-form-col { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+    #cePage1 { flex-direction: column; }
+    .ce-map-col { height: 240px; }
+    .ce-header { padding: 12px 16px; }
+    .ce-footer { padding: 12px 16px; }
+    .ce-steps { padding: 10px 16px; }
+    .ce-step-label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 頁首 -->
+<div class="ce-header">
+  <div class="ce-header-left">
+    <span class="ce-title">&#x1F4CB; 建立新事件</span>
+    <span class="ce-evid" id="ceEvId">查詢中…</span>
+  </div>
+  <button class="ce-back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
+</div>
+
+<!-- 步驟指示器 -->
+<div class="ce-steps">
+  <div class="ce-step active" id="step1">
+    <div class="ce-step-num">1</div>
+    <span class="ce-step-label">事件基本資料</span>
+  </div>
+  <div class="ce-step-sep"></div>
+  <div class="ce-step" id="step2">
+    <div class="ce-step-num">2</div>
+    <span class="ce-step-label">出勤人員</span>
+  </div>
+  <div class="ce-step-sep"></div>
+  <div class="ce-step" id="step3">
+    <div class="ce-step-num">3</div>
+    <span class="ce-step-label">出動儀器</span>
+  </div>
+</div>
+
+<!-- 主體 -->
+<div class="ce-body" style="position:relative">
+
+  <!-- 第一頁 -->
+  <div class="ce-page active" id="cePage1">
+    <div class="ce-form-col">
+      <div class="ce-group">
+        <label class="ce-lbl">事件名稱 <span class="req">*</span></label>
+        <input class="ce-inp" id="ceName" placeholder="輸入事件名稱" oninput="ceVal()">
+      </div>
+      <div class="ce-group">
+        <label class="ce-lbl">事件類型 <span class="req">*</span></label>
+        <div class="ce-pills">
+          <div class="ce-pill" data-c="p-red"    onclick="cePick(this,'輻射彈事件')">&#x1F4A5; 輻射彈事件</div>
+          <div class="ce-pill" data-c="p-orange" onclick="cePick(this,'放射性物質事件')">&#x26A0;&#xFE0F; 放射性物質事件</div>
+          <div class="ce-pill" data-c="p-blue"   onclick="cePick(this,'放射性物料事件')">&#x2622;&#xFE0F; 放射性物料事件</div>
+        </div>
+        <input type="hidden" id="ceType">
+      </div>
+      <div class="ce-group">
+        <label class="ce-lbl">日期與時間 <span class="req">*</span></label>
+        <div class="ce-dtrow">
+          <div><input class="ce-inp" type="date" id="ceDate" oninput="ceVal()"></div>
+          <div><input class="ce-inp" type="time" id="ceTime" oninput="ceVal()"></div>
+        </div>
+      </div>
+      <hr class="ce-div">
+      <div class="ce-group">
+        <label class="ce-lbl">事件地點 <span class="req">*</span></label>
+        <div class="ce-awrap" id="ceAWrap">
+          <input class="ce-inp" id="ceAddr" placeholder="輸入地址或地名搜尋…" oninput="ceAIn()" onkeydown="ceAKey(event)" autocomplete="off">
+          <button class="ce-asearch" onclick="ceSrch()">&#x1F50D;</button>
+          <div class="ce-sugg" id="ceSugg"></div>
+        </div>
+        <div class="ce-ast" id="ceAst"></div>
+        <div class="ce-coords" id="ceCo" style="display:none">
+          <div class="ce-cbox"><div class="ce-clbl">LAT</div><div class="ce-cval" id="ceLt">—</div></div>
+          <div class="ce-cbox"><div class="ce-clbl">LNG</div><div class="ce-cval" id="ceLn">—</div></div>
+        </div>
+      </div>
+      <div class="ce-group">
+        <label class="ce-lbl">備註</label>
+        <textarea class="ce-ta" id="ceNote" placeholder="補充說明…" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="ce-map-col">
+      <div id="ce-map"></div>
+      <div class="ce-map-hint" id="ceMH">在左側輸入地址，或直接點擊地圖選取位置</div>
+    </div>
+  </div>
+
+  <!-- 第二頁 -->
+  <div class="ce-page" id="cePage2">
+    <div class="ce-personnel" id="cePersonnel">
+      <div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>
+    </div>
+  </div>
+
+  <!-- 第三頁 -->
+  <div class="ce-page" id="cePage3">
+    <div class="ce-instr-wrap" id="ceInstrWrap">
+      <div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>
+    </div>
+  </div>
+
+  <!-- 成功畫面 -->
+  <div class="ce-ok" id="ceOK">
+    <div class="ce-ok-icon">&#x2705;</div>
+    <div class="ce-ok-title">事件已建立！</div>
+    <div class="ce-ok-id" id="ceOKId"></div>
+    <div class="ce-ok-msg" id="ceOKMsg"></div>
+    <div class="ce-ok-btns">
+      <button class="ce-btn ce-btn-g" onclick="ceReset()">&#x2795; 建立新事件</button>
+      <button class="ce-btn ce-btn-p" onclick="goBack()">&#x2190; 返回地圖</button>
+    </div>
+  </div>
+</div>
+
+<!-- 頁尾 -->
+<div class="ce-footer">
+  <div class="ce-fstatus" id="ceFSt">請填寫所有必填欄位（<span style="color:#dc2626">*</span>）</div>
+  <div class="ce-fbtns">
+    <!-- 第一頁按鈕 -->
+    <div id="ceF1Btns" style="display:flex;gap:8px">
+      <button class="ce-btn ce-btn-g" onclick="clearP1()">&#x21BA; 清除</button>
+      <button class="ce-btn ce-btn-p" id="ceSub" onclick="goPage2()" disabled>下一步 &#x27A1;</button>
+    </div>
+    <!-- 第二頁按鈕 -->
+    <div id="ceF2Btns" style="display:none;gap:8px">
+      <button class="ce-btn ce-btn-g" onclick="goPage1()">&#x2B05; 上一步</button>
+      <button class="ce-btn ce-btn-g" onclick="goPage3(true)">略過人員</button>
+      <button class="ce-btn ce-btn-p" onclick="goPage3(false)">下一步 &#x27A1;</button>
+    </div>
+    <!-- 第三頁按鈕 -->
+    <div id="ceF3Btns" style="display:none;gap:8px">
+      <button class="ce-btn ce-btn-g" onclick="goPage2back()">&#x2B05; 上一步</button>
+      <button class="ce-btn ce-btn-g" onclick="ceDo(true)">略過儀器</button>
+      <button class="ce-btn ce-btn-p" id="ceSubP3" onclick="ceDo(false)">&#x2705; 建立事件</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// 設定
+// ════════════════════════════════════════
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+var CE_TYPE_GROUP = {
+  '輻射彈事件':     'tech-rdd',
+  '放射性物質事件': 'tech-substance',
+  '放射性物料事件': 'tech-material'
+};
+var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
+
+// ── 全域狀態 ──
+var _ceMap = null, _ceMk = null, _ceLat = null, _ceLng = null, _ceTmr = null;
+var _ceCache = {};        // 人員快取
+var _ceInstrCache = null; // 儀器快取
+var _ceSkipPersonnel = false;
+var _ceSquadIdx = 0;
+var _jsonpCounter = 0;
+
+// ════════════════════════════════════════
+// 工具函數
+// ════════════════════════════════════════
+function _jsonpGet(url, cb) {
+  var name = '_jsonpCb' + (_jsonpCounter++);
+  window[name] = function(data) {
+    delete window[name];
+    document.head.removeChild(s);
+    cb(data);
+  };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+function _esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function _ceIdFromMax(maxSeq) {
+  var d = new Date();
+  var today = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  return 'EVT-' + today + '-' + String(maxSeq + 1).padStart(3,'0');
+}
+
+function _ceIco() {
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:16px;height:16px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+    iconSize:[16,16], iconAnchor:[8,16]
+  });
+}
+
+// ── 返回地圖 ──
+function goBack() {
+  try { parent.showMap(); } catch(e) { history.back(); }
+}
+
+// ════════════════════════════════════════
+// 步驟指示器
+// ════════════════════════════════════════
+function setStep(active) {
+  [1,2,3].forEach(function(n) {
+    var el = document.getElementById('step' + n);
+    el.classList.remove('active','done');
+    if (n < active) el.classList.add('done');
+    else if (n === active) el.classList.add('active');
+  });
+}
+
+// ════════════════════════════════════════
+// 頁面切換
+// ════════════════════════════════════════
+function showOnlyPage(n) {
+  [1,2,3].forEach(function(i) {
+    document.getElementById('cePage' + i).classList.toggle('active', i === n);
+  });
+  document.getElementById('ceF1Btns').style.display = n === 1 ? 'flex' : 'none';
+  document.getElementById('ceF2Btns').style.display = n === 2 ? 'flex' : 'none';
+  document.getElementById('ceF3Btns').style.display = n === 3 ? 'flex' : 'none';
+  setStep(n);
+}
+
+function goPage1() {
+  showOnlyPage(1);
+  document.getElementById('ceFSt').className = 'ce-fstatus';
+  ceVal();
+}
+
+function goPage2() {
+  showOnlyPage(2);
+  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
+  _loadPersonnel();
+}
+
+function goPage3(skipPersonnel) {
+  _ceSkipPersonnel = !!skipPersonnel;
+  showOnlyPage(3);
+  document.getElementById('ceFSt').textContent = '請勾選出動儀器並指定使用者（可略過）';
+  _loadInstruments();
+}
+
+function goPage2back() {
+  showOnlyPage(2);
+  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
+}
+
+// ════════════════════════════════════════
+// 第一頁：表單驗證
+// ════════════════════════════════════════
+function ceVal() {
+  var ok = document.getElementById('ceName').value.trim() &&
+           document.getElementById('ceType').value &&
+           document.getElementById('ceDate').value &&
+           document.getElementById('ceTime').value &&
+           _ceLat !== null;
+  document.getElementById('ceSub').disabled = !ok;
+  if (ok) {
+    document.getElementById('ceFSt').innerHTML = '所有必填欄位已完成 &#x2714;';
+    document.getElementById('ceFSt').className = 'ce-fstatus ok';
+  } else {
+    var ms = [];
+    if (!document.getElementById('ceName').value.trim()) ms.push('事件名稱');
+    if (!document.getElementById('ceType').value) ms.push('事件類型');
+    if (!document.getElementById('ceDate').value || !document.getElementById('ceTime').value) ms.push('日期時間');
+    if (_ceLat === null) ms.push('事件地點');
+    document.getElementById('ceFSt').innerHTML = '尚未填寫：' + ms.join('、');
+    document.getElementById('ceFSt').className = 'ce-fstatus';
+  }
+}
+
+function cePick(el, t) {
+  document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
+  el.classList.add(el.getAttribute('data-c'));
+  document.getElementById('ceType').value = t;
+  ceVal();
+}
+
+// ── 地址搜尋 ──
+function ceAIn() {
+  clearTimeout(_ceTmr);
+  var v = document.getElementById('ceAddr').value.trim();
+  _ceHS();
+  if (v.length < 2) { _ceAst('',''); return; }
+  _ceAst('loading','搜尋中…');
+  _ceTmr = setTimeout(function(){ _ceFetch(v, false); }, 500);
+}
+function ceAKey(e) { if (e.key === 'Enter') { e.preventDefault(); ceSrch(); } }
+function ceSrch() {
+  var v = document.getElementById('ceAddr').value.trim();
+  if (!v) return; clearTimeout(_ceTmr);
+  _ceAst('loading','搜尋中…'); _ceFetch(v, true);
+}
+function _ceFetch(q, first) {
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q),
+        { headers: {'Accept-Language':'zh-TW,zh,en'} })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data || !data.length) { _ceAst('err','找不到此地點'); _ceHS(); return; }
+      if (first) _ceSel(data[0]); else _ceShow(data);
+    })
+    .catch(function(){ _ceAst('err','搜尋失敗，請確認網路連線'); });
+}
+function _ceShow(res) {
+  var box = document.getElementById('ceSugg'); box.innerHTML = '';
+  res.forEach(function(r) {
+    var p = r.display_name.split(',');
+    var d = document.createElement('div'); d.className = 'ce-si';
+    d.innerHTML = '<div class="ce-si-m">' + p[0].trim() + '</div><div class="ce-si-s">' + p.slice(1,3).join(',').trim() + '</div>';
+    d.addEventListener('click', function(){ _ceSel(r); });
+    box.appendChild(d);
+  });
+  box.classList.add('show'); _ceAst('','');
+}
+function _ceHS() { document.getElementById('ceSugg').classList.remove('show'); }
+function _ceSel(r) {
+  _ceHS();
+  document.getElementById('ceAddr').value = r.display_name;
+  _ceLat = parseFloat(r.lat); _ceLng = parseFloat(r.lon);
+  document.getElementById('ceLt').textContent = _ceLat.toFixed(6);
+  document.getElementById('ceLn').textContent = _ceLng.toFixed(6);
+  document.getElementById('ceCo').style.display = 'flex';
+  document.getElementById('ceMH').style.display = 'none';
+  _ceAst('ok','&#x2714; 地點已定位');
+  if (_ceMap) {
+    _ceMap.setView([_ceLat, _ceLng], 15);
+    if (_ceMk) _ceMk.setLatLng([_ceLat, _ceLng]);
+    else _ceMk = L.marker([_ceLat, _ceLng], {icon: _ceIco()}).addTo(_ceMap);
+  }
+  ceVal();
+}
+function _ceAst(t, m) {
+  var el = document.getElementById('ceAst');
+  el.className = 'ce-ast' + (t ? ' ' + t : ''); el.innerHTML = m;
+}
+
+// ── 清除第一頁 ──
+function clearP1() {
+  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
+  _ceLat = null; _ceLng = null;
+  document.getElementById('ceCo').style.display = 'none';
+  document.getElementById('ceAst').innerHTML = '';
+  document.getElementById('ceMH').style.display = '';
+  if (_ceMk && _ceMap) { _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
+  ceVal();
+}
+
+// ════════════════════════════════════════
+// 第二頁：出勤人員
+// ════════════════════════════════════════
+function _loadPersonnel() {
+  var techId = CE_TYPE_GROUP[document.getElementById('ceType').value];
+  var box = document.getElementById('cePersonnel');
+  box.innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
+  var targets = [
+    { id: techId,  label: '技術組' },
+    { id: 'staff', label: '參謀組' },
+    { id: 'press', label: '新聞組' }
+  ];
+  var promises = targets.map(function(t) {
+    if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
+    return new Promise(function(resolve) {
+      _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
+        if (d && d.members) { _ceCache[t.id] = d.members; resolve({ id:t.id, label:t.label, members:d.members }); }
+        else resolve({ id:t.id, label:t.label, members:[] });
+      });
+    });
+  });
+  Promise.all(promises).then(function(results) { _renderPersonnel(results, techId); });
+}
+
+function _renderPersonnel(groups, techId) {
+  _ceSquadIdx = 0;
+  var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
+  groups.forEach(function(g) {
+    if (!g.members || !g.members.length) return;
+    if (g.id === techId) {
+      var squads = {};
+      g.members.forEach(function(m) {
+        var s = (m.team || '').trim() || '未分配';
+        if (!squads[s]) squads[s] = [];
+        squads[s].push(m);
+      });
+      CE_SQUAD_ORDER.forEach(function(sname) {
+        if (squads[sname] && squads[sname].length) html += _squadBlock(sname, squads[sname]);
+      });
+      if (squads['未分配'] && squads['未分配'].length) html += _squadBlock('未分配', squads['未分配']);
+    } else {
+      html += _squadBlock(g.label, g.members);
+    }
+  });
+  document.getElementById('cePersonnel').innerHTML = html;
+  _updateSelCount();
+}
+
+function _squadBlock(title, members) {
+  var sid = 'sq' + _ceSquadIdx++;
+  var h = '<div class="ce-squad">' +
+    '<div class="ce-squad-hd">' +
+    '<span class="ce-squad-title">' + _esc(title) + '</span>' +
+    '<span class="ce-squad-cnt" id="cnt' + sid + '">0 / ' + members.length + '</span>' +
+    '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_chkAll(this,event)">全選</button>' +
+    '</div><div class="ce-squad-bd" id="bd' + sid + '"><div class="ce-member-list">';
+  members.forEach(function(m, i) {
+    var mid = sid + '_' + i;
+    h += '<label class="ce-mbr" id="lbl' + mid + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_tglMbr(this)">' +
+      '<input type="checkbox" id="cb' + mid + '" data-name="' + _esc(m.name) + '" data-squad="' + _esc(title) + '">' +
+      _esc(m.name) + '</label>';
+  });
+  h += '</div></div></div>';
+  return h;
+}
+function _tglMbr(el) {
+  var mid = el.getAttribute('data-mid'), sid = el.getAttribute('data-sid');
+  var cb = document.getElementById('cb' + mid);
+  cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+  _updSqCnt(sid); _updateSelCount();
+}
+function _chkAll(el, e) {
+  e.stopPropagation();
+  var sid = el.getAttribute('data-sid');
+  var cbs = document.getElementById('bd' + sid).querySelectorAll('input[type=checkbox]');
+  var all = Array.from(cbs).every(function(c){ return c.checked; });
+  cbs.forEach(function(c) {
+    c.checked = !all;
+    var l = document.getElementById('lbl' + c.id.replace('cb',''));
+    if (l) l.classList.toggle('checked', !all);
+  });
+  _updSqCnt(sid); _updateSelCount();
+}
+function _updSqCnt(sid) {
+  var cbs = document.getElementById('bd' + sid).querySelectorAll('input[type=checkbox]');
+  var n = Array.from(cbs).filter(function(c){ return c.checked; }).length;
+  var el = document.getElementById('cnt' + sid);
+  if (el) el.textContent = n + ' / ' + cbs.length;
+}
+function _updateSelCount() {
+  var n = document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').length;
+  var el = document.getElementById('ceSelN');
+  if (el) el.textContent = n;
+}
+function _getPersonnel() {
+  var r = [];
+  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
+    r.push({ name: cb.getAttribute('data-name'), squad: cb.getAttribute('data-squad') });
+  });
+  return r;
+}
+
+// ── 取得勾選的技術組成員名單 ──
+function _getSelectedTechNames() {
+  var techSquads = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
+  var names = [];
+  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
+    if (techSquads.indexOf(cb.getAttribute('data-squad') || '') !== -1)
+      names.push(cb.getAttribute('data-name'));
+  });
+  return names;
+}
+
+// ════════════════════════════════════════
+// 第三頁：出動儀器
+// ════════════════════════════════════════
+function _loadInstruments() {
+  var wrap = document.getElementById('ceInstrWrap');
+  if (_ceInstrCache) { _renderInstruments(_ceInstrCache); return; }
+  wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
+  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+    if (!data) { wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 連線逾時，請重試。</div>'; return; }
+    if (data.error) { wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; ' + _esc(String(data.error)) + '</div>'; return; }
+    if (data.columns && data.rows) { _ceInstrCache = data; _renderInstruments(data); }
+    else { wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 資料格式不符。</div>'; }
+  });
+}
+
+function _renderInstruments(data) {
+  var wrap = document.getElementById('ceInstrWrap');
+  var columns = data.columns || [], rows = data.rows || [];
+  if (!rows.length) { wrap.innerHTML = '<div class="ce-instr-empty">&#x1F4ED; 儀器清單目前為空。</div>'; return; }
+
+  // 找「使用者」欄
+  var userColIdx = -1;
+  columns.forEach(function(h, i){ if (String(h).trim() === '使用者') userColIdx = i; });
+  if (userColIdx < 0) userColIdx = columns.length - 1;
+  var displayCols = columns.slice(0, userColIdx);
+  var techNames = _getSelectedTechNames();
+
+  var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
+  html += '<table class="ce-instr-tbl"><thead><tr>';
+  html += '<th class="ce-instr-chk">出動</th>';
+  displayCols.forEach(function(h){ html += '<th>' + _esc(h) + '</th>'; });
+  html += '<th>' + _esc(columns[userColIdx] || '使用者') + '</th>';
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(function(rowObj, i) {
+    var vals = rowObj.values || [];
+    html += '<tr id="irow' + i + '">';
+    html += '<td class="ce-instr-chk"><input type="checkbox" id="icb' + i + '" onchange="_instrChg(' + i + ')" /></td>';
+    displayCols.forEach(function(h, j){ html += '<td>' + _esc(vals[j] || '') + '</td>'; });
+    html += '<td><select class="ce-instr-user-sel" id="isel' + i + '" disabled>';
+    html += '<option value="">— 請先勾選 —</option>';
+    if (techNames.length) {
+      techNames.forEach(function(n){ html += '<option value="' + _esc(n) + '">' + _esc(n) + '</option>'; });
+    } else {
+      html += '<option value="" disabled>（無勾選技術組成員）</option>';
+    }
+    html += '</select></td></tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function _instrChg(i) {
+  var cb = document.getElementById('icb' + i);
+  var sel = document.getElementById('isel' + i);
+  var row = document.getElementById('irow' + i);
+  sel.disabled = !cb.checked;
+  if (!cb.checked) sel.value = '';
+  if (row) row.classList.toggle('ce-isel', cb.checked);
+  var n = document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').length;
+  var el = document.getElementById('ceInstrN');
+  if (el) el.textContent = n;
+}
+
+function _getInstruments() {
+  if (!_ceInstrCache) return '';
+  var rows = _ceInstrCache.rows || [];
+  var result = [];
+  document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
+    var i = parseInt(cb.id.replace('icb',''), 10);
+    var vals = (rows[i] || {}).values || [];
+    var name = vals[1] || ('儀器' + i);
+    var model = vals[4] ? '(' + vals[4] + ')' : '';
+    var sel = document.getElementById('isel' + i);
+    var user = sel ? sel.value : '';
+    result.push(name + model + (user ? ':' + user : ''));
+  });
+  return result.join(', ');
+}
+
+// ════════════════════════════════════════
+// 送出（建立事件）
+// ════════════════════════════════════════
+function ceDo(skipInstruments) {
+  var btn = document.getElementById('ceSubP3');
+  if (!skipInstruments && btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
+
+  var ev = {
+    id:            document.getElementById('ceEvId').textContent,
+    name:          document.getElementById('ceName').value.trim(),
+    type:          document.getElementById('ceType').value,
+    date:          document.getElementById('ceDate').value,
+    time:          document.getElementById('ceTime').value,
+    address:       document.getElementById('ceAddr').value,
+    lat:           _ceLat,
+    lng:           _ceLng,
+    note:          document.getElementById('ceNote').value.trim(),
+    createdAt:     new Date().toISOString(),
+    status:        'active',
+    personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', '),
+    instrumentStr: skipInstruments ? '' : _getInstruments()
+  };
+
+  // localStorage 備份
+  try {
+    var local = JSON.parse(localStorage.getItem('rad_events') || '[]');
+    local.unshift(ev);
+    localStorage.setItem('rad_events', JSON.stringify(local));
+  } catch(e) {}
+
+  // 寫入試算表
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify(ev)
+  })
+  .then(function() {
+    document.getElementById('ceOKId').textContent = '事件編號：' + ev.id;
+    document.getElementById('ceOKMsg').textContent = '';
+    document.getElementById('ceOK').classList.add('show');
+  })
+  .catch(function() {
+    document.getElementById('ceOKId').textContent = ev.id + '（僅存本機，請確認網路）';
+    document.getElementById('ceOK').classList.add('show');
+  });
+}
+
+// ════════════════════════════════════════
+// 重置（建立新事件）
+// ════════════════════════════════════════
+function ceReset() {
+  document.getElementById('ceOK').classList.remove('show');
+  clearP1();
+  _ceCache = {};
+  _ceSkipPersonnel = false;
+  _ceInstrCache = null;
+  showOnlyPage(1);
+  // 重新查詢編號
+  document.getElementById('ceEvId').textContent = '查詢中…';
+  _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
+    if (data && typeof data.maxSeq !== 'undefined') {
+      document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
+    } else {
+      var d = new Date();
+      document.getElementById('ceEvId').textContent = 'EVT-' +
+        d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') +
+        '-T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
+    }
+  });
+  var d = new Date();
+  document.getElementById('ceDate').value = d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  ceVal();
+}
+
+// ════════════════════════════════════════
+// 初始化
+// ════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  // 填入日期時間
+  var d = new Date();
+  document.getElementById('ceDate').value = d.toISOString().split('T')[0];
+  document.getElementById('ceTime').value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+
+  // 查詢事件編號
+  _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
+    if (data && typeof data.maxSeq !== 'undefined') {
+      document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
+    } else {
+      var d = new Date();
+      document.getElementById('ceEvId').textContent = 'EVT-' +
+        d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') +
+        '-T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
+    }
+  });
+
+  // 載入 Leaflet
+  function loadCSS(href) {
+    var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
+  }
+  function loadScript(src, cb, errCb) {
+    var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = errCb; document.head.appendChild(s);
+  }
+  function initMap() {
+    _ceMap = L.map('ce-map', {zoomControl: true}).setView([25.046, 121.517], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+    }).addTo(_ceMap);
+    _ceMap.on('click', function(e) {
+      _ceLat = e.latlng.lat; _ceLng = e.latlng.lng;
+      if (_ceMk) _ceMk.setLatLng([_ceLat, _ceLng]);
+      else _ceMk = L.marker([_ceLat, _ceLng], {icon: _ceIco()}).addTo(_ceMap);
+      document.getElementById('ceLt').textContent = _ceLat.toFixed(6);
+      document.getElementById('ceLn').textContent = _ceLng.toFixed(6);
+      document.getElementById('ceCo').style.display = 'flex';
+      document.getElementById('ceMH').style.display = 'none';
+      _ceAst('loading','取得地址中…');
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+_ceLat+'&lon='+_ceLng,
+            {headers:{'Accept-Language':'zh-TW,zh,en'}})
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if (d && d.display_name) { document.getElementById('ceAddr').value = d.display_name; _ceAst('ok','&#x2714; 地點已定位'); } ceVal(); })
+        .catch(function(){ ceVal(); });
+    });
+  }
+  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', initMap, function() {
+    loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, function(){});
+  });
+
+  // 點選地址欄外側關閉建議
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#ceAWrap')) _ceHS();
+  });
+});
+</script>
+</body>
+</html>

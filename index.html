@@ -38,7 +38,7 @@
   }
   .topbar-logo {
     display: flex; align-items: center; gap: 8px;
-    text-decoration: none; flex-shrink: 0; margin-right: auto;
+    text-decoration: none; flex-shrink: 0;
   }
   .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
@@ -48,7 +48,7 @@
   /* ────── TOP NAV（桌機版，橫排）────── */
   .top-nav {
     display: flex; align-items: stretch; height: 100%;
-    margin-left: 0;
+    margin-left: auto;
   }
   .tnav-item { position: relative; display: flex; align-items: stretch; }
   .tnav-btn {
@@ -534,7 +534,7 @@
   <button class="top-drop-btn" onclick="openPanel('各帳號登入紀錄');closeAllMenus()">&#x1F510; 各帳號登入紀錄</button>
 </div>
 <div class="top-drop-l3" id="drop-jishi">
-  <button class="top-drop-l3-btn" onclick="openCreateEvent();closeAllMenus()">建立事件</button>
+  <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" onclick="openPanel('任務派送');closeAllMenus()">任務派送</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
