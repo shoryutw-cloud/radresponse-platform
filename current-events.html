@@ -732,7 +732,7 @@ function buildEventLayers(idx) {
     }).addTo(gMap);
   }
 
-  // (2) 1km 邊界線（需有風向才顯示）
+  // (2) 1km 橫切面（需有風向才顯示）
   var hasWind = ev.windDir && ev.windDir !== '';
   if (showLine && hasWind) {
     var lineCenter = destPoint(la, lo, wd, 1000);
@@ -795,7 +795,7 @@ function renderLayerPanel() {
       '<div class="layer-ev-name">' + _esc(name) + '</div>' +
       '<div class="layer-ev-cbs">' +
         '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
-        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 邊界線</label>' +
+        '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
         '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '</div></div>';
   }).join('');
