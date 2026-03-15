@@ -211,12 +211,13 @@ function updateNav() {
   document.getElementById('evNext').disabled = (_curIdx === _events.length - 1);
 }
 
-// ── 解析 personnelStr → [{squad, name}] ──
+// ── 解析 personnelStr → [{name}] ──
+// 格式：「林志遠, 王雅婷, 施冠宇」（只有姓名）
 function parsePersonnel(str) {
   if (!str) return [];
   return str.split(',').map(function(item) {
-    var parts = item.trim().split(':');
-    return { squad: (parts[0]||'').trim(), name: (parts[1]||'').trim() };
+    var name = item.trim();
+    return { name: name };
   }).filter(function(p) { return p.name; });
 }
 
@@ -284,10 +285,23 @@ function renderPersonnel(ev, personnel) {
     });
   });
 
-  // 依隊別分組
+  // 依隊別分組（從 group cache 反查每個人的隊別）
+  // 建立姓名→隊別的對照表
+  var nameToSquad = {};
+  Object.keys(_groupCache).forEach(function(gid) {
+    var grp = _groupCache[gid];
+    Object.keys(grp).forEach(function(name) {
+      var info = grp[name];
+      // 技術組有 team 欄位（小隊），非技術組用群組名稱
+      if (gid === 'staff') nameToSquad[name] = '參謀組';
+      else if (gid === 'press') nameToSquad[name] = '新聞組';
+      else if (info.team) nameToSquad[name] = info.team;
+    });
+  });
+
   var squads = {};
   personnel.forEach(function(p) {
-    var key = p.squad || '未分配';
+    var key = nameToSquad[p.name] || '未分配';
     if (!squads[key]) squads[key] = [];
     squads[key].push(p);
   });

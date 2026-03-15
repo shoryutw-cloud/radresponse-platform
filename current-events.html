@@ -312,16 +312,10 @@ function navEvent(dir) {
   flyToEvent(_curIdx);
 }
 
-// ── 解析 personnelStr 取得技術組人數 ──
+// ── 解析 personnelStr 取得人數（格式：姓名, 姓名, ...）──
 function parseTechCount(personnelStr) {
   if (!personnelStr) return 0;
-  var count = 0;
-  personnelStr.split(',').forEach(function(item) {
-    var parts = item.trim().split(':');
-    var squad = parts[0] ? parts[0].trim() : '';
-    if (TECH_SQUADS.indexOf(squad) !== -1) count++;
-  });
-  return count;
+  return personnelStr.split(',').filter(function(s) { return s.trim(); }).length;
 }
 
 // ── 解析 instrumentStr 取得不重複偵檢類型 ──
