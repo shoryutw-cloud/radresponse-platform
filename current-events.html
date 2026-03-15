@@ -412,14 +412,17 @@ function renderCard(idx) {
   body.innerHTML = html;
 }
 
-// ── 跳到出勤人員／出動儀器（帶入目前事件 idx）──
+// ── 告知父層 iframe 已準備好，請求 idx ──
+function notifyReady() {
+  try { parent.postMessage({ type: 'iframeReady' }, '*'); } catch(e) {}
+}
 function goPersonnel() {
-  try { parent.showIframe('event-personnel.html?idx=' + _curIdx); }
-  catch(e) { location.href = 'event-personnel.html?idx=' + _curIdx; }
+  try { parent.postMessage({ type: 'navigate', src: 'event-personnel.html', idx: _curIdx }, '*'); }
+  catch(e) { location.href = 'event-personnel.html'; }
 }
 function goInstruments() {
-  try { parent.showIframe('event-instruments.html?idx=' + _curIdx); }
-  catch(e) { location.href = 'event-instruments.html?idx=' + _curIdx; }
+  try { parent.postMessage({ type: 'navigate', src: 'event-instruments.html', idx: _curIdx }, '*'); }
+  catch(e) { location.href = 'event-instruments.html'; }
 }
 
 // ── 地圖飛到事件座標 ──
@@ -482,23 +485,42 @@ function loadEvents(startIdx) {
       _events = [];
     }
     // 若指定 startIdx 且合法就跳到該筆，否則從第 0 筆
-    _curIdx = (typeof startIdx === 'number' && startIdx >= 0 && startIdx < _events.length) ? startIdx : 0;
+    // 若有 postMessage 傳來的 idx，優先使用
+    var useIdx = (_pendingIdx !== null && _pendingIdx < _events.length) ? _pendingIdx : 
+                 (typeof startIdx === 'number' && startIdx < _events.length ? startIdx : 0);
+    _pendingIdx = null;
+    _curIdx = useIdx;
     renderCard(_curIdx);
     placeMarkers();
     if (_events.length) flyToEvent(_curIdx);
   });
 }
 
-// ── 接收 postMessage 傳入的 idx（從 index.html showIframe 送來）──
+// ── 接收 setIdx（等 _events 載入完才能生效）──
+var _pendingIdx = null;
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
-    var idx = e.data.idx;
-    if (idx >= 0 && idx < _events.length) {
-      _curIdx = idx;
-      loadAndRender(idx);
+    _pendingIdx = e.data.idx;
+    if (_events.length > 0) {
+      var idx = Math.min(_pendingIdx, _events.length - 1);
+      _curIdx = idx; _pendingIdx = null;
+      renderCard(idx); flyToEvent(idx);
     }
   }
 });
+// ── 接收 setIdx（等 _events 載入完才能生效）──
+var _pendingIdx = null;
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
+    _pendingIdx = e.data.idx;
+    if (_events.length > 0) {
+      var idx = Math.min(_pendingIdx, _events.length - 1);
+      _curIdx = idx; _pendingIdx = null;
+      renderCard(idx); flyToEvent(idx);
+    }
+  }
+});
+
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
   function loadCSS(href) {

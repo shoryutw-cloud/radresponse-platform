@@ -189,8 +189,8 @@ function _esc(s) {
 }
 
 function goBack() {
-  try { parent.showIframe('current-events.html?idx=' + _curIdx); }
-  catch(e) { location.href = 'current-events.html?idx=' + _curIdx; }
+  try { parent.postMessage({ type: 'navigate', src: 'current-events.html', idx: _curIdx }, '*'); }
+  catch(e) { location.href = 'current-events.html'; }
 }
 
 // ── 事件導覽 ──
@@ -366,23 +366,52 @@ function renderSquadBlock(title, members, lookup) {
   return h;
 }
 
-// ── 接收 postMessage 傳入的 idx（從 index.html showIframe 送來）──
+// ── 告知父層 iframe 已準備好，請求 idx ──
+function notifyReady() {
+  try { parent.postMessage({ type: 'iframeReady' }, '*'); } catch(e) {}
+}
+
+// ── 接收 setIdx ──
+var _pendingIdx = null;
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
-    var idx = e.data.idx;
-    if (idx >= 0 && idx < _events.length) {
-      _curIdx = idx;
+    _pendingIdx = e.data.idx;
+    if (_events.length > 0) {
+      var idx = Math.min(_pendingIdx, _events.length - 1);
+      _curIdx = idx; _pendingIdx = null;
       loadAndRender(idx);
     }
   }
 });
+// ── 告知父層 iframe 已準備好，請求 idx ──
+function notifyReady() {
+  try { parent.postMessage({ type: 'iframeReady' }, '*'); } catch(e) {}
+}
+
+// ── 接收 setIdx ──
+var _pendingIdx = null;
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
+    _pendingIdx = e.data.idx;
+    if (_events.length > 0) {
+      var idx = Math.min(_pendingIdx, _events.length - 1);
+      _curIdx = idx; _pendingIdx = null;
+      loadAndRender(idx);
+    }
+  }
+});
+
 // ── 初始化：載入事件清單 ──
 document.addEventListener('DOMContentLoaded', function() {
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     if (data && data.events) {
       _events = data.events;
     }
-    loadAndRender(0);
+    if (_pendingIdx !== null && _pendingIdx < _events.length) {
+      _curIdx = _pendingIdx; _pendingIdx = null;
+    }
+    loadAndRender(_curIdx);
+    notifyReady();
   });
 });
 </script>

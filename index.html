@@ -593,24 +593,14 @@ function showIframe(src) {
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
 
-  // 解析 src 中的 idx 參數，之後用 postMessage 傳給 iframe
+  // 解析 src 中的 idx 參數，存到全域變數，等 iframe ready 後送出
   var idxMatch = src.match(/[?&]idx=([0-9]+)/);
-  var idxVal   = idxMatch ? parseInt(idxMatch[1], 10) : null;
+  _pendingIframeIdx = idxMatch ? parseInt(idxMatch[1], 10) : null;
 
   // 去掉 query string，只保留純檔名
   var cleanSrc = src.split('?')[0];
   // 加時間戳確保每次重新載入
   frame.src = cleanSrc + '?_t=' + Date.now();
-
-  // iframe 載入完成後，若有 idx 則用 postMessage 傳送
-  if (idxVal !== null) {
-    frame.onload = function() {
-      try {
-        frame.contentWindow.postMessage({ type: 'setIdx', idx: idxVal }, '*');
-      } catch(e) {}
-      frame.onload = null;
-    };
-  }
 
   // hash 只取檔名
   var hashBase = cleanSrc.replace('.html', '');
@@ -618,6 +608,30 @@ function showIframe(src) {
   closeAllMenus();
   closeSidebar();
 }
+
+// ── 全域：等待 iframe 回報 ready 的 pending idx ──
+var _pendingIframeIdx = null;
+
+// ── 監聽 iframe 傳來的 ready 和 navigate 訊息 ──
+window.addEventListener('message', function(e) {
+  var frame = document.getElementById('contentFrame');
+  if (!frame) return;
+
+  // iframe 說「我準備好了，請給我 idx」
+  if (e.data && e.data.type === 'iframeReady') {
+    if (_pendingIframeIdx !== null) {
+      try {
+        frame.contentWindow.postMessage({ type: 'setIdx', idx: _pendingIframeIdx }, '*');
+      } catch(err) {}
+      _pendingIframeIdx = null;
+    }
+  }
+
+  // iframe 要求導覽到另一個頁面（帶 idx）
+  if (e.data && e.data.type === 'navigate') {
+    showIframe(e.data.src + '?idx=' + e.data.idx);
+  }
+});
 
 // -- 切換回地圖 --
 // 恢復顯示地圖覆蓋元素，並清除網址 hash
