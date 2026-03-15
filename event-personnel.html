@@ -78,47 +78,52 @@
   .stat-value { font-size: 22px; font-weight: 700; color: var(--accent);
                 font-family: var(--font-mono); }
 
-  /* ── 小隊區塊 ── */
-  .squad-block { margin-bottom: 16px; background: white; border: 1px solid var(--border);
-                 border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
-  .squad-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 16px; background: #f8fafc;
-    border-bottom: 1px solid var(--border);
+  /* ── 人員表格（單一大表，小隊用分隔列區隔）── */
+  .member-wrap {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm);
+    margin-bottom: 4px;
   }
-  .squad-name { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
-  .squad-count {
-    font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);
-    background: var(--border); padding: 2px 10px; border-radius: 20px;
-  }
-
-  /* ── 人員表格 ── */
   .member-table {
-    width: 100%; border-collapse: collapse;
-    table-layout: fixed; /* 固定欄寬，所有小隊對齊 */
+    width: 100%; border-collapse: collapse; table-layout: fixed;
   }
-  .member-table col.col-title  { width: 90px; }
+  .member-table col.col-title  { width: 100px; }
   .member-table col.col-name   { width: 110px; }
-  .member-table col.col-mobile { width: 150px; }
-  .member-table col.col-phone  { width: 150px; }
+  .member-table col.col-mobile { width: 160px; }
+  .member-table col.col-phone  { width: 160px; }
   .member-table col.col-dept   { width: auto; }
-  .member-table th {
+  /* 欄標題 */
+  .member-table thead th {
     font-size: 11px; color: var(--text-muted); font-weight: 600;
     text-transform: uppercase; letter-spacing: .05em;
-    padding: 8px 16px; background: #f8fafc;
-    border-bottom: 1px solid var(--border); text-align: left;
+    padding: 8px 16px; background: #f1f5f9;
+    border-bottom: 2px solid var(--border); text-align: left;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* 小隊分隔列 */
+  .member-table .squad-sep td {
+    padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text);
+    background: #f8fafc; border-top: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .member-table .squad-sep:first-of-type td { border-top: none; }
+  .squad-count-badge {
+    font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
+    background: var(--border); padding: 1px 8px; border-radius: 20px;
+    margin-left: 8px; font-weight: 400;
+  }
+  /* 資料列 */
+  .member-table tbody tr:not(.squad-sep) td {
+    padding: 10px 16px; font-size: 13px;
+    border-bottom: 1px solid #f0f4f8; vertical-align: middle;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .member-table td {
-    padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f0f4f8;
-    vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .member-table tr:last-child td { border-bottom: none; }
-  .member-table tr:hover td { background: #f8fafc; }
-  .td-name { font-weight: 600; color: var(--text); }
+  .member-table tbody tr:not(.squad-sep):last-child td { border-bottom: none; }
+  .member-table tbody tr:not(.squad-sep):hover td { background: #f8fafc; }
+  .td-name  { font-weight: 600; color: var(--text); }
   .td-title { color: var(--text-muted); font-size: 12px; }
   .td-phone { font-family: var(--font-mono); font-size: 12px; color: #3d5070; }
-  .td-dept { font-size: 12px; color: var(--text-muted); }
+  .td-dept  { font-size: 12px; color: var(--text-muted); }
 
   /* ── 狀態畫面 ── */
   .state-box {
@@ -304,21 +309,38 @@ function renderPersonnel(ev, personnel) {
   });
   html += '</div>';
 
-  // 技術組各小隊
-  SQUAD_ORDER.forEach(function(sname) {
-    if (!squads[sname] || !squads[sname].length) return;
-    html += renderSquadBlock(sname, squads[sname], lookup);
-  });
-  // 參謀組、新聞組
-  NON_TECH_SQUADS.forEach(function(sname) {
-    if (!squads[sname] || !squads[sname].length) return;
-    html += renderSquadBlock(sname, squads[sname], lookup);
-  });
-  // 未分配
-  if (squads['未分配'] && squads['未分配'].length) {
-    html += renderSquadBlock('未分配', squads['未分配'], lookup);
-  }
+  // 單一表格包所有小隊
+  html += '<div class="member-wrap">';
+  html += '<table class="member-table">';
+  html += '<colgroup>';
+  html += '<col class="col-title"><col class="col-name"><col class="col-mobile"><col class="col-phone"><col class="col-dept">';
+  html += '</colgroup>';
+  html += '<thead><tr>';
+  html += '<th>職稱</th><th>姓名</th><th>手機</th><th>電話</th><th>所屬組室</th>';
+  html += '</tr></thead><tbody>';
 
+  var allGroups = SQUAD_ORDER.concat(NON_TECH_SQUADS).concat(['未分配']);
+  allGroups.forEach(function(sname) {
+    if (!squads[sname] || !squads[sname].length) return;
+    // 小隊分隔列
+    html += '<tr class="squad-sep"><td colspan="5">' +
+      _esc(sname) +
+      '<span class="squad-count-badge">' + squads[sname].length + ' 人</span>' +
+      '</td></tr>';
+    // 人員列
+    squads[sname].forEach(function(p) {
+      var info = lookup[p.name] || {};
+      html += '<tr>';
+      html += '<td class="td-title">' + _esc(info.title  || '—') + '</td>';
+      html += '<td class="td-name">'  + _esc(p.name)              + '</td>';
+      html += '<td class="td-phone">' + _esc(info.mobile || '—') + '</td>';
+      html += '<td class="td-phone">' + _esc(info.phone  || '—') + '</td>';
+      html += '<td class="td-dept">'  + _esc(info.dept   || '—') + '</td>';
+      html += '</tr>';
+    });
+  });
+
+  html += '</tbody></table></div>';
   body.innerHTML = html;
 }
 
