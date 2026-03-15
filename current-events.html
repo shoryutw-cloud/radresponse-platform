@@ -160,6 +160,40 @@
   /* 載入中 */
   .ev-loading { text-align: center; padding: 12px 0; color: var(--text-muted); font-size: 13px; }
 
+  /* ── 圖層控制面板 ── */
+  .layer-panel {
+    position: fixed; top: 16px; right: 16px; z-index: 1000;
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); width: 200px;
+    border: 1px solid var(--border);
+  }
+  .layer-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 700; color: var(--text); user-select: none;
+  }
+  .layer-panel-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .layer-panel.collapsed .layer-panel-body { display: none; }
+  .layer-panel.collapsed .layer-panel-header { border-bottom: none; }
+  .layer-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text); cursor: pointer; user-select: none;
+  }
+  .layer-row input[type=checkbox] {
+    width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .layer-dot {
+    width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
+  }
+  .layer-collapse-btn {
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; color: var(--text-muted);
+    transition: all .12s; flex-shrink: 0;
+  }
+  .layer-collapse-btn:hover { background: var(--bg); }
+
   /* ── 右下角返回按鈕 ── */
   .back-btn {
     position: fixed; bottom: 24px; right: 24px; z-index: 1000;
@@ -220,6 +254,31 @@
   <button class="map-ctrl-btn" id="zoomOut">&#xff0d;</button>
 </div>
 
+<!-- 圖層控制面板 -->
+<div class="layer-panel" id="layerPanel">
+  <div class="layer-panel-header">
+    &#x1F5FA;&#xFE0F; 圖層顯示
+    <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()">&#x25B2;</button>
+  </div>
+  <div class="layer-panel-body">
+    <label class="layer-row">
+      <input type="checkbox" id="layerCircle" checked onchange="updateLayers()">
+      <span class="layer-dot" style="background:#f97316;opacity:.6;border:2px solid #f97316"></span>
+      100m 範圍圓
+    </label>
+    <label class="layer-row">
+      <input type="checkbox" id="layerLine" checked onchange="updateLayers()">
+      <span class="layer-dot" style="background:#3b82f6;opacity:.8;border:2px solid #3b82f6"></span>
+      1km 邊界線
+    </label>
+    <label class="layer-row">
+      <input type="checkbox" id="layerSector" checked onchange="updateLayers()">
+      <span class="layer-dot" style="background:#8b5cf6;opacity:.6;border:2px solid #8b5cf6"></span>
+      5km 影響扇形
+    </label>
+  </div>
+</div>
+
 <!-- 返回地圖 -->
 <button class="back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
 
@@ -231,7 +290,6 @@ var gMap = null;
 var _events = [];    // 所有進行中事件
 var _curIdx = 0;     // 目前顯示哪一筆
 var _markers = [];   // 地圖標記
-var _circle  = null; // 半透明影響範圍圓形
 var _jsonpCounter = 0;
 
 // ── JSONP ──
@@ -475,25 +533,87 @@ function flyToEvent(idx) {
     if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
   });
   // 更新半透明圓形
-  updateCircle(lat, lng);
+  updateLayers(lat, lng);
 }
 
-// ── 半透明影響範圍圓形（100 公尺）──
-function updateCircle(lat, lng) {
+// ── 圖層物件 ──
+var _layerCircle  = null;
+var _layerLine    = null;
+var _layerSector  = null;
+var _layerLat     = null;
+var _layerLng     = null;
+var _windDeg      = 270; // 東風=往西吹=270度（Leaflet bearing: 0=北,90=東,180=南,270=西）
+
+// ── 角度換算工具（bearing in degrees, distance in meters）──
+function destPoint(lat, lng, bearingDeg, distM) {
+  var R = 6371000;
+  var d = distM / R;
+  var b = bearingDeg * Math.PI / 180;
+  var lat1 = lat * Math.PI / 180;
+  var lng1 = lng * Math.PI / 180;
+  var lat2 = Math.asin(Math.sin(lat1)*Math.cos(d) + Math.cos(lat1)*Math.sin(d)*Math.cos(b));
+  var lng2 = lng1 + Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+  return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
+}
+
+// ── 建立/移動三個圖層 ──
+function updateLayers(lat, lng) {
   if (!gMap) return;
-  if (_circle) {
-    _circle.setLatLng([lat, lng]);
-  } else {
-    _circle = L.circle([lat, lng], {
-      radius:      100,
-      color:       '#f97316',
-      fillColor:   '#f97316',
-      fillOpacity: 0.15,
-      weight:      2,
-      dashArray:   '6 4',
-      opacity:     0.7
+  if (lat !== undefined) { _layerLat = lat; _layerLng = lng; }
+  if (_layerLat === null) return;
+  var la = _layerLat, lo = _layerLng;
+
+  // ── (1) 100m 圓 ──
+  removeLayers();
+  if (document.getElementById('layerCircle') && document.getElementById('layerCircle').checked) {
+    _layerCircle = L.circle([la, lo], {
+      radius: 100, color: '#f97316', fillColor: '#f97316',
+      fillOpacity: 0.15, weight: 2, dashArray: '6 4', opacity: 0.8
     }).addTo(gMap);
   }
+
+  // ── (2) 1km 邊界線（下風方向1km處，垂直風向，長1km）──
+  if (document.getElementById('layerLine') && document.getElementById('layerLine').checked) {
+    // 下風中心點（事發地沿風向走1km）
+    var lineCenter = destPoint(la, lo, _windDeg, 1000);
+    // 垂直風向 = windDeg + 90 / windDeg - 90
+    var perpA = destPoint(lineCenter[0], lineCenter[1], (_windDeg + 90) % 360, 500);
+    var perpB = destPoint(lineCenter[0], lineCenter[1], (_windDeg - 90 + 360) % 360, 500);
+    _layerLine = L.polyline([perpA, perpB], {
+      color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
+    }).addTo(gMap);
+  }
+
+  // ── (3) 5km 扇形（±22.5° 風向，以事發地為頂點）──
+  if (document.getElementById('layerSector') && document.getElementById('layerSector').checked) {
+    var steps = 40;
+    var halfAngle = 22.5;
+    var radius = 5000;
+    var pts = [[la, lo]]; // 從頂點開始
+    for (var i = 0; i <= steps; i++) {
+      var angle = (_windDeg - halfAngle) + (halfAngle * 2 * i / steps);
+      pts.push(destPoint(la, lo, angle, radius));
+    }
+    pts.push([la, lo]); // 回到頂點
+    _layerSector = L.polygon(pts, {
+      color: '#8b5cf6', fillColor: '#8b5cf6',
+      fillOpacity: 0.12, weight: 2, opacity: 0.7
+    }).addTo(gMap);
+  }
+}
+
+function removeLayers() {
+  if (_layerCircle)  { _layerCircle.remove();  _layerCircle  = null; }
+  if (_layerLine)    { _layerLine.remove();     _layerLine    = null; }
+  if (_layerSector)  { _layerSector.remove();   _layerSector  = null; }
+}
+
+// ── 圖層面板收合 ──
+function toggleLayerPanel() {
+  var panel = document.getElementById('layerPanel');
+  var btn   = document.getElementById('layerCollapseBtn');
+  var collapsed = panel.classList.toggle('collapsed');
+  btn.innerHTML = collapsed ? '&#x25BC;' : '&#x25B2;';
 }
 
 // ── 在地圖放置所有事件標記 ──
