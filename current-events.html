@@ -471,13 +471,14 @@ function saveEdit() {
     status:      document.getElementById('editStatus').value
   };
 
+  // 用 no-cors 送出（與其他 POST 一致，無法讀回傳值但資料會寫入）
   fetch(SHEETS_URL, {
     method: 'POST',
+    mode:   'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   })
-  .then(function(r) { return r.json(); })
-  .then(function(res) {
+  .then(function() {
     // 更新本地快取
     ev.windDir     = payload.windDir;
     ev.doseRate    = payload.doseRate;
