@@ -139,6 +139,57 @@
   /* 分隔線 */
   .ev-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
 
+  /* 編輯按鈕 */
+  .ev-edit-btn {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; font-family: var(--font);
+    font-size: 12px; color: var(--text-muted); transition: all .15s; flex-shrink: 0;
+  }
+  .ev-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* 編輯面板（覆蓋卡片內容）*/
+  .ev-edit-panel {
+    display: none; flex-direction: column; gap: 10px;
+    padding: 14px 16px;
+  }
+  .ev-edit-panel.show { display: flex; }
+  .ev-edit-row { display: flex; flex-direction: column; gap: 4px; }
+  .ev-edit-lbl {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .04em;
+  }
+  .ev-edit-inp {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+    border-radius: 5px; font-family: var(--font); font-size: 13px;
+    color: var(--text); background: white; outline: none;
+    transition: border-color .15s;
+  }
+  .ev-edit-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+  .ev-edit-sel {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+    border-radius: 5px; font-family: var(--font); font-size: 13px;
+    color: var(--text); background: white; outline: none; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+  }
+  .ev-edit-btns { display: flex; gap: 6px; margin-top: 4px; }
+  .ev-edit-save {
+    flex: 1; padding: 8px; border-radius: 5px; border: none;
+    background: var(--accent); color: white; font-family: var(--font);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .ev-edit-save:hover { background: #1648c0; }
+  .ev-edit-save:disabled { background: #94a3b8; cursor: not-allowed; }
+  .ev-edit-cancel {
+    padding: 8px 14px; border-radius: 5px;
+    border: 1px solid var(--border); background: none;
+    color: var(--text-muted); font-family: var(--font); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  .ev-edit-cancel:hover { border-color: #94a3b8; color: var(--text); }
+
   /* 快捷按鈕 */
   .ev-shortcuts {
     display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);
@@ -241,10 +292,41 @@
       <span class="ev-nav-label" id="evNavLabel">1/1</span>
       <button class="ev-nav-btn" id="evNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
     </div>
+    <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯">&#x270F;&#xFE0F; 編輯</button>
     <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
   </div>
   <div class="ev-card-body" id="evCardBody">
     <div class="ev-loading">&#x23F3; 載入中…</div>
+  </div>
+  <!-- 編輯面板 -->
+  <div class="ev-edit-panel" id="evEditPanel">
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">風向（0-359度，正北為0）</label>
+      <input class="ev-edit-inp" id="editWindDir" type="number" min="0" max="359" placeholder="例：90（東風）">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">目前劑量率</label>
+      <input class="ev-edit-inp" id="editDoseRate" placeholder="例：0.15 μSv/h">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">最大劑量率</label>
+      <input class="ev-edit-inp" id="editDoseMax" placeholder="例：2.3 μSv/h">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">預估影響範圍</label>
+      <input class="ev-edit-inp" id="editImpactRange" placeholder="例：半徑500公尺">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">事件狀態</label>
+      <select class="ev-edit-sel" id="editStatus">
+        <option value="active">進行中 (active)</option>
+        <option value="closed">已結束 (closed)</option>
+      </select>
+    </div>
+    <div class="ev-edit-btns">
+      <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
+      <button class="ev-edit-save" id="evEditSave" onclick="saveEdit()">💾 儲存</button>
+    </div>
   </div>
 </div>
 
@@ -355,6 +437,72 @@ function goBack() {
   try { parent.showMap(); } catch(e) { history.back(); }
 }
 
+// ── 切換編輯面板 ──
+function toggleEditPanel() {
+  var panel  = document.getElementById('evEditPanel');
+  var body   = document.getElementById('evCardBody');
+  var editBtn = document.getElementById('evEditBtn');
+  var isOpen = panel.classList.toggle('show');
+  body.style.display = isOpen ? 'none' : '';
+  editBtn.style.borderColor = isOpen ? 'var(--accent)' : '';
+  editBtn.style.color = isOpen ? 'var(--accent)' : '';
+  if (isOpen && _events[_curIdx]) {
+    var ev = _events[_curIdx];
+    document.getElementById('editWindDir').value    = ev.windDir     || '';
+    document.getElementById('editDoseRate').value   = ev.doseRate    || '';
+    document.getElementById('editDoseMax').value    = ev.doseMax     || '';
+    document.getElementById('editImpactRange').value= ev.impactRange || '';
+    document.getElementById('editStatus').value     = ev.status      || 'active';
+  }
+}
+
+// ── 儲存編輯 ──
+function saveEdit() {
+  var ev  = _events[_curIdx];
+  if (!ev) return;
+  var btn = document.getElementById('evEditSave');
+  btn.disabled = true; btn.textContent = '儲存中…';
+
+  var windVal = document.getElementById('editWindDir').value.trim();
+  var payload = {
+    action:      'updateEvent',
+    eventId:     ev.id,
+    windDir:     windVal,
+    doseRate:    document.getElementById('editDoseRate').value.trim(),
+    doseMax:     document.getElementById('editDoseMax').value.trim(),
+    impactRange: document.getElementById('editImpactRange').value.trim(),
+    status:      document.getElementById('editStatus').value
+  };
+
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    // 更新本地快取
+    ev.windDir     = payload.windDir;
+    ev.doseRate    = payload.doseRate;
+    ev.doseMax     = payload.doseMax;
+    ev.impactRange = payload.impactRange;
+    ev.status      = payload.status;
+    // 更新風向圖層
+    if (windVal !== '') {
+      _windDeg = (parseFloat(windVal) + 180) % 360; // 風向→下風方向
+      updateLayers();
+    }
+    // 關閉面板，重新渲染卡片
+    toggleEditPanel();
+    renderCard(_curIdx);
+    btn.disabled = false; btn.textContent = '💾 儲存';
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '💾 儲存';
+    alert('儲存失敗，請確認網路連線。');
+  });
+}
+
 // ── 收合 ──
 function toggleCollapse() {
   var card = document.getElementById('evCard');
@@ -455,27 +603,32 @@ function renderCard(idx) {
   html += '<hr class="ev-divider">';
 
   // 目前劑量率（醒目顯示）
+  var doseRateVal = (ev.doseRate && ev.doseRate !== '') ? ev.doseRate : '—';
   html += '<div class="ev-row ev-row-dose">';
   html += '<span class="ev-lbl">目前劑量率</span>';
-  html += '<span class="ev-val ev-dose-val" id="evDoseRate">—</span>';
+  html += '<span class="ev-val ev-dose-val">' + _esc(doseRateVal) + '</span>';
   html += '</div>';
 
   // 最大劑量率
+  var doseMaxVal = (ev.doseMax && ev.doseMax !== '') ? ev.doseMax : '—';
   html += '<div class="ev-row ev-row-dose">';
   html += '<span class="ev-lbl">最大劑量率</span>';
-  html += '<span class="ev-val ev-dose-val ev-dose-max" id="evDoseMax">—</span>';
+  html += '<span class="ev-val ev-dose-val ev-dose-max">' + _esc(doseMaxVal) + '</span>';
   html += '</div>';
 
   // 風向
+  var windVal = (ev.windDir && ev.windDir !== '') ? ev.windDir : '';
+  var windDisplay = windVal ? windVal + '°（正北為0度）' : '—';
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">風向</span>';
-  html += '<span class="ev-val" id="evWindDir">—</span>';
+  html += '<span class="ev-val">' + _esc(windDisplay) + '</span>';
   html += '</div>';
 
   // 預估影響範圍
+  var impactVal = (ev.impactRange && ev.impactRange !== '') ? ev.impactRange : '—';
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">預估影響範圍</span>';
-  html += '<span class="ev-val" id="evImpactRange">—</span>';
+  html += '<span class="ev-val">' + _esc(impactVal) + '</span>';
   html += '</div>';
 
   html += '<hr class="ev-divider">';
@@ -527,6 +680,10 @@ function flyToEvent(idx) {
   var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
   if (isNaN(lat) || isNaN(lng)) return;
   gMap.flyTo([lat, lng], 14, { duration: 0.8 });
+  // 套用事件的風向（若有值）
+  if (ev.windDir && ev.windDir !== '') {
+    _windDeg = (parseFloat(ev.windDir) + 180) % 360;
+  }
   // 高亮當前標記
   _markers.forEach(function(m, i) {
     var el = m.getElement ? m.getElement() : null;
