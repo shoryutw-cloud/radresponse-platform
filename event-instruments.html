@@ -170,7 +170,8 @@ function _esc(s) {
 }
 
 function goBack() {
-  try { parent.showMap(); } catch(e) { history.back(); }
+  try { parent.showIframe('current-events.html?idx=' + _curIdx); }
+  catch(e) { location.href = 'current-events.html?idx=' + _curIdx; }
 }
 
 // ── 事件導覽 ──
