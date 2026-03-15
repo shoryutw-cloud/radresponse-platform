@@ -366,6 +366,33 @@ function _jsonpGet(url, cb) {
   document.head.appendChild(s);
 }
 
+function formatDateTime(dateVal, timeVal) {
+  var dateStr = '', timeStr = '';
+  try {
+    var ds = String(dateVal || '');
+    var ymMatch = ds.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (ymMatch) {
+      dateStr = ymMatch[1] + '年' + parseInt(ymMatch[2]) + '月' + parseInt(ymMatch[3]) + '日';
+    } else {
+      var d = new Date(ds);
+      if (!isNaN(d.getTime()) && d.getFullYear() !== 1899)
+        dateStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+    }
+  } catch(e) {}
+  try {
+    var ts = String(timeVal || '');
+    var hmMatch = ts.match(/(\d{1,2}):(\d{2})/);
+    if (hmMatch) {
+      timeStr = parseInt(hmMatch[1]) + '時' + hmMatch[2] + '分';
+    } else {
+      var td = new Date(ts);
+      if (!isNaN(td.getTime()))
+        timeStr = td.getHours() + '時' + String(td.getMinutes()).padStart(2,'0') + '分';
+    }
+  } catch(e) {}
+  return (dateStr + (timeStr ? ' ' + timeStr : '')) || '—';
+}
+
 function _esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -440,7 +467,7 @@ function goStep2() {
     '<div class="sel-info-row"><span class="sel-info-lbl">類型</span>' +
     '<span class="sel-info-val">' + _esc(_selectedEvent.type||'') + '</span></div>' +
     '<div class="sel-info-row"><span class="sel-info-lbl">時間</span>' +
-    '<span class="sel-info-val" style="font-size:12px">' + _esc((_selectedEvent.date||'') + ' ' + (_selectedEvent.time||'')) + '</span></div>';
+    '<span class="sel-info-val" style="font-size:12px">' + formatDateTime(_selectedEvent.date, _selectedEvent.time) + '</span></div>';
   document.getElementById('footerStatus').textContent = '請選擇派送組別';
   document.getElementById('footerStatus').className = 'footer-status';
 }
