@@ -7,52 +7,10 @@
   ║           應變資訊平台 — index.html  主頁面                  ║
   ╠══════════════════════════════════════════════════════════════╣
   ║  檔案結構總覽：                                              ║
-  ║  1. <style>          全站 CSS 樣式                           ║
-  ║     ├─ CSS 變數       顏色、字型、陰影等共用設定             ║
-  ║     ├─ 頂部導覽列     .topbar                               ║
-  ║     ├─ 整體版面       .layout                               ║
-  ║     ├─ 遮罩層         .overlay（側欄打開時的半透明背景）     ║
-  ║     ├─ 左側側欄       .sidebar                              ║
-  ║     ├─ 浮動下拉選單   .fly-menu / .fly-menu-l3              ║
-  ║     ├─ 右側地圖區     .map-area / #map                      ║
-  ║     ├─ 功能內容面板   .content-panel（點選單後顯示）         ║
-  ║     └─ 建立事件 Modal .ce-backdrop / .ce-modal              ║
-  ║                                                              ║
-  ║  2. HTML 結構                                                ║
-  ║     ├─ .topbar        頂部列（☰按鈕 + 平台名稱 + 狀態）     ║
-  ║     ├─ .layout        主要版面容器                           ║
-  ║     │   ├─ .overlay   點擊關閉側欄的遮罩                     ║
-  ║     │   ├─ .sidebar   左側選單                               ║
-  ║     │   └─ .map-area  右側地圖 + 內容面板                    ║
-  ║     ├─ .fly-menu      浮動下拉選單（在 body 底部，避免被裁切）║
-  ║     └─ .ce-backdrop   建立事件 Modal                         ║
-  ║                                                              ║
-  ║  3. <script>          JavaScript 功能                        ║
-  ║     ├─ 全域變數        gMap（Leaflet地圖物件）               ║
-  ║     ├─ PANELS 資料     各功能頁面的說明文字                  ║
-  ║     ├─ openPanel()    開啟功能說明面板                        ║
-  ║     ├─ closePanel()   關閉面板、回到地圖                     ║
-  ║     ├─ closeSidebar() 關閉左側側欄                           ║
-  ║     ├─ closeAllMenus()關閉所有浮動下拉選單                   ║
-  ║     ├─ positionMenu() 計算浮動選單的顯示位置                 ║
-  ║     ├─ DOMContentLoaded 區塊                                 ║
-  ║     │   ├─ 側欄開關事件綁定                                  ║
-  ║     │   ├─ Hover 觸發浮動選單邏輯                            ║
-  ║     │   ├─ L3 第三層選單（事件管理子項）                     ║
-  ║     │   └─ Leaflet 地圖動態載入 + 初始化                    ║
-  ║     └─ 建立事件 Modal JS（變數前綴 _ce）                     ║
-  ╚══════════════════════════════════════════════════════════════╝
--->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>應變資訊平台</title>
-<style>
-  /* ────────────────────────────────────────────────────────
-     CSS 變數（全站共用）
-     修改這裡可以一次改變整站的顏色、字型、陰影等
-     ──────────────────────────────────────────────────────── */
+  ║  1. <style>
+  /* ────── CSS 變數 ────── */
   :root {
-    --sidebar-w: 240px;
-    --header-h: 48px;
+    --header-h: 52px;
     --accent: #1a56db;
     --text: #1e2a3a;
     --text-muted: #6b7a92;
@@ -64,7 +22,6 @@
     --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
     --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
     --radius: 6px;
-    /* 完全使用系統字型，零外部依賴 */
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
             "PingFang TC", "Heiti TC", sans-serif;
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
@@ -72,195 +29,147 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-size: 14px; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; font-size: 14px; }
 
-
-  .sidebar-title {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .pin-btn {
-    background: none; border: none; cursor: pointer;
-    font-size: 16px; padding: 2px 4px; border-radius: 4px;
-    opacity: 0.4; transition: opacity .2s, transform .2s;
-    flex-shrink: 0; line-height: 1;
-  }
-  .pin-btn:hover { opacity: 1; }
-  .pin-btn.pinned { opacity: 1; transform: rotate(-45deg); }
-  /* When pinned: sidebar stays absolute+open, map shifts right via margin */
-  .sidebar.pinned {
-    transform: translateX(0) !important;
-    box-shadow: none !important;
-  }
-  .map-area.sidebar-pinned {
-    margin-left: var(--sidebar-w);
-    transition: margin-left .25s cubic-bezier(.4,0,.2,1);
-  }
-
-  /* ────────────────────────────────────────────────────────
-     頂部導覽列 (.topbar)
-     包含：☰ 選單按鈕、平台 Logo、系統狀態指示燈
-     z-index: 400 確保永遠在地圖和側欄上方
-     ──────────────────────────────────────────────────────── */
-  /* TOP BAR */
+  /* ────── TOP BAR ────── */
   .topbar {
     height: var(--header-h); background: #1e2a3a;
-    display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    display: flex; align-items: center; padding: 0 20px; gap: 0;
     flex-shrink: 0; border-bottom: 1px solid #0f1820;
-    position: relative; z-index: 400;  /* position required for z-index to work */
+    position: relative; z-index: 400;
   }
-  .menu-toggle {
+  .topbar-logo {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; flex-shrink: 0; margin-right: 16px;
+  }
+  .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px; background: none; border: none;
-    border-radius: var(--radius); color: #8da0b8; cursor: pointer; font-size: 20px;
-    transition: background .2s, color .2s; flex-shrink: 0; line-height: 1;
+    font-size: 13px; color: #fff; font-weight: 700; }
+  .logo-text { font-size: 18px; font-weight: 600; color: #e8f0fa; white-space: nowrap; }
+
+  /* ────── TOP NAV（桌機版，橫排）────── */
+  .top-nav {
+    display: flex; align-items: stretch; height: 100%; flex: 1;
   }
-  .menu-toggle:hover { background: rgba(255,255,255,0.09); color: #e8f0fa; }
-  .topbar-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
-  .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; font-weight: 700; }
-  .logo-text { font-size: 26px; font-weight: 600; color: #e8f0fa; white-space: nowrap; }
-  .topbar-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--font-mono); color: #4ade80; }
-  .status-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: blink 2.5s ease infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
-
-  /* ────────────────────────────────────────────────────────
-     主要版面容器 (.layout)
-     flex 橫向排列：左側側欄 + 右側地圖
-     position: relative 讓側欄的 absolute 定位有參考點
-     ──────────────────────────────────────────────────────── */
-  /* LAYOUT */
-  .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
-
-  /* ────────────────────────────────────────────────────────
-     遮罩層 (.overlay)
-     側欄打開時出現的半透明黑色背景
-     點擊遮罩 → 觸發 closeSidebar() 收起側欄
-     z-index: 150（在地圖上方，在側欄下方）
-     ──────────────────────────────────────────────────────── */
-  /* OVERLAY */
-  .overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.22); z-index: 900; cursor: pointer; }
-  .overlay.active { display: block; }
-
-  /* ────────────────────────────────────────────────────────
-     左側側欄 (.sidebar)
-     預設用 translateX(-240px) 隱藏在左側外
-     加上 .open class → translateX(0) 滑入畫面
-     z-index: 1000 確保在遮罩和地圖上方
-     overflow: hidden（子選單改為 fly-menu 浮動方式避免被裁切）
-     ──────────────────────────────────────────────────────── */
-  /* SIDEBAR */
-  .sidebar {
-    position: absolute; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
-    background: var(--surface); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; z-index: 1000;
-    transform: translateX(calc(-1 * var(--sidebar-w)));
-    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
-    overflow: hidden;
+  .tnav-item { position: relative; display: flex; align-items: stretch; }
+  .tnav-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 16px; background: none; border: none;
+    color: #b8cce0; font-family: var(--font); font-size: 14px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
+    border-bottom: 2px solid transparent;
   }
-  .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
-  .sidebar-title { padding: 18px 16px 14px; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.4; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .sidebar-nav { flex: 1; padding: 6px 0; overflow-y: auto; overflow-x: hidden; }
-  .sidebar-nav::-webkit-scrollbar { width: 3px; }
-  .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  /* ────────────────────────────────────────────────────────
-     選單項目 (.nav-item / .nav-btn)
-     .nav-arrow：有子選單的項目右側 ▶ 箭頭
-     .nav-btn:hover → 背景變淺藍色
-     ──────────────────────────────────────────────────────── */
-  /* NAV ITEM */
-  .nav-item { position: relative; }
-  .nav-btn {
-    display: flex; align-items: center; width: 100%; padding: 9px 14px;
-    background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 16px; font-weight: 500; color: var(--text); text-align: left;
-    gap: 8px; transition: background .15s; white-space: nowrap; user-select: none;
+  .tnav-btn:hover, .tnav-item.open > .tnav-btn {
+    background: rgba(255,255,255,0.08); color: #e8f0fa;
+    border-bottom-color: #4a9cf5;
   }
-  .nav-btn:hover { background: var(--hover); }
-  .nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
-  .nav-label { flex: 1; }
-  .nav-arrow { font-size: 10px; color: #b0bec5; flex-shrink: 0; }
+  .tnav-arrow { font-size: 9px; opacity: .6; }
 
-  /* ────────────────────────────────────────────────────────
-     側欄底部 (.sidebar-bottom)
-     固定在側欄最下方的「登出」按鈕區域
-     ──────────────────────────────────────────────────────── */
-  /* SIDEBAR BOTTOM */
-  .sidebar-bottom { padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
-  .logout-btn {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 8px; background: none; border: 1px solid var(--border);
-    border-radius: var(--radius); cursor: pointer; font-family: var(--font);
-    font-size: 13px; color: var(--text-muted); transition: all .15s;
-  }
-  .logout-btn:hover { border-color: #dc2626; color: #dc2626; background: #fff5f5; }
-
-  /* ────────────────────────────────────────────────────────
-     浮動下拉選單 (.fly-menu / .fly-menu-l3)
-     【重要】這些 div 放在 <body> 最底部，不在 sidebar 裡面
-     原因：sidebar 有 overflow:hidden，子元素會被裁掉
-     解法：用 position:fixed + JS 動態計算位置
-     .fly-menu      = 第二層選單（從側欄項目展開）
-     .fly-menu-l3   = 第三層選單（從第二層項目展開）
-     顯示：加上 .active class
-     位置：positionMenu() 函數計算
-     ──────────────────────────────────────────────────────── */
-  /* FLOATING MENUS — position:fixed, live in body, never clipped */
-  .fly-menu {
+  /* ────── TOP NAV 下拉選單（桌機版）────── */
+  .top-drop {
     display: none; position: fixed;
-    min-width: 200px; background: var(--surface);
+    min-width: 190px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
-    /* 超出螢幕下緣時自動出現捲動條 */
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
-  .fly-menu.active { display: block; }
-  .drop-btn {
+  .top-drop.active { display: block; }
+  .top-drop-btn {
     display: flex; align-items: center; width: 100%; padding: 9px 16px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 15px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
+    font-size: 14px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
     transition: background .12s, color .12s;
   }
-  .drop-btn:hover { background: var(--hover); color: var(--accent); }
-  .drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #b0bec5; }
+  .top-drop-btn:hover { background: var(--hover); color: var(--accent); }
+  .top-drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #b0bec5; }
 
-  .fly-menu-l3 {
+  /* L3 sub-dropdown（事件管理）*/
+  .top-drop-l3 {
     display: none; position: fixed;
-    min-width: 180px; background: var(--surface);
+    min-width: 175px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
-    /* 超出螢幕下緣時自動出現捲動條 */
+    box-shadow: var(--shadow-md); z-index: 10001; padding: 4px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
-  .fly-menu-l3.active { display: block; }
-  .drop-l3-btn {
+  .top-drop-l3.active { display: block; }
+  .top-drop-l3-btn {
     display: block; width: 100%; padding: 9px 16px; background: none; border: none;
-    cursor: pointer; font-family: var(--font); font-size: 15px; color: #3d5070;
+    cursor: pointer; font-family: var(--font); font-size: 14px; color: #3d5070;
     text-align: left; white-space: nowrap; transition: background .12s, color .12s;
   }
-  .drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
+  .top-drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
 
-  /* ────────────────────────────────────────────────────────
-     右側地圖區 (.map-area / #map)
-     isolation: isolate → 建立獨立的 stacking context
-     讓 Leaflet 的所有圖層被關在這個容器裡
-     不會蓋過側欄和選單
-     .sidebar-pinned → 側欄釘住時，地圖往右移 240px
-     ──────────────────────────────────────────────────────── */
-  /* MAP */
+  /* ────── 登出按鈕（右側）────── */
+  .topbar-logout {
+    margin-left: auto; flex-shrink: 0;
+    padding: 6px 14px; background: none;
+    border: 1px solid rgba(255,255,255,0.18); border-radius: var(--radius);
+    color: #8da0b8; font-family: var(--font); font-size: 13px; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+  }
+  .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
+
+  /* ────── 手機版漢堡選單 ────── */
+  .mobile-toggle {
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    border-radius: var(--radius); color: #8da0b8; cursor: pointer; font-size: 20px;
+    transition: background .2s, color .2s; flex-shrink: 0; margin-right: 8px;
+  }
+  .mobile-toggle:hover { background: rgba(255,255,255,0.09); color: #e8f0fa; }
+
+  /* 手機選單 overlay */
+  .mobile-menu {
+    display: none; position: fixed; top: var(--header-h); left: 0; right: 0;
+    background: #1e2a3a; z-index: 5000; border-bottom: 1px solid #0f1820;
+    flex-direction: column; max-height: calc(100vh - var(--header-h)); overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 20px; color: #b8cce0; font-size: 15px; font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer;
+    background: none; border-left: none; border-right: none; border-top: none;
+    font-family: var(--font); text-align: left; width: 100%;
+    transition: background .12s;
+  }
+  .mobile-menu-item:hover { background: rgba(255,255,255,0.07); color: #e8f0fa; }
+  .mobile-menu-item .m-arrow { font-size: 10px; opacity: .5; transition: transform .2s; }
+  .mobile-menu-item.expanded .m-arrow { transform: rotate(90deg); }
+  .mobile-sub {
+    display: none; background: rgba(0,0,0,0.2);
+  }
+  .mobile-sub.open { display: block; }
+  .mobile-sub-btn {
+    display: block; width: 100%; padding: 11px 20px 11px 36px;
+    background: none; border: none; color: #8da0b8; font-family: var(--font);
+    font-size: 14px; text-align: left; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background .12s, color .12s;
+  }
+  .mobile-sub-btn:hover { background: rgba(255,255,255,0.07); color: #e8f0fa; }
+  .mobile-sub-sub { display: none; background: rgba(0,0,0,0.15); }
+  .mobile-sub-sub.open { display: block; }
+  .mobile-sub-sub-btn {
+    display: block; width: 100%; padding: 10px 20px 10px 52px;
+    background: none; border: none; color: #6b8aa8; font-family: var(--font);
+    font-size: 13px; text-align: left; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background .12s, color .12s;
+  }
+  .mobile-sub-sub-btn:hover { background: rgba(255,255,255,0.06); color: #e8f0fa; }
+
+  /* ────── LAYOUT ────── */
+  .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+
+  /* ────── MAP ────── */
   .map-area { flex: 1; position: relative; overflow: hidden; isolation: isolate; }
-  /* Cap ALL leaflet layers so they never escape map-area stacking context */
-  .leaflet-pane,
-  .leaflet-tile,
-  .leaflet-marker-icon,
-  .leaflet-marker-shadow,
-  .leaflet-tile-container,
-  .leaflet-map-pane,
-  .leaflet-overlay-pane,
-  .leaflet-shadow-pane,
-  .leaflet-marker-pane,
-  .leaflet-tooltip-pane,
-  .leaflet-popup-pane,
-  .leaflet-control { z-index: 1 !important; }
+  .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
+  .leaflet-tile-container, .leaflet-map-pane, .leaflet-overlay-pane,
+  .leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane,
+  .leaflet-popup-pane, .leaflet-control { z-index: 1 !important; }
   .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
   #map { width: 100%; height: 100%; background: #e8edf2; }
   #map-fallback {
@@ -292,13 +201,7 @@
     font-size: 12px; color: #dc2626; font-weight: 700; border: 1px solid #d0d8e4; z-index: 10;
   }
 
-  /* ────────────────────────────────────────────────────────
-     功能內容面板 (.content-panel)
-     點選單項目後，覆蓋在地圖上方顯示功能說明
-     加上 .active class 才會顯示
-     「← 返回地圖」按鈕 → closePanel() 移除 .active
-     ──────────────────────────────────────────────────────── */
-  /* CONTENT PANEL */
+  /* ────── CONTENT PANEL ────── */
   .content-panel { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; display: none; z-index: 10; }
   .content-panel.active { display: block; }
   .panel-header {
@@ -318,6 +221,18 @@
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.6; }
 
+  /* ────── RWD ────── */
+  @media (max-width: 900px) {
+    .top-nav { display: none; }
+    .mobile-toggle { display: flex; }
+    .logo-text { font-size: 15px; }
+    .topbar-logout { padding: 5px 10px; font-size: 12px; }
+  }
+  @media (max-width: 480px) {
+    .logo-text { display: none; }
+    .topbar { padding: 0 12px; gap: 0; }
+    .topbar-logo { margin-right: 0; }
+  }
 
   /* ── 建立事件第二頁：出勤人員 ── */
   .ce-page { display:none; flex:1; overflow:hidden; min-height:0; }
@@ -553,6 +468,7 @@
   .ce-instr-user-sel:focus { border-color:#1a56db; outline:none; box-shadow:0 0 0 3px rgba(26,86,219,.1); }
   .ce-instr-empty { text-align:center; padding:40px; color:#6b7a92; font-size:15px; }
 
+
 </style>
 </head>
 <body>
@@ -565,93 +481,97 @@
      ════════════════════════════════════════════════════════ -->
 <!-- TOP BAR -->
 <div class="topbar">
-  <button class="menu-toggle" id="menuToggle" title="開啟選單">&#9776;</button>
+  <!-- 手機漢堡按鈕 -->
+  <button class="mobile-toggle" id="mobileToggle" title="開啟選單">&#9776;</button>
+
+  <!-- Logo -->
   <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁">
-    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0"><img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block"></div>
+    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
+      <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
+    </div>
     <span class="logo-text">輻射事件應變資訊平台</span>
   </a>
-  <div class="topbar-status"><span class="status-dot"></span>系統正常</div>
+
+  <!-- 桌機橫向導覽列 -->
+  <nav class="top-nav" id="topNav">
+    <div class="tnav-item" id="tnav-dashboard">
+      <button class="tnav-btn">&#x1F4DD; 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
+    </div>
+    <div class="tnav-item" id="tnav-report">
+      <button class="tnav-btn">&#x1F4DE; 現場回報 <span class="tnav-arrow">&#9660;</span></button>
+    </div>
+    <div class="tnav-item" id="tnav-settings">
+      <button class="tnav-btn">&#x2699;&#xFE0F; 設定 <span class="tnav-arrow">&#9660;</span></button>
+    </div>
+    <div class="tnav-item" id="tnav-admin">
+      <button class="tnav-btn">&#x1F511; 後台功能 <span class="tnav-arrow">&#9660;</span></button>
+    </div>
+  </nav>
+
+  <!-- 登出按鈕 -->
+  <button class="topbar-logout">&#x2190; 登出</button>
 </div>
 
-<!-- ════════════════════════════════════════════════════════
-     主版面容器
-     ════════════════════════════════════════════════════════ -->
+<!-- 手機版選單 -->
+<div class="mobile-menu" id="mobileMenu">
+  <!-- 事件儀表板 -->
+  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-dashboard',this)">
+    &#x1F4DD; 事件儀表板 <span class="m-arrow">&#9654;</span>
+  </button>
+  <div class="mobile-sub" id="msub-dashboard">
+    <button class="mobile-sub-btn" onclick="openPanel('目前任務');closeMobileMenu()">目前任務</button>
+    <button class="mobile-sub-btn" onclick="openPanel('事件出勤人員');closeMobileMenu()">事件出勤人員</button>
+    <button class="mobile-sub-btn" onclick="openPanel('事件出動儀器');closeMobileMenu()">事件出動儀器</button>
+    <button class="mobile-sub-btn" onclick="openPanel('歷史事件查詢');closeMobileMenu()">歷史事件查詢</button>
+  </div>
+  <!-- 現場回報 -->
+  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-report',this)">
+    &#x1F4DE; 現場回報 <span class="m-arrow">&#9654;</span>
+  </button>
+  <div class="mobile-sub" id="msub-report">
+    <button class="mobile-sub-btn" onclick="openPanel('人工回報量測數值');closeMobileMenu()">人工回報量測數值</button>
+    <button class="mobile-sub-btn" onclick="openPanel('儀器回報量測數值');closeMobileMenu()">儀器回報量測數值</button>
+    <button class="mobile-sub-btn" onclick="openPanel('任務回報');closeMobileMenu()">任務回報</button>
+    <button class="mobile-sub-btn" onclick="openPanel('回報數值查詢');closeMobileMenu()">回報數值查詢</button>
+    <button class="mobile-sub-btn" onclick="openPanel('現場其他事情回報');closeMobileMenu()">現場其他事情回報</button>
+  </div>
+  <!-- 設定 -->
+  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-settings',this)">
+    &#x2699;&#xFE0F; 設定 <span class="m-arrow">&#9654;</span>
+  </button>
+  <div class="mobile-sub" id="msub-settings">
+    <button class="mobile-sub-btn" onclick="openPanel('個人資料維護');closeMobileMenu()">個人資料維護</button>
+    <button class="mobile-sub-btn" onclick="openPanel('使用說明');closeMobileMenu()">使用說明</button>
+  </div>
+  <!-- 後台功能 -->
+  <button class="mobile-menu-item" onclick="mobileToggleSub('msub-admin',this)">
+    &#x1F511; 後台功能 <span class="m-arrow">&#9654;</span>
+  </button>
+  <div class="mobile-sub" id="msub-admin">
+    <button class="mobile-sub-btn" onclick="mobileToggleSub('msub-jishi',this)">
+      &#x1F4CB; 事件管理 <span class="m-arrow">&#9654;</span>
+    </button>
+    <div class="mobile-sub-sub" id="msub-jishi">
+      <button class="mobile-sub-sub-btn" onclick="openCreateEvent();closeMobileMenu()">建立事件</button>
+      <button class="mobile-sub-sub-btn" onclick="openPanel('任務派送');closeMobileMenu()">任務派送</button>
+      <button class="mobile-sub-sub-btn" onclick="openPanel('出勤人員異動');closeMobileMenu()">出勤人員異動</button>
+      <button class="mobile-sub-sub-btn" onclick="openPanel('出動儀器異動');closeMobileMenu()">出動儀器異動</button>
+    </div>
+    <button class="mobile-sub-btn" onclick="showIframe('group.html');closeMobileMenu()">&#x1F465; 編組管理</button>
+    <button class="mobile-sub-btn" onclick="showIframe('instrument.html');closeMobileMenu()">&#x1F527; 儀器管理</button>
+    <button class="mobile-sub-btn" onclick="openPanel('新增地圖Icon圖示');closeMobileMenu()">&#x1F4CD; 新增地圖Icon圖示</button>
+    <button class="mobile-sub-btn" onclick="openPanel('出勤通知簡訊紀錄');closeMobileMenu()">&#x1F4F1; 出勤通知簡訊紀錄</button>
+    <button class="mobile-sub-btn" onclick="openPanel('事件異動紀錄');closeMobileMenu()">&#x1F4DC; 事件異動紀錄</button>
+    <button class="mobile-sub-btn" onclick="openPanel('各帳號異動紀錄');closeMobileMenu()">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
+    <button class="mobile-sub-btn" onclick="openPanel('各帳號登入紀錄');closeMobileMenu()">&#x1F510; 各帳號登入紀錄</button>
+  </div>
+  <!-- 登出 -->
+  <button class="mobile-menu-item" style="color:#fca5a5">&#x2190; 登出</button>
+</div>
+
 <!-- LAYOUT -->
 <div class="layout">
-  <!-- 遮罩層：側欄開啟時顯示，點擊觸發 closeSidebar() -->
-  <div class="overlay" id="overlay"></div>
-
-  <!-- ──────────────────────────────────────────────────────
-       左側側欄
-       結構：
-       ├─ .sidebar-title   平台名稱 + 📌 釘住按鈕
-       ├─ .sidebar-nav     選單項目列表
-       │   ├─ [data-menu]  有子選單的項目（hover 時觸發浮動選單）
-       │   └─ 無 data-menu  直接 onclick 執行功能的項目
-       └─ .sidebar-bottom  登出按鈕
-       ────────────────────────────────────────────────────── -->
-  <aside class="sidebar open pinned" id="sidebar">
-    <div class=sidebar-title>
-      測試用應變資訊平台
-      <button class="pin-btn pinned" id="pinBtn" title="固定側欄">&#x1F4CC;</button>
-    </div>
-    <nav class="sidebar-nav">
-
-      <div class="nav-item" data-menu="menu-dashboard">
-        <button class="nav-btn">
-          <span class="nav-icon">&#x1F4DD;</span>
-          <span class="nav-label">事件儀表板</span>
-          <span class="nav-arrow">&#9654;</span>
-        </button>
-      </div>
-
-      <div class="nav-item" data-menu="menu-report">
-        <button class="nav-btn">
-          <span class="nav-icon">&#x1F4DE;</span>
-          <span class="nav-label">現場回報</span>
-          <span class="nav-arrow">&#9654;</span>
-        </button>
-      </div>
-
-      <div class="nav-item">
-        <button class="nav-btn" onclick="openPanel('個人資料維護')">
-          <span class="nav-icon">&#x1FABA;</span>
-          <span class="nav-label">個人資料維護</span>
-        </button>
-      </div>
-
-      <div class="nav-item">
-        <button class="nav-btn" onclick="openPanel('使用說明')">
-          <span class="nav-icon">&#x2139;&#xFE0F;</span>
-          <span class="nav-label">使用說明</span>
-        </button>
-      </div>
-
-      <div class="nav-item" data-menu="menu-admin">
-        <button class="nav-btn">
-          <span class="nav-icon">&#x1F511;</span>
-          <span class="nav-label">後台功能（管理員才有）</span>
-          <span class="nav-arrow">&#9654;</span>
-        </button>
-      </div>
-
-    </nav>
-    <div class="sidebar-bottom">
-      <button class="logout-btn">&#x2190; 登出</button>
-    </div>
-  </aside>
-
-  <!-- ──────────────────────────────────────────────────────
-       右側地圖區
-       結構：
-       ├─ #map             Leaflet 地圖容器（動態載入）
-       ├─ .map-badge       右上角事件狀態資訊卡
-       ├─ .map-controls    右下角 ＋／－ 縮放按鈕
-       ├─ .map-compass     北方指標
-       └─ .content-panel   功能說明面板（覆蓋在地圖上，預設隱藏）
-       ────────────────────────────────────────────────────── -->
-  <main class="map-area sidebar-pinned" id="mapArea" style="position:relative">
-    <!-- 地圖層：預設顯示 -->
+  <main class="map-area" id="mapArea" style="position:relative">
     <div id="mapLayer" style="position:absolute;inset:0;z-index:1">
       <div id="map" style="width:100%;height:100%"></div>
       <div id="map-fallback">
@@ -659,7 +579,6 @@
         <div>地圖載入中，請確認網路連線...</div>
       </div>
     </div>
-    <!-- iframe 層：點選功能頁面時顯示，預設隱藏 -->
     <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:none">
       <iframe id="contentFrame" src="" style="width:100%;height:100%;border:none"></iframe>
     </div>
@@ -685,52 +604,39 @@
   </main>
 </div>
 
-<!-- ════════════════════════════════════════════════════════
-     浮動下拉選單群組
-     【放在 body 最底部，不能移進 sidebar 裡】
-     各選單對應關係：
-     #menu-dashboard → 事件儀表板（4個子項）
-     #menu-report    → 現場回報（5個子項）
-     #menu-admin     → 後台功能（含第三層 #menu-jishi）
-     #menu-jishi     → 事件管理的第三層選單（4個子項）
-     ════════════════════════════════════════════════════════ -->
-<!-- FLOATING MENUS (in body, position:fixed, never clipped) -->
-<!-- 第二層選單：事件儀表板 -->
-<div class="fly-menu" id="menu-dashboard">
-  <button class="drop-btn" onclick="openPanel('目前任務')">目前任務</button>
-  <button class="drop-btn" onclick="openPanel('事件出勤人員')">事件出勤人員</button>
-  <button class="drop-btn" onclick="openPanel('事件出動儀器')">事件出動儀器</button>
-  <button class="drop-btn" onclick="openPanel('歷史事件查詢')">歷史事件查詢</button>
+<!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
+<div class="top-drop" id="drop-dashboard">
+  <button class="top-drop-btn" onclick="openPanel('目前任務');closeAllMenus()">目前任務</button>
+  <button class="top-drop-btn" onclick="openPanel('事件出勤人員');closeAllMenus()">事件出勤人員</button>
+  <button class="top-drop-btn" onclick="openPanel('事件出動儀器');closeAllMenus()">事件出動儀器</button>
+  <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
 </div>
-
-<!-- 第二層選單：現場回報 -->
-<div class="fly-menu" id="menu-report">
-  <button class="drop-btn" onclick="openPanel('人工回報量測數值')">人工回報量測數值</button>
-  <button class="drop-btn" onclick="openPanel('儀器回報量測數值')">儀器回報量測數值</button>
-  <button class="drop-btn" onclick="openPanel('任務回報')">任務回報</button>
-  <button class="drop-btn" onclick="openPanel('回報數值查詢')">回報數值查詢</button>
-  <button class="drop-btn" onclick="openPanel('現場其他事情回報')">現場其他事情回報</button>
+<div class="top-drop" id="drop-report">
+  <button class="top-drop-btn" onclick="openPanel('人工回報量測數值');closeAllMenus()">人工回報量測數值</button>
+  <button class="top-drop-btn" onclick="openPanel('儀器回報量測數值');closeAllMenus()">儀器回報量測數值</button>
+  <button class="top-drop-btn" onclick="openPanel('任務回報');closeAllMenus()">任務回報</button>
+  <button class="top-drop-btn" onclick="openPanel('回報數值查詢');closeAllMenus()">回報數值查詢</button>
+  <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
 </div>
-
-<!-- 第二層選單：後台功能（管理員）
-     #btn-jishi 這個按鈕 hover 時會觸發第三層選單 #menu-jishi -->
-<div class="fly-menu" id="menu-admin">
-  <button class="drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
-  <button class="drop-btn" onclick="showIframe('group.html')">&#x1F465; 編組管理</button>
-  <button class="drop-btn" onclick="showIframe('instrument.html')">&#x1F527; 儀器管理</button>
-  <button class="drop-btn" onclick="openPanel('新增地圖Icon圖示')">&#x1F4CD; 新增地圖Icon圖示</button>
-  <button class="drop-btn" onclick="openPanel('出勤通知簡訊紀錄')">&#x1F4F1; 出勤通知簡訊紀錄</button>
-  <button class="drop-btn" onclick="openPanel('事件異動紀錄')">&#x1F4DC; 事件異動紀錄</button>
-  <button class="drop-btn" onclick="openPanel('各帳號異動紀錄')">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
-  <button class="drop-btn" onclick="openPanel('各帳號登入紀錄')">&#x1F510; 各帳號登入紀錄</button>
+<div class="top-drop" id="drop-settings">
+  <button class="top-drop-btn" onclick="openPanel('個人資料維護');closeAllMenus()">&#x1FABA; 個人資料維護</button>
+  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">&#x2139;&#xFE0F; 使用說明</button>
 </div>
-
-<!-- 第三層選單：事件管理子項目 -->
-<div class="fly-menu-l3" id="menu-jishi">
-  <button class="drop-l3-btn" onclick="openCreateEvent()">建立事件</button>
-  <button class="drop-l3-btn" onclick="openPanel('任務派送')">任務派送</button>
-  <button class="drop-l3-btn" onclick="openPanel('出勤人員異動')">出勤人員異動</button>
-  <button class="drop-l3-btn" onclick="openPanel('出動儀器異動')">出動儀器異動</button>
+<div class="top-drop" id="drop-admin">
+  <button class="top-drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
+  <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">&#x1F465; 編組管理</button>
+  <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">&#x1F527; 儀器管理</button>
+  <button class="top-drop-btn" onclick="openPanel('新增地圖Icon圖示');closeAllMenus()">&#x1F4CD; 新增地圖Icon圖示</button>
+  <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">&#x1F4F1; 出勤通知簡訊紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">&#x1F4DC; 事件異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號登入紀錄');closeAllMenus()">&#x1F510; 各帳號登入紀錄</button>
+</div>
+<div class="top-drop-l3" id="drop-jishi">
+  <button class="top-drop-l3-btn" onclick="openCreateEvent();closeAllMenus()">建立事件</button>
+  <button class="top-drop-l3-btn" onclick="openPanel('任務派送');closeAllMenus()">任務派送</button>
+  <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
+  <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
 </div>
 
 <script>
@@ -828,190 +734,126 @@ function closePanel() {
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
 }
 
-// ── 關閉左側側欄 ──
-// 點選遮罩、點選選單項目後自動呼叫
-// 若側欄被釘住（isPinned=true），此函數不執行
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('active');
-}
-
-// ── 關閉所有浮動下拉選單 ──
-// 將所有 .fly-menu 和 .fly-menu-l3 移除 .active class
-function closeAllMenus() {
-  document.querySelectorAll('.fly-menu, .fly-menu-l3').forEach(function(m){ m.classList.remove('active'); });
-}
-
-// ── 計算浮動選單的顯示位置 ──
-// anchor：觸發選單的元素（nav-item 或 drop-btn）
-// 選單預設顯示在 anchor 右側；若超出螢幕右邊則改顯示在左側
-// 若超出螢幕底部則往上偏移
-function positionMenu(menu, anchor) {
-  menu.style.left = '-9999px'; menu.style.top = '-9999px';
-  menu.style.display = 'block';
-  var mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.display = '';
-  var r = anchor.getBoundingClientRect();
-  var left = r.right + 2;
-  var top  = r.top;
-  if (left + mw > window.innerWidth - 8)  left = r.left - mw - 2;
-  if (top  + mh > window.innerHeight - 8) top  = window.innerHeight - mh - 8;
-  if (top < 4) top = 4;
-  menu.style.left = left + 'px';
-  menu.style.top  = top  + 'px';
-}
+// positionMenu/closeSidebar/closeAllMenus: 定義在 DOMContentLoaded 後方
 
 // ════════════════════════════════════════════════════════════
 // DOMContentLoaded：頁面 HTML 載入完成後執行
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
 
-  // ── Hash 路由：頁面載入 / F5 重整時，根據網址 hash 決定顯示哪個頁面 ──
-  // 例如 index.html#group → 自動載入 group.html
+  // ── Hash 路由 ──
   function restoreFromHash() {
     var hash = window.location.hash.replace('#', '');
-    if (hash && hash !== '') {
-      showIframe(hash + '.html');
-    }
+    if (hash && hash !== '') showIframe(hash + '.html');
   }
   restoreFromHash();
-
-  // 監聽瀏覽器上一頁/下一頁按鈕（popstate 事件）
   window.addEventListener('popstate', function() {
     var hash = window.location.hash.replace('#', '');
-    if (hash && hash !== '') {
-      showIframe(hash + '.html');
-    } else {
-      showMap();
-    }
+    if (hash && hash !== '') showIframe(hash + '.html'); else showMap();
   });
 
-  // ── 側欄開關邏輯 ──
-  // #menuToggle（☰）點擊 → sidebar.classList.toggle('open')
-  // .open class → CSS translateX(0) 讓側欄滑入
-  var sidebar = document.getElementById('sidebar');
-  var overlay  = document.getElementById('overlay');
+  // ════════════════════════════════════════════
+  // 桌機版：Top-nav hover 下拉選單
+  // ════════════════════════════════════════════
   var leaveTimer = null;
 
-  /* ── Sidebar toggle ── */
-  document.getElementById('menuToggle').addEventListener('click', function() {
-    var open = sidebar.classList.toggle('open');
-    overlay.classList.toggle('active', open);
-    if (!open) closeAllMenus();
-  });
-  overlay.addEventListener('click', function() { closeSidebar(); closeAllMenus(); });
-
-  /* ── Nav items with fly menus ── */
-  // ── 第二層浮動選單：Hover 觸發邏輯 ──
-  // 只有帶 data-menu 屬性的 nav-item 才有子選單
-  // mouseenter → positionMenu() 定位 + 加 .active 顯示
-  // mouseleave → 延遲 120ms 後隱藏（讓滑鼠有時間移到選單上）
-  document.querySelectorAll('.nav-item[data-menu]').forEach(function(item) {
-    var menu = document.getElementById(item.getAttribute('data-menu'));
-    if (!menu) return;
-
-    item.addEventListener('mouseenter', function() {
-      if (!sidebar.classList.contains('open')) return;
-      clearTimeout(leaveTimer);
-      // close sibling menus
-      document.querySelectorAll('.fly-menu').forEach(function(m){ if(m!==menu) m.classList.remove('active'); });
-      closeL3();
-      menu.classList.add('active');
-      positionMenu(menu, item);
-    });
-    item.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function(){
-        if (!isHovered(menu)) { menu.classList.remove('active'); }
-      }, 120);
-    });
-    menu.addEventListener('mouseenter', function(){ clearTimeout(leaveTimer); });
-    menu.addEventListener('mouseleave', function(){
-      leaveTimer = setTimeout(function(){
-        if (!isHovered(item)) { menu.classList.remove('active'); closeL3(); }
-      }, 120);
-    });
-  });
-
-  // ── 第三層選單：事件管理 (#btn-jishi → #menu-jishi) ──
-  // 同樣用 mouseenter/mouseleave + 延遲隱藏
-  /* ── L3: 事件管理 ── */
-  var btnJishi   = document.getElementById('btn-jishi');
-  var menuJishi  = document.getElementById('menu-jishi');
-
-  function closeL3() { if(menuJishi) menuJishi.classList.remove('active'); }
-
-  if (btnJishi && menuJishi) {
-    btnJishi.addEventListener('mouseenter', function() {
-      clearTimeout(leaveTimer);
-      menuJishi.classList.add('active');
-      positionMenu(menuJishi, btnJishi);
-    });
-    btnJishi.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function(){
-        if (!isHovered(menuJishi)) menuJishi.classList.remove('active');
-      }, 120);
-    });
-    menuJishi.addEventListener('mouseenter', function(){ clearTimeout(leaveTimer); });
-    menuJishi.addEventListener('mouseleave', function(){
-      leaveTimer = setTimeout(function(){ menuJishi.classList.remove('active'); }, 120);
-    });
-  }
-
-  function isHovered(el) {
-    return el.matches && el.matches(':hover');
-  }
-
-
-  // ── 側欄釘住功能（📌 按鈕）──
-  // isPinned = true  → 側欄固定顯示，不會被關閉，地圖往右移 240px
-  // isPinned = false → 側欄恢復浮動覆蓋模式
-  // 切換：.sidebar.pinned（CSS transform:translateX(0) 固定）
-  //       .map-area.sidebar-pinned（CSS margin-left: 240px 讓地圖右移）
-  // ── PIN LOGIC ──
-  var isPinned = true; // 預設釘住
-  var pinBtn = document.getElementById('pinBtn');
-  var layout = document.querySelector('.layout');
-
-  pinBtn.addEventListener('click', function() {
-    isPinned = !isPinned;
-    pinBtn.classList.toggle('pinned', isPinned);
-    sidebar.classList.toggle('pinned', isPinned);
-    overlay.classList.remove('active');
-
-    var mapArea = document.querySelector('.map-area');
-    if (isPinned) {
-      sidebar.classList.add('open');
-      mapArea.classList.add('sidebar-pinned');
-      setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 300);
-    } else {
-      sidebar.classList.remove('open');
-      mapArea.classList.remove('sidebar-pinned');
-      setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 300);
-    }
-  });
-
-  // Override closeSidebar to respect pin
-  var _origCloseSidebar = closeSidebar;
-  closeSidebar = function() {
-    if (isPinned) return; // don't close if pinned
-    _origCloseSidebar();
+  // tnav-item id → 對應 drop id
+  var NAV_MAP = {
+    'tnav-dashboard': 'drop-dashboard',
+    'tnav-report':    'drop-report',
+    'tnav-settings':  'drop-settings',
+    'tnav-admin':     'drop-admin'
   };
 
-  // Override overlay click to respect pin
-  overlay.addEventListener('click', function() {
-    if (!isPinned) { sidebar.classList.remove('open'); overlay.classList.remove('active'); closeAllMenus(); }
+  // 定位下拉選單於 trigger 正下方
+  function positionDrop(drop, trigger) {
+    drop.style.left = '-9999px'; drop.style.top = '-9999px';
+    drop.style.display = 'block';
+    var dw = drop.offsetWidth;
+    drop.style.display = '';
+    var r = trigger.getBoundingClientRect();
+    var left = r.left;
+    var top  = r.bottom + 1;
+    if (left + dw > window.innerWidth - 8) left = window.innerWidth - dw - 8;
+    if (left < 4) left = 4;
+    drop.style.left = left + 'px';
+    drop.style.top  = top  + 'px';
+  }
+
+  // 關閉所有桌機下拉（除了指定的）
+  function closeDrops(except) {
+    document.querySelectorAll('.top-drop').forEach(function(d) {
+      if (d !== except) d.classList.remove('active');
+    });
+    var l3 = document.getElementById('drop-jishi');
+    if (except !== l3) l3.classList.remove('active');
+  }
+
+  Object.keys(NAV_MAP).forEach(function(navId) {
+    var navItem = document.getElementById(navId);
+    var drop    = document.getElementById(NAV_MAP[navId]);
+    if (!navItem || !drop) return;
+
+    navItem.addEventListener('mouseenter', function() {
+      clearTimeout(leaveTimer);
+      closeDrops(drop);
+      drop.classList.add('active');
+      positionDrop(drop, navItem);
+    });
+    navItem.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!drop.matches(':hover')) drop.classList.remove('active');
+      }, 120);
+    });
+    drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    drop.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!navItem.matches(':hover')) { drop.classList.remove('active'); closeL3(); }
+      }, 120);
+    });
   });
 
-  // ── 點選選單外的區域時，關閉所有浮動選單 ──
-  /* close on outside click */
+  // ── L3：事件管理 hover ──
+  var btnJishi  = document.getElementById('btn-jishi');
+  var dropJishi = document.getElementById('drop-jishi');
+
+  function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
+
+  if (btnJishi && dropJishi) {
+    btnJishi.addEventListener('mouseenter', function() {
+      clearTimeout(leaveTimer);
+      dropJishi.classList.add('active');
+      positionDrop(dropJishi, btnJishi);
+      // L3 定位在 L2 右側
+      var r  = btnJishi.getBoundingClientRect();
+      var d2 = document.getElementById('drop-admin').getBoundingClientRect();
+      dropJishi.style.left = (d2.right + 2) + 'px';
+      dropJishi.style.top  = r.top + 'px';
+    });
+    btnJishi.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
+      }, 120);
+    });
+    dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    dropJishi.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() { dropJishi.classList.remove('active'); }, 120);
+    });
+  }
+
+  // ── 點選選單外關閉 ──
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.fly-menu,.fly-menu-l3,.nav-item')) closeAllMenus();
+    if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) closeAllMenus();
   });
 
-  // ── 動態載入 Leaflet 地圖函式庫 ──
-  // 先嘗試 unpkg.com，失敗改用 cdnjs.cloudflare.com（雙重保險）
-  // Leaflet 載入完成後呼叫 initMap() 初始化地圖
-  /* ── Load Leaflet dynamically ── */
+  // ════════════════════════════════════════════
+  // 手機版選單
+  // ════════════════════════════════════════════
+  document.getElementById('mobileToggle').addEventListener('click', function() {
+    document.getElementById('mobileMenu').classList.toggle('open');
+  });
+
+  // ── Leaflet 地圖載入 ──
   function loadScript(src, cb, errCb) {
     var s = document.createElement('script');
     s.src = src; s.onload = cb; s.onerror = errCb;
@@ -1022,11 +864,6 @@ document.addEventListener('DOMContentLoaded', function() {
     l.rel = 'stylesheet'; l.href = href;
     document.head.appendChild(l);
   }
-  // ── 初始化 Leaflet 地圖 ──
-  // 地圖中心：台北市（25.046, 121.517），縮放層級 13
-  // 底圖來源：OpenStreetMap
-  // 預設三個示範標記點（指揮中心、量測點 A/B）
-  // 縮放按鈕綁定：#zoomIn / #zoomOut
   function initMap() {
     gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1050,672 +887,37 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('map').style.display = 'none';
     document.getElementById('map-fallback').style.display = 'flex';
   }
-
-  /* Try unpkg first, fall back to cdnjs */
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-  loadScript(
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    initMap,
-    function() {
-      loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
-      loadScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
-        initMap,
-        showMapError
-      );
-    }
-  );
+  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', initMap, function() {
+    loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, showMapError);
+  });
 });
 
-
-// ════════════════════════════════════════════════════════════
-// 建立事件 Modal（變數前綴 _ce，函數前綴 ce/open/close）
-// ════════════════════════════════════════════════════════════
-// 結構說明：
-//   _ceMap    → Modal 內的 Leaflet 地圖物件（與主地圖 gMap 分開）
-//   _ceMk     → Modal 地圖上的紅色標記點
-//   _ceLat/Lng→ 目前選取的座標（null = 尚未選取）
-//   _ceTmr    → 地址搜尋防抖計時器（輸入停止 500ms 後才送出搜尋）
-//
-// 主要函數：
-//   openCreateEvent()  → 從選單呼叫，打開 Modal
-//   closeCreateEvent() → 關閉 Modal（按 ✕ 或點背景）
-//   cePick()           → 點選事件類型標籤（輻射彈/核物質/核物料）
-//   ceAIn()            → 地址輸入框 input 事件，觸發防抖搜尋
-//   ceSrch()           → 按搜尋按鈕或 Enter，立即搜尋
-//   _ceFetch()         → 呼叫 Nominatim API 搜尋地址
-//   _ceShow()          → 顯示搜尋結果下拉清單
-//   _ceSel()           → 選取某個搜尋結果 → 地圖飛到該位置
-//   ceVal()            → 驗證所有必填欄位，控制「建立事件」按鈕狀態
-//   ceDo()             → 送出表單，存入 localStorage，顯示成功畫面
-//   ceRst()            → 清除所有欄位，重置 Modal
-// ── CREATE EVENT MODAL ──
-var _ceMap=null,_ceMk=null,_ceLat=null,_ceLng=null,_ceTmr=null;
-
-// ── Google Apps Script 網址 ──
-// 修改這裡可以換成不同的試算表
-var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
-// ── JSONP 請求 helper（解決 GAS CORS 問題）──
-// GAS 的 GET 請求會被 CORS 擋住，改用 <script> tag 載入
-// GAS 端需要支援 ?callback=xxx 參數
-var _jsonpCounter = 0;
-function _jsonpGet(url, callback) {
-  var cbName = '_jsonpCb' + (_jsonpCounter++);
-  window[cbName] = function(data) {
-    delete window[cbName];
-    document.head.removeChild(script);
-    callback(data);
-  };
-  var script = document.createElement('script');
-  script.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + cbName;
-  script.onerror = function() {
-    delete window[cbName];
-    document.head.removeChild(script);
-    callback(null); // 失敗時回傳 null
-  };
-  document.head.appendChild(script);
+// ── 手機版：展開/收合子選單 ──
+function mobileToggleSub(subId, btn) {
+  var sub = document.getElementById(subId);
+  if (!sub) return;
+  var isOpen = sub.classList.toggle('open');
+  if (btn) btn.classList.toggle('expanded', isOpen);
 }
 
-
-// ── 從試算表最大序號產生流水號 ──
-// maxSeq = 試算表中目前最大的序號數字
-// 例如試算表有 EVT-20260314-003、EVT-20260314-007
-// maxSeq = 7，新編號就是 008
-// 這樣刪掉中間的資料也不會產生重複編號
-function _ceIdFromMax(maxSeq){
-  var d = new Date();
-  var today = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
-  var seq = String(maxSeq + 1).padStart(3, '0');
-  return 'EVT-' + today + '-' + seq;
-}
-function _ceIco(){
-  return L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,16]});
+// ── 關閉手機選單 ──
+function closeMobileMenu() {
+  document.getElementById('mobileMenu').classList.remove('open');
 }
 
-// 開啟建立事件 Modal
-// 1. 加 .show class 讓背景和 Modal 顯示
-// 2. 自動填入今天日期和當前時間
-// 3. 產生新的事件編號（EVT-YYYYMMDD-XXX）
-// 4. 延遲 120ms 後初始化 Modal 內的地圖（需等 DOM 渲染完）
-function openCreateEvent(){
-  closeAllMenus(); closeSidebar();
-
-  // ── 確保所有頁面都重置回第一頁（無論上次停在哪一頁）──
-  ['cePage2','cePage3'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.classList.remove('active');
-  });
-  document.getElementById('cePage1').classList.add('active');
-  document.getElementById('ceF1Btns').style.display = 'flex';
-  document.getElementById('ceF2Btns').style.display = 'none';
-  document.getElementById('ceF3Btns').style.display = 'none';
-  // 清除人員與儀器快取
-  _ceCache = {};
-  _ceSkipPersonnel = false;
-  _ceInstrCache = null;
-
-  // ── 完整清空所有欄位（確保每次都是全新表單）──
-  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){
-    document.getElementById(id).value = '';
-  });
-  document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
-  _ceLat = null; _ceLng = null;
-  document.getElementById('ceCo').style.display = 'none';
-  document.getElementById('ceAst').innerHTML = '';
-  document.getElementById('ceMH').style.display = '';
-  document.getElementById('ceSub').disabled = false;
-  document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
-  if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
-  // 重設日期時間為現在
-  var d = new Date();
-  document.getElementById('ceDate').value = d.toISOString().split('T')[0];
-  document.getElementById('ceTime').value = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-
-  // 隱藏成功畫面、顯示 Modal
-  document.getElementById('ceOK').classList.remove('show');
-  document.getElementById('ceBackdrop').classList.add('show');
-  var d=new Date();
-  document.getElementById('ceDate').value=d.toISOString().split('T')[0];
-  document.getElementById('ceTime').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-  // 顯示「查詢中…」，等 Apps Script 回傳筆數後再更新編號
-  document.getElementById('ceEvId').textContent = '查詢中…';
-  ceVal();
-  
-  // 向 Apps Script 查詢目前試算表筆數（GET 請求）
-  _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
-    if (data && typeof data.maxSeq !== 'undefined') {
-      document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
-    } else {
-      var d = new Date();
-      document.getElementById('ceEvId').textContent = 'EVT-' +
-        d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') +
-        '-T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
-    }
-  });
-  setTimeout(function(){
-    if(typeof L==='undefined'){return;}
-    if(!_ceMap){
-      _ceMap=L.map('ce-map',{zoomControl:true}).setView([25.046,121.517],12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(_ceMap);
-      _ceMap.on('click',function(e){
-        _ceLat=e.latlng.lat; _ceLng=e.latlng.lng;
-        if(_ceMk) _ceMk.setLatLng([_ceLat,_ceLng]);
-        else _ceMk=L.marker([_ceLat,_ceLng],{icon:_ceIco()}).addTo(_ceMap);
-        document.getElementById('ceLt').textContent=_ceLat.toFixed(6);
-        document.getElementById('ceLn').textContent=_ceLng.toFixed(6);
-        document.getElementById('ceCo').style.display='flex';
-        document.getElementById('ceMH').style.display='none';
-        _ceAst('loading','取得地址中…');
-        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+_ceLat+'&lon='+_ceLng,{headers:{'Accept-Language':'zh-TW,zh,en'}})
-          .then(function(r){return r.json();})
-          .then(function(d){if(d&&d.display_name){document.getElementById('ceAddr').value=d.display_name;_ceAst('ok','&#x2714; 地點已定位');}ceVal();})
-          .catch(function(){ceVal();});
-      });
-    } else { _ceMap.invalidateSize(); }
-  },120);
-  closeSidebar();
-}
-
-function closeCreateEvent(){ document.getElementById('ceBackdrop').classList.remove('show'); }
-// 點背景不關閉 Modal（已停用）
-function ceBgClick(e){ /* 故意不關閉，只能按 X 或建立完成才關 */ }
-
-// 選取事件類型標籤
-// 先移除所有標籤的顏色 class，再給被點的標籤加上對應顏色
-// p-red=輻射彈、p-orange=核物質、p-blue=核物料
-function cePick(el,t){
-  document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
-  el.classList.add(el.getAttribute('data-c'));
-  document.getElementById('ceType').value=t; ceVal();
-}
-
-// 地址輸入框的 input 事件處理
-// 防抖：停止輸入 500ms 後才呼叫 _ceFetch() 避免過多 API 請求
-function ceAIn(){
-  clearTimeout(_ceTmr);
-  var v=document.getElementById('ceAddr').value.trim();
-  _ceHS();
-  if(v.length<2){_ceAst('','');return;}
-  _ceAst('loading','搜尋中…');
-  _ceTmr=setTimeout(function(){_ceFetch(v,false);},500);
-}
-function ceAKey(e){if(e.key==='Enter'){e.preventDefault();ceSrch();}}
-function ceSrch(){
-  var v=document.getElementById('ceAddr').value.trim();
-  if(!v)return; clearTimeout(_ceTmr);
-  _ceAst('loading','搜尋中…'); _ceFetch(v,true);
-}
-// 呼叫 OpenStreetMap Nominatim API 搜尋地址
-// q     = 搜尋關鍵字
-// first = true → 直接選第一個結果（按 Enter 或搜尋鈕時）
-//         false → 顯示下拉清單讓使用者選
-function _ceFetch(q,first){
-  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(q),{headers:{'Accept-Language':'zh-TW,zh,en'}})
-    .then(function(r){return r.json();})
-    .then(function(data){
-      if(!data||!data.length){_ceAst('err','找不到此地點');_ceHS();return;}
-      if(first) _ceSel(data[0]); else _ceShow(data);
-    })
-    .catch(function(){_ceAst('err','搜尋失敗，請確認網路連線');});
-}
-function _ceShow(res){
-  var box=document.getElementById('ceSugg'); box.innerHTML='';
-  res.forEach(function(r){
-    var p=r.display_name.split(',');
-    var d=document.createElement('div'); d.className='ce-si';
-    d.innerHTML='<div class="ce-si-m">'+p[0].trim()+'</div><div class="ce-si-s">'+p.slice(1,3).join(',').trim()+'</div>';
-    d.addEventListener('click',function(){_ceSel(r);}); box.appendChild(d);
-  });
-  box.classList.add('show'); _ceAst('','');
-}
-function _ceHS(){ document.getElementById('ceSugg').classList.remove('show'); }
-// 使用者選取某個地址建議
-// 1. 更新地址輸入框文字
-// 2. 記錄座標到 _ceLat / _ceLng
-// 3. 顯示座標數值
-// 4. 地圖飛到該座標（setView）並放置紅色標記
-// 5. 呼叫 ceVal() 重新驗證表單
-function _ceSel(r){
-  _ceHS();
-  document.getElementById('ceAddr').value=r.display_name;
-  _ceLat=parseFloat(r.lat); _ceLng=parseFloat(r.lon);
-  document.getElementById('ceLt').textContent=_ceLat.toFixed(6);
-  document.getElementById('ceLn').textContent=_ceLng.toFixed(6);
-  document.getElementById('ceCo').style.display='flex';
-  document.getElementById('ceMH').style.display='none';
-  _ceAst('ok','&#x2714; 地點已定位');
-  if(_ceMap){
-    _ceMap.setView([_ceLat,_ceLng],15);
-    if(_ceMk) _ceMk.setLatLng([_ceLat,_ceLng]);
-    else _ceMk=L.marker([_ceLat,_ceLng],{icon:_ceIco()}).addTo(_ceMap);
-  }
-  ceVal();
-}
-function _ceAst(t,m){
-  var el=document.getElementById('ceAst');
-  el.className='ce-ast'+(t?' '+t:''); el.innerHTML=m;
-}
-// 表單驗證
-// 檢查所有必填欄位是否填寫完整：事件名稱、類型、日期、時間、地點座標
-// 全部填寫 → 「建立事件」按鈕亮起（disabled=false）
-// 有缺漏 → 顯示尚未填寫的欄位名稱，按鈕維持灰色
-function ceVal(){
-  var ok=document.getElementById('ceName').value.trim()&&
-         document.getElementById('ceType').value&&
-         document.getElementById('ceDate').value&&
-         document.getElementById('ceTime').value&&
-         _ceLat!==null;
-  document.getElementById('ceSub').disabled=!ok;
-  if(ok){
-    document.getElementById('ceFSt').innerHTML='所有必填欄位已完成 &#x2714;';
-    document.getElementById('ceFSt').className='ce-fstatus ok';
-  } else {
-    var ms=[];
-    if(!document.getElementById('ceName').value.trim()) ms.push('事件名稱');
-    if(!document.getElementById('ceType').value) ms.push('事件類型');
-    if(!document.getElementById('ceDate').value||!document.getElementById('ceTime').value) ms.push('日期時間');
-    if(_ceLat===null) ms.push('事件地點');
-    document.getElementById('ceFSt').innerHTML='尚未填寫：'+ms.join('、');
-    document.getElementById('ceFSt').className='ce-fstatus';
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-// 建立事件 第二頁：出勤人員選擇
-// ════════════════════════════════════════════════════════════
-
-var CE_TYPE_GROUP = {
-  '輻射彈事件':     'tech-rdd',
-  '放射性物質事件': 'tech-substance',
-  '放射性物料事件': 'tech-material'
-};
-var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
-var _ceCache = {}; // 人員快取，避免重複讀取
-var _ceSquadIdx = 0; // 小隊區塊唯一 id 計數器（全域）
-
-function ceGoPage2() {
-  document.getElementById('cePage1').classList.remove('active');
-  document.getElementById('cePage2').classList.add('active');
-  document.getElementById('ceF1Btns').style.display = 'none';
-  document.getElementById('ceF2Btns').style.display = 'flex';
-  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
-  _ceLoadPersonnel();
-}
-
-function ceGoPage1() {
-  document.getElementById('cePage2').classList.remove('active');
-  document.getElementById('cePage1').classList.add('active');
-  document.getElementById('ceF2Btns').style.display = 'none';
-  document.getElementById('ceF1Btns').style.display = 'flex';
-  ceVal();
-}
-
-// ── 頁2 → 頁3：帶入 skipPersonnel 參數 ──
-var _ceSkipPersonnel = false;  // 全域：是否跳過人員選擇
-var _ceInstrCache = null;      // 儀器快取（避免重複讀取試算表）
-
-function ceGoPage3(skipPersonnel) {
-  _ceSkipPersonnel = !!skipPersonnel;
-  document.getElementById('cePage2').classList.remove('active');
-  document.getElementById('cePage3').classList.add('active');
-  document.getElementById('ceF2Btns').style.display = 'none';
-  document.getElementById('ceF3Btns').style.display = 'flex';
-  document.getElementById('ceFSt').textContent = '請勾選出動儀器並指定使用者（可略過）';
-  _ceLoadInstruments();
-}
-
-// ── 頁3 → 頁2：返回人員選擇頁 ──
-function ceGoPage2FromP3() {
-  document.getElementById('cePage3').classList.remove('active');
-  document.getElementById('cePage2').classList.add('active');
-  document.getElementById('ceF3Btns').style.display = 'none';
-  document.getElementById('ceF2Btns').style.display = 'flex';
-  document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
-}
-
-// ── 從 GAS 讀取儀器清單 ──
-// GAS v7 action=instrument 回傳：{ columns:[...], rows:[{rowIndex,values},...] }
-function _ceLoadInstruments() {
-  var wrap = document.getElementById('ceInstrWrap');
-  if (_ceInstrCache) { _ceRenderInstruments(_ceInstrCache); return; }
-  wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
-  console.log('[儀器] JSONP 呼叫:', SHEETS_URL + '?action=instrument');
-  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
-    console.log('[儀器] GAS 回傳:', JSON.stringify(data));
-    if (!data) {
-      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 連線逾時，請重新進入此頁面。</div>';
-      return;
-    }
-    if (data.error) {
-      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; GAS 錯誤：' + _ceEsc(String(data.error)) + '</div>';
-      return;
-    }
-    if (data.columns && data.rows) {
-      _ceInstrCache = data;
-      _ceRenderInstruments(data);
-    } else {
-      wrap.innerHTML = '<div class="ce-instr-empty">&#x26A0;&#xFE0F; 資料格式不符（請按 F12 查看主控台）</div>';
-    }
+// ── closeAllMenus（全站共用：關閉桌機下拉 + 手機選單）──
+function closeAllMenus() {
+  document.querySelectorAll('.top-drop, .top-drop-l3').forEach(function(m) {
+    m.classList.remove('active');
   });
 }
 
-// ── 取得頁2勾選的技術組人員名單（供使用者下拉）──
-function _ceGetSelectedTechNames() {
-  var techSquads = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
-  var names = [];
-  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
-    var squad = cb.getAttribute('data-squad') || '';
-    if (techSquads.indexOf(squad) !== -1) {
-      names.push(cb.getAttribute('data-name'));
-    }
-  });
-  return names;
-}
+// ── closeSidebar（openCreateEvent 等地方仍會呼叫，保留空函數避免錯誤）──
+function closeSidebar() {}
 
-// ── 渲染儀器清單表格 ──
-// data = { columns: [...], rows: [{rowIndex:N, values:[...]}, ...] }（GAS v7 格式）
-// 最後一欄是「使用者」，渲染為下拉選單
-function _ceRenderInstruments(data) {
-  var wrap = document.getElementById('ceInstrWrap');
-  var columns = data.columns || [];
-  var rows    = data.rows    || [];
 
-  if (!rows.length) {
-    wrap.innerHTML = '<div class="ce-instr-empty">&#x1F4ED; 儀器清單目前為空。</div>';
-    return;
-  }
-
-  // 找「使用者」欄（按名稱搜尋，不依賴位置）
-  // 若找不到，退而使用最後一欄
-  var userColIdx = -1;
-  columns.forEach(function(h, idx) {
-    if (String(h).trim() === '使用者') userColIdx = idx;
-  });
-  if (userColIdx < 0) userColIdx = columns.length - 1;
-  console.log('[儀器] 欄位:', columns, '使用者欄 index:', userColIdx);
-  var displayColumns = columns.slice(0, userColIdx);
-
-  // 取得技術組成員名單供下拉
-  var techNames = _ceGetSelectedTechNames();
-
-  var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
-  html += '<table class="ce-instr-tbl"><thead><tr>';
-  html += '<th class="ce-instr-chk">出動</th>';
-  displayColumns.forEach(function(h) { html += '<th>' + _ceEsc(h) + '</th>'; });
-  html += '<th>' + _ceEsc(columns[userColIdx] || '使用者') + '</th>';
-  html += '</tr></thead><tbody>';
-
-  rows.forEach(function(rowObj, i) {
-    var vals  = rowObj.values || [];
-    var cbId  = 'icb'  + i;
-    var selId = 'isel' + i;
-    html += '<tr id="irow' + i + '">';
-    // 勾選欄
-    html += '<td class="ce-instr-chk"><input type="checkbox" id="' + cbId + '" onchange="_ceInstrChg(' + i + ')" /></td>';
-    // 顯示欄位（跳過最後一欄）
-    displayColumns.forEach(function(h, j) {
-      html += '<td>' + _ceEsc(vals[j] || '') + '</td>';
-    });
-    // 使用者下拉
-    html += '<td><select class="ce-instr-user-sel" id="' + selId + '" disabled>';
-    html += '<option value="">— 請先勾選 —</option>';
-    if (techNames.length) {
-      techNames.forEach(function(n) {
-        html += '<option value="' + _ceEsc(n) + '">' + _ceEsc(n) + '</option>';
-      });
-    } else {
-      html += '<option value="" disabled>（無勾選技術組成員）</option>';
-    }
-    html += '</select></td>';
-    html += '</tr>';
-  });
-
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
-}
-
-// ── 儀器 checkbox 切換：啟用/停用使用者下拉 ──
-function _ceInstrChg(i) {
-  var cb  = document.getElementById('icb'  + i);
-  var sel = document.getElementById('isel' + i);
-  var row = document.getElementById('irow' + i);
-  sel.disabled = !cb.checked;
-  if (!cb.checked) { sel.value = ''; }
-  if (row) row.classList.toggle('ce-isel', cb.checked);
-  // 更新計數
-  var n = document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').length;
-  var el = document.getElementById('ceInstrN');
-  if (el) el.textContent = n;
-}
-
-// ── 收集勾選的儀器資料（送出時用）──
-// GAS v7 rows 格式：[{rowIndex:N, values:[...]}, ...]
-// 欄位對應試算表：A=項次(0) B=名稱(1) C=偵檢類型(2) D=廠牌(3) E=型號(4) F=存放地點(5) G=保管人(6) H=使用者(7)
-// 回傳字串：「名稱(型號):使用者, ...」
-function _ceGetInstruments() {
-  if (!_ceInstrCache) return '';
-  var rows = _ceInstrCache.rows || [];
-  var result = [];
-  document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
-    var i      = parseInt(cb.id.replace('icb',''), 10);
-    var rowObj = rows[i] || {};
-    var vals   = rowObj.values || [];
-    var name   = vals[1] || ('儀器' + i);      // B欄：名稱
-    var model  = vals[4] ? '(' + vals[4] + ')' : ''; // E欄：型號
-    var sel    = document.getElementById('isel' + i);
-    var user   = sel ? sel.value : '';
-    result.push(name + model + (user ? ':' + user : ''));
-  });
-  return result.join(', ');
-}
-
-function _ceLoadPersonnel() {
-  var techId = CE_TYPE_GROUP[document.getElementById('ceType').value];
-  var box = document.getElementById('cePersonnel');
-  box.innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
-  var targets = [
-    { id: techId,  label: '技術組' },
-    { id: 'staff', label: '參謀組' },
-    { id: 'press', label: '新聞組' }
-  ];
-  var promises = targets.map(function(t) {
-    if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
-    return new Promise(function(resolve) {
-      _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
-        if (d && d.members) {
-          _ceCache[t.id] = d.members;
-          resolve({ id:t.id, label:t.label, members:d.members });
-        } else {
-          console.warn('[出勤人員] 讀取失敗:', t.id);
-          resolve({ id:t.id, label:t.label, members:[] });
-        }
-      });
-    });
-  });
-  Promise.all(promises).then(function(results) { _ceRenderPersonnel(results, techId); });
-}
-
-function _ceRenderPersonnel(groups, techId) {
-  _ceSquadIdx = 0; // 每次渲染前重置計數器，確保 id 唯一
-  var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
-  groups.forEach(function(g) {
-    if (!g.members || !g.members.length) return;
-    if (g.id === techId) {
-      // 技術組：依 team 欄位分成六個小隊區塊
-      var squads = {};
-      g.members.forEach(function(m) {
-        var s = (m.team || '').trim();
-        if (!s) s = '未分配';
-        if (!squads[s]) squads[s] = [];
-        squads[s].push(m);
-      });
-      // 依固定順序顯示六個小隊
-      CE_SQUAD_ORDER.forEach(function(sname) {
-        if (squads[sname] && squads[sname].length) {
-          html += _ceSquadBlock(sname, squads[sname]);
-        }
-      });
-      // 隊別欄位為空或不符合的人歸入未分配
-      if (squads['未分配'] && squads['未分配'].length) {
-        html += _ceSquadBlock('未分配', squads['未分配']);
-      }
-    } else {
-      // 參謀組/新聞組：直接一個區塊
-      html += _ceSquadBlock(g.label, g.members);
-    }
-  });
-  document.getElementById('cePersonnel').innerHTML = html;
-  _ceUpdateSelCount();
-}
-
-function _ceSquadBlock(title, members) {
-  // 用全域計數器產生唯一 id，避免中文 title 導致 id 衝突
-  var sid = 'sq' + _ceSquadIdx;
-  _ceSquadIdx++;
-  var h = '<div class="ce-squad">' +
-    '<div class="ce-squad-hd">' +
-    '<span class="ce-squad-title">' + _ceEsc(title) + '</span>' +
-    '<span class="ce-squad-cnt" id="cnt' + sid + '">0 / ' + members.length + '</span>' +
-    '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_ceChkAll(this,event)">全選</button>' +
-    '</div><div class="ce-squad-bd" id="bd' + sid + '"><div class="ce-member-list">';
-  members.forEach(function(m, i) {
-    var mid = sid + '_' + i;
-    h += '<label class="ce-mbr" id="lbl' + mid + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_ceTglMbr(this)">' +
-      '<input type="checkbox" id="cb' + mid + '" data-name="' + _ceEsc(m.name) + '" data-squad="' + _ceEsc(title) + '">' +
-      _ceEsc(m.name) + '</label>';
-  });
-  h += '</div></div></div>';
-  return h;
-}
-function _ceTglMbr(el) {
-  var mid = el.getAttribute('data-mid');
-  var sid = el.getAttribute('data-sid');
-  var cb  = document.getElementById('cb' + mid);
-  cb.checked = !cb.checked;
-  el.classList.toggle('checked', cb.checked);
-  _ceUpdSqCnt(sid);
-  _ceUpdateSelCount();
-}
-
-function _ceChkAll(el, e) {
-  e.stopPropagation();
-  var sid = el.getAttribute('data-sid');
-  var bd  = document.getElementById('bd' + sid);
-  var cbs = bd.querySelectorAll('input[type=checkbox]');
-  var all = Array.from(cbs).every(function(c){ return c.checked; });
-  cbs.forEach(function(c) {
-    c.checked = !all;
-    var l = document.getElementById('lbl' + c.id.replace('cb',''));
-    if (l) l.classList.toggle('checked', !all);
-  });
-  _ceUpdSqCnt(sid);
-  _ceUpdateSelCount();
-}
-
-function _ceUpdSqCnt(sid) {
-  var bd = document.getElementById('bd' + sid);
-  var cbs = bd.querySelectorAll('input[type=checkbox]');
-  var n = Array.from(cbs).filter(function(c){ return c.checked; }).length;
-  var el = document.getElementById('cnt' + sid);
-  if (el) el.textContent = n + ' / ' + cbs.length;
-}
-
-function _ceUpdateSelCount() {
-  var n = document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').length;
-  var el = document.getElementById('ceSelN');
-  if (el) el.textContent = n;
-}
-
-function _ceGetPersonnel() {
-  var r = [];
-  document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
-    r.push({ name: cb.getAttribute('data-name'), squad: cb.getAttribute('data-squad') });
-  });
-  return r;
-}
-
-function _ceEsc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-// 送出表單、建立事件（從第三頁呼叫）
-// skipInstruments = true  → 按「略過儀器」，不收集儀器
-// skipInstruments = false → 按「建立事件」，收集勾選儀器
-// _ceSkipPersonnel 全域變數：是否在頁2按了「略過人員」
-function ceDo(skipInstruments){
-  var btn = skipInstruments
-    ? null  // 略過按鈕不鎖定
-    : document.getElementById('ceSubP3');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
-
-  // ── 收集表單資料 ──
-  var ev = {
-    id:            document.getElementById('ceEvId').textContent,
-    name:          document.getElementById('ceName').value.trim(),
-    type:          document.getElementById('ceType').value,
-    date:          document.getElementById('ceDate').value,
-    time:          document.getElementById('ceTime').value,
-    address:       document.getElementById('ceAddr').value,
-    lat:           _ceLat,
-    lng:           _ceLng,
-    note:          document.getElementById('ceNote').value.trim(),
-    createdAt:     new Date().toISOString(),
-    status:        'active',
-    personnelStr:  _ceSkipPersonnel ? '' : _ceGetPersonnel().map(function(p){ return p.squad+':'+p.name; }).join(', '),
-    instrumentStr: skipInstruments ? '' : _ceGetInstruments()
-  };
-
-  // ── 寫入 localStorage（本機備份）──
-  try {
-    var local = JSON.parse(localStorage.getItem('rad_events') || '[]');
-    local.unshift(ev);
-    localStorage.setItem('rad_events', JSON.stringify(local));
-  } catch(e) { console.warn('localStorage 寫入失敗:', e); }
-
-  // ── 寫入 Google 試算表 ──
-  fetch(SHEETS_URL, {
-    method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify(ev)
-  })
-  .then(function() {
-    document.getElementById('ceOKId').textContent = '事件編號：' + ev.id;
-    document.getElementById('ceOK').classList.add('show');
-  })
-  .catch(function(err) {
-    console.error('試算表寫入失敗:', err);
-    document.getElementById('ceOKId').textContent = ev.id + '（僅存本機，請確認網路）';
-    document.getElementById('ceOK').classList.add('show');
-  });
-}
-
-function ceRst(){
-
-  var _p2=document.getElementById('cePage2'), _p1=document.getElementById('cePage1');
-  var _p3=document.getElementById('cePage3');
-  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns'), _f3=document.getElementById('ceF3Btns');
-  if(_p2)_p2.classList.remove('active'); if(_p3)_p3.classList.remove('active'); if(_p1)_p1.classList.add('active');
-  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none'; if(_f3)_f3.style.display='none';
-  _ceCache={};
-  _ceSkipPersonnel = false;
-  _ceInstrCache = null;
-  document.getElementById('ceOK').classList.remove('show');
-  document.getElementById('ceOKMsg').textContent = '';
-  ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){document.getElementById(id).value='';});
-  document.querySelectorAll('.ce-pill').forEach(function(p){p.className='ce-pill';});
-  _ceLat=null; _ceLng=null;
-  document.getElementById('ceCo').style.display='none';
-  document.getElementById('ceAst').innerHTML='';
-  document.getElementById('ceMH').style.display='';
-  document.getElementById('ceSub').innerHTML = '下一步 &#x27A1;';
-  if(_ceMk&&_ceMap){_ceMap.removeLayer(_ceMk);_ceMk=null;_ceMap.setView([25.046,121.517],12);}
-  var d=new Date();
-  document.getElementById('ceDate').value=d.toISOString().split('T')[0];
-  document.getElementById('ceTime').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-  document.getElementById('ceEvId').textContent=_ceId();
-  ceVal();
-}
 document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_ceHS();});
 
 // ── 建立新事件（保持 Modal 開啟）──
