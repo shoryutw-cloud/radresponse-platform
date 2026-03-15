@@ -366,15 +366,23 @@ function renderSquadBlock(title, members, lookup) {
   return h;
 }
 
+// ── 從 URL 讀取 idx 參數 ──
+function getStartIdx() {
+  try {
+    var m = window.location.search.match(/[?&]idx=(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+  } catch(e) { return 0; }
+}
+
 // ── 初始化：載入事件清單 ──
 document.addEventListener('DOMContentLoaded', function() {
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     if (data && data.events) {
       _events = data.events;
     }
-    _curIdx = 0;
-    // 若從 parent 傳入指定事件 idx，可在此處理
-    loadAndRender(0);
+    var startIdx = getStartIdx();
+    _curIdx = startIdx;
+    loadAndRender(startIdx);
   });
 });
 </script>
