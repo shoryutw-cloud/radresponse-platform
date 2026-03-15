@@ -316,23 +316,22 @@ function renderInstruments(instruments) {
   body.innerHTML = html;
 }
 
-// ── 從 URL 讀取 idx 參數 ──
-function getStartIdx() {
-  try {
-    var qs = window.location.search;
-    var m  = qs.match(/[?&]idx=([0-9]+)/);
-    return m ? parseInt(m[1], 10) : 0;
-  } catch(e) { return 0; }
-}
+// ── 接收 postMessage 傳入的 idx（從 index.html showIframe 送來）──
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
+    var idx = e.data.idx;
+    if (idx >= 0 && idx < _events.length) {
+      _curIdx = idx;
+      loadAndRender(idx);
+    }
+  }
+});
 
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     if (data && data.events) _events = data.events;
-    var startIdx = getStartIdx();
-    console.log('[' +  + fname +  + '] URL:', window.location.search, '| startIdx:', startIdx);
-    _curIdx = startIdx;
-    loadAndRender(startIdx);
+    loadAndRender(0);
   });
 });
 </script>
