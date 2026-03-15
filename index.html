@@ -581,7 +581,18 @@
 // ════════════════════════════════════════════════════════════
 
 // ── 全域變數 ──
-var gMap = null;  // Leaflet 地圖物件，initMap() 後才有值
+var gMap = null;
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var _jsonpCounter = 0;
+
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
 
 // ── 各功能面板的說明文字 ──
 // 格式：'功能名稱': ['標題', '說明文字']
@@ -868,45 +879,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // 手機版選單
   // ════════════════════════════════════════════
 
-  // ── Leaflet 地圖載入 ──
-  function loadScript(src, cb, errCb) {
-    var s = document.createElement('script');
-    s.src = src; s.onload = cb; s.onerror = errCb;
-    document.head.appendChild(s);
-  }
-  function loadCSS(href) {
-    var l = document.createElement('link');
-    l.rel = 'stylesheet'; l.href = href;
-    document.head.appendChild(l);
-  }
-  function initMap() {
-    gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
-    }).addTo(gMap);
-    [
-      { lat:25.046, lng:121.517, label:'指揮中心', color:'#1a56db' },
-      { lat:25.052, lng:121.508, label:'量測點 A', color:'#16a34a' },
-      { lat:25.039, lng:121.525, label:'量測點 B', color:'#d97706' },
-    ].forEach(function(m) {
-      L.marker([m.lat,m.lng], { icon: L.divIcon({
-        className:'',
-        html:'<div style="background:'+m.color+';border-radius:50%;width:14px;height:14px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>',
-        iconSize:[14,14], iconAnchor:[7,7]
-      })}).addTo(gMap).bindPopup('<b>'+m.label+'</b>');
-    });
-    document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
-    document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
-  }
-  function showMapError() {
-    document.getElementById('map').style.display = 'none';
-    document.getElementById('map-fallback').style.display = 'flex';
-  }
-  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', initMap, function() {
-    loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, showMapError);
-  });
 });
 
 
