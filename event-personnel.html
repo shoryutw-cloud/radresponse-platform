@@ -189,8 +189,9 @@ function _esc(s) {
 }
 
 function goBack() {
-  try { parent.postMessage({ type: 'navigate', src: 'current-events.html', idx: _curIdx }, '*'); }
-  catch(e) { location.href = 'current-events.html'; }
+  console.log('[event-personnel.html] goBack _curIdx='+_curIdx);
+  try { parent.showIframe('current-events.html?idx=' + _curIdx); }
+  catch(e) { console.log('[event-personnel.html] parent.showIframe failed', e); }
 }
 
 // ── 事件導覽 ──
