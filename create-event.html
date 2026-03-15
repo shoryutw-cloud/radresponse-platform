@@ -836,11 +836,12 @@ function _getInstruments() {
   document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
     var i = parseInt(cb.id.replace('icb',''), 10);
     var vals = (rows[i] || {}).values || [];
-    var name = vals[1] || ('儀器' + i);
-    var model = vals[4] ? '(' + vals[4] + ')' : '';
-    var sel = document.getElementById('isel' + i);
-    var user = sel ? sel.value : '';
-    result.push(name + model + (user ? ':' + user : ''));
+    var name     = vals[1] || ('儀器' + i);
+    var model    = vals[4] ? '(' + vals[4] + ')' : '';
+    var detector = vals[2] ? '[' + vals[2] + ']' : ''; // C欄：偵檢類型
+    var sel      = document.getElementById('isel' + i);
+    var user     = sel ? sel.value : '';
+    result.push(name + model + detector + (user ? ':' + user : ''));
   });
   return result.join(', ');
 }

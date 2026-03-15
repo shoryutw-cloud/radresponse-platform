@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>目前事件</title>
+<style>
+  :root {
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --surface: #ffffff;
+    --bg: #f0f2f5;
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: var(--font); font-size: 14px; color: var(--text); }
+
+  /* ── 地圖全螢幕 ── */
+  #map { width: 100%; height: 100%; background: #e8edf2; }
+  .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
+  .leaflet-tile-container, .leaflet-map-pane, .leaflet-overlay-pane,
+  .leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane,
+  .leaflet-popup-pane, .leaflet-control { z-index: 1 !important; }
+  .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
+
+  /* ── 懸浮卡片（左上角）── */
+  .ev-card {
+    position: fixed; top: 16px; left: 16px; z-index: 1000;
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); width: 280px;
+    border: 1px solid var(--border);
+    transition: width .2s, box-shadow .2s;
+  }
+
+  /* ── 卡片標題列 ── */
+  .ev-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    cursor: default; user-select: none; gap: 8px;
+  }
+  .ev-card-title {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ev-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #16a34a; flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(22,163,74,.25);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 2px rgba(22,163,74,.25)} 50%{box-shadow:0 0 0 5px rgba(22,163,74,.1)} }
+  .ev-status-dot.none { background: #94a3b8; animation: none; box-shadow: none; }
+
+  /* 導覽（上一筆/下一筆）*/
+  .ev-nav {
+    display: flex; align-items: center; gap: 4px; font-size: 12px;
+    color: var(--text-muted); flex-shrink: 0;
+  }
+  .ev-nav-btn {
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; color: var(--text-muted);
+    transition: all .12s;
+  }
+  .ev-nav-btn:hover { background: var(--bg); color: var(--accent); border-color: var(--accent); }
+  .ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .ev-nav-label { font-family: var(--font-mono); min-width: 32px; text-align: center; font-size: 11px; }
+
+  /* 收合按鈕 */
+  .ev-collapse-btn {
+    width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; color: var(--text-muted);
+    transition: all .12s; flex-shrink: 0;
+  }
+  .ev-collapse-btn:hover { background: var(--bg); color: var(--accent); }
+
+  /* ── 卡片內容 ── */
+  .ev-card-body {
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 9px;
+    transition: all .2s; overflow: hidden;
+  }
+  .ev-card.collapsed .ev-card-body { display: none; }
+  .ev-card.collapsed .ev-card-header { border-bottom: none; }
+
+  .ev-row {
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .ev-lbl {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .04em; white-space: nowrap; min-width: 88px;
+    padding-top: 1px;
+  }
+  .ev-val {
+    font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word;
+  }
+  .ev-val.accent { color: var(--accent); font-weight: 600; }
+  .ev-val.em { font-weight: 600; font-size: 14px; }
+
+  /* 類型標籤 */
+  .ev-type-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .ev-type-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+  .ev-type-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+  .ev-type-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
+
+  /* 偵檢類型 tags */
+  .ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ev-tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 4px;
+    background: #f0f2f5; color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  /* 分隔線 */
+  .ev-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+
+  /* 無事件狀態 */
+  .ev-empty {
+    text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px;
+  }
+
+  /* 載入中 */
+  .ev-loading { text-align: center; padding: 12px 0; color: var(--text-muted); font-size: 13px; }
+
+  /* ── 右下角返回按鈕 ── */
+  .back-btn {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+    display: flex; align-items: center; gap: 6px;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 16px;
+    font-family: var(--font); font-size: 13px; color: var(--text-muted);
+    cursor: pointer; box-shadow: var(--shadow-md);
+    transition: all .15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── 地圖縮放按鈕 ── */
+  .map-controls {
+    position: fixed; bottom: 24px; right: 80px; z-index: 999;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .map-ctrl-btn {
+    width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
+    border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; color: var(--text-muted);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
+  }
+  .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
+
+  /* ── RWD ── */
+  @media (max-width: 480px) {
+    .ev-card { width: calc(100vw - 32px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- 懸浮事件卡片 -->
+<div class="ev-card" id="evCard">
+  <div class="ev-card-header">
+    <div class="ev-card-title">
+      <span class="ev-status-dot" id="evDot"></span>
+      事件狀態
+    </div>
+    <div class="ev-nav" id="evNav" style="display:none">
+      <button class="ev-nav-btn" id="evPrev" onclick="navEvent(-1)" title="上一筆">&#9664;</button>
+      <span class="ev-nav-label" id="evNavLabel">1/1</span>
+      <button class="ev-nav-btn" id="evNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
+    </div>
+    <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
+  </div>
+  <div class="ev-card-body" id="evCardBody">
+    <div class="ev-loading">&#x23F3; 載入中…</div>
+  </div>
+</div>
+
+<!-- 地圖縮放 -->
+<div class="map-controls">
+  <button class="map-ctrl-btn" id="zoomIn">&#xff0b;</button>
+  <button class="map-ctrl-btn" id="zoomOut">&#xff0d;</button>
+</div>
+
+<!-- 返回地圖 -->
+<button class="back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
+
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var TECH_SQUADS = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
+
+var gMap = null;
+var _events = [];    // 所有進行中事件
+var _curIdx = 0;     // 目前顯示哪一筆
+var _markers = [];   // 地圖標記
+var _jsonpCounter = 0;
+
+// ── JSONP ──
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+function _esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function goBack() {
+  try { parent.showMap(); } catch(e) { history.back(); }
+}
+
+// ── 收合 ──
+function toggleCollapse() {
+  var card = document.getElementById('evCard');
+  var btn  = document.getElementById('evCollapseBtn');
+  var collapsed = card.classList.toggle('collapsed');
+  btn.innerHTML = collapsed ? '&#x25BC;' : '&#x25B2;';
+  btn.title = collapsed ? '展開' : '收合';
+}
+
+// ── 切換事件 ──
+function navEvent(dir) {
+  _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
+  renderCard(_curIdx);
+  flyToEvent(_curIdx);
+}
+
+// ── 解析 personnelStr 取得技術組人數 ──
+function parseTechCount(personnelStr) {
+  if (!personnelStr) return 0;
+  var count = 0;
+  personnelStr.split(',').forEach(function(item) {
+    var parts = item.trim().split(':');
+    var squad = parts[0] ? parts[0].trim() : '';
+    if (TECH_SQUADS.indexOf(squad) !== -1) count++;
+  });
+  return count;
+}
+
+// ── 解析 instrumentStr 取得不重複偵檢類型 ──
+// 格式：名稱(型號)[偵檢類型]:使用者
+function parseDetectorTypes(instrStr) {
+  if (!instrStr) return [];
+  var types = [];
+  instrStr.split(',').forEach(function(item) {
+    var m = item.match(/\[([^\]]+)\]/);
+    if (m && m[1] && types.indexOf(m[1].trim()) === -1) {
+      types.push(m[1].trim());
+    }
+  });
+  return types;
+}
+
+// ── 渲染卡片 ──
+function renderCard(idx) {
+  var body   = document.getElementById('evCardBody');
+  var dot    = document.getElementById('evDot');
+  var nav    = document.getElementById('evNav');
+  var label  = document.getElementById('evNavLabel');
+
+  if (!_events.length) {
+    dot.className = 'ev-status-dot none';
+    nav.style.display = 'none';
+    body.innerHTML = '<div class="ev-empty">&#x1F4ED; 目前無進行中事件</div>';
+    return;
+  }
+
+  dot.className = 'ev-status-dot';
+  if (_events.length > 1) {
+    nav.style.display = 'flex';
+    label.textContent = (idx + 1) + '/' + _events.length;
+    document.getElementById('evPrev').disabled = (idx === 0);
+    document.getElementById('evNext').disabled = (idx === _events.length - 1);
+  } else {
+    nav.style.display = 'none';
+  }
+
+  var ev = _events[idx];
+  var techCount  = parseTechCount(ev.personnelStr || '');
+  var detTypes   = parseDetectorTypes(ev.instrumentStr || '');
+
+  // 事件類型 badge
+  var typeClass = 'ev-type-material';
+  if ((ev.type||'').indexOf('輻射彈') !== -1) typeClass = 'ev-type-rdd';
+  else if ((ev.type||'').indexOf('物質') !== -1) typeClass = 'ev-type-substance';
+
+  var html = '';
+
+  // 事件名稱
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件名稱</span>';
+  html += '<span class="ev-val em">' + _esc(ev.name) + '</span>';
+  html += '</div>';
+
+  // 事件類型
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件類型</span>';
+  html += '<span class="ev-val"><span class="ev-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span></span>';
+  html += '</div>';
+
+  // 日期與時間
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">日期與時間</span>';
+  html += '<span class="ev-val">' + _esc((ev.date||'') + ' ' + (ev.time||'')) + '</span>';
+  html += '</div>';
+
+  // 事件地點
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件地點</span>';
+  html += '<span class="ev-val">' + _esc(ev.address || '—') + '</span>';
+  html += '</div>';
+
+  html += '<hr class="ev-divider">';
+
+  // 赴現場人數（技術組）
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">赴現場人數</span>';
+  html += '<span class="ev-val accent">' + techCount + ' 人</span>';
+  html += '</div>';
+
+  // 攜帶偵檢器種類
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">偵檢器種類</span>';
+  if (detTypes.length) {
+    html += '<div class="ev-tags">';
+    detTypes.forEach(function(t) { html += '<span class="ev-tag">' + _esc(t) + '</span>'; });
+    html += '</div>';
+  } else {
+    html += '<span class="ev-val" style="color:#b0bec5">—</span>';
+  }
+  html += '</div>';
+
+  body.innerHTML = html;
+}
+
+// ── 地圖飛到事件座標 ──
+function flyToEvent(idx) {
+  var ev = _events[idx];
+  if (!gMap || !ev) return;
+  var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
+  if (isNaN(lat) || isNaN(lng)) return;
+  gMap.flyTo([lat, lng], 14, { duration: 0.8 });
+  // 高亮當前標記
+  _markers.forEach(function(m, i) {
+    var el = m.getElement ? m.getElement() : null;
+    if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
+  });
+}
+
+// ── 在地圖放置所有事件標記 ──
+function placeMarkers() {
+  _markers.forEach(function(m) { m.remove(); });
+  _markers = [];
+  if (!gMap) return;
+
+  _events.forEach(function(ev, i) {
+    var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    var typeClass = '#1a56db';
+    if ((ev.type||'').indexOf('輻射彈') !== -1) typeClass = '#dc2626';
+    else if ((ev.type||'').indexOf('物質') !== -1) typeClass = '#d97706';
+
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="width:18px;height:18px;background:' + typeClass + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+      iconSize: [18, 18], iconAnchor: [9, 18]
+    });
+
+    var marker = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    marker.bindPopup(
+      '<b>' + (ev.name || '') + '</b><br>' +
+      (ev.type || '') + '<br>' +
+      (ev.date || '') + ' ' + (ev.time || '')
+    );
+    marker.on('click', function() {
+      _curIdx = i;
+      renderCard(i);
+      // 打開收合的卡片
+      var card = document.getElementById('evCard');
+      if (card.classList.contains('collapsed')) toggleCollapse();
+    });
+    _markers.push(marker);
+  });
+}
+
+// ── 載入事件 ──
+function loadEvents() {
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (data && data.events) {
+      _events = data.events;
+    } else {
+      _events = [];
+    }
+    _curIdx = 0;
+    renderCard(0);
+    placeMarkers();
+    if (_events.length) flyToEvent(0);
+  });
+}
+
+// ── 初始化 ──
+document.addEventListener('DOMContentLoaded', function() {
+  function loadCSS(href) {
+    var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
+  }
+  function loadScript(src, cb, err) {
+    var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = err; document.head.appendChild(s);
+  }
+
+  function initMap() {
+    gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+    }).addTo(gMap);
+    document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
+    document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
+    loadEvents();
+  }
+
+  loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', initMap, function() {
+    loadCSS('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css');
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, function(){});
+  });
+});
+</script>
+</body>
+</html>

@@ -507,7 +507,7 @@
 
 <!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
 <div class="top-drop" id="drop-dashboard">
-  <button class="top-drop-btn" onclick="openPanel('目前任務');closeAllMenus()">目前任務</button>
+  <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">目前事件</button>
   <button class="top-drop-btn" onclick="openPanel('事件出勤人員');closeAllMenus()">事件出勤人員</button>
   <button class="top-drop-btn" onclick="openPanel('事件出動儀器');closeAllMenus()">事件出動儀器</button>
   <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
@@ -552,7 +552,7 @@ var gMap = null;  // Leaflet 地圖物件，initMap() 後才有值
 // 格式：'功能名稱': ['標題', '說明文字']
 // openPanel(title) 會讀取這裡的資料顯示在 .content-panel 裡
 var PANELS = {
-  '目前任務':         ['目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
+  '目前事件':         ['目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
   '事件出勤人員':     ['事件出勤人員','目前無進行中事件，故無出勤人員資料。'],
   '事件出動儀器':     ['事件出動儀器','目前無進行中事件，故無出動儀器資料。'],
   '歷史事件查詢':     ['歷史事件查詢','尚無歷史事件紀錄。'],
