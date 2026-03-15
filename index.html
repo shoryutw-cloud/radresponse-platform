@@ -1057,6 +1057,27 @@ var _ceMap=null,_ceMk=null,_ceLat=null,_ceLng=null,_ceTmr=null;
 // ── Google Apps Script 網址 ──
 // 修改這裡可以換成不同的試算表
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+// ── JSONP 請求 helper（解決 GAS CORS 問題）──
+// GAS 的 GET 請求會被 CORS 擋住，改用 <script> tag 載入
+// GAS 端需要支援 ?callback=xxx 參數
+var _jsonpCounter = 0;
+function _jsonpGet(url, callback) {
+  var cbName = '_jsonpCb' + (_jsonpCounter++);
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(data);
+  };
+  var script = document.createElement('script');
+  script.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + cbName;
+  script.onerror = function() {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(null); // 失敗時回傳 null
+  };
+  document.head.appendChild(script);
+}
+
 
 // ── 從試算表最大序號產生流水號 ──
 // maxSeq = 試算表中目前最大的序號數字
@@ -1115,25 +1136,16 @@ function openCreateEvent(){
   ceVal();
   
   // 向 Apps Script 查詢目前試算表筆數（GET 請求）
-  fetch(SHEETS_URL, { method: 'GET' })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      // 用試算表筆數產生編號，確保多裝置不重複
-      var newId = _ceIdFromMax(data.maxSeq);
-      document.getElementById('ceEvId').textContent = newId;
-    })
-    .catch(function(){
-      // 查詢失敗（網路問題）→ 用時間戳當臨時編號，避免卡住
+  _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
+    if (data && typeof data.maxSeq !== 'undefined') {
+      document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
+    } else {
       var d = new Date();
-      var fallback = 'EVT-' + d.getFullYear() +
-        String(d.getMonth()+1).padStart(2,'0') +
-        String(d.getDate()).padStart(2,'0') +
-        '-T' + String(d.getHours()).padStart(2,'0') +
-        String(d.getMinutes()).padStart(2,'0') +
-        String(d.getSeconds()).padStart(2,'0');
-      document.getElementById('ceEvId').textContent = fallback;
-      console.warn('無法查詢試算表筆數，使用時間戳作為臨時編號:', fallback);
-    });
+      document.getElementById('ceEvId').textContent = 'EVT-' +
+        d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') +
+        '-T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
+    }
+  });
   setTimeout(function(){
     if(typeof L==='undefined'){return;}
     if(!_ceMap){
@@ -1303,10 +1315,17 @@ function _ceLoadPersonnel() {
   ];
   var promises = targets.map(function(t) {
     if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
-    return fetch(SHEETS_URL + '?action=group&id=' + t.id)
-      .then(function(r){ return r.json(); })
-      .then(function(d){ _ceCache[t.id] = d.members||[]; return { id:t.id, label:t.label, members:_ceCache[t.id] }; })
-      .catch(function(err){ console.error('[出勤人員] fetch 失敗:', t.id, err); return { id:t.id, label:t.label, members:[] }; });
+    return new Promise(function(resolve) {
+      _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
+        if (d && d.members) {
+          _ceCache[t.id] = d.members;
+          resolve({ id:t.id, label:t.label, members:d.members });
+        } else {
+          console.warn('[出勤人員] 讀取失敗:', t.id);
+          resolve({ id:t.id, label:t.label, members:[] });
+        }
+      });
+    });
   });
   Promise.all(promises).then(function(results) { _ceRenderPersonnel(results, techId); });
 }
@@ -1520,21 +1539,16 @@ function ceRstKeepOpen(){
   if(_ceMk && _ceMap){ _ceMap.removeLayer(_ceMk); _ceMk = null; _ceMap.setView([25.046,121.517],12); }
   // 重新向試算表查詢最新筆數，產生正確的下一個編號
   document.getElementById('ceEvId').textContent = '查詢中…';
-  fetch(SHEETS_URL, { method: 'GET' })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
+  _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
+    if (data && typeof data.maxSeq !== 'undefined') {
       document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
-    })
-    .catch(function(){
+    } else {
       var d = new Date();
-      var fallback = 'EVT-' + d.getFullYear() +
-        String(d.getMonth()+1).padStart(2,'0') +
-        String(d.getDate()).padStart(2,'0') +
-        '-T' + String(d.getHours()).padStart(2,'0') +
-        String(d.getMinutes()).padStart(2,'0') +
-        String(d.getSeconds()).padStart(2,'0');
-      document.getElementById('ceEvId').textContent = fallback;
-    });
+      document.getElementById('ceEvId').textContent = 'EVT-' +
+        d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') +
+        '-T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + String(d.getSeconds()).padStart(2,'0');
+    }
+  });
   // 重設日期時間為現在
   var d = new Date();
   document.getElementById('ceDate').value = d.toISOString().split('T')[0];
