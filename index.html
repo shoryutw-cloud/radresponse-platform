@@ -43,7 +43,7 @@
   .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; color: #fff; font-weight: 700; }
-  .logo-text { font-size: 18px; font-weight: 600; color: #e8f0fa; white-space: nowrap; }
+  .logo-text { font-size: 22px; font-weight: 700; color: #e8f0fa; white-space: nowrap; }
 
   /* ────── TOP NAV（桌機版，橫排）────── */
   .top-nav {
@@ -114,7 +114,7 @@
   @media (max-width: 900px) {
     .topbar { overflow-x: auto; overflow-y: hidden; padding: 0 12px; gap: 0; }
     .tnav-btn { padding: 0 10px; font-size: 13px; }
-    .logo-text { font-size: 15px; }
+    .logo-text { font-size: 18px; }
     .topbar-logout { padding: 5px 10px; font-size: 12px; }
   }
   /* 手機（< 600px）：logo 文字隱藏，節省空間 */
@@ -198,7 +198,7 @@
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.6; }
-    .logo-text { font-size: 15px; }
+    .logo-text { font-size: 18px; }
     /* 手機版：logo 左、漢堡右 */
     .topbar-logo { margin-right: 0; }
   }
@@ -503,6 +503,7 @@
             <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:30px;padding:12px;width:58px;height:58px;display:flex;align-items:center;justify-content:center">🚨</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:4px">目前事件數</div>
             <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:56px">—</div>
+            <div id="dashByType" style="display:flex;flex-direction:column;gap:3px;width:100%;margin-top:2px"></div>
             <div class="dash-card-sub" style="color:#f97316;font-size:13px;font-weight:500">▶ 點擊查看</div>
           </div>
           <div class="dash-card" style="border-color:#bbf7d0">
@@ -686,11 +687,29 @@ function showMap() {
 // ── 載入儀表板統計數字 ──
 function loadDashStats() {
   _jsonpGet(SHEETS_URL + '?action=eventStats', function(data) {
-    if (data) {
-      var actEl = document.getElementById('dashActiveVal');
-      var cloEl = document.getElementById('dashClosedVal');
-      if (actEl) actEl.textContent = (data.active !== undefined) ? data.active : '—';
-      if (cloEl) cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    if (!data) return;
+    var actEl = document.getElementById('dashActiveVal');
+    var cloEl = document.getElementById('dashClosedVal');
+    var typeEl = document.getElementById('dashByType');
+    if (actEl) actEl.textContent = (data.active !== undefined) ? data.active : '—';
+    if (cloEl) cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    // 各類型小計
+    if (typeEl && data.byType) {
+      var colors = {
+        '輻射彈事件':     '#dc2626',
+        '放射性物質事件': '#d97706',
+        '放射性物料事件': '#1a56db'
+      };
+      var types = ['輻射彈事件','放射性物質事件','放射性物料事件'];
+      typeEl.innerHTML = types.map(function(t) {
+        var n = data.byType[t] || 0;
+        var col = colors[t] || '#6b7a92';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;' +
+               'padding:3px 10px;background:#fff7f0;border-radius:4px;font-size:12px">' +
+               '<span style="color:#6b7a92">' + t + '</span>' +
+               '<span style="font-weight:700;color:' + col + '">' + n + '</span>' +
+               '</div>';
+      }).join('');
     }
   });
 }
