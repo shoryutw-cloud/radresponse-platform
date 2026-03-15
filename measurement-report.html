@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人工回報量測數值</title>
+<style>
+  :root {
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --bg: #f0f2f5;
+    --hover: #f1f5ff;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
+
+  /* ── 頁首 ── */
+  .page-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 24px; background: white;
+    border-bottom: 2px solid var(--border);
+    flex-shrink: 0; height: 52px;
+  }
+  .page-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .back-btn {
+    margin-left: auto; background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px; color: var(--text-muted);
+    font-family: var(--font); font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── 主體 ── */
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; min-height: 0; }
+  .page-body::-webkit-scrollbar { width: 4px; }
+  .page-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .form-wrap { max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  /* 事件選擇卡 */
+  .ev-select-card {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow-sm);
+  }
+  .ev-select-label { font-size: 12px; font-weight: 600; color: var(--text-muted);
+                     letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .ev-select-box {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 14px;
+    color: var(--text); background: white; outline: none; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+    transition: border-color .15s;
+  }
+  .ev-select-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+
+  /* 表單卡 */
+  .form-card {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 16px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-lbl {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .form-lbl .req { color: #dc2626; margin-left: 2px; }
+  .form-inp, .form-sel {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 14px;
+    color: var(--text); background: white; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-inp:focus, .form-sel:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  .form-sel {
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+  }
+
+  /* 數值輸入帶單位 */
+  .value-wrap { display: flex; gap: 8px; align-items: center; }
+  .value-inp { flex: 1; }
+  .value-unit {
+    padding: 10px 14px; background: #f8fafc; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13px; color: var(--text-muted);
+    white-space: nowrap; font-weight: 600;
+  }
+
+  /* 回報人員 datalist combo */
+  .combo-wrap { position: relative; }
+  .combo-inp { width: 100%; }
+
+  /* GPS 定位 */
+  .gps-wrap { display: flex; gap: 8px; align-items: flex-start; flex-direction: column; }
+  .gps-btn {
+    display: flex; align-items: center; gap: 6px; padding: 9px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: none; font-family: var(--font); font-size: 13px;
+    color: var(--text-muted); cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .gps-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .gps-btn.got { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
+  .gps-status { font-size: 12px; color: var(--text-muted); }
+  .gps-status.ok { color: #16a34a; }
+  .gps-status.err { color: #dc2626; }
+
+  /* 提交按鈕 */
+  .submit-btn {
+    width: 100%; padding: 13px; background: var(--accent); color: white;
+    border: none; border-radius: var(--radius); font-family: var(--font);
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: background .15s;
+  }
+  .submit-btn:hover { background: #1648c0; }
+  .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  /* 狀態列 */
+  .footer-status { font-size: 13px; color: var(--text-muted); text-align: center; }
+  .footer-status.ok { color: #16a34a; }
+  .footer-status.err { color: #dc2626; }
+
+  /* 成功畫面 */
+  .success-box {
+    display: none; flex-direction: column; align-items: center;
+    padding: 40px 20px; gap: 12px; text-align: center;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .success-box.show { display: flex; }
+  .success-icon { font-size: 48px; }
+
+  .spin {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-title">📡 人工回報量測數值</div>
+  <button class="back-btn" onclick="goBack()">← 返回地圖</button>
+</div>
+
+<div class="page-body">
+  <div class="form-wrap">
+
+    <!-- 選擇事件 -->
+    <div class="ev-select-card">
+      <div class="ev-select-label">選擇事件 <span style="color:#dc2626">*</span></div>
+      <select class="ev-select-box" id="selEvent" onchange="onEventChange()">
+        <option value="">— 載入中 —</option>
+      </select>
+    </div>
+
+    <!-- 回報表單（事件選定後顯示）-->
+    <div class="form-card" id="formCard" style="display:none">
+
+      <!-- 回報人員 -->
+      <div class="form-group">
+        <label class="form-lbl">回報人員 <span class="req">*</span></label>
+        <div class="combo-wrap">
+          <input class="form-inp combo-inp" id="inpReporter" list="reporterList"
+                 placeholder="輸入姓名或從清單選擇" oninput="validate()">
+          <datalist id="reporterList"></datalist>
+        </div>
+      </div>
+
+      <!-- 回報數值 -->
+      <div class="form-group">
+        <label class="form-lbl">回報數值 <span class="req">*</span></label>
+        <div class="value-wrap">
+          <input class="form-inp value-inp" id="inpValue" type="number"
+                 min="0" step="0.001" placeholder="0.000" oninput="validate()">
+          <span class="value-unit">μSv/h</span>
+        </div>
+      </div>
+
+      <!-- 使用儀器 -->
+      <div class="form-group">
+        <label class="form-lbl">使用儀器</label>
+        <select class="form-sel" id="selInstrument">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+
+      <!-- GPS 定位 -->
+      <div class="form-group">
+        <label class="form-lbl">地點 <span class="req">*</span></label>
+        <div class="gps-wrap">
+          <button class="gps-btn" id="gpsBtn" onclick="getGPS()">
+            📍 取得目前位置
+          </button>
+          <span class="gps-status" id="gpsStatus">尚未定位</span>
+        </div>
+        <input type="hidden" id="inpLat">
+        <input type="hidden" id="inpLng">
+      </div>
+
+    </div>
+
+    <!-- 狀態 + 送出 -->
+    <div id="submitArea" style="display:none;flex-direction:column;gap:10px">
+      <div class="footer-status" id="formStatus">請填寫所有必填欄位</div>
+      <button class="submit-btn" id="btnSubmit" onclick="submitReport()" disabled>
+        📤 送出回報
+      </button>
+    </div>
+
+    <!-- 成功畫面 -->
+    <div class="success-box" id="successBox">
+      <div class="success-icon">✅</div>
+      <div style="font-size:18px;font-weight:700">回報成功！</div>
+      <div style="font-size:13px;color:#6b7a92" id="successSub"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="resetForm()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:6px;background:none;font-family:inherit;font-size:13px;cursor:pointer">再回報一筆</button>
+        <button onclick="goBack()" style="padding:9px 18px;background:#1a56db;color:white;border:none;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">返回地圖</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var _events = [];
+var _curEv  = null;
+var _lat    = null;
+var _lng    = null;
+var _jsonpCounter = 0;
+
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+function goBack() {
+  try { parent.showIframe('current-events.html'); } catch(e) {}
+}
+
+// ── 載入事件清單 ──
+function loadEvents() {
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    _events = (data && data.events) ? data.events : [];
+    var sel = document.getElementById('selEvent');
+    if (!_events.length) {
+      sel.innerHTML = '<option value="">— 目前無進行中事件 —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— 請選擇事件 —</option>' +
+      _events.map(function(ev, i) {
+        return '<option value="' + i + '">' + ev.name + '（' + (ev.type||'') + '）</option>';
+      }).join('');
+  });
+}
+
+// ── 選擇事件後填入人員和儀器 ──
+function onEventChange() {
+  var idx = document.getElementById('selEvent').value;
+  if (idx === '') {
+    _curEv = null;
+    document.getElementById('formCard').style.display = 'none';
+    document.getElementById('submitArea').style.display = 'none';
+    return;
+  }
+  _curEv = _events[parseInt(idx)];
+  document.getElementById('formCard').style.display = 'flex';
+  document.getElementById('submitArea').style.display = 'flex';
+
+  // 填入回報人員 datalist（技術組人員，從 personnelStr 解析）
+  var names = (_curEv.personnelStr || '').split(',')
+    .map(function(s){ return s.trim(); }).filter(Boolean);
+  document.getElementById('reporterList').innerHTML =
+    names.map(function(n){ return '<option value="' + n + '">'; }).join('');
+
+  // 填入儀器清單（從 instrumentStr 解析名稱）
+  var instrSel = document.getElementById('selInstrument');
+  var instrNames = [];
+  if (_curEv.instrumentStr) {
+    _curEv.instrumentStr.split(',').forEach(function(item) {
+      var m = item.trim().match(/^([^([\:]+)/);
+      if (m) {
+        var name = m[1].trim();
+        if (name && instrNames.indexOf(name) === -1) instrNames.push(name);
+      }
+    });
+  }
+  instrSel.innerHTML = '<option value="">— 不指定 —</option>' +
+    instrNames.map(function(n){ return '<option value="' + n + '">' + n + '</option>'; }).join('');
+
+  validate();
+}
+
+// ── GPS 定位 ──
+function getGPS() {
+  var btn = document.getElementById('gpsBtn');
+  var status = document.getElementById('gpsStatus');
+  btn.textContent = '⏳ 定位中…';
+  btn.disabled = true;
+
+  if (!navigator.geolocation) {
+    status.textContent = '您的瀏覽器不支援 GPS';
+    status.className = 'gps-status err';
+    btn.textContent = '📍 取得目前位置';
+    btn.disabled = false;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      _lat = pos.coords.latitude.toFixed(6);
+      _lng = pos.coords.longitude.toFixed(6);
+      document.getElementById('inpLat').value = _lat;
+      document.getElementById('inpLng').value = _lng;
+      status.textContent = '✔ ' + _lat + ', ' + _lng;
+      status.className = 'gps-status ok';
+      btn.textContent = '📍 重新定位';
+      btn.className = 'gps-btn got';
+      btn.disabled = false;
+      validate();
+    },
+    function(err) {
+      status.textContent = '定位失敗：' + (err.message || '未知錯誤');
+      status.className = 'gps-status err';
+      btn.textContent = '📍 重試';
+      btn.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+// ── 表單驗證 ──
+function validate() {
+  var reporter = document.getElementById('inpReporter').value.trim();
+  var value    = document.getElementById('inpValue').value.trim();
+  var ok = reporter && value !== '' && parseFloat(value) >= 0 && _lat !== null;
+  document.getElementById('btnSubmit').disabled = !ok;
+  var ms = [];
+  if (!reporter)   ms.push('回報人員');
+  if (!value)      ms.push('回報數值');
+  if (_lat === null) ms.push('地點（GPS）');
+  var statusEl = document.getElementById('formStatus');
+  if (ok) {
+    statusEl.textContent = '所有必填欄位已填寫 ✔';
+    statusEl.className = 'footer-status ok';
+  } else {
+    statusEl.textContent = '尚未填寫：' + ms.join('、');
+    statusEl.className = 'footer-status';
+  }
+}
+
+// ── 送出回報 ──
+function submitReport() {
+  var btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 送出中…';
+
+  var payload = {
+    action:     'addMeasurement',
+    eventId:    _curEv.id,
+    reporter:   document.getElementById('inpReporter').value.trim(),
+    value:      document.getElementById('inpValue').value.trim(),
+    instrument: document.getElementById('selInstrument').value,
+    lat:        _lat,
+    lng:        _lng
+  };
+
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode:   'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(function() {
+    document.getElementById('formCard').style.display = 'none';
+    document.getElementById('submitArea').style.display = 'none';
+    document.getElementById('evSelectCard') && (document.getElementById('evSelectCard').style.display = 'none');
+    var sub = '事件：' + _curEv.name +
+              ' ｜ ' + payload.reporter +
+              ' ｜ ' + payload.value + ' μSv/h' +
+              (payload.instrument ? ' ｜ ' + payload.instrument : '');
+    document.getElementById('successSub').textContent = sub;
+    document.getElementById('successBox').classList.add('show');
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '📤 送出回報';
+    alert('送出失敗，請確認網路連線。');
+  });
+}
+
+// ── 重置 ──
+function resetForm() {
+  _lat = null; _lng = null;
+  document.getElementById('inpReporter').value = '';
+  document.getElementById('inpValue').value = '';
+  document.getElementById('selInstrument').value = '';
+  document.getElementById('gpsBtn').textContent = '📍 取得目前位置';
+  document.getElementById('gpsBtn').className = 'gps-btn';
+  document.getElementById('gpsBtn').disabled = false;
+  document.getElementById('gpsStatus').textContent = '尚未定位';
+  document.getElementById('gpsStatus').className = 'gps-status';
+  document.getElementById('successBox').classList.remove('show');
+  document.getElementById('selEvent').value = '';
+  document.getElementById('formCard').style.display = 'none';
+  document.getElementById('submitArea').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadEvents();
+});
+</script>
+</body>
+</html>
