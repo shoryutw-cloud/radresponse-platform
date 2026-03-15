@@ -833,7 +833,7 @@ function placeMarkers() {
     marker.bindPopup(
       '<b>' + (ev.name || '') + '</b><br>' +
       (ev.type || '') + '<br>' +
-      (ev.date || '') + ' ' + (ev.time || '')
+      formatDateTime(ev.date, ev.time)
     );
     marker.on('click', function() {
       _curIdx = i;
