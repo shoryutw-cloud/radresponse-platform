@@ -1273,6 +1273,7 @@ var CE_TYPE_GROUP = {
 };
 var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
 var _ceCache = {}; // 人員快取，避免重複讀取
+var _ceSquadIdx = 0; // 小隊區塊唯一 id 計數器（全域）
 
 function ceGoPage2() {
   document.getElementById('cePage1').classList.remove('active');
@@ -1311,20 +1312,31 @@ function _ceLoadPersonnel() {
 }
 
 function _ceRenderPersonnel(groups, techId) {
-  // DEBUG：印出讀回的資料，開啟瀏覽器 F12 → Console 查看
-  console.log('[出勤人員] techId:', techId);
-  groups.forEach(function(g) {
-    console.log('[出勤人員]', g.id, g.label, '→', g.members.length, '人', g.members.length ? g.members[0] : '(空)');
-  });
+  _ceSquadIdx = 0; // 每次渲染前重置計數器，確保 id 唯一
   var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
   groups.forEach(function(g) {
-    if (!g.members.length) return;
+    if (!g.members || !g.members.length) return;
     if (g.id === techId) {
+      // 技術組：依 team 欄位分成六個小隊區塊
       var squads = {};
-      g.members.forEach(function(m){ var s=(m.team||'').trim()||'未分配'; if(!squads[s])squads[s]=[]; squads[s].push(m); });
-      CE_SQUAD_ORDER.forEach(function(s){ if(squads[s]) html += _ceSquadBlock(s, squads[s]); });
-      if (squads['未分配']) html += _ceSquadBlock('未分配', squads['未分配']);
+      g.members.forEach(function(m) {
+        var s = (m.team || '').trim();
+        if (!s) s = '未分配';
+        if (!squads[s]) squads[s] = [];
+        squads[s].push(m);
+      });
+      // 依固定順序顯示六個小隊
+      CE_SQUAD_ORDER.forEach(function(sname) {
+        if (squads[sname] && squads[sname].length) {
+          html += _ceSquadBlock(sname, squads[sname]);
+        }
+      });
+      // 隊別欄位為空或不符合的人歸入未分配
+      if (squads['未分配'] && squads['未分配'].length) {
+        html += _ceSquadBlock('未分配', squads['未分配']);
+      }
     } else {
+      // 參謀組/新聞組：直接一個區塊
       html += _ceSquadBlock(g.label, g.members);
     }
   });
@@ -1333,7 +1345,9 @@ function _ceRenderPersonnel(groups, techId) {
 }
 
 function _ceSquadBlock(title, members) {
-  var sid = 'sq' + title.replace(/[^a-zA-Z0-9]/g,'');
+  // 用全域計數器產生唯一 id，避免中文 title 導致 id 衝突
+  var sid = 'sq' + _ceSquadIdx;
+  _ceSquadIdx++;
   var h = '<div class="ce-squad">' +
     '<div class="ce-squad-hd">' +
     '<span class="ce-squad-title">' + _ceEsc(title) + '</span>' +
@@ -1341,7 +1355,7 @@ function _ceSquadBlock(title, members) {
     '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_ceChkAll(this,event)">全選</button>' +
     '</div><div class="ce-squad-bd" id="bd' + sid + '"><div class="ce-member-list">';
   members.forEach(function(m, i) {
-    var mid = sid + i;
+    var mid = sid + '_' + i;
     h += '<label class="ce-mbr" id="lbl' + mid + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_ceTglMbr(this)">' +
       '<input type="checkbox" id="cb' + mid + '" data-name="' + _ceEsc(m.name) + '" data-squad="' + _ceEsc(title) + '">' +
       _ceEsc(m.name) + '</label>';
@@ -1349,7 +1363,6 @@ function _ceSquadBlock(title, members) {
   h += '</div></div></div>';
   return h;
 }
-
 function _ceTglMbr(el) {
   var mid = el.getAttribute('data-mid');
   var sid = el.getAttribute('data-sid');
