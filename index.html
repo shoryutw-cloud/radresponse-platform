@@ -1140,11 +1140,19 @@ function _ceIco(){
 function openCreateEvent(){
   closeAllMenus(); closeSidebar();
 
-  var _p2=document.getElementById('cePage2'), _p1=document.getElementById('cePage1');
-  var _f1=document.getElementById('ceF1Btns'), _f2=document.getElementById('ceF2Btns');
-  if(_p2)_p2.classList.remove('active'); if(_p1)_p1.classList.add('active');
-  if(_f1)_f1.style.display='flex'; if(_f2)_f2.style.display='none';
-  _ceCache={};
+  // ── 確保所有頁面都重置回第一頁（無論上次停在哪一頁）──
+  ['cePage2','cePage3'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  document.getElementById('cePage1').classList.add('active');
+  document.getElementById('ceF1Btns').style.display = 'flex';
+  document.getElementById('ceF2Btns').style.display = 'none';
+  document.getElementById('ceF3Btns').style.display = 'none';
+  // 清除人員與儀器快取
+  _ceCache = {};
+  _ceSkipPersonnel = false;
+  _ceInstrCache = null;
 
   // ── 完整清空所有欄位（確保每次都是全新表單）──
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){
