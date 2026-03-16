@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -23,282 +24,284 @@
   html, body { height: 100%; overflow: hidden; }
   body { font-family: var(--font); font-size: 14px; color: var(--text); }
 
-  /* ── 地圖全螢幕 ── */
-  #map { width: 100%; height: 100%; background: #e8edf2; }
-  .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
-  .leaflet-tile-container, .leaflet-map-pane, .leaflet-overlay-pane,
-  .leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane,
-  .leaflet-popup-pane, .leaflet-control { z-index: 1 !important; }
-  .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
+/* ── 地圖全螢幕 ── */
+#map { width: 100%; height: 100%; background: #e8edf2; }
+.leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
+.leaflet-tile-container, .leaflet-map-pane, .leaflet-overlay-pane,
+.leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane,
+.leaflet-popup-pane, .leaflet-control { z-index: 1 !important; }
+.leaflet-top, .leaflet-bottom { z-index: 2 !important; }
 
-  /* ── 懸浮卡片（左上角）── */
-  .ev-card {
-    position: fixed; top: 16px; left: 16px; z-index: 1000;
-    background: var(--surface); border-radius: var(--radius);
-    box-shadow: var(--shadow-lg); width: 310px;
-    border: 1px solid var(--border);
-    transition: width .2s, box-shadow .2s;
-  }
+/* ── 懸浮卡片（左上角）── */
+.ev-card {
+position: fixed; top: 16px; left: 16px; z-index: 1000;
+background: var(–surface); border-radius: var(–radius);
+box-shadow: var(–shadow-lg); width: 310px;
+border: 1px solid var(–border);
+transition: width .2s, box-shadow .2s;
+}
 
-  /* ── 卡片標題列 ── */
-  .ev-card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; border-bottom: 1px solid var(--border);
-    cursor: default; user-select: none; gap: 8px;
-  }
-  .ev-card-title {
-    font-size: 14px; font-weight: 700; color: var(--text);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .ev-status-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #16a34a; flex-shrink: 0;
-    box-shadow: 0 0 0 2px rgba(22,163,74,.25);
-    animation: pulse 2s ease infinite;
-  }
-  @keyframes pulse { 0%,100%{box-shadow:0 0 0 2px rgba(22,163,74,.25)} 50%{box-shadow:0 0 0 5px rgba(22,163,74,.1)} }
-  .ev-status-dot.none { background: #94a3b8; animation: none; box-shadow: none; }
+/* ── 卡片標題列 ── */
+.ev-card-header {
+display: flex; align-items: center; justify-content: space-between;
+padding: 10px 14px; border-bottom: 1px solid var(–border);
+cursor: default; user-select: none; gap: 8px;
+}
+.ev-card-title {
+font-size: 14px; font-weight: 700; color: var(–text);
+display: flex; align-items: center; gap: 6px;
+}
+.ev-status-dot {
+width: 8px; height: 8px; border-radius: 50%;
+background: #16a34a; flex-shrink: 0;
+box-shadow: 0 0 0 2px rgba(22,163,74,.25);
+animation: pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 2px rgba(22,163,74,.25)} 50%{box-shadow:0 0 0 5px rgba(22,163,74,.1)} }
+.ev-status-dot.none { background: #94a3b8; animation: none; box-shadow: none; }
 
-  /* 導覽（上一筆/下一筆）*/
-  .ev-nav {
-    display: flex; align-items: center; gap: 4px; font-size: 12px;
-    color: var(--text-muted); flex-shrink: 0;
-  }
-  .ev-nav-btn {
-    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
-    background: none; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; font-size: 11px; color: var(--text-muted);
-    transition: all .12s;
-  }
-  .ev-nav-btn:hover { background: var(--bg); color: var(--accent); border-color: var(--accent); }
-  .ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
-  .ev-nav-label { font-family: var(--font-mono); min-width: 32px; text-align: center; font-size: 11px; }
+/* 導覽（上一筆/下一筆）*/
+.ev-nav {
+display: flex; align-items: center; gap: 4px; font-size: 12px;
+color: var(–text-muted); flex-shrink: 0;
+}
+.ev-nav-btn {
+width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(–border);
+background: none; cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 11px; color: var(–text-muted);
+transition: all .12s;
+}
+.ev-nav-btn:hover { background: var(–bg); color: var(–accent); border-color: var(–accent); }
+.ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+.ev-nav-label { font-family: var(–font-mono); min-width: 32px; text-align: center; font-size: 11px; }
 
-  /* 收合按鈕 */
-  .ev-collapse-btn {
-    width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border);
-    background: none; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; font-size: 12px; color: var(--text-muted);
-    transition: all .12s; flex-shrink: 0;
-  }
-  .ev-collapse-btn:hover { background: var(--bg); color: var(--accent); }
+/* 收合按鈕 */
+.ev-collapse-btn {
+width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(–border);
+background: none; cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 12px; color: var(–text-muted);
+transition: all .12s; flex-shrink: 0;
+}
+.ev-collapse-btn:hover { background: var(–bg); color: var(–accent); }
 
-  /* ── 卡片內容 ── */
-  .ev-card-body {
-    padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
-    transition: all .2s; overflow: hidden;
-  }
-  .ev-card.collapsed .ev-card-body { display: none; }
-  .ev-card.collapsed .ev-card-header { border-bottom: none; }
+/* ── 卡片內容 ── */
+.ev-card-body {
+padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+transition: all .2s; overflow: hidden;
+}
+.ev-card.collapsed .ev-card-body { display: none; }
+.ev-card.collapsed .ev-card-header { border-bottom: none; }
 
-  .ev-row {
-    display: flex; gap: 8px; align-items: flex-start;
-  }
-  .ev-lbl {
-    font-size: 13px; font-weight: 600; color: var(--text-muted);
-    letter-spacing: .02em; white-space: nowrap; min-width: 96px;
-    padding-top: 1px;
-  }
-  .ev-val {
-    font-size: 14px; color: var(--text); line-height: 1.4; word-break: break-word;
-  }
-  .ev-val.accent { color: var(--accent); font-weight: 700; }
-  .ev-val.em { font-weight: 700; font-size: 15px; }
+.ev-row {
+display: flex; gap: 8px; align-items: flex-start;
+}
+.ev-lbl {
+font-size: 13px; font-weight: 600; color: var(–text-muted);
+letter-spacing: .02em; white-space: nowrap; min-width: 96px;
+padding-top: 1px;
+}
+.ev-val {
+font-size: 14px; color: var(–text); line-height: 1.4; word-break: break-word;
+}
+.ev-val.accent { color: var(–accent); font-weight: 700; }
+.ev-val.em { font-weight: 700; font-size: 15px; }
 
-  /* 劑量率醒目樣式 */
-  .ev-row-dose {
-    background: #fff8f0; border-radius: 6px;
-    padding: 6px 8px; margin: 0 -4px;
-    border-left: 3px solid #f97316;
-  }
-  .ev-dose-val {
-    font-size: 16px !important; font-weight: 700 !important;
-    color: #ea580c !important; font-family: var(--font-mono);
-  }
-  .ev-dose-max {
-    color: #dc2626 !important;
-  }
+/* 劑量率醒目樣式 */
+.ev-row-dose {
+background: #fff8f0; border-radius: 6px;
+padding: 6px 8px; margin: 0 -4px;
+border-left: 3px solid #f97316;
+}
+.ev-dose-val {
+font-size: 16px !important; font-weight: 700 !important;
+color: #ea580c !important; font-family: var(–font-mono);
+}
+.ev-dose-max {
+color: #dc2626 !important;
+}
 
-  /* 類型標籤 */
-  .ev-type-badge {
-    display: inline-block; font-size: 11px; font-weight: 600;
-    padding: 2px 8px; border-radius: 20px;
-  }
-  .ev-type-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-  .ev-type-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
-  .ev-type-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
+/* 類型標籤 */
+.ev-type-badge {
+display: inline-block; font-size: 11px; font-weight: 600;
+padding: 2px 8px; border-radius: 20px;
+}
+.ev-type-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.ev-type-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+.ev-type-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
 
-  /* 偵檢類型 tags */
-  .ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-  .ev-tag {
-    font-size: 12px; padding: 2px 9px; border-radius: 4px;
-    background: #f0f2f5; color: var(--text-muted);
-    border: 1px solid var(--border);
-  }
+/* 偵檢類型 tags */
+.ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ev-tag {
+font-size: 12px; padding: 2px 9px; border-radius: 4px;
+background: #f0f2f5; color: var(–text-muted);
+border: 1px solid var(–border);
+}
 
-  /* 分隔線 */
-  .ev-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+/* 分隔線 */
+.ev-divider { border: none; border-top: 1px solid var(–border); margin: 2px 0; }
 
-  /* 編輯按鈕 */
-  .ev-edit-btn {
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-    padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border);
-    background: none; cursor: pointer; font-family: var(--font);
-    font-size: 12px; color: var(--text-muted); transition: all .15s; flex-shrink: 0;
-  }
-  .ev-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* 編輯按鈕 */
+.ev-edit-btn {
+display: flex; align-items: center; justify-content: center; gap: 5px;
+padding: 5px 10px; border-radius: 4px; border: 1px solid var(–border);
+background: none; cursor: pointer; font-family: var(–font);
+font-size: 12px; color: var(–text-muted); transition: all .15s; flex-shrink: 0;
+}
+.ev-edit-btn:hover { border-color: var(–accent); color: var(–accent); }
 
-  /* 編輯面板（覆蓋卡片內容）*/
-  .ev-edit-panel {
-    display: none; flex-direction: column; gap: 10px;
-    padding: 14px 16px;
-  }
-  .ev-edit-panel.show { display: flex; }
-  .ev-edit-row { display: flex; flex-direction: column; gap: 4px; }
-  .ev-edit-lbl {
-    font-size: 11px; font-weight: 600; color: var(--text-muted);
-    letter-spacing: .04em;
-  }
-  .ev-edit-inp {
-    width: 100%; padding: 7px 10px; border: 1px solid var(--border);
-    border-radius: 5px; font-family: var(--font); font-size: 13px;
-    color: var(--text); background: white; outline: none;
-    transition: border-color .15s;
-  }
-  .ev-edit-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
-  .ev-edit-sel {
-    width: 100%; padding: 7px 10px; border: 1px solid var(--border);
-    border-radius: 5px; font-family: var(--font); font-size: 13px;
-    color: var(--text); background: white; outline: none; cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
-  }
-  .ev-edit-btns { display: flex; gap: 6px; margin-top: 4px; }
-  .ev-edit-save {
-    flex: 1; padding: 8px; border-radius: 5px; border: none;
-    background: var(--accent); color: white; font-family: var(--font);
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s;
-  }
-  .ev-edit-save:hover { background: #1648c0; }
-  .ev-edit-save:disabled { background: #94a3b8; cursor: not-allowed; }
-  .ev-edit-cancel {
-    padding: 8px 14px; border-radius: 5px;
-    border: 1px solid var(--border); background: none;
-    color: var(--text-muted); font-family: var(--font); font-size: 13px;
-    cursor: pointer; transition: all .15s;
-  }
-  .ev-edit-cancel:hover { border-color: #94a3b8; color: var(--text); }
+/* 編輯面板（覆蓋卡片內容）*/
+.ev-edit-panel {
+display: none; flex-direction: column; gap: 10px;
+padding: 14px 16px;
+}
+.ev-edit-panel.show { display: flex; }
+.ev-edit-row { display: flex; flex-direction: column; gap: 4px; }
+.ev-edit-lbl {
+font-size: 11px; font-weight: 600; color: var(–text-muted);
+letter-spacing: .04em;
+}
+.ev-edit-inp {
+width: 100%; padding: 7px 10px; border: 1px solid var(–border);
+border-radius: 5px; font-family: var(–font); font-size: 13px;
+color: var(–text); background: white; outline: none;
+transition: border-color .15s;
+}
+.ev-edit-inp:focus { border-color: var(–accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+.ev-edit-sel {
+width: 100%; padding: 7px 10px; border: 1px solid var(–border);
+border-radius: 5px; font-family: var(–font); font-size: 13px;
+color: var(–text); background: white; outline: none; cursor: pointer;
+appearance: none;
+background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘8’%3E%3Cpath d=‘M1 1l5 5 5-5’ stroke=’%236b7a92’ stroke-width=‘1.5’ fill=‘none’ stroke-linecap=‘round’/%3E%3C/svg%3E”);
+background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+}
+.ev-edit-btns { display: flex; gap: 6px; margin-top: 4px; }
+.ev-edit-save {
+flex: 1; padding: 8px; border-radius: 5px; border: none;
+background: var(–accent); color: white; font-family: var(–font);
+font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.ev-edit-save:hover { background: #1648c0; }
+.ev-edit-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.ev-edit-cancel {
+padding: 8px 14px; border-radius: 5px;
+border: 1px solid var(–border); background: none;
+color: var(–text-muted); font-family: var(–font); font-size: 13px;
+cursor: pointer; transition: all .15s;
+}
+.ev-edit-cancel:hover { border-color: #94a3b8; color: var(–text); }
 
-  /* 快捷按鈕 */
-  .ev-shortcuts {
-    display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);
-    margin-top: 2px;
-  }
-  .ev-shortcut-btn {
-    flex: 1; padding: 6px 8px; border-radius: 5px;
-    border: 1px solid var(--border); background: none;
-    font-family: var(--font); font-size: 12px; color: var(--text-muted);
-    cursor: pointer; transition: all .15s; text-align: center; white-space: nowrap;
-  }
-  .ev-shortcut-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
+/* 快捷按鈕 */
+.ev-shortcuts {
+display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(–border);
+margin-top: 2px;
+}
+.ev-shortcut-btn {
+flex: 1; padding: 6px 8px; border-radius: 5px;
+border: 1px solid var(–border); background: none;
+font-family: var(–font); font-size: 12px; color: var(–text-muted);
+cursor: pointer; transition: all .15s; text-align: center; white-space: nowrap;
+}
+.ev-shortcut-btn:hover { border-color: var(–accent); color: var(–accent); background: var(–hover); }
 
-  /* 無事件狀態 */
-  .ev-empty {
-    text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px;
-  }
+/* 無事件狀態 */
+.ev-empty {
+text-align: center; padding: 16px 0; color: var(–text-muted); font-size: 13px;
+}
 
-  /* 載入中 */
-  .ev-loading { text-align: center; padding: 12px 0; color: var(--text-muted); font-size: 13px; }
+/* 載入中 */
+.ev-loading { text-align: center; padding: 12px 0; color: var(–text-muted); font-size: 13px; }
 
-  /* ── 圖層控制面板 ── */
-  .layer-panel {
-    position: fixed; top: 16px; right: 16px; z-index: 1000;
-    background: var(--surface); border-radius: var(--radius);
-    box-shadow: var(--shadow-lg); width: 200px;
-    border: 1px solid var(--border);
-  }
-  .layer-panel-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; border-bottom: 1px solid var(--border);
-    font-size: 13px; font-weight: 700; color: var(--text); user-select: none;
-  }
-  .layer-panel-body { padding: 8px 0; display: flex; flex-direction: column;
-                        max-height: calc(100vh - 200px); overflow-y: auto; }
-  .layer-panel-body::-webkit-scrollbar { width: 3px; }
-  .layer-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .layer-panel.collapsed .layer-panel-body { display: none; }
-  .layer-panel.collapsed .layer-panel-header { border-bottom: none; }
-  /* 每個事件的圖層區塊 */
-  .layer-ev-block { padding: 8px 14px; border-bottom: 1px solid var(--border); }
-  .layer-ev-block:last-child { border-bottom: none; }
-  .layer-ev-name {
-    font-size: 12px; font-weight: 700; color: var(--text);
-    margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .layer-ev-cbs { display: flex; flex-direction: column; gap: 4px; }
-  .layer-row {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none;
-  }
-  .layer-row input[type=checkbox] {
-    width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent);
-    flex-shrink: 0;
-  }
-  .layer-dot {
-    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
-  }
-  .layer-collapse-btn {
-    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
-    background: none; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; font-size: 11px; color: var(--text-muted);
-    transition: all .12s; flex-shrink: 0;
-  }
-  .layer-collapse-btn:hover { background: var(--bg); }
+/* ── 圖層控制面板 ── */
+.layer-panel {
+position: fixed; top: 16px; right: 16px; z-index: 1000;
+background: var(–surface); border-radius: var(–radius);
+box-shadow: var(–shadow-lg); width: 200px;
+border: 1px solid var(–border);
+}
+.layer-panel-header {
+display: flex; align-items: center; justify-content: space-between;
+padding: 10px 14px; border-bottom: 1px solid var(–border);
+font-size: 13px; font-weight: 700; color: var(–text); user-select: none;
+}
+.layer-panel-body { padding: 8px 0; display: flex; flex-direction: column;
+max-height: calc(100vh - 200px); overflow-y: auto; }
+.layer-panel-body::-webkit-scrollbar { width: 3px; }
+.layer-panel-body::-webkit-scrollbar-thumb { background: var(–border); border-radius: 2px; }
+.layer-panel.collapsed .layer-panel-body { display: none; }
+.layer-panel.collapsed .layer-panel-header { border-bottom: none; }
+/* 每個事件的圖層區塊 */
+.layer-ev-block { padding: 8px 14px; border-bottom: 1px solid var(–border); }
+.layer-ev-block:last-child { border-bottom: none; }
+.layer-ev-name {
+font-size: 12px; font-weight: 700; color: var(–text);
+margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.layer-ev-cbs { display: flex; flex-direction: column; gap: 4px; }
+.layer-row {
+display: flex; align-items: center; gap: 6px;
+font-size: 12px; color: var(–text-muted); cursor: pointer; user-select: none;
+}
+.layer-row input[type=checkbox] {
+width: 14px; height: 14px; cursor: pointer; accent-color: var(–accent);
+flex-shrink: 0;
+}
+.layer-dot {
+width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.layer-collapse-btn {
+width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(–border);
+background: none; cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 11px; color: var(–text-muted);
+transition: all .12s; flex-shrink: 0;
+}
+.layer-collapse-btn:hover { background: var(–bg); }
 
-  /* ── 量測標記 popup ── */
-  .msr-popup { font-family: var(--font); min-width: 140px; }
-  .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
-                   font-family: var(--font-mono); }
-  .msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
-  .msr-popup-info { font-size: 12px; color: #6b7a92; margin-top: 3px; }
+/* ── 量測標記 popup ── */
+.msr-popup { font-family: var(–font); min-width: 140px; }
+.msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
+font-family: var(–font-mono); }
+.msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
+.msr-popup-info { font-size: 12px; color: #6b7a92; margin-top: 3px; }
 
-  /* ── 右下角返回按鈕 ── */
-  .back-btn {
-    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
-    display: flex; align-items: center; gap: 6px;
-    background: white; border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 8px 16px;
-    font-family: var(--font); font-size: 13px; color: var(--text-muted);
-    cursor: pointer; box-shadow: var(--shadow-md);
-    transition: all .15s;
-  }
-  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* ── 右下角返回按鈕 ── */
+.back-btn {
+position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+display: flex; align-items: center; gap: 6px;
+background: white; border: 1px solid var(–border);
+border-radius: var(–radius); padding: 8px 16px;
+font-family: var(–font); font-size: 13px; color: var(–text-muted);
+cursor: pointer; box-shadow: var(–shadow-md);
+transition: all .15s;
+}
+.back-btn:hover { border-color: var(–accent); color: var(–accent); }
 
-  /* ── 地圖縮放按鈕 ── */
-  .map-controls {
-    position: fixed; bottom: 24px; right: 80px; z-index: 999;
-    display: flex; flex-direction: column; gap: 2px;
-  }
-  .map-ctrl-btn {
-    width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
-    border-radius: 4px; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; font-size: 18px; color: var(--text-muted);
-    box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
-  }
-  .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
+/* ── 地圖縮放按鈕 ── */
+.map-controls {
+position: fixed; bottom: 24px; right: 80px; z-index: 999;
+display: flex; flex-direction: column; gap: 2px;
+}
+.map-ctrl-btn {
+width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
+border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 18px; color: var(–text-muted);
+box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
+}
+.map-ctrl-btn:hover { background: #f0f4ff; color: var(–accent); }
 
-  /* ── RWD ── */
-  @media (max-width: 480px) {
-    .ev-card { width: calc(100vw - 32px); }
-  }
+/* ── RWD ── */
+@media (max-width: 480px) {
+.ev-card { width: calc(100vw - 32px); }
+}
 </style>
+
 </head>
 <body>
 
 <div id="map"></div>
 
 <!-- 懸浮事件卡片 -->
+
 <div class="ev-card" id="evCard">
   <div class="ev-card-header">
     <div class="ev-card-title">
@@ -324,11 +327,11 @@
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl">目前劑量率</label>
-      <input class="ev-edit-inp" id="editDoseRate" placeholder="例：0.15 μSv/h">
+      <input class="ev-edit-inp" id="editDoseRate" placeholder="例：0.15 uSv/h">
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl">最大劑量率</label>
-      <input class="ev-edit-inp" id="editDoseMax" placeholder="例：2.3 μSv/h">
+      <input class="ev-edit-inp" id="editDoseMax" placeholder="例：2.3 uSv/h">
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl">預估影響範圍</label>
@@ -349,12 +352,14 @@
 </div>
 
 <!-- 地圖縮放 -->
+
 <div class="map-controls">
   <button class="map-ctrl-btn" id="zoomIn">&#xff0b;</button>
   <button class="map-ctrl-btn" id="zoomOut">&#xff0d;</button>
 </div>
 
 <!-- 圖層控制面板 -->
+
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
     &#x1F5FA;&#xFE0F; 圖層顯示
@@ -371,7 +376,8 @@
 </div>
 
 <!-- 返回地圖 -->
-<button class="back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
+
+<button class="back-btn" onclick="goBack()">← 返回地圖</button>
 
 <script>
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
@@ -707,7 +713,8 @@ function flyToEvent(idx) {
   });
   // 更新半透明圓形
   buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
-  loadMeasurements(idx);
+  loadMeasurements(idx, true);
+  startMsrTimer(idx);
 }
 
 // ── 圖層物件：每個事件獨立存放 ──
@@ -805,14 +812,16 @@ function removeLayers() {
   _events.forEach(function(_, i) { removeEventLayers(i); });
 }
 
-// ── 載入並顯示量測標記 ──
-function loadMeasurements(idx) {
+// ── 定時刷新計時器 ──
+var _msrTimer = null;
+
+// ── 載入並顯示量測標記（force=true 時略過快取）──
+function loadMeasurements(idx, force) {
   if (!gMap) return;
   var ev = _events[idx];
   if (!ev) return;
 
-  // 若有快取直接用
-  if (_msrCache[ev.id]) {
+  if (!force && _msrCache[ev.id]) {
     renderMsrMarkers(ev.id);
     return;
   }
@@ -821,6 +830,19 @@ function loadMeasurements(idx) {
     _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
     renderMsrMarkers(ev.id);
   });
+}
+
+// ── 啟動定時刷新（5秒）──
+function startMsrTimer(idx) {
+  stopMsrTimer();
+  _msrTimer = setInterval(function() {
+    var cb = document.getElementById('lyr_' + idx + '_msr');
+    if (cb && cb.checked) loadMeasurements(idx, true);
+  }, 5000);
+}
+
+function stopMsrTimer() {
+  if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
 }
 
 function renderMsrMarkers(eventId) {
@@ -834,8 +856,8 @@ function renderMsrMarkers(eventId) {
     if (isNaN(lat) || isNaN(lng)) return;
     var val = parseFloat(msr.value);
 
-    // 依數值決定顏色：>10 紅, >1 橘, >0.1 黃, 其他綠
-    var col = val > 10 ? '#dc2626' : val > 1 ? '#f97316' : val > 0.1 ? '#eab308' : '#16a34a';
+    // 依數值決定顏色：>=100 紅, >=0.5 橘, <0.5 綠
+    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
 
     var icon = L.divIcon({
       className: '',
@@ -848,7 +870,7 @@ function renderMsrMarkers(eventId) {
               'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;' +
               '">' +
               '<span style="font-size:14px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' + val.toFixed(3) + '</span>' +
-              '<span style="font-size:11px;font-weight:500;color:#6b7a92;font-family:ui-monospace,monospace">μSv/h</span>' +
+              '<span style="font-size:11px;font-weight:500;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
             '</div>',
       iconAnchor: [40, 16]
     });
@@ -863,7 +885,7 @@ function renderMsrMarkers(eventId) {
     marker.bindPopup(
       '<div class="msr-popup">' +
       '<span class="msr-popup-val">' + val.toFixed(3) + '</span>' +
-      '<span class="msr-popup-unit">μSv/h</span>' +
+      '<span class="msr-popup-unit">&#x03BC;Sv/h</span>' +
       '<div class="msr-popup-info">' + (msr.reporter || '') + (timeStr ? ' · ' + timeStr : '') + '</div>' +
       (msr.instrument ? '<div class="msr-popup-info">' + msr.instrument + '</div>' : '') +
       '</div>'
@@ -896,8 +918,10 @@ function toggleMsrLayer(idx) {
   var cb = document.getElementById('lyr_' + idx + '_msr');
   if (!cb) return;
   if (cb.checked) {
-    loadMeasurements(idx);
+    loadMeasurements(idx, true);
+    startMsrTimer(idx);
   } else {
+    stopMsrTimer();
     _msrMarkers.forEach(function(m) { m.remove(); });
     _msrMarkers = [];
   }
@@ -1013,5 +1037,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
 </body>
 </html>
