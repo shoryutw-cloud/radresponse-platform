@@ -250,7 +250,28 @@ function _jsonpGet(url, cb) {
 }
 
 function goBack() {
-  try { parent.showIframe('current-events.html'); } catch(e) {}
+  var sel = document.getElementById('selEvent');
+  var idx = sel ? parseInt(sel.value, 10) : NaN;
+  var evId = (!isNaN(idx) && _events[idx]) ? _events[idx].id : null;
+  if (evId) {
+    try { sessionStorage.setItem('gotoEventId', evId); } catch(e) {}
+  }
+  try {
+    parent.showIframe('current-events.html');
+    if (evId) {
+      setTimeout(function() {
+        try {
+          var frames = parent.document.querySelectorAll('iframe');
+          for (var i = 0; i < frames.length; i++) {
+            if ((frames[i].src || '').indexOf('current-events.html') > -1) {
+              frames[i].contentWindow.postMessage({ type: 'setEventId', id: evId }, '*');
+              break;
+            }
+          }
+        } catch(e2) {}
+      }, 600);
+    }
+  } catch(e) {}
 }
 
 // ── 載入事件清單 ──
