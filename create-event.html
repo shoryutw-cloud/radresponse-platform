@@ -616,7 +616,9 @@ var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊
 // ── 全域狀態 ──
 var _ceMap = null, _ceMk = null, _ceLat = null, _ceLng = null, _ceTmr = null;
 var _ceCache = {};        // 人員快取
+var _cePersonnelRendered = false; // 是否已渲染過人員清單
 var _ceInstrCache = null; // 儀器快取
+var _ceInstrRendered = false; // 是否已渲染過儀器表格
 var _ceSkipPersonnel = false;
 var _ceSquadIdx = 0;
 var _jsonpCounter = 0;
@@ -883,6 +885,12 @@ function clearP1() {
 function _loadPersonnel() {
   var techId = CE_TYPE_GROUP[document.getElementById('ceType').value];
   var box = document.getElementById('cePersonnel');
+  // 已渲染過就保留勾選狀態，只顯示 count bar
+  if (_cePersonnelRendered) {
+    var selBar = document.getElementById('ceSelCountBar');
+    if (selBar) selBar.style.display = '';
+    return;
+  }
   box.innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
   var targets = [
     { id: techId,  label: '技術組' },
@@ -926,6 +934,7 @@ function _renderPersonnel(groups, techId) {
   });
   document.getElementById('cePersonnel').innerHTML = html;
   _updateSelCount();
+  _cePersonnelRendered = true;
 }
 
 function _squadBlock(title, members) {
@@ -999,6 +1008,12 @@ function _getSelectedTechNames() {
 // ════════════════════════════════════════
 function _loadInstruments() {
   var wrap = document.getElementById('ceInstrWrap');
+  // 已渲染過就只顯示 count bar，保留勾選狀態
+  if (_ceInstrCache && _ceInstrRendered) {
+    var instrBar = document.getElementById('ceInstrCountBar');
+    if (instrBar) instrBar.style.display = '';
+    return;
+  }
   if (_ceInstrCache) { _renderInstruments(_ceInstrCache); return; }
   wrap.innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
   _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
@@ -1048,6 +1063,7 @@ function _renderInstruments(data) {
   });
   html += '</tbody></table>';
   wrap.innerHTML = html;
+  _ceInstrRendered = true;
 }
 
 // 全選 / 取消全選
@@ -1297,9 +1313,11 @@ function ceReset() {
   document.getElementById('ceOK').classList.remove('show');
   clearP1();
   _ceCache = {};
+  _cePersonnelRendered = false;
   _ceSkipPersonnel = false;
   _ceSkipInstruments = false;
   _ceInstrCache = null;
+  _ceInstrRendered = false;
   // 重置附件
   _attachUrl = ''; _attachUploading = false;
   try { document.getElementById('ceAttachFile').value = ''; } catch(e) {}
