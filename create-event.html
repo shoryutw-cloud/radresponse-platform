@@ -169,11 +169,16 @@
   .ce-personnel::-webkit-scrollbar { width: 3px; }
   .ce-personnel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .ce-p-loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 15px; }
+  .ce-count-bar {
+    flex-shrink: 0; padding: 9px 24px;
+    background: #f8fafc; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text-muted);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .ce-count-bar strong { color: var(--accent); font-size: 15px; }
   .ce-sel-count {
-    font-size: 13px; color: var(--text-muted); margin: -20px -24px 14px -24px; padding: 10px 24px;
-    background: #f8fafc; border-radius: 0; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 10;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    font-size: 13px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
+    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
   }
   .ce-sel-count strong { color: var(--accent); font-size: 15px; }
   .ce-squad { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -208,10 +213,8 @@
   .ce-instr-wrap::-webkit-scrollbar { width: 3px; }
   .ce-instr-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .ce-instr-count {
-    font-size: 13px; color: var(--text-muted); margin: -20px -24px 14px -24px; padding: 10px 24px;
-    background: #f8fafc; border-radius: 0; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 10;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    font-size: 13px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
+    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
   }
   .ce-instr-count strong { color: var(--accent); font-size: 15px; }
   .ce-instr-tbl { width: 100%; border-collapse: collapse; }
@@ -464,14 +467,16 @@
   </div>
 
   <!-- 第二頁 -->
-  <div class="ce-page" id="cePage2">
+  <div class="ce-page" id="cePage2" style="flex-direction:column">
+    <div class="ce-count-bar" id="ceSelCountBar" style="display:none">已勾選：<strong id="ceSelN">0</strong> 人</div>
     <div class="ce-personnel" id="cePersonnel">
       <div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>
     </div>
   </div>
 
   <!-- 第三頁 -->
-  <div class="ce-page" id="cePage3">
+  <div class="ce-page" id="cePage3" style="flex-direction:column">
+    <div class="ce-count-bar" id="ceInstrCountBar" style="display:none">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>
     <div class="ce-instr-wrap" id="ceInstrWrap">
       <div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>
     </div>
@@ -872,7 +877,10 @@ function _loadPersonnel() {
 
 function _renderPersonnel(groups, techId) {
   _ceSquadIdx = 0;
-  var html = '<div class="ce-sel-count">已勾選：<strong id="ceSelN">0</strong> 人</div>';
+  // 顯示固定 count bar
+  var countBar = document.getElementById('ceSelCountBar');
+  if (countBar) countBar.style.display = '';
+  var html = '';
   groups.forEach(function(g) {
     if (!g.members || !g.members.length) return;
     if (g.id === techId) {
@@ -987,7 +995,10 @@ function _renderInstruments(data) {
   var displayCols = columns.slice(0, userColIdx);
   var techNames = _getSelectedTechNames();
 
-  var html = '<div class="ce-instr-count">已勾選：<strong id="ceInstrN">0</strong> 件儀器</div>';
+  // 顯示固定 count bar
+  var instrBar = document.getElementById('ceInstrCountBar');
+  if (instrBar) instrBar.style.display = '';
+  var html = '';
   html += '<table class="ce-instr-tbl"><thead><tr>';
   // 全選 checkbox
   html += '<th class="ce-instr-chk"><input type="checkbox" id="icbAll" title="全選／取消全選" onchange="_instrChgAll(this)" style="width:16px;height:16px;cursor:pointer;accent-color:#1a56db;margin:0;vertical-align:middle"></th>';
