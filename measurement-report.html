@@ -192,7 +192,7 @@
         <div class="combo-wrap" id="reporterWrap">
           <input class="form-inp combo-inp" id="inpReporter" autocomplete="off"
                  placeholder="輸入姓名或從清單選擇"
-                 oninput="reporterFilter()" onfocus="reporterOpen()">
+                 oninput="reporterFilter()">
           <button class="combo-arrow" type="button" onclick="reporterToggle()">&#x25BC;</button>
           <div class="combo-list" id="reporterList"></div>
         </div>
@@ -374,16 +374,18 @@ function reporterFilter() {
   renderReporterList(document.getElementById('inpReporter').value);
   validate();
 }
-function reporterOpen() {
-  renderReporterList(document.getElementById('inpReporter').value);
-}
+
 function reporterToggle() {
   var list = document.getElementById('reporterList');
   if (list.classList.contains('show')) {
     list.classList.remove('show');
   } else {
+    // 清空輸入，展開完整清單，讓使用者重新選擇
+    var inp = document.getElementById('inpReporter');
+    inp.value = '';
+    validate();
     renderReporterList('');
-    document.getElementById('inpReporter').focus();
+    inp.focus();
   }
 }
 // 點外側關閉
