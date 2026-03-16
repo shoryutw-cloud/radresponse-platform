@@ -706,8 +706,8 @@ function goBack() {
 }
 
 function goCurrentEvents() {
-  // 新建事件為最新一筆，index = 0
-  try { sessionStorage.setItem('currentEventIdx', '0'); } catch(e) {}
+  var evId = document.getElementById('ceEvId').textContent;
+  try { sessionStorage.setItem('gotoEventId', evId); } catch(e) {}
   try {
     parent.showIframe('current-events.html');
     // 延遲 postMessage 確保 current-events iframe 已載入
@@ -717,12 +717,12 @@ function goCurrentEvents() {
         for (var i = 0; i < frames.length; i++) {
           var src = frames[i].src || '';
           if (src.indexOf('current-events.html') > -1) {
-            frames[i].contentWindow.postMessage({ type: 'setIdx', idx: 0 }, '*');
+            frames[i].contentWindow.postMessage({ type: 'setEventId', id: evId }, '*');
             break;
           }
         }
       } catch(e2) {}
-    }, 300);
+    }, 600);
   } catch(e) { location.href = 'current-events.html'; }
 }
 
