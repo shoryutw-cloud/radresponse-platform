@@ -1306,6 +1306,9 @@ function ceReset() {
   document.getElementById('ceAttachText').textContent = '點擊選擇檔案（PDF、JPG、PNG）';
   ceAttachSetStatus('', '');
   document.getElementById('ceSmsStatus').textContent = '';
+  // 重置建立事件按鈕
+  var subBtn = document.getElementById('ceSubP4');
+  if (subBtn) { subBtn.disabled = false; subBtn.innerHTML = '&#x2705; 建立事件'; }
   showOnlyPage(1);
   // 重新查詢編號
   document.getElementById('ceEvId').textContent = '查詢中…';
