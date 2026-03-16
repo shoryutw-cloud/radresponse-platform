@@ -35,20 +35,20 @@
 /* ── 懸浮卡片（左上角）── */
 .ev-card {
 position: fixed; top: 16px; left: 16px; z-index: 1000;
-background: var(–surface); border-radius: var(–radius);
-box-shadow: var(–shadow-lg); width: 310px;
-border: 1px solid var(–border);
+background: var(--surface); border-radius: var(--radius);
+box-shadow: var(--shadow-lg); width: 310px;
+border: 1px solid var(--border);
 transition: width .2s, box-shadow .2s;
 }
 
 /* ── 卡片標題列 ── */
 .ev-card-header {
 display: flex; align-items: center; justify-content: space-between;
-padding: 10px 14px; border-bottom: 1px solid var(–border);
+padding: 10px 14px; border-bottom: 1px solid var(--border);
 cursor: default; user-select: none; gap: 8px;
 }
 .ev-card-title {
-font-size: 14px; font-weight: 700; color: var(–text);
+font-size: 14px; font-weight: 700; color: var(--text);
 display: flex; align-items: center; gap: 6px;
 }
 .ev-status-dot {
@@ -63,26 +63,26 @@ animation: pulse 2s ease infinite;
 /* 導覽（上一筆/下一筆）*/
 .ev-nav {
 display: flex; align-items: center; gap: 4px; font-size: 12px;
-color: var(–text-muted); flex-shrink: 0;
+color: var(--text-muted); flex-shrink: 0;
 }
 .ev-nav-btn {
-width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(–border);
+width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
 background: none; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 11px; color: var(–text-muted);
+justify-content: center; font-size: 11px; color: var(--text-muted);
 transition: all .12s;
 }
-.ev-nav-btn:hover { background: var(–bg); color: var(–accent); border-color: var(–accent); }
+.ev-nav-btn:hover { background: var(--bg); color: var(--accent); border-color: var(--accent); }
 .ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
-.ev-nav-label { font-family: var(–font-mono); min-width: 32px; text-align: center; font-size: 11px; }
+.ev-nav-label { font-family: var(--font-mono); min-width: 32px; text-align: center; font-size: 11px; }
 
 /* 收合按鈕 */
 .ev-collapse-btn {
-width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(–border);
+width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border);
 background: none; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 12px; color: var(–text-muted);
+justify-content: center; font-size: 12px; color: var(--text-muted);
 transition: all .12s; flex-shrink: 0;
 }
-.ev-collapse-btn:hover { background: var(–bg); color: var(–accent); }
+.ev-collapse-btn:hover { background: var(--bg); color: var(--accent); }
 
 /* ── 卡片內容 ── */
 .ev-card-body {
@@ -96,14 +96,14 @@ transition: all .2s; overflow: hidden;
 display: flex; gap: 8px; align-items: flex-start;
 }
 .ev-lbl {
-font-size: 13px; font-weight: 600; color: var(–text-muted);
+font-size: 13px; font-weight: 600; color: var(--text-muted);
 letter-spacing: .02em; white-space: nowrap; min-width: 96px;
 padding-top: 1px;
 }
 .ev-val {
-font-size: 14px; color: var(–text); line-height: 1.4; word-break: break-word;
+font-size: 14px; color: var(--text); line-height: 1.4; word-break: break-word;
 }
-.ev-val.accent { color: var(–accent); font-weight: 700; }
+.ev-val.accent { color: var(--accent); font-weight: 700; }
 .ev-val.em { font-weight: 700; font-size: 15px; }
 
 /* 劑量率醒目樣式 */
@@ -114,7 +114,7 @@ border-left: 3px solid #f97316;
 }
 .ev-dose-val {
 font-size: 16px !important; font-weight: 700 !important;
-color: #ea580c !important; font-family: var(–font-mono);
+color: #ea580c !important; font-family: var(--font-mono);
 }
 .ev-dose-max {
 color: #dc2626 !important;
@@ -133,21 +133,21 @@ padding: 2px 8px; border-radius: 20px;
 .ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .ev-tag {
 font-size: 12px; padding: 2px 9px; border-radius: 4px;
-background: #f0f2f5; color: var(–text-muted);
-border: 1px solid var(–border);
+background: #f0f2f5; color: var(--text-muted);
+border: 1px solid var(--border);
 }
 
 /* 分隔線 */
-.ev-divider { border: none; border-top: 1px solid var(–border); margin: 2px 0; }
+.ev-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
 
 /* 編輯按鈕 */
 .ev-edit-btn {
 display: flex; align-items: center; justify-content: center; gap: 5px;
-padding: 5px 10px; border-radius: 4px; border: 1px solid var(–border);
-background: none; cursor: pointer; font-family: var(–font);
-font-size: 12px; color: var(–text-muted); transition: all .15s; flex-shrink: 0;
+padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border);
+background: none; cursor: pointer; font-family: var(--font);
+font-size: 12px; color: var(--text-muted); transition: all .15s; flex-shrink: 0;
 }
-.ev-edit-btn:hover { border-color: var(–accent); color: var(–accent); }
+.ev-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* 編輯面板（覆蓋卡片內容）*/
 .ev-edit-panel {
@@ -157,20 +157,20 @@ padding: 14px 16px;
 .ev-edit-panel.show { display: flex; }
 .ev-edit-row { display: flex; flex-direction: column; gap: 4px; }
 .ev-edit-lbl {
-font-size: 11px; font-weight: 600; color: var(–text-muted);
+font-size: 11px; font-weight: 600; color: var(--text-muted);
 letter-spacing: .04em;
 }
 .ev-edit-inp {
-width: 100%; padding: 7px 10px; border: 1px solid var(–border);
-border-radius: 5px; font-family: var(–font); font-size: 13px;
-color: var(–text); background: white; outline: none;
+width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+border-radius: 5px; font-family: var(--font); font-size: 13px;
+color: var(--text); background: white; outline: none;
 transition: border-color .15s;
 }
-.ev-edit-inp:focus { border-color: var(–accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+.ev-edit-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
 .ev-edit-sel {
-width: 100%; padding: 7px 10px; border: 1px solid var(–border);
-border-radius: 5px; font-family: var(–font); font-size: 13px;
-color: var(–text); background: white; outline: none; cursor: pointer;
+width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+border-radius: 5px; font-family: var(--font); font-size: 13px;
+color: var(--text); background: white; outline: none; cursor: pointer;
 appearance: none;
 background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘8’%3E%3Cpath d=‘M1 1l5 5 5-5’ stroke=’%236b7a92’ stroke-width=‘1.5’ fill=‘none’ stroke-linecap=‘round’/%3E%3C/svg%3E”);
 background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
@@ -178,89 +178,89 @@ background-repeat: no-repeat; background-position: right 10px center; padding-ri
 .ev-edit-btns { display: flex; gap: 6px; margin-top: 4px; }
 .ev-edit-save {
 flex: 1; padding: 8px; border-radius: 5px; border: none;
-background: var(–accent); color: white; font-family: var(–font);
+background: var(--accent); color: white; font-family: var(--font);
 font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s;
 }
 .ev-edit-save:hover { background: #1648c0; }
 .ev-edit-save:disabled { background: #94a3b8; cursor: not-allowed; }
 .ev-edit-cancel {
 padding: 8px 14px; border-radius: 5px;
-border: 1px solid var(–border); background: none;
-color: var(–text-muted); font-family: var(–font); font-size: 13px;
+border: 1px solid var(--border); background: none;
+color: var(--text-muted); font-family: var(--font); font-size: 13px;
 cursor: pointer; transition: all .15s;
 }
-.ev-edit-cancel:hover { border-color: #94a3b8; color: var(–text); }
+.ev-edit-cancel:hover { border-color: #94a3b8; color: var(--text); }
 
 /* 快捷按鈕 */
 .ev-shortcuts {
-display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(–border);
+display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);
 margin-top: 2px;
 }
 .ev-shortcut-btn {
 flex: 1; padding: 6px 8px; border-radius: 5px;
-border: 1px solid var(–border); background: none;
-font-family: var(–font); font-size: 12px; color: var(–text-muted);
+border: 1px solid var(--border); background: none;
+font-family: var(--font); font-size: 12px; color: var(--text-muted);
 cursor: pointer; transition: all .15s; text-align: center; white-space: nowrap;
 }
-.ev-shortcut-btn:hover { border-color: var(–accent); color: var(–accent); background: var(–hover); }
+.ev-shortcut-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
 
 /* 無事件狀態 */
 .ev-empty {
-text-align: center; padding: 16px 0; color: var(–text-muted); font-size: 13px;
+text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px;
 }
 
 /* 載入中 */
-.ev-loading { text-align: center; padding: 12px 0; color: var(–text-muted); font-size: 13px; }
+.ev-loading { text-align: center; padding: 12px 0; color: var(--text-muted); font-size: 13px; }
 
 /* ── 圖層控制面板 ── */
 .layer-panel {
 position: fixed; top: 16px; right: 16px; z-index: 1000;
-background: var(–surface); border-radius: var(–radius);
-box-shadow: var(–shadow-lg); width: 200px;
-border: 1px solid var(–border);
+background: var(--surface); border-radius: var(--radius);
+box-shadow: var(--shadow-lg); width: 200px;
+border: 1px solid var(--border);
 }
 .layer-panel-header {
 display: flex; align-items: center; justify-content: space-between;
-padding: 10px 14px; border-bottom: 1px solid var(–border);
-font-size: 13px; font-weight: 700; color: var(–text); user-select: none;
+padding: 10px 14px; border-bottom: 1px solid var(--border);
+font-size: 13px; font-weight: 700; color: var(--text); user-select: none;
 }
 .layer-panel-body { padding: 8px 0; display: flex; flex-direction: column;
 max-height: calc(100vh - 200px); overflow-y: auto; }
 .layer-panel-body::-webkit-scrollbar { width: 3px; }
-.layer-panel-body::-webkit-scrollbar-thumb { background: var(–border); border-radius: 2px; }
+.layer-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .layer-panel.collapsed .layer-panel-body { display: none; }
 .layer-panel.collapsed .layer-panel-header { border-bottom: none; }
 /* 每個事件的圖層區塊 */
-.layer-ev-block { padding: 8px 14px; border-bottom: 1px solid var(–border); }
+.layer-ev-block { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 .layer-ev-block:last-child { border-bottom: none; }
 .layer-ev-name {
-font-size: 12px; font-weight: 700; color: var(–text);
+font-size: 12px; font-weight: 700; color: var(--text);
 margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .layer-ev-cbs { display: flex; flex-direction: column; gap: 4px; }
 .layer-row {
 display: flex; align-items: center; gap: 6px;
-font-size: 12px; color: var(–text-muted); cursor: pointer; user-select: none;
+font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none;
 }
 .layer-row input[type=checkbox] {
-width: 14px; height: 14px; cursor: pointer; accent-color: var(–accent);
+width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent);
 flex-shrink: 0;
 }
 .layer-dot {
 width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
 }
 .layer-collapse-btn {
-width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(–border);
+width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
 background: none; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 11px; color: var(–text-muted);
+justify-content: center; font-size: 11px; color: var(--text-muted);
 transition: all .12s; flex-shrink: 0;
 }
-.layer-collapse-btn:hover { background: var(–bg); }
+.layer-collapse-btn:hover { background: var(--bg); }
 
 /* ── 量測標記 popup ── */
-.msr-popup { font-family: var(–font); min-width: 140px; }
+.msr-popup { font-family: var(--font); min-width: 140px; }
 .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
-font-family: var(–font-mono); }
+font-family: var(--font-mono); }
 .msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
 .msr-popup-info { font-size: 12px; color: #6b7a92; margin-top: 3px; }
 
@@ -268,13 +268,13 @@ font-family: var(–font-mono); }
 .back-btn {
 position: fixed; bottom: 24px; right: 24px; z-index: 1000;
 display: flex; align-items: center; gap: 6px;
-background: white; border: 1px solid var(–border);
-border-radius: var(–radius); padding: 8px 16px;
-font-family: var(–font); font-size: 13px; color: var(–text-muted);
-cursor: pointer; box-shadow: var(–shadow-md);
+background: white; border: 1px solid var(--border);
+border-radius: var(--radius); padding: 8px 16px;
+font-family: var(--font); font-size: 13px; color: var(--text-muted);
+cursor: pointer; box-shadow: var(--shadow-md);
 transition: all .15s;
 }
-.back-btn:hover { border-color: var(–accent); color: var(–accent); }
+.back-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── 地圖縮放按鈕 ── */
 .map-controls {
@@ -284,10 +284,10 @@ display: flex; flex-direction: column; gap: 2px;
 .map-ctrl-btn {
 width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
 border-radius: 4px; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 18px; color: var(–text-muted);
+justify-content: center; font-size: 18px; color: var(--text-muted);
 box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 }
-.map-ctrl-btn:hover { background: #f0f4ff; color: var(–accent); }
+.map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
 
 /* ── RWD ── */
 @media (max-width: 480px) {
