@@ -1318,6 +1318,30 @@ function ceReset() {
   _ceSkipInstruments = false;
   _ceInstrCache = null;
   _ceInstrRendered = false;
+  // 重置 count bar 數字與顯示狀態
+  var selN = document.getElementById('ceSelN');
+  if (selN) selN.textContent = '0';
+  var instrN = document.getElementById('ceInstrN');
+  if (instrN) instrN.textContent = '0';
+  var selBar = document.getElementById('ceSelCountBar');
+  if (selBar) selBar.style.display = 'none';
+  var instrBar = document.getElementById('ceInstrCountBar');
+  if (instrBar) instrBar.style.display = 'none';
+  // 重置人員/儀器內容區
+  document.getElementById('cePersonnel').innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
+  document.getElementById('ceInstrWrap').innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
+  // 重置 count bar
+  var selBar = document.getElementById('ceSelCountBar');
+  if (selBar) selBar.style.display = 'none';
+  var selN = document.getElementById('ceSelN');
+  if (selN) selN.textContent = '0';
+  var instrBar = document.getElementById('ceInstrCountBar');
+  if (instrBar) instrBar.style.display = 'none';
+  var instrN = document.getElementById('ceInstrN');
+  if (instrN) instrN.textContent = '0';
+  // 重置人員、儀器內容區
+  document.getElementById('cePersonnel').innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
+  document.getElementById('ceInstrWrap').innerHTML = '<div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>';
   // 重置附件
   _attachUrl = ''; _attachUploading = false;
   try { document.getElementById('ceAttachFile').value = ''; } catch(e) {}
