@@ -62,7 +62,7 @@
   .ce-step.active .ce-step-label { color: var(--accent); font-weight: 600; }
   .ce-step.done .ce-step-num { background: #16a34a; color: white; }
   .ce-step.done .ce-step-label { color: #16a34a; }
-  .ce-step-sep { width: 48px; height: 1px; background: var(--border); margin: 0 8px; }
+  .ce-step-sep { width: 32px; height: 1px; background: var(--border); margin: 0 6px; }
   .ce-back-btn {
     display: flex; align-items: center; gap: 5px;
     margin-left: auto; flex-shrink: 0;
@@ -300,6 +300,68 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+
+  /* ── 第四頁：通報單上傳 + 簡訊確認 ── */
+  .ce-p4-wrap {
+    flex: 1; overflow-y: auto; padding: 20px 24px; min-height: 0;
+    display: flex; flex-direction: column; gap: 20px; max-width: 720px; width: 100%; margin: 0 auto;
+  }
+  .ce-p4-wrap::-webkit-scrollbar { width: 3px; }
+  .ce-p4-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .ce-p4-section {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .ce-p4-sec-hd {
+    padding: 12px 16px; background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ce-p4-sec-bd { padding: 16px; }
+  .ce-p4-hint {
+    font-size: 12px; color: var(--text-muted); margin-top: 10px;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 6px; padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  /* 人員確認列表 */
+  .ce-p4-person-list { display: flex; flex-direction: column; }
+  .ce-p4-person-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid #f0f4f8; font-size: 13px;
+  }
+  .ce-p4-person-row:last-child { border-bottom: none; }
+  .ce-p4-person-squad {
+    font-size: 11px; color: var(--text-muted); background: var(--bg);
+    padding: 2px 9px; border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+  }
+  .ce-p4-person-name { font-weight: 600; color: var(--text); min-width: 64px; }
+  .ce-p4-person-mobile { font-family: var(--font-mono); color: #3d5070; font-size: 12px; flex: 1; }
+  .ce-p4-person-chk { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+  .ce-p4-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 14px 0; }
+  /* SMS 欄位 */
+  .ce-sms-ta {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 13px;
+    color: var(--text); resize: vertical; outline: none;
+    transition: border-color .15s; line-height: 1.6; min-height: 80px;
+  }
+  .ce-sms-ta:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+  .ce-sms-count { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+  .ce-sms-send-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 10px; border-radius: var(--radius); border: none;
+    background: #16a34a; color: white; font-family: var(--font);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; margin-top: 10px;
+  }
+  .ce-sms-send-btn:hover { background: #15803d; }
+  .ce-sms-send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+  .ce-sms-status { font-size: 12px; margin-top: 6px; min-height: 16px; text-align: center; }
+  .ce-sms-status.ok { color: #16a34a; font-weight: 600; }
+  .ce-sms-status.err { color: #dc2626; }
+  .ce-sms-status.loading { color: var(--text-muted); }
+
   /* ── RWD ── */
   @media (max-width: 700px) {
     .ce-form-col { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
@@ -335,6 +397,11 @@
     <div class="ce-step" id="step3">
       <div class="ce-step-num">3</div>
       <span class="ce-step-label">出動儀器</span>
+    </div>
+    <div class="ce-step-sep"></div>
+    <div class="ce-step" id="step4">
+      <div class="ce-step-num">4</div>
+      <span class="ce-step-label">通報單 &amp; 簡訊</span>
     </div>
   </div>
   <button class="ce-back-btn" onclick="goBack()">&#x2190; 返回地圖</button>
@@ -384,18 +451,7 @@
         <label class="ce-lbl">備註</label>
         <textarea class="ce-ta" id="ceNote" placeholder="補充說明…" rows="3"></textarea>
       </div>
-      <div class="ce-group">
-        <label class="ce-lbl">附件（PDF / 圖片）<span class="req">*</span></label>
-        <div class="ce-attach-wrap">
-          <label class="ce-attach-label">
-            <span class="ce-attach-icon">📎</span>
-            <span id="ceAttachText">點擊選擇檔案（PDF、JPG、PNG）</span>
-            <input type="file" id="ceAttachFile" accept=".pdf,.jpg,.jpeg,.png,.gif"
-                   onchange="ceAttachChange(this)">
-          </label>
-          <div class="ce-attach-status" id="ceAttachStatus"></div>
-        </div>
-      </div>
+
     </div>
     <div class="ce-map-col">
       <div id="ce-map"></div>
@@ -414,6 +470,56 @@
   <div class="ce-page" id="cePage3">
     <div class="ce-instr-wrap" id="ceInstrWrap">
       <div class="ce-instr-empty">&#x23F3; 讀取儀器清單中…</div>
+    </div>
+  </div>
+
+
+  <!-- 第四頁：通報單上傳 + 簡訊確認 -->
+  <div class="ce-page" id="cePage4">
+    <div class="ce-p4-wrap">
+
+      <!-- 通報單上傳 -->
+      <div class="ce-p4-section">
+        <div class="ce-p4-sec-hd">&#x1F4CB; 通報單上傳 <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:4px">（選填）</span></div>
+        <div class="ce-p4-sec-bd">
+          <div class="ce-attach-wrap">
+            <label class="ce-attach-label">
+              <span class="ce-attach-icon">&#x1F4CE;</span>
+              <span id="ceAttachText">點擊選擇檔案（PDF、JPG、PNG）</span>
+              <input type="file" id="ceAttachFile" accept=".pdf,.jpg,.jpeg,.png,.gif"
+                     onchange="ceAttachChange(this)">
+            </label>
+            <div class="ce-attach-status" id="ceAttachStatus"></div>
+          </div>
+          <div class="ce-p4-hint">&#x26A0;&#xFE0F; 如未上傳通報單，請於事件建立後至「事件管理」中補充上傳。</div>
+        </div>
+      </div>
+
+      <!-- 出勤人員確認 + 簡訊發送 -->
+      <div class="ce-p4-section">
+        <div class="ce-p4-sec-hd">&#x1F4F1; 出勤通知簡訊
+          <span id="ceSmsPersonCount" style="font-size:12px;font-weight:400;color:#94a3b8;margin-left:4px"></span>
+        </div>
+        <div class="ce-p4-sec-bd">
+          <!-- 人員清單（可取消勾選不傳簡訊） -->
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">以下為第二頁勾選的出勤人員，可取消勾選不發送簡訊：</div>
+          <div id="ceSmsPersonList" class="ce-p4-person-list"></div>
+
+          <!-- 簡訊內容 -->
+          <div style="margin-top:14px">
+            <label class="ce-lbl" style="margin-bottom:6px">簡訊內容</label>
+            <textarea class="ce-sms-ta" id="ceSmsContent" rows="4"
+              oninput="document.getElementById('ceSmsLen').textContent=this.value.length + ' 字'"></textarea>
+            <div class="ce-sms-count" id="ceSmsLen">0 字</div>
+          </div>
+
+          <button class="ce-sms-send-btn" id="ceSmsBtn" onclick="sendSms()">
+            &#x1F4E8; 發送簡訊給勾選人員
+          </button>
+          <div class="ce-sms-status" id="ceSmsStatus"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -448,8 +554,13 @@
     <!-- 第三頁按鈕 -->
     <div id="ceF3Btns" style="display:none;gap:8px">
       <button class="ce-btn ce-btn-g" onclick="goPage2back()">&#x2B05; 上一步</button>
-      <button class="ce-btn ce-btn-g" onclick="ceDo(true)">略過儀器</button>
-      <button class="ce-btn ce-btn-p" id="ceSubP3" onclick="ceDo(false)">&#x2705; 建立事件</button>
+      <button class="ce-btn ce-btn-g" onclick="goPage4(true)">略過儀器</button>
+      <button class="ce-btn ce-btn-p" onclick="goPage4(false)">下一步 &#x27A1;</button>
+    </div>
+    <!-- 第四頁按鈕 -->
+    <div id="ceF4Btns" style="display:none;gap:8px">
+      <button class="ce-btn ce-btn-g" onclick="goPage4back()">&#x2B05; 上一步</button>
+      <button class="ce-btn ce-btn-p" id="ceSubP4" onclick="ceDo()">&#x2705; 建立事件</button>
     </div>
   </div>
 </div>
@@ -560,14 +671,31 @@ function goBack() {
 }
 
 function goCurrentEvents() {
-  try { parent.showIframe('current-events.html'); } catch(e) { location.href = 'current-events.html'; }
+  // 新建事件為最新一筆，index = 0
+  try { sessionStorage.setItem('currentEventIdx', '0'); } catch(e) {}
+  try {
+    parent.showIframe('current-events.html');
+    // 延遲 postMessage 確保 current-events iframe 已載入
+    setTimeout(function() {
+      try {
+        var frames = parent.document.querySelectorAll('iframe');
+        for (var i = 0; i < frames.length; i++) {
+          var src = frames[i].src || '';
+          if (src.indexOf('current-events.html') > -1) {
+            frames[i].contentWindow.postMessage({ type: 'setIdx', idx: 0 }, '*');
+            break;
+          }
+        }
+      } catch(e2) {}
+    }, 300);
+  } catch(e) { location.href = 'current-events.html'; }
 }
 
 // ════════════════════════════════════════
 // 步驟指示器
 // ════════════════════════════════════════
 function setStep(active) {
-  [1,2,3].forEach(function(n) {
+  [1,2,3,4].forEach(function(n) {
     var el = document.getElementById('step' + n);
     el.classList.remove('active','done');
     if (n < active) el.classList.add('done');
@@ -579,12 +707,13 @@ function setStep(active) {
 // 頁面切換
 // ════════════════════════════════════════
 function showOnlyPage(n) {
-  [1,2,3].forEach(function(i) {
+  [1,2,3,4].forEach(function(i) {
     document.getElementById('cePage' + i).classList.toggle('active', i === n);
   });
   document.getElementById('ceF1Btns').style.display = n === 1 ? 'flex' : 'none';
   document.getElementById('ceF2Btns').style.display = n === 2 ? 'flex' : 'none';
   document.getElementById('ceF3Btns').style.display = n === 3 ? 'flex' : 'none';
+  document.getElementById('ceF4Btns').style.display = n === 4 ? 'flex' : 'none';
   setStep(n);
 }
 
@@ -620,8 +749,7 @@ function ceVal() {
            document.getElementById('ceType').value &&
            document.getElementById('ceDate').value &&
            document.getElementById('ceTime').value &&
-           _ceLat !== null &&
-           _attachUrl !== '';  // 附件必填
+           _ceLat !== null;
   document.getElementById('ceSub').disabled = !ok;
   if (ok) {
     document.getElementById('ceFSt').innerHTML = '所有必填欄位已完成 &#x2714;';
@@ -632,7 +760,6 @@ function ceVal() {
     if (!document.getElementById('ceType').value) ms.push('事件類型');
     if (!document.getElementById('ceDate').value || !document.getElementById('ceTime').value) ms.push('日期時間');
     if (_ceLat === null) ms.push('事件地點');
-    if (!_attachUrl) ms.push('附件');
     document.getElementById('ceFSt').innerHTML = '尚未填寫：' + ms.join('、');
     document.getElementById('ceFSt').className = 'ce-fstatus';
   }
@@ -706,10 +833,6 @@ function _ceAst(t, m) {
 // ── 清除第一頁 ──
 function clearP1() {
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){ document.getElementById(id).value = ''; });
-  _attachUrl = ''; _attachUploading = false;
-  document.getElementById('ceAttachFile').value = '';
-  document.getElementById('ceAttachText').textContent = '點擊選擇檔案（PDF、JPG、PNG）';
-  ceAttachSetStatus('', '');
   document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
   _ceLat = null; _ceLng = null;
   document.getElementById('ceCo').style.display = 'none';
@@ -941,16 +1064,143 @@ function _getInstruments() {
   return result.join(', ');
 }
 
+
+// ════════════════════════════════════════
+// 第四頁：通報單 + 簡訊確認
+// ════════════════════════════════════════
+var _ceSkipInstruments = false;
+
+function goPage4(skipInstruments) {
+  _ceSkipInstruments = !!skipInstruments;
+  showOnlyPage(4);
+  document.getElementById('ceFSt').textContent = '確認通報單及簡訊發送後，按下「建立事件」';
+  _renderP4();
+}
+
+function goPage4back() {
+  showOnlyPage(3);
+  document.getElementById('ceFSt').textContent = '請勾選出動儀器並指定使用者（可略過）';
+}
+
+function _renderP4() {
+  var personnel = _ceSkipPersonnel ? [] : _getPersonnel();
+  var listEl = document.getElementById('ceSmsPersonList');
+  var countEl = document.getElementById('ceSmsPersonCount');
+
+  if (!personnel.length) {
+    listEl.innerHTML = '<div class="ce-p4-empty">&#x1F464; 本次事件未選擇出勤人員</div>';
+    countEl.textContent = '';
+    document.getElementById('ceSmsBtn').disabled = true;
+  } else {
+    countEl.textContent = '（共 ' + personnel.length + ' 人）';
+    var html = '';
+    personnel.forEach(function(p, i) {
+      // 從 cache 找手機號碼
+      var mobile = _getMobileFromCache(p.name);
+      html += '<div class="ce-p4-person-row">' +
+        '<input type="checkbox" class="ce-p4-person-chk" id="smsCb' + i + '" checked ' +
+          'data-name="' + _esc(p.name) + '" data-mobile="' + _esc(mobile) + '">' +
+        '<span class="ce-p4-person-squad">' + _esc(p.squad || '—') + '</span>' +
+        '<span class="ce-p4-person-name">' + _esc(p.name) + '</span>' +
+        '<span class="ce-p4-person-mobile">' + _esc(mobile || '（無手機號碼）') + '</span>' +
+        '</div>';
+    });
+    listEl.innerHTML = html;
+    document.getElementById('ceSmsBtn').disabled = false;
+  }
+
+  // 預填簡訊內容
+  var evName = document.getElementById('ceName').value.trim();
+  var evType = document.getElementById('ceType').value;
+  var evDate = document.getElementById('ceDate').value;
+  var evTime = document.getElementById('ceTime').value;
+  var evAddr = document.getElementById('ceAddr').value;
+  var tmpl = '【輻射應變通知】
+事件：' + evName +
+    '
+類型：' + evType +
+    '
+時間：' + evDate + ' ' + evTime +
+    '
+地點：' + evAddr +
+    '
+請準備出勤，並回報確認。';
+  var ta = document.getElementById('ceSmsContent');
+  ta.value = tmpl;
+  document.getElementById('ceSmsLen').textContent = tmpl.length + ' 字';
+}
+
+function _getMobileFromCache(name) {
+  var mobile = '';
+  Object.keys(_ceCache).forEach(function(gid) {
+    var members = _ceCache[gid];
+    if (Array.isArray(members)) {
+      members.forEach(function(m) {
+        if (m.name === name && m.mobile) mobile = m.mobile;
+      });
+    }
+  });
+  return mobile;
+}
+
+function sendSms() {
+  var cbs = document.querySelectorAll('#ceSmsPersonList .ce-p4-person-chk:checked');
+  if (!cbs.length) {
+    document.getElementById('ceSmsStatus').className = 'ce-sms-status err';
+    document.getElementById('ceSmsStatus').textContent = '請至少勾選一位接收者';
+    return;
+  }
+  var content = document.getElementById('ceSmsContent').value.trim();
+  if (!content) {
+    document.getElementById('ceSmsStatus').className = 'ce-sms-status err';
+    document.getElementById('ceSmsStatus').textContent = '請填寫簡訊內容';
+    return;
+  }
+  var recipients = [];
+  cbs.forEach(function(cb) {
+    recipients.push({ name: cb.getAttribute('data-name'), mobile: cb.getAttribute('data-mobile') });
+  });
+
+  var btn = document.getElementById('ceSmsBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ce-spin" style="border-color:rgba(255,255,255,.3);border-top-color:white"></span> 發送中…';
+  document.getElementById('ceSmsStatus').className = 'ce-sms-status loading';
+  document.getElementById('ceSmsStatus').textContent = '簡訊傳送中，請稍候…';
+
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'sendSms',
+      eventId: document.getElementById('ceEvId').textContent,
+      recipients: recipients,
+      content: content
+    })
+  })
+  .then(function() {
+    btn.disabled = false;
+    btn.innerHTML = '&#x1F4E8; 發送簡訊給勾選人員';
+    document.getElementById('ceSmsStatus').className = 'ce-sms-status ok';
+    document.getElementById('ceSmsStatus').textContent = '✔ 已送出簡訊請求（共 ' + recipients.length + ' 人）';
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '&#x1F4E8; 發送簡訊給勾選人員';
+    document.getElementById('ceSmsStatus').className = 'ce-sms-status err';
+    document.getElementById('ceSmsStatus').textContent = '發送失敗，請確認網路連線';
+  });
+}
+
 // ════════════════════════════════════════
 // 送出（建立事件）
 // ════════════════════════════════════════
-function ceDo(skipInstruments) {
+function ceDo() {
   if (_attachUploading) {
-    alert('附件上傳中，請稍候再建立事件。');
+    alert('通報單上傳中，請稍候再建立事件。');
     return;
   }
-  var btn = document.getElementById('ceSubP3');
-  if (!skipInstruments && btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
+  var btn = document.getElementById('ceSubP4');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
 
   var ev = {
     id:            document.getElementById('ceEvId').textContent,
@@ -965,7 +1215,7 @@ function ceDo(skipInstruments) {
     createdAt:     new Date().toISOString(),
     status:        'active',
     personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.name; }).join(', '),
-    instrumentStr: skipInstruments ? '' : _getInstruments(),
+    instrumentStr: _ceSkipInstruments ? '' : _getInstruments(),
     attachmentUrl: _attachUrl || ''
   };
 
@@ -1001,7 +1251,14 @@ function ceReset() {
   clearP1();
   _ceCache = {};
   _ceSkipPersonnel = false;
+  _ceSkipInstruments = false;
   _ceInstrCache = null;
+  // 重置附件
+  _attachUrl = ''; _attachUploading = false;
+  try { document.getElementById('ceAttachFile').value = ''; } catch(e) {}
+  document.getElementById('ceAttachText').textContent = '點擊選擇檔案（PDF、JPG、PNG）';
+  ceAttachSetStatus('', '');
+  document.getElementById('ceSmsStatus').textContent = '';
   showOnlyPage(1);
   // 重新查詢編號
   document.getElementById('ceEvId').textContent = '查詢中…';
