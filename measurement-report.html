@@ -96,9 +96,28 @@
     white-space: nowrap; font-weight: 600;
   }
 
-  /* 回報人員 datalist combo */
+  /* 回報人員 自製下拉 */
   .combo-wrap { position: relative; }
-  .combo-inp { width: 100%; }
+  .combo-inp { width: 100%; padding-right: 34px !important; }
+  .combo-arrow {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    font-size: 13px; padding: 2px; line-height: 1; pointer-events: auto;
+  }
+  .combo-arrow:hover { color: var(--accent); }
+  .combo-list {
+    display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+    background: white; border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0,0,0,.1); z-index: 500;
+    max-height: 200px; overflow-y: auto;
+  }
+  .combo-list.show { display: block; }
+  .combo-item {
+    padding: 9px 14px; cursor: pointer; font-size: 14px; color: var(--text);
+    border-bottom: 1px solid #f0f4f8; transition: background .1s;
+  }
+  .combo-item:last-child { border-bottom: none; }
+  .combo-item:hover, .combo-item.active { background: #eff6ff; color: var(--accent); }
 
   /* GPS 定位 */
   .gps-wrap { display: flex; gap: 8px; align-items: flex-start; flex-direction: column; }
@@ -170,10 +189,12 @@
       <!-- 回報人員 -->
       <div class="form-group">
         <label class="form-lbl">回報人員 <span class="req">*</span></label>
-        <div class="combo-wrap">
-          <input class="form-inp combo-inp" id="inpReporter" list="reporterList"
-                 placeholder="輸入姓名或從清單選擇" oninput="validate()">
-          <datalist id="reporterList"></datalist>
+        <div class="combo-wrap" id="reporterWrap">
+          <input class="form-inp combo-inp" id="inpReporter" autocomplete="off"
+                 placeholder="輸入姓名或從清單選擇"
+                 oninput="reporterFilter()" onfocus="reporterOpen()">
+          <button class="combo-arrow" type="button" onclick="reporterToggle()">&#x25BC;</button>
+          <div class="combo-list" id="reporterList"></div>
         </div>
       </div>
 
@@ -237,6 +258,7 @@ var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hz
 var _events = [];
 var _curEv  = null;
 var _lat    = null;
+var _reporterNames = [];
 var _lng    = null;
 var _jsonpCounter = 0;
 
@@ -306,8 +328,9 @@ function onEventChange() {
   // 填入回報人員 datalist（技術組人員，從 personnelStr 解析）
   var names = (_curEv.personnelStr || '').split(',')
     .map(function(s){ return s.trim(); }).filter(Boolean);
-  document.getElementById('reporterList').innerHTML =
-    names.map(function(n){ return '<option value="' + n + '">'; }).join('');
+  // 儲存人員清單供下拉使用
+  _reporterNames = names;
+  renderReporterList('');
 
   // 填入儀器清單（從 instrumentStr 解析名稱）
   var instrSel = document.getElementById('selInstrument');
@@ -326,6 +349,49 @@ function onEventChange() {
 
   validate();
 }
+
+
+// ── 回報人員自製下拉 ──
+function renderReporterList(filter) {
+  var list = document.getElementById('reporterList');
+  var q = filter.toLowerCase();
+  var matched = _reporterNames.filter(function(n){ return n.toLowerCase().indexOf(q) > -1; });
+  if (!matched.length) { list.classList.remove('show'); return; }
+  list.innerHTML = matched.map(function(n) {
+    return '<div class="combo-item" data-name="' + n.replace(/"/g,'&quot;') + '" onmousedown="reporterPickEl(this)">' + n + '</div>';
+  }).join('');
+  list.classList.add('show');
+}
+function reporterPickEl(el) {
+  reporterPick(el.getAttribute('data-name'));
+}
+function reporterPick(name) {
+  document.getElementById('inpReporter').value = name;
+  document.getElementById('reporterList').classList.remove('show');
+  validate();
+}
+function reporterFilter() {
+  renderReporterList(document.getElementById('inpReporter').value);
+  validate();
+}
+function reporterOpen() {
+  renderReporterList(document.getElementById('inpReporter').value);
+}
+function reporterToggle() {
+  var list = document.getElementById('reporterList');
+  if (list.classList.contains('show')) {
+    list.classList.remove('show');
+  } else {
+    renderReporterList('');
+    document.getElementById('inpReporter').focus();
+  }
+}
+// 點外側關閉
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#reporterWrap')) {
+    document.getElementById('reporterList').classList.remove('show');
+  }
+});
 
 // ── GPS 定位 ──
 function getGPS() {
