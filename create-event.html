@@ -1115,16 +1115,11 @@ function _renderP4() {
   var evDate = document.getElementById('ceDate').value;
   var evTime = document.getElementById('ceTime').value;
   var evAddr = document.getElementById('ceAddr').value;
-  var tmpl = '【輻射應變通知】
-事件：' + evName +
-    '
-類型：' + evType +
-    '
-時間：' + evDate + ' ' + evTime +
-    '
-地點：' + evAddr +
-    '
-請準備出勤，並回報確認。';
+  var tmpl = '【輻射應變通知】\n事件：' + evName +
+    '\n類型：' + evType +
+    '\n時間：' + evDate + ' ' + evTime +
+    '\n地點：' + evAddr +
+    '\n請準備出勤，並回報確認。';
   var ta = document.getElementById('ceSmsContent');
   ta.value = tmpl;
   document.getElementById('ceSmsLen').textContent = tmpl.length + ' 字';
