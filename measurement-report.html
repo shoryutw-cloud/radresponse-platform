@@ -197,7 +197,7 @@
 
       <!-- GPS 定位 -->
       <div class="form-group">
-        <label class="form-lbl">地點 <span class="req">*</span></label>
+        <label class="form-lbl">地點 <span style="font-size:11px;color:#94a3b8;font-weight:400">（選填）</span></label>
         <div class="gps-wrap">
           <button class="gps-btn" id="gpsBtn" onclick="getGPS()">
             📍 取得目前位置
@@ -348,12 +348,12 @@ function getGPS() {
 function validate() {
   var reporter = document.getElementById('inpReporter').value.trim();
   var value    = document.getElementById('inpValue').value.trim();
-  var ok = reporter && value !== '' && parseFloat(value) >= 0 && _lat !== null;
+  var ok = reporter && value !== '' && parseFloat(value) >= 0;
   document.getElementById('btnSubmit').disabled = !ok;
   var ms = [];
   if (!reporter)   ms.push('回報人員');
   if (!value)      ms.push('回報數值');
-  if (_lat === null) ms.push('地點（GPS）');
+  // 地點為選填，不加入必填提示
   var statusEl = document.getElementById('formStatus');
   if (ok) {
     statusEl.textContent = '所有必填欄位已填寫 ✔';
