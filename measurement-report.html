@@ -419,6 +419,9 @@ function resetForm() {
   document.getElementById('selEvent').value = '';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('submitArea').style.display = 'none';
+  // 還原送出按鈕
+  var btn = document.getElementById('btnSubmit');
+  if (btn) { btn.disabled = true; btn.innerHTML = '📤 送出回報'; }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
