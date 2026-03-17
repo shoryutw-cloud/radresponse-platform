@@ -941,9 +941,9 @@ function _squadBlock(title, members) {
   var sid = 'sq' + _ceSquadIdx++;
   var h = '<div class="ce-squad">' +
     '<div class="ce-squad-hd">' +
-    '<span class="ce-squad-title">' + _esc(title) + '</span>' +
-    '<span class="ce-squad-cnt" id="cnt' + sid + '">0 / ' + members.length + '</span>' +
     '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_chkAll(this,event)">全選</button>' +
+    '<span class="ce-squad-cnt" id="cnt' + sid + '">0 / ' + members.length + '</span>' +
+    '<span class="ce-squad-title">' + _esc(title) + '</span>' +
     '</div><div class="ce-squad-bd" id="bd' + sid + '"><div class="ce-member-list">';
   members.forEach(function(m, i) {
     var mid = sid + '_' + i;
