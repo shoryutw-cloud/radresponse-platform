@@ -992,6 +992,32 @@ function _getPersonnel() {
   return r;
 }
 
+// ── 更新儀器使用者下拉選單（回到第三頁時同步人員變更）──
+function _refreshInstrUserSels() {
+  var techNames = _getSelectedTechNames();
+  var rows = (_ceInstrCache && _ceInstrCache.rows) ? _ceInstrCache.rows : [];
+  rows.forEach(function(_, i) {
+    var sel = document.getElementById('isel' + i);
+    if (!sel) return;
+    var prev = sel.value; // 記住原本選的人
+    // 重建選項
+    sel.innerHTML = '<option value="">— 請先勾選 —</option>';
+    if (techNames.length) {
+      techNames.forEach(function(n) {
+        sel.innerHTML += '<option value="' + _esc(n) + '">' + _esc(n) + '</option>';
+      });
+    } else {
+      sel.innerHTML += '<option value="" disabled>（無勾選技術組成員）</option>';
+    }
+    // 如果原本選的人還在清單中就保留，否則清空
+    if (prev && techNames.indexOf(prev) > -1) {
+      sel.value = prev;
+    } else {
+      sel.value = '';
+    }
+  });
+}
+
 // ── 取得勾選的技術組成員名單 ──
 function _getSelectedTechNames() {
   var techSquads = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
@@ -1012,6 +1038,8 @@ function _loadInstruments() {
   if (_ceInstrCache && _ceInstrRendered) {
     var instrBar = document.getElementById('ceInstrCountBar');
     if (instrBar) instrBar.style.display = '';
+    // 人員清單可能已變更，重新更新所有使用者下拉選單
+    _refreshInstrUserSels();
     return;
   }
   if (_ceInstrCache) { _renderInstruments(_ceInstrCache); return; }
