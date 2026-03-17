@@ -1299,10 +1299,12 @@ function ceDo() {
     document.getElementById('ceOKId').textContent = '事件編號：' + ev.id;
     document.getElementById('ceOKMsg').textContent = '';
     document.getElementById('ceOK').classList.add('show');
+    document.querySelector('.ce-footer').style.display = 'none';
   })
   .catch(function() {
     document.getElementById('ceOKId').textContent = ev.id + '（僅存本機，請確認網路）';
     document.getElementById('ceOK').classList.add('show');
+    document.querySelector('.ce-footer').style.display = 'none';
   });
 }
 
@@ -1311,6 +1313,7 @@ function ceDo() {
 // ════════════════════════════════════════
 function ceReset() {
   document.getElementById('ceOK').classList.remove('show');
+  document.querySelector('.ce-footer').style.display = '';
   clearP1();
   _ceCache = {};
   _cePersonnelRendered = false;
