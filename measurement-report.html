@@ -325,9 +325,15 @@ function onEventChange() {
   document.getElementById('formCard').style.display = 'flex';
   document.getElementById('submitArea').style.display = 'flex';
 
-  // 填入回報人員 datalist（技術組人員，從 personnelStr 解析）
+  // 填入回報人員 datalist（從 personnelStr 解析，相容純姓名與「隊別:姓名」兩種格式）
   var names = (_curEv.personnelStr || '').split(',')
-    .map(function(s){ return s.trim(); }).filter(Boolean);
+    .map(function(s) {
+      var t = s.trim();
+      if (!t) return '';
+      // 若包含冒號，取冒號後的部分為姓名（相容「隊別:姓名」格式）
+      var colonIdx = t.indexOf(':');
+      return colonIdx >= 0 ? t.slice(colonIdx + 1).trim() : t;
+    }).filter(Boolean);
   // 儲存人員清單供下拉使用
   _reporterNames = names;
   renderReporterList('');
