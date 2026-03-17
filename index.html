@@ -489,44 +489,38 @@
 <div class="layout">
   <main class="map-area" id="mapArea" style="position:relative">
     <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:flex;align-items:center;justify-content:center">
-      <div id="dashboard" style="max-width:640px;width:100%;padding:12px 32px 24px;display:flex;flex-direction:column;gap:16px">
-        <!-- 標題區：往上縮 -->
-        <div style="text-align:center;padding-top:4px">
+      <div id="dashboard" style="max-width:640px;width:100%;padding:0 32px 24px;display:flex;flex-direction:column;gap:16px">
+        <div style="text-align:center;padding-top:8px">
           <div style="font-size:48px;line-height:1">🛡️</div>
         </div>
 
-        <!-- 統計卡片：固定高度，預留三行分類空間 -->
+        <!-- 統計卡片：固定高度 -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
 
-          <!-- 目前事件 -->
-          <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa;height:280px;justify-content:flex-start;padding:20px 16px">
+          <!-- 目前事件：卡片固定高度，dashByType固定高度不含skeleton -->
+          <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa;height:340px;justify-content:flex-start;padding:20px 16px;box-sizing:border-box;overflow:hidden">
             <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">🚨</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:2px">目前事件數</div>
             <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
               <span id="dashActiveSpinner" style="display:inline-block;width:48px;height:12px;background:#fed7aa;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
             </div>
-            <!-- 固定高度預留3行，避免塞入資料時撐高 -->
-            <div id="dashByType" style="display:flex;flex-direction:column;gap:4px;width:100%;height:78px;flex-shrink:0">
-              <!-- skeleton rows -->
-              <div style="height:22px;background:#fff7ed;border-radius:4px;animation:skPulse 1.2s ease infinite"></div>
-              <div style="height:22px;background:#fff7ed;border-radius:4px;animation:skPulse 1.2s ease .2s infinite"></div>
-              <div style="height:22px;background:#fff7ed;border-radius:4px;animation:skPulse 1.2s ease .4s infinite"></div>
-            </div>
-            <div style="margin-top:auto;color:#f97316;font-size:13px;font-weight:500">▶ 點擊查看</div>
+            <!-- 固定高度容器，初始空白，資料來了填入不撐高 -->
+            <div id="dashByType" style="display:flex;flex-direction:column;gap:4px;width:100%;height:86px;flex-shrink:0;overflow:hidden"></div>
+            <div style="margin-top:auto;padding-top:8px;color:#f97316;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
           </div>
 
           <!-- 歷史事件 -->
-          <div class="dash-card" style="border-color:#bbf7d0;height:280px;justify-content:flex-start;padding:20px 16px;cursor:pointer" onclick="openPanel('歷史事件查詢')">
+          <div class="dash-card" style="border-color:#bbf7d0;height:340px;justify-content:flex-start;padding:20px 16px;cursor:pointer;box-sizing:border-box;overflow:hidden" onclick="openPanel('歷史事件查詢')">
             <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✅</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:2px">歷史事件數</div>
             <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
               <span id="dashClosedSpinner" style="display:inline-block;width:48px;height:12px;background:#bbf7d0;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
             </div>
-            <!-- 空白佔位，與左欄等高 -->
-            <div style="height:78px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            <!-- 佔位區，與左欄同高 -->
+            <div style="height:86px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
               <span style="font-size:12px;color:#94a3b8">已結束事件</span>
             </div>
-            <div style="margin-top:auto;color:#16a34a;font-size:13px;font-weight:500">▶ 點擊查看</div>
+            <div style="margin-top:auto;padding-top:8px;color:#16a34a;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
           </div>
 
         </div>
