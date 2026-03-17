@@ -363,21 +363,12 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
     &#x1F5FA;&#xFE0F; 圖層顯示
-    <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
-      <button class="layer-collapse-btn" id="layerEvPrev" onclick="navEvent(-1)" title="上一筆">&#9664;</button>
-      <span id="layerNavCount" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);min-width:28px;text-align:center">1/1</span>
-      <button class="layer-collapse-btn" id="layerEvNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
-      <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()" style="margin-left:2px">&#x25B2;</button>
-    </div>
+    <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()" style="margin-left:auto">&#x25B2;</button>
   </div>
   <div class="layer-panel-body" id="layerPanelBody">
     <div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">載入中…</div>
   </div>
 </div>
-
-<!-- 返回地圖 -->
-
-<button class="back-btn" onclick="goBack()">← 返回地圖</button>
 
 <script>
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
