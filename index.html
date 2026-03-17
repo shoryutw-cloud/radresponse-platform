@@ -152,7 +152,8 @@
   .dash-card-label { font-size: 13px; font-weight: 600; color: #6b7a92;
                      letter-spacing: .06em; text-transform: uppercase; }
   .dash-card-val { font-size: 56px; font-weight: 800; line-height: 1;
-                   font-family: ui-monospace, monospace; }
+                   font-family: ui-monospace, monospace;
+                   min-height: 60px; display: flex; align-items: center; justify-content: center; }
   .dash-card-sub { font-size: 12px; color: #94a3b8; }
 
   .map-badge {
@@ -499,14 +500,14 @@
           <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa">
             <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:30px;padding:12px;width:58px;height:58px;display:flex;align-items:center;justify-content:center">🚨</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:4px">目前事件數</div>
-            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:56px">—</div>
-            <div id="dashByType" style="display:flex;flex-direction:column;gap:3px;width:100%;margin-top:2px"></div>
+            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:56px"><span id="dashActiveSpinner" style="display:inline-block;width:48px;height:12px;background:#fed7aa;border-radius:6px;animation:skPulse 1.2s ease infinite"></span></div>
+            <div id="dashByType" style="display:flex;flex-direction:column;gap:3px;width:100%;margin-top:2px;min-height:54px"></div>
             <div class="dash-card-sub" style="color:#f97316;font-size:13px;font-weight:500">▶ 點擊查看</div>
           </div>
           <div class="dash-card" style="border-color:#bbf7d0">
             <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:30px;padding:12px;width:58px;height:58px;display:flex;align-items:center;justify-content:center">✅</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:4px">歷史事件數</div>
-            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:56px">—</div>
+            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:56px"><span id="dashClosedSpinner" style="display:inline-block;width:48px;height:12px;background:#bbf7d0;border-radius:6px;animation:skPulse 1.2s ease infinite"></span></div>
             <div class="dash-card-sub" style="font-size:13px">已結束事件</div>
           </div>
         </div>
@@ -688,8 +689,16 @@ function loadDashStats() {
     var actEl = document.getElementById('dashActiveVal');
     var cloEl = document.getElementById('dashClosedVal');
     var typeEl = document.getElementById('dashByType');
-    if (actEl) actEl.textContent = (data.active !== undefined) ? data.active : '—';
-    if (cloEl) cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    if (actEl) {
+      var sp1 = document.getElementById('dashActiveSpinner');
+      if (sp1) sp1.remove();
+      actEl.textContent = (data.active !== undefined) ? data.active : '—';
+    }
+    if (cloEl) {
+      var sp2 = document.getElementById('dashClosedSpinner');
+      if (sp2) sp2.remove();
+      cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    }
     // 各類型小計
     if (typeEl && data.byType) {
       var colors = {
