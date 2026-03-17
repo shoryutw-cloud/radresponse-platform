@@ -212,13 +212,20 @@ function updateNav() {
 }
 
 // ── 解析 personnelStr → [{name}] ──
-// 格式：「林志遠, 王雅婷, 施冠宇」（只有姓名）
+// 支援兩種格式：
+//   舊格式：「林志遠, 王雅婷」（純姓名，逗號分隔）
+//   新格式：「北一小隊:林志遠, 北二小隊:王雅婷」（隊別:姓名，逗號分隔）
+// 統一取冒號後的姓名部分；若無冒號則整段當姓名
 function parsePersonnel(str) {
   if (!str) return [];
   return str.split(',').map(function(item) {
-    var name = item.trim();
-    return { name: name };
-  }).filter(function(p) { return p.name; });
+    var s = item.trim();
+    if (!s) return null;
+    // 若包含冒號，取冒號後的部分為姓名（相容「隊別:姓名」格式）
+    var colonIdx = s.indexOf(':');
+    var name = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
+    return name ? { name: name } : null;
+  }).filter(Boolean);
 }
 
 // ── 載入指定事件的出勤人員 ──
@@ -381,12 +388,6 @@ function renderSquadBlock(title, members, lookup) {
 
   h += '</tbody></table></div>';
   return h;
-}
-
-// ── goBack ──
-function goBack() {
-  try { sessionStorage.setItem('currentEventIdx', _curIdx); } catch(e) {}
-  try { parent.showIframe('current-events.html'); } catch(e) {}
 }
 
 // ── 初始化 ──
