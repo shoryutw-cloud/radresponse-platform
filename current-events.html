@@ -837,43 +837,111 @@ function stopMsrTimer() {
 }
 
 function renderMsrMarkers(eventId) {
-  // 清除舊標記
+  // 清除舊標記（標籤、圓點、指引線全部清除）
   _msrMarkers.forEach(function(m) { m.remove(); });
   _msrMarkers = [];
 
   var list = _msrCache[eventId] || [];
-  list.forEach(function(msr) {
-    var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
-    if (isNaN(lat) || isNaN(lng)) return;
-    var val = parseFloat(msr.value);
 
-    // 依數值決定顏色：>=100 紅, >=0.5 橘, <0.5 綠
+  // ── Step 1：只保留有座標的量測點 ──
+  var valid = list.filter(function(msr) {
+    return !isNaN(parseFloat(msr.lat)) && !isNaN(parseFloat(msr.lng));
+  });
+  if (!valid.length) return;
+
+  // ── Step 2：將 lat/lng 轉為地圖像素座標（用於計算距離與分散方向）──
+  var pts = valid.map(function(msr) {
+    var ll = L.latLng(parseFloat(msr.lat), parseFloat(msr.lng));
+    return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
+  });
+
+  // ── Step 3：分群（像素距離 < CLUSTER_R 的點視為相鄰，需分散顯示）──
+  var CLUSTER_R    = 72;  // 群聚判斷半徑（px）
+  var LABEL_OFFSET = 78;  // 標籤偏移距離（px）
+
+  var used   = pts.map(function() { return false; });
+  var groups = [];
+
+  pts.forEach(function(pt, i) {
+    if (used[i]) return;
+    var grp = [i];
+    used[i] = true;
+    pts.forEach(function(pt2, j) {
+      if (used[j]) return;
+      var dx = pt.px.x - pt2.px.x, dy = pt.px.y - pt2.px.y;
+      if (Math.sqrt(dx * dx + dy * dy) < CLUSTER_R) {
+        grp.push(j);
+        used[j] = true;
+      }
+    });
+    groups.push(grp);
+  });
+
+  // ── Step 4：為每群內的點分配標籤偏移角度（均勻散開）──
+  groups.forEach(function(grp) {
+    var n = grp.length;
+    grp.forEach(function(ptIdx, gi) {
+      // 單點：預設右上方（-50°）；多點：從右上方起均分一圈
+      var baseAngle = -50;
+      var angle = n === 1 ? baseAngle : baseAngle + (gi / n) * 360;
+      var rad = angle * Math.PI / 180;
+      var r   = n === 1 ? 65 : LABEL_OFFSET;
+      pts[ptIdx].offPx = {
+        x: pts[ptIdx].px.x + r * Math.cos(rad),
+        y: pts[ptIdx].px.y + r * Math.sin(rad)
+      };
+    });
+  });
+
+  // ── Step 5：渲染「精確圓點 + 虛線指引 + 偏移標籤」三件組 ──
+  pts.forEach(function(pt) {
+    var msr = pt.msr;
+    var val = parseFloat(msr.value);
+    // 顏色：>=100 紅, >=0.5 橘, <0.5 綠
     var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
 
-    var icon = L.divIcon({
-      className: '',
-      html: '<div style="' +
-              'background:white;' +
-              'border-left:5px solid ' + col + ';' +
-              'border-radius:5px;' +
-              'padding:5px 10px 5px 8px;' +
-              'box-shadow:0 2px 8px rgba(0,0,0,.25);' +
-              'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;' +
-              '">' +
-              '<span style="font-size:14px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' + val.toFixed(3) + '</span>' +
-              '<span style="font-size:11px;font-weight:500;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
-            '</div>',
-      iconAnchor: [40, 16]
-    });
+    // 計算標籤的 lat/lng（由偏移像素座標反推）
+    var offLL = gMap.layerPointToLatLng(L.point(pt.offPx.x, pt.offPx.y));
 
-    var marker = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    // (a) 精確量測位置：小圓點（不可互動，避免干擾地圖點擊）
+    var dotIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:10px;height:10px;background:' + col + ';' +
+            'border:2px solid white;border-radius:50%;' +
+            'box-shadow:0 1px 5px rgba(0,0,0,.4)"></div>',
+      iconSize: [10, 10], iconAnchor: [5, 5]
+    });
+    var dot = L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap);
+    _msrMarkers.push(dot);
+
+    // (b) 虛線指引線（從精確點連到標籤中心）
+    var line = L.polyline([pt.ll, offLL], {
+      color: col, weight: 1.5, opacity: 0.55, dashArray: '5 4'
+    }).addTo(gMap);
+    _msrMarkers.push(line);
+
+    // (c) 偏移標籤（帶 popup，iconAnchor 設在標籤視覺中心，使指引線對齊）
+    var labelIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:white;border-left:4px solid ' + col + ';' +
+            'border-radius:5px;padding:4px 10px 4px 8px;' +
+            'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
+            'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
+            '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
+            val.toFixed(3) + '</span>' +
+            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
+            '</div>',
+      iconAnchor: [55, 16]  // 錨點置中，使指引線對準標籤中心
+    });
+    var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
+
+    // popup：顯示完整量測資訊
     var timeStr = '';
     try {
       var d = new Date(msr.time);
       if (!isNaN(d.getTime())) timeStr = d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
     } catch(e) {}
-
-    marker.bindPopup(
+    label.bindPopup(
       '<div class="msr-popup">' +
       '<span class="msr-popup-val">' + val.toFixed(3) + '</span>' +
       '<span class="msr-popup-unit">&#x03BC;Sv/h</span>' +
@@ -881,7 +949,7 @@ function renderMsrMarkers(eventId) {
       (msr.instrument ? '<div class="msr-popup-info">' + msr.instrument + '</div>' : '') +
       '</div>'
     );
-    _msrMarkers.push(marker);
+    _msrMarkers.push(label);
   });
 }
 
@@ -1048,6 +1116,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }).addTo(gMap);
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
+
+    // 縮放後像素座標改變，需重新計算指引線位置
+    gMap.on('zoomend', function() {
+      if (!_events.length) return;
+      var ev = _events[_curIdx];
+      if (!ev) return;
+      var cb = document.getElementById('lyr_' + _curIdx + '_msr');
+      if (!cb || cb.checked) renderMsrMarkers(ev.id);
+    });
+
     loadEvents();
   }
 
