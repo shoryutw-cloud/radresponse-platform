@@ -877,21 +877,23 @@ function renderMsrMarkers(eventId) {
   });
 
   // ── 每群內計算群心、扇形基準角、均分角度 ──
-  // 扇形朝上展開（-90° 為正上方），n 個點在 ±fanHalf 內均分
-  var FAN_HALF = 70; // 扇形半角（度）；群內只有 1 點時不需要
+  // 群內先按數值大小排序（高→低），使同色標籤相鄰，呈 紅紅紅/橘橘橘/綠綠 的排列
+  // 排序後從扇形中央往兩側交替分配角度，讓最大值居中
+  var FAN_HALF = 70; // 扇形半角（度）
 
   groups.forEach(function(grp) {
     var n = grp.length;
-    // 群心（像素平均）
-    var cx = 0, cy = 0;
-    grp.forEach(function(i) { cx += pts[i].px.x; cy += pts[i].px.y; });
-    cx /= n; cy /= n;
+
+    // 按數值大小排序（降冪），同色聚在一起
+    grp.sort(function(a, b) {
+      return parseFloat(pts[b].msr.value) - parseFloat(pts[a].msr.value);
+    });
 
     grp.forEach(function(i, gi) {
-      // 扇形角度：1個點 → 正右上方(-45°)；多個點 → -90° 起往兩邊展開
-      var baseAngle = n === 1 ? -45 : -90;
-      var spread    = n === 1 ? 0   : (gi / (n - 1) - 0.5) * 2 * FAN_HALF;
-      pts[i].fanAngle = baseAngle + spread; // 初始目標角度
+      // 角度從正上方（-90°）起，均分扇形
+      var baseAngle = -90;
+      var spread    = n === 1 ? 45 : (gi / (n - 1) - 0.5) * 2 * FAN_HALF;
+      pts[i].fanAngle = baseAngle + spread;
     });
   });
 
