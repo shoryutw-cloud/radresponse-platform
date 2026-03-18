@@ -293,6 +293,47 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 @media (max-width: 480px) {
 .ev-card { width: calc(100vw - 32px); }
 }
+
+/* ── 畫筆工具列 ── */
+.draw-toolbar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; align-items: center; gap: 6px;
+  background: white; border: 1px solid var(--border);
+  border-radius: 30px; padding: 6px 12px;
+  box-shadow: var(--shadow-md);
+}
+.draw-tool-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 2px solid transparent;
+  background: none; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 17px; transition: all .15s;
+  color: var(--text-muted);
+}
+.draw-tool-btn:hover { background: var(--hover); color: var(--accent); }
+.draw-tool-btn.active {
+  background: var(--accent); color: white;
+  border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,86,219,.35);
+}
+.draw-tool-btn.active-erase {
+  background: #dc2626; color: white;
+  border-color: #dc2626; box-shadow: 0 2px 8px rgba(220,38,38,.35);
+}
+.draw-sep { width: 1px; height: 24px; background: var(--border); margin: 0 2px; }
+/* 顏色選擇器 */
+.draw-colors { display: flex; gap: 5px; align-items: center; }
+.draw-color-dot {
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: all .12s; flex-shrink: 0;
+}
+.draw-color-dot.selected { border-color: #1e2a3a; transform: scale(1.2); }
+/* 粗細滑桿 */
+.draw-size-wrap { display: flex; align-items: center; gap: 5px; }
+.draw-size-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.draw-size-range {
+  width: 64px; height: 4px; cursor: pointer; accent-color: var(--accent);
+}
+/* 游標：畫筆模式時顯示十字 */
+#map.draw-mode   { cursor: crosshair !important; }
+#map.erase-mode  { cursor: cell !important; }
 </style>
 
 </head>
@@ -356,6 +397,34 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 <div class="map-controls">
   <button class="map-ctrl-btn" id="zoomIn">&#xff0b;</button>
   <button class="map-ctrl-btn" id="zoomOut">&#xff0d;</button>
+</div>
+
+<!-- 畫筆工具列（底部置中）-->
+<div class="draw-toolbar" id="drawToolbar">
+  <!-- 畫筆 -->
+  <button class="draw-tool-btn" id="btnPen" title="畫筆" onclick="setDrawMode('pen')">✏️</button>
+  <!-- 抹除 -->
+  <button class="draw-tool-btn" id="btnErase" title="抹除筆跡" onclick="setDrawMode('erase')">🧹</button>
+  <!-- 清除全部 -->
+  <button class="draw-tool-btn" id="btnClear" title="清除所有筆跡" onclick="clearAllDrawings()" style="font-size:14px">🗑️</button>
+  <div class="draw-sep"></div>
+  <!-- 顏色選擇 -->
+  <div class="draw-colors" id="drawColors">
+    <div class="draw-color-dot selected" data-color="#dc2626" style="background:#dc2626" title="紅" onclick="setDrawColor(this)"></div>
+    <div class="draw-color-dot" data-color="#f97316" style="background:#f97316" title="橘" onclick="setDrawColor(this)"></div>
+    <div class="draw-color-dot" data-color="#1a56db" style="background:#1a56db" title="藍" onclick="setDrawColor(this)"></div>
+    <div class="draw-color-dot" data-color="#16a34a" style="background:#16a34a" title="綠" onclick="setDrawColor(this)"></div>
+    <div class="draw-color-dot" data-color="#1e2a3a" style="background:#1e2a3a" title="黑" onclick="setDrawColor(this)"></div>
+    <div class="draw-color-dot" data-color="#ffffff" style="background:#ffffff;border:2px solid #d0d8e4" title="白" onclick="setDrawColor(this)"></div>
+  </div>
+  <div class="draw-sep"></div>
+  <!-- 粗細 -->
+  <div class="draw-size-wrap">
+    <span class="draw-size-label">粗細</span>
+    <input class="draw-size-range" type="range" id="drawSize" min="2" max="20" value="4"
+           oninput="document.getElementById('drawSizeVal').textContent=this.value">
+    <span class="draw-size-label" id="drawSizeVal">4</span>
+  </div>
 </div>
 
 <!-- 圖層控制面板 -->
@@ -1130,7 +1199,167 @@ function loadEvents() {
   });
 }
 
-// ── 初始化 ──
+// ════════════════════════════════════════════
+// 畫筆工具（Leaflet Polyline，座標為經緯度，自動隨地圖縮放）
+// ════════════════════════════════════════════
+var _drawMode    = null;      // 'pen' | 'erase' | null
+var _drawColor   = '#dc2626'; // 目前畫筆顏色
+var _drawLines   = [];        // 所有已畫的 Polyline 物件
+var _curLine     = null;      // 正在畫的 Polyline
+var _curLatLngs  = [];        // 正在畫的座標陣列
+var _isDrawing   = false;
+
+// ── 切換模式 ──
+function setDrawMode(mode) {
+  var mapEl = document.getElementById('map');
+  if (_drawMode === mode) {
+    // 再按一次 = 取消該模式
+    _drawMode = null;
+    mapEl.classList.remove('draw-mode', 'erase-mode');
+    document.getElementById('btnPen').classList.remove('active');
+    document.getElementById('btnErase').classList.remove('active-erase');
+    gMap.dragging.enable();
+    return;
+  }
+  _drawMode = mode;
+  // 清除兩顆按鈕狀態
+  document.getElementById('btnPen').classList.remove('active');
+  document.getElementById('btnErase').classList.remove('active-erase');
+  mapEl.classList.remove('draw-mode', 'erase-mode');
+
+  if (mode === 'pen') {
+    document.getElementById('btnPen').classList.add('active');
+    mapEl.classList.add('draw-mode');
+    gMap.dragging.disable(); // 畫筆模式鎖定地圖拖曳
+  } else if (mode === 'erase') {
+    document.getElementById('btnErase').classList.add('active-erase');
+    mapEl.classList.add('erase-mode');
+    gMap.dragging.disable();
+  }
+}
+
+// ── 設定顏色 ──
+function setDrawColor(el) {
+  document.querySelectorAll('.draw-color-dot').forEach(function(d) {
+    d.classList.remove('selected');
+  });
+  el.classList.add('selected');
+  _drawColor = el.getAttribute('data-color');
+}
+
+// ── 清除所有筆跡 ──
+function clearAllDrawings() {
+  _drawLines.forEach(function(l) { l.remove(); });
+  _drawLines = [];
+}
+
+// ── 抹除：判斷是否與某筆跡足夠接近 ──
+function eraseNear(latlng) {
+  var ERASE_PX = 20; // 抹除半徑（像素）
+  var clickPx = gMap.latLngToLayerPoint(latlng);
+  _drawLines = _drawLines.filter(function(line) {
+    var lls = line.getLatLngs();
+    for (var i = 0; i < lls.length; i++) {
+      var pt = gMap.latLngToLayerPoint(lls[i]);
+      var dx = pt.x - clickPx.x, dy = pt.y - clickPx.y;
+      if (Math.sqrt(dx*dx + dy*dy) < ERASE_PX) {
+        line.remove(); // 移除整條線
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+// ── 初始化畫筆事件（在 initMap 後呼叫）──
+function initDrawTools() {
+  var mapEl = document.getElementById('map');
+
+  // 滑鼠按下：開始畫線
+  mapEl.addEventListener('mousedown', function(e) {
+    if (!_drawMode) return;
+    if (e.button !== 0) return; // 只接受左鍵
+    e.preventDefault();
+    _isDrawing = true;
+    var ll = gMap.mouseEventToLatLng(e);
+
+    if (_drawMode === 'pen') {
+      _curLatLngs = [ll];
+      _curLine = L.polyline(_curLatLngs, {
+        color:   _drawColor,
+        weight:  parseInt(document.getElementById('drawSize').value),
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(gMap);
+    } else if (_drawMode === 'erase') {
+      eraseNear(ll);
+    }
+  });
+
+  // 滑鼠移動：延伸線條 / 連續抹除
+  mapEl.addEventListener('mousemove', function(e) {
+    if (!_isDrawing || !_drawMode) return;
+    var ll = gMap.mouseEventToLatLng(e);
+    if (_drawMode === 'pen' && _curLine) {
+      _curLatLngs.push(ll);
+      _curLine.setLatLngs(_curLatLngs);
+    } else if (_drawMode === 'erase') {
+      eraseNear(ll);
+    }
+  });
+
+  // 滑鼠放開：結束這筆線
+  function endDraw() {
+    if (!_isDrawing) return;
+    _isDrawing = false;
+    if (_drawMode === 'pen' && _curLine) {
+      if (_curLatLngs.length > 1) {
+        _drawLines.push(_curLine); // 超過一個點才保留
+      } else {
+        _curLine.remove(); // 單點點擊不保留
+      }
+      _curLine    = null;
+      _curLatLngs = [];
+    }
+  }
+  mapEl.addEventListener('mouseup',    endDraw);
+  mapEl.addEventListener('mouseleave', endDraw);
+
+  // ── 觸控支援（手機/平板）──
+  mapEl.addEventListener('touchstart', function(e) {
+    if (!_drawMode) return;
+    e.preventDefault();
+    _isDrawing = true;
+    var ll = gMap.mouseEventToLatLng(e.touches[0]);
+    if (_drawMode === 'pen') {
+      _curLatLngs = [ll];
+      _curLine = L.polyline(_curLatLngs, {
+        color:   _drawColor,
+        weight:  parseInt(document.getElementById('drawSize').value),
+        opacity: 0.85,
+        lineCap: 'round', lineJoin: 'round'
+      }).addTo(gMap);
+    } else if (_drawMode === 'erase') {
+      eraseNear(ll);
+    }
+  }, { passive: false });
+
+  mapEl.addEventListener('touchmove', function(e) {
+    if (!_isDrawing || !_drawMode) return;
+    e.preventDefault();
+    var ll = gMap.mouseEventToLatLng(e.touches[0]);
+    if (_drawMode === 'pen' && _curLine) {
+      _curLatLngs.push(ll);
+      _curLine.setLatLngs(_curLatLngs);
+    } else if (_drawMode === 'erase') {
+      eraseNear(ll);
+    }
+  }, { passive: false });
+
+  mapEl.addEventListener('touchend', endDraw);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   function loadCSS(href) {
     var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
@@ -1157,6 +1386,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     loadEvents();
+    initDrawTools(); // 初始化畫筆工具
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
