@@ -1247,28 +1247,96 @@ function setDrawColor(el) {
   _drawColor = el.getAttribute('data-color');
 }
 
-// ── 清除所有筆跡 ──
+// ── 清除所有筆跡（同步刪除 Sheets）──
 function clearAllDrawings() {
+  if (!confirm('確定清除所有標註？此操作將同步刪除雲端資料。')) return;
   _drawLines.forEach(function(l) { l.remove(); });
   _drawLines = [];
+  // 通知後端清除所有標註
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'clearDrawings' })
+  });
 }
 
-// ── 抹除：判斷是否與某筆跡足夠接近 ──
+// ── 抹除：判斷是否與某筆跡足夠接近，完成後同步存檔 ──
 function eraseNear(latlng) {
-  var ERASE_PX = 20; // 抹除半徑（像素）
+  var ERASE_PX = 20;
   var clickPx = gMap.latLngToLayerPoint(latlng);
+  var changed = false;
   _drawLines = _drawLines.filter(function(line) {
     var lls = line.getLatLngs();
     for (var i = 0; i < lls.length; i++) {
       var pt = gMap.latLngToLayerPoint(lls[i]);
       var dx = pt.x - clickPx.x, dy = pt.y - clickPx.y;
       if (Math.sqrt(dx*dx + dy*dy) < ERASE_PX) {
-        line.remove(); // 移除整條線
+        line.remove();
+        changed = true;
         return false;
       }
     }
     return true;
   });
+  // 抹除後延遲批次存檔（避免滑鼠移動時瘋狂發請求）
+  if (changed) scheduleDrawingSave();
+}
+
+// ── 延遲批次存檔（300ms 防抖）──
+var _drawSaveTimer = null;
+function scheduleDrawingSave() {
+  if (_drawSaveTimer) clearTimeout(_drawSaveTimer);
+  _drawSaveTimer = setTimeout(saveAllDrawings, 300);
+}
+
+// ── 將所有筆跡序列化後送至 Sheets ──
+function saveAllDrawings() {
+  var payload = _drawLines.map(function(line) {
+    var opts = line.options;
+    return {
+      pts:    line.getLatLngs().map(function(ll) { return { lat: ll.lat, lng: ll.lng }; }),
+      color:  opts.color,
+      weight: opts.weight
+    };
+  });
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'saveDrawings', drawings: payload })
+  });
+}
+
+// ── 從 Sheets 載入已有標註 ──
+function loadDrawings() {
+  _jsonpGet(SHEETS_URL + '?action=getDrawings', function(data) {
+    if (!data || !data.drawings) return;
+    // 正在畫線時跳過，避免畫到一半被清掉
+    if (_isDrawing) return;
+    // 清除目前所有線條，重新繪製從 Sheets 拿到的資料
+    _drawLines.forEach(function(l) { l.remove(); });
+    _drawLines = [];
+    data.drawings.forEach(function(d) {
+      if (!d.pts || d.pts.length < 2) return;
+      var lls = d.pts.map(function(p) { return L.latLng(p.lat, p.lng); });
+      var line = L.polyline(lls, {
+        color:    d.color  || '#dc2626',
+        weight:   d.weight || 4,
+        opacity:  0.85,
+        lineCap:  'round',
+        lineJoin: 'round'
+      }).addTo(gMap);
+      _drawLines.push(line);
+    });
+  });
+}
+
+// ── 每 5 秒自動從 Sheets 同步標註（讓其他裝置能即時看到）──
+function startDrawingSyncTimer() {
+  setInterval(function() {
+    // 畫筆或抹除模式進行中時暫停同步，避免干擾操作
+    if (_isDrawing) return;
+    loadDrawings();
+  }, 5000);
 }
 
 // ── 初始化畫筆事件（在 initMap 後呼叫）──
@@ -1309,15 +1377,16 @@ function initDrawTools() {
     }
   });
 
-  // 滑鼠放開：結束這筆線
+  // 滑鼠放開：結束這筆線，自動存至 Sheets
   function endDraw() {
     if (!_isDrawing) return;
     _isDrawing = false;
     if (_drawMode === 'pen' && _curLine) {
       if (_curLatLngs.length > 1) {
         _drawLines.push(_curLine); // 超過一個點才保留
+        saveAllDrawings();         // 立即存至 Sheets
       } else {
-        _curLine.remove(); // 單點點擊不保留
+        _curLine.remove();
       }
       _curLine    = null;
       _curLatLngs = [];
@@ -1357,7 +1426,20 @@ function initDrawTools() {
     }
   }, { passive: false });
 
-  mapEl.addEventListener('touchend', endDraw);
+  mapEl.addEventListener('touchend', function() {
+    if (!_isDrawing) return;
+    _isDrawing = false;
+    if (_drawMode === 'pen' && _curLine) {
+      if (_curLatLngs.length > 1) {
+        _drawLines.push(_curLine);
+        saveAllDrawings(); // 存至 Sheets
+      } else {
+        _curLine.remove();
+      }
+      _curLine    = null;
+      _curLatLngs = [];
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1386,7 +1468,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     loadEvents();
-    initDrawTools(); // 初始化畫筆工具
+    initDrawTools();        // 初始化畫筆工具
+    loadDrawings();         // 載入已儲存的標註
+    startDrawingSyncTimer(); // 每 5 秒自動同步
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
