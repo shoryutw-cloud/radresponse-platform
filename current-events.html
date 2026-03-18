@@ -842,80 +842,83 @@ function renderMsrMarkers(eventId) {
   _msrMarkers = [];
 
   var list = _msrCache[eventId] || [];
-
-  // ── Step 1：只保留有座標的量測點 ──
   var valid = list.filter(function(msr) {
     return !isNaN(parseFloat(msr.lat)) && !isNaN(parseFloat(msr.lng));
   });
   if (!valid.length) return;
 
-  // ── Step 2：轉換為像素座標 ──
+  // 所有點轉像素座標
   var pts = valid.map(function(msr) {
     var ll = L.latLng(parseFloat(msr.lat), parseFloat(msr.lng));
     return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
   });
 
-  // ── Step 3：碰撞偵測標籤配置 ──
-  // 標籤尺寸估算（寬 × 高）
-  var LW = 115, LH = 28;
-  // 標籤距圓點的固定像素距離
-  var OFFSET = 52;
-  // 8個候選方向（角度從右方起，順時針）
-  var ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+  // ── 標籤尺寸與配置參數 ──
+  var LW = 118, LH = 30;    // 標籤估計寬高（px）
+  var R_MIN  = 58;           // 最小偏移距離（px）
+  var R_STEP = 18;           // 碰撞時往外擴的步距（px）
+  var R_MAX  = 400;          // 最大允許偏移
+  // 8個方向：右、右下、下、左下、左、左上、上、右上
+  var DIRS = [0, 45, 90, 135, 180, 225, 270, 315];
 
-  // 已放置的標籤矩形 [{x, y, w, h}]（用於碰撞判斷）
-  var placed = [];
-
-  // 計算兩矩形的重疊面積
-  function overlapArea(a, b) {
-    var ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
-    var oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
-    return ox * oy;
+  // 判斷兩矩形是否重疊（加 4px padding 避免太貼近）
+  function overlaps(a, b) {
+    var PAD = 4;
+    return !(a.x + a.w + PAD < b.x || b.x + b.w + PAD < a.x ||
+             a.y + a.h + PAD < b.y || b.y + b.h + PAD < a.y);
   }
 
-  // 為每個點選出最佳標籤位置
+  // 已放置的標籤矩形
+  var placed = [];
+
+  // 為每個點找不重疊的最近位置
   pts.forEach(function(pt) {
-    var best = null, bestScore = Infinity;
+    var bestRect = null, bestLL = null;
+    var found = false;
 
-    ANGLES.forEach(function(ang) {
-      var rad = ang * Math.PI / 180;
-      // 標籤左上角座標（iconAnchor 設在標籤中心偏左）
-      var cx = pt.px.x + OFFSET * Math.cos(rad);
-      var cy = pt.px.y + OFFSET * Math.sin(rad);
-      var rect = { x: cx - LW / 2, y: cy - LH / 2, w: LW, h: LH };
+    outer:
+    for (var r = R_MIN; r <= R_MAX; r += R_STEP) {
+      for (var di = 0; di < DIRS.length; di++) {
+        var rad = DIRS[di] * Math.PI / 180;
+        var cx = pt.px.x + r * Math.cos(rad);
+        var cy = pt.px.y + r * Math.sin(rad);
+        var rect = { x: cx - LW / 2, y: cy - LH / 2, w: LW, h: LH };
 
-      // 計算與所有已放置標籤的總重疊面積
-      var score = placed.reduce(function(sum, r) {
-        return sum + overlapArea(rect, r);
-      }, 0);
-
-      // 同時懲罰與其他量測圓點的重疊（避免標籤蓋住圓點）
-      pts.forEach(function(other) {
-        if (other === pt) return;
-        var dotRect = { x: other.px.x - 8, y: other.px.y - 8, w: 16, h: 16 };
-        score += overlapArea(rect, dotRect) * 2;
-      });
-
-      if (score < bestScore) {
-        bestScore = score;
-        best = { ang: ang, rect: rect, cx: cx, cy: cy };
+        // 檢查與所有已放置標籤的碰撞
+        var clash = false;
+        for (var pi = 0; pi < placed.length; pi++) {
+          if (overlaps(rect, placed[pi])) { clash = true; break; }
+        }
+        if (!clash) {
+          bestRect = rect;
+          bestLL   = gMap.layerPointToLatLng(L.point(cx, cy));
+          found    = true;
+          break outer;
+        }
       }
-    });
+    }
 
-    // 記錄已放置位置
-    placed.push(best.rect);
-    // 標籤的地理座標（從像素反推）
-    pt.offLL = gMap.layerPointToLatLng(L.point(best.cx, best.cy));
+    // 若所有位置都被佔（極端情況），用最遠距離右上方放置
+    if (!found) {
+      var rad0 = 315 * Math.PI / 180;
+      var cx0  = pt.px.x + R_MAX * Math.cos(rad0);
+      var cy0  = pt.px.y + R_MAX * Math.sin(rad0);
+      bestRect = { x: cx0 - LW / 2, y: cy0 - LH / 2, w: LW, h: LH };
+      bestLL   = gMap.layerPointToLatLng(L.point(cx0, cy0));
+    }
+
+    placed.push(bestRect);
+    pt.offLL = bestLL;
   });
 
-  // ── Step 4：渲染「圓點 + 指引線 + 標籤」三件組 ──
+  // ── 渲染「圓點 + 指引線 + 標籤」三件組 ──
   pts.forEach(function(pt) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
     var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
     var offLL = pt.offLL;
 
-    // (a) 精確圓點
+    // 圓點（精確量測位置）
     var dotIcon = L.divIcon({
       className: '',
       html: '<div style="width:13px;height:13px;background:' + col + ';' +
@@ -923,16 +926,14 @@ function renderMsrMarkers(eventId) {
             'box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>',
       iconSize: [13, 13], iconAnchor: [6, 6]
     });
-    var dot = L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap);
-    _msrMarkers.push(dot);
+    _msrMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
 
-    // (b) 指引線
-    var line = L.polyline([pt.ll, offLL], {
+    // 指引虛線
+    _msrMarkers.push(L.polyline([pt.ll, offLL], {
       color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
-    }).addTo(gMap);
-    _msrMarkers.push(line);
+    }).addTo(gMap));
 
-    // (c) 標籤
+    // 數值標籤
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
