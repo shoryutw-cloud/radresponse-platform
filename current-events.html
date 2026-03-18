@@ -943,7 +943,7 @@ function renderMsrMarkers(eventId) {
     } catch(e) {}
     label.bindPopup(
       '<div class="msr-popup">' +
-      '<span class="msr-popup-val">' + val.toFixed(3) + '</span>' +
+      '<span class="msr-popup-val" style="color:' + col + '">' + val.toFixed(3) + '</span>' +
       '<span class="msr-popup-unit">&#x03BC;Sv/h</span>' +
       '<div class="msr-popup-info">' + (msr.reporter || '') + (timeStr ? ' · ' + timeStr : '') + '</div>' +
       (msr.instrument ? '<div class="msr-popup-info">' + msr.instrument + '</div>' : '') +
