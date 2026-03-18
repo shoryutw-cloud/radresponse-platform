@@ -837,7 +837,7 @@ function stopMsrTimer() {
 }
 
 function renderMsrMarkers(eventId) {
-  // 清除舊標記（標籤、圓點、指引線全部清除）
+  // 清除舊標記
   _msrMarkers.forEach(function(m) { m.remove(); });
   _msrMarkers = [];
 
@@ -849,63 +849,73 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  // ── Step 2：將 lat/lng 轉為地圖像素座標（用於計算距離與分散方向）──
+  // ── Step 2：轉換為像素座標 ──
   var pts = valid.map(function(msr) {
     var ll = L.latLng(parseFloat(msr.lat), parseFloat(msr.lng));
     return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
   });
 
-  // ── Step 3：分群（像素距離 < CLUSTER_R 的點視為相鄰，需分散顯示）──
-  var CLUSTER_R    = 72;  // 群聚判斷半徑（px）
-  var LABEL_OFFSET = 78;  // 標籤偏移距離（px）
+  // ── Step 3：碰撞偵測標籤配置 ──
+  // 標籤尺寸估算（寬 × 高）
+  var LW = 115, LH = 28;
+  // 標籤距圓點的固定像素距離
+  var OFFSET = 52;
+  // 8個候選方向（角度從右方起，順時針）
+  var ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
-  var used   = pts.map(function() { return false; });
-  var groups = [];
+  // 已放置的標籤矩形 [{x, y, w, h}]（用於碰撞判斷）
+  var placed = [];
 
-  pts.forEach(function(pt, i) {
-    if (used[i]) return;
-    var grp = [i];
-    used[i] = true;
-    pts.forEach(function(pt2, j) {
-      if (used[j]) return;
-      var dx = pt.px.x - pt2.px.x, dy = pt.px.y - pt2.px.y;
-      if (Math.sqrt(dx * dx + dy * dy) < CLUSTER_R) {
-        grp.push(j);
-        used[j] = true;
+  // 計算兩矩形的重疊面積
+  function overlapArea(a, b) {
+    var ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+    var oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    return ox * oy;
+  }
+
+  // 為每個點選出最佳標籤位置
+  pts.forEach(function(pt) {
+    var best = null, bestScore = Infinity;
+
+    ANGLES.forEach(function(ang) {
+      var rad = ang * Math.PI / 180;
+      // 標籤左上角座標（iconAnchor 設在標籤中心偏左）
+      var cx = pt.px.x + OFFSET * Math.cos(rad);
+      var cy = pt.px.y + OFFSET * Math.sin(rad);
+      var rect = { x: cx - LW / 2, y: cy - LH / 2, w: LW, h: LH };
+
+      // 計算與所有已放置標籤的總重疊面積
+      var score = placed.reduce(function(sum, r) {
+        return sum + overlapArea(rect, r);
+      }, 0);
+
+      // 同時懲罰與其他量測圓點的重疊（避免標籤蓋住圓點）
+      pts.forEach(function(other) {
+        if (other === pt) return;
+        var dotRect = { x: other.px.x - 8, y: other.px.y - 8, w: 16, h: 16 };
+        score += overlapArea(rect, dotRect) * 2;
+      });
+
+      if (score < bestScore) {
+        bestScore = score;
+        best = { ang: ang, rect: rect, cx: cx, cy: cy };
       }
     });
-    groups.push(grp);
+
+    // 記錄已放置位置
+    placed.push(best.rect);
+    // 標籤的地理座標（從像素反推）
+    pt.offLL = gMap.layerPointToLatLng(L.point(best.cx, best.cy));
   });
 
-  // ── Step 4：為每群內的點分配標籤偏移角度（均勻散開）──
-  // 使用地理距離（公尺）而非像素，確保縮放時標籤距量測點距離不變
-  var LABEL_METER = 120;  // 標籤離量測點的固定地理距離（公尺）
-
-  groups.forEach(function(grp) {
-    var n = grp.length;
-    grp.forEach(function(ptIdx, gi) {
-      // 單點：預設右上方（方位角 40°，即東偏北）
-      // 多點：從右上方起均分 360°，確保各標籤均勻散開
-      var baseAngle = 40;
-      var angle = n === 1 ? baseAngle : baseAngle + (gi / n) * 360;
-      var lat = pts[ptIdx].ll.lat, lng = pts[ptIdx].ll.lng;
-      // 用 destPoint（已定義在全域）以公尺為單位計算偏移後的 lat/lng
-      var offLatLng = destPoint(lat, lng, angle, LABEL_METER);
-      pts[ptIdx].offLL = L.latLng(offLatLng[0], offLatLng[1]);
-    });
-  });
-
-  // ── Step 5：渲染「精確圓點 + 虛線指引 + 偏移標籤」三件組 ──
+  // ── Step 4：渲染「圓點 + 指引線 + 標籤」三件組 ──
   pts.forEach(function(pt) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
-    // 顏色：>=100 紅, >=0.5 橘, <0.5 綠
     var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
-
-    // 標籤位置（公尺偏移後的地理座標，縮放不影響距離）
     var offLL = pt.offLL;
 
-    // (a) 精確量測位置：小圓點（不可互動，避免干擾地圖點擊）
+    // (a) 精確圓點
     var dotIcon = L.divIcon({
       className: '',
       html: '<div style="width:13px;height:13px;background:' + col + ';' +
@@ -916,13 +926,13 @@ function renderMsrMarkers(eventId) {
     var dot = L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap);
     _msrMarkers.push(dot);
 
-    // (b) 虛線指引線（從精確點連到標籤中心）
+    // (b) 指引線
     var line = L.polyline([pt.ll, offLL], {
       color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
     }).addTo(gMap);
     _msrMarkers.push(line);
 
-    // (c) 偏移標籤（帶 popup，iconAnchor 設在標籤視覺中心，使指引線對齊）
+    // (c) 標籤
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
@@ -933,11 +943,10 @@ function renderMsrMarkers(eventId) {
             val.toFixed(3) + '</span>' +
             '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
             '</div>',
-      iconAnchor: [55, 16]  // 錨點置中，使指引線對準標籤中心
+      iconAnchor: [LW / 2, LH / 2]
     });
     var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
 
-    // popup：顯示完整量測資訊
     var timeStr = '';
     try {
       var d = new Date(msr.time);
@@ -1119,8 +1128,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
 
-    // 公尺偏移由 Leaflet 自動處理，縮放時標籤位置不需重算
-    gMap.on('zoomend', function() {});
+    // 縮放後像素座標改變，需重新跑碰撞偵測重繪標籤
+    gMap.on('zoomend', function() {
+      if (!_events.length) return;
+      var ev = _events[_curIdx];
+      if (!ev) return;
+      var cb = document.getElementById('lyr_' + _curIdx + '_msr');
+      if (!cb || cb.checked) renderMsrMarkers(ev.id);
+    });
 
     loadEvents();
   }
