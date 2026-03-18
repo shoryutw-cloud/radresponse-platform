@@ -878,18 +878,20 @@ function renderMsrMarkers(eventId) {
   });
 
   // ── Step 4：為每群內的點分配標籤偏移角度（均勻散開）──
+  // 使用地理距離（公尺）而非像素，確保縮放時標籤距量測點距離不變
+  var LABEL_METER = 120;  // 標籤離量測點的固定地理距離（公尺）
+
   groups.forEach(function(grp) {
     var n = grp.length;
     grp.forEach(function(ptIdx, gi) {
-      // 單點：預設右上方（-50°）；多點：從右上方起均分一圈
-      var baseAngle = -50;
+      // 單點：預設右上方（方位角 40°，即東偏北）
+      // 多點：從右上方起均分 360°，確保各標籤均勻散開
+      var baseAngle = 40;
       var angle = n === 1 ? baseAngle : baseAngle + (gi / n) * 360;
-      var rad = angle * Math.PI / 180;
-      var r   = n === 1 ? 65 : LABEL_OFFSET;
-      pts[ptIdx].offPx = {
-        x: pts[ptIdx].px.x + r * Math.cos(rad),
-        y: pts[ptIdx].px.y + r * Math.sin(rad)
-      };
+      var lat = pts[ptIdx].ll.lat, lng = pts[ptIdx].ll.lng;
+      // 用 destPoint（已定義在全域）以公尺為單位計算偏移後的 lat/lng
+      var offLatLng = destPoint(lat, lng, angle, LABEL_METER);
+      pts[ptIdx].offLL = L.latLng(offLatLng[0], offLatLng[1]);
     });
   });
 
@@ -900,8 +902,8 @@ function renderMsrMarkers(eventId) {
     // 顏色：>=100 紅, >=0.5 橘, <0.5 綠
     var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
 
-    // 計算標籤的 lat/lng（由偏移像素座標反推）
-    var offLL = gMap.layerPointToLatLng(L.point(pt.offPx.x, pt.offPx.y));
+    // 標籤位置（公尺偏移後的地理座標，縮放不影響距離）
+    var offLL = pt.offLL;
 
     // (a) 精確量測位置：小圓點（不可互動，避免干擾地圖點擊）
     var dotIcon = L.divIcon({
@@ -1117,14 +1119,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('zoomIn').addEventListener('click', function(){ gMap.zoomIn(); });
     document.getElementById('zoomOut').addEventListener('click', function(){ gMap.zoomOut(); });
 
-    // 縮放後像素座標改變，需重新計算指引線位置
-    gMap.on('zoomend', function() {
-      if (!_events.length) return;
-      var ev = _events[_curIdx];
-      if (!ev) return;
-      var cb = document.getElementById('lyr_' + _curIdx + '_msr');
-      if (!cb || cb.checked) renderMsrMarkers(ev.id);
-    });
+    // 公尺偏移由 Leaflet 自動處理，縮放時標籤位置不需重算
+    gMap.on('zoomend', function() {});
 
     loadEvents();
   }
