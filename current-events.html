@@ -289,10 +289,87 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 }
 .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
 
-/* ── RWD ── */
-@media (max-width: 480px) {
-.ev-card { width: calc(100vw - 32px); }
+/* ══════════════════════════════════════════
+   手機版 RWD（≤ 600px）
+   策略：
+   1. 事件卡 → 底部抽屜（可上拉展開/下拉收合）
+   2. 圖層面板 → 預設隱藏，右上角小按鈕開關
+   3. 畫筆工具列 → 精簡為 icon only
+   ══════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+  /* ── 事件卡：移到底部，改為抽屜樣式 ── */
+  .ev-card {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    border-radius: 14px 14px 0 0 !important;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.18) !important;
+    /* 預設只露出 header，上拉後顯示內容 */
+    max-height: 52px;
+    overflow: hidden;
+    transition: max-height .3s cubic-bezier(.4,0,.2,1);
+  }
+  .ev-card.mob-expanded {
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+  /* 標題列加上拖曳把手提示 */
+  .ev-card-header {
+    border-radius: 14px 14px 0 0;
+    cursor: pointer !important;
+    padding: 10px 14px !important;
+  }
+  .ev-card-header::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: #d0d8e4; border-radius: 2px;
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  }
+  /* 內容區可捲動 */
+  .ev-card-body {
+    max-height: calc(75vh - 52px);
+    overflow-y: auto;
+  }
+
+  /* ── 圖層面板：預設隱藏，改用浮動按鈕開關 ── */
+  .layer-panel {
+    display: none !important;
+    top: 12px !important;
+    right: 12px !important;
+    width: 180px !important;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .layer-panel.mob-show { display: block !important; }
+
+  /* 圖層開關浮動按鈕 */
+  .mob-layer-btn {
+    display: flex !important;
+  }
+
+  /* ── 畫筆工具列：精簡版，隱藏粗細文字和顏色 ── */
+  .draw-toolbar {
+    bottom: 58px !important; /* 往上移，避免蓋到卡片把手 */
+    padding: 5px 8px !important;
+    gap: 4px !important;
+  }
+  .draw-size-wrap .draw-size-label { display: none; }
+  .draw-size-range { width: 48px !important; }
+  .draw-tool-btn { width: 32px !important; height: 32px !important; font-size: 15px !important; }
+
+  /* ── 縮放按鈕往上移 ── */
+  .map-controls { bottom: 68px !important; right: 12px !important; }
+
+  /* ── 桌機版的收合按鈕在手機版隱藏（改用點擊 header 收合）── */
+  .ev-collapse-btn { display: none !important; }
 }
+
+/* 手機版圖層按鈕預設隱藏（桌機不顯示）*/
+.mob-layer-btn { display: none; }
 
 /* ── 畫筆工具列 ── */
 .draw-toolbar {
@@ -428,6 +505,16 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 </div>
 
 <!-- 圖層控制面板 -->
+
+<!-- 手機版：圖層開關浮動按鈕（右上角）-->
+<button class="mob-layer-btn" id="mobLayerBtn" onclick="toggleMobLayer()"
+  style="position:fixed;top:12px;right:12px;z-index:1001;
+         width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+         background:white;box-shadow:0 2px 8px rgba(0,0,0,.15);
+         font-size:18px;cursor:pointer;display:none;
+         align-items:center;justify-content:center;">
+  🗺️
+</button>
 
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
@@ -1338,6 +1425,42 @@ function startDrawingSyncTimer() {
     loadDrawings();
   }, 5000);
 }
+
+// ════════════════════════════════════════════
+// 手機版 RWD 互動
+// ════════════════════════════════════════════
+
+// ── 偵測是否為手機 ──
+function isMobile() { return window.innerWidth <= 600; }
+
+// ── 事件卡：點擊 header 展開/收合（手機版）──
+document.addEventListener('DOMContentLoaded', function() {
+  var header = document.querySelector('.ev-card-header');
+  if (header) {
+    header.addEventListener('click', function(e) {
+      if (!isMobile()) return;
+      // 點到 header 內的按鈕不觸發展開
+      if (e.target.closest('button')) return;
+      var card = document.getElementById('evCard');
+      card.classList.toggle('mob-expanded');
+    });
+  }
+});
+
+// ── 圖層面板：手機版開關 ──
+function toggleMobLayer() {
+  var panel = document.getElementById('layerPanel');
+  panel.classList.toggle('mob-show');
+}
+
+// ── 視窗縮放時重設樣式 ──
+window.addEventListener('resize', function() {
+  if (!isMobile()) {
+    // 回到桌機版：清除手機版狀態
+    document.getElementById('evCard').classList.remove('mob-expanded');
+    document.getElementById('layerPanel').classList.remove('mob-show');
+  }
+});
 
 // ── 初始化畫筆事件（在 initMap 後呼叫）──
 function initDrawTools() {
