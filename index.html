@@ -579,6 +579,7 @@
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">編輯事件</button>
+  <button class="top-drop-l3-btn" id="btnMapEdit" onclick="toggleMapEdit();closeAllMenus()">編輯地圖</button>
   <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">任務派送</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
@@ -680,6 +681,8 @@ window.addEventListener('message', function(e) {
       } catch(err) {}
       _pendingIframeIdx = null;
     }
+    // 若編輯地圖模式開啟中，通知新載入的 iframe
+    if (_mapEditOn) sendMapEditMsg();
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
@@ -955,6 +958,40 @@ function closeAllMenus() {
 
 // ── closeSidebar（openCreateEvent 等地方仍會呼叫，保留空函數避免錯誤）──
 function closeSidebar() {}
+
+// ── 編輯地圖模式（全域旗標）──
+var _mapEditOn = false;
+
+function toggleMapEdit() {
+  _mapEditOn = !_mapEditOn;
+
+  // 更新選單按鈕文字
+  var btn = document.getElementById('btnMapEdit');
+  if (btn) btn.textContent = _mapEditOn ? '✏️ 編輯地圖（開啟中）' : '編輯地圖';
+
+  // 確保目前顯示 current-events.html
+  var frame = document.getElementById('contentFrame');
+  var layer = document.getElementById('iframeLayer');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    // 尚未顯示地圖頁，先導過去，等 iframeReady 後再送訊息
+    showIframe('current-events.html');
+    // iframeReady 後的 postMessage 由下方 message 監聽器處理
+    return;
+  }
+
+  // 直接送訊息給 iframe
+  sendMapEditMsg();
+}
+
+function sendMapEditMsg() {
+  try {
+    var frame = document.getElementById('contentFrame');
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage({ type: 'mapEditMode', on: _mapEditOn }, '*');
+    }
+  } catch(e) {}
+}
 
 
 document.addEventListener('click',function(e){if(!e.target.closest('#ceAWrap'))_ceHS();});

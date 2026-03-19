@@ -431,7 +431,7 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
       <span class="ev-nav-label" id="evNavLabel">1/1</span>
       <button class="ev-nav-btn" id="evNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
     </div>
-    <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯">&#x270F;&#xFE0F; 編輯</button>
+    <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯" style="display:none">&#x270F;&#xFE0F; 編輯</button>
     <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
   </div>
   <div class="ev-card-body" id="evCardBody">
@@ -470,7 +470,7 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 </div>
 
 <!-- 畫筆工具列（底部置中）-->
-<div class="draw-toolbar" id="drawToolbar">
+<div class="draw-toolbar" id="drawToolbar" style="display:none">
   <!-- 畫筆 -->
   <button class="draw-tool-btn" id="btnPen" title="畫筆" onclick="setDrawMode('pen')">✏️</button>
   <!-- 抹除 -->
@@ -1260,6 +1260,22 @@ var _pendingIdx = null;
 var _pendingEventId = null;
 window.addEventListener('message', function(e) {
   if (!e.data) return;
+
+  // ── 編輯地圖模式開關 ──
+  if (e.data.type === 'mapEditMode') {
+    var on = !!e.data.on;
+    var editBtn   = document.getElementById('evEditBtn');
+    var toolbar   = document.getElementById('drawToolbar');
+    if (editBtn) editBtn.style.display = on ? '' : 'none';
+    if (toolbar) toolbar.style.display = on ? '' : 'none';
+    // 關閉模式時順帶關掉編輯面板和畫筆工具
+    if (!on) {
+      var panel = document.getElementById('evEditPanel');
+      if (panel && panel.classList.contains('show')) toggleEditPanel();
+      if (_drawMode) setDrawMode(_drawMode); // 取消目前畫筆模式
+    }
+    return;
+  }
   // 舊式 idx
   if (e.data.type === 'setIdx' && typeof e.data.idx === 'number') {
     if (_events.length > 0) {
