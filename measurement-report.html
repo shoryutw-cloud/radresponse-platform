@@ -220,8 +220,8 @@
       <div class="form-group">
         <label class="form-lbl">地點 <span style="font-size:11px;color:#94a3b8;font-weight:400">（選填）</span></label>
         <div class="gps-wrap">
-          <button class="gps-btn" id="gpsBtn" onclick="getGPS()">
-            📍 取得目前位置
+          <button class="gps-btn" id="gpsBtn" onclick="toggleGPS()">
+            📍 開始持續定位
           </button>
           <span class="gps-status" id="gpsStatus">尚未定位</span>
         </div>
@@ -325,15 +325,9 @@ function onEventChange() {
   document.getElementById('formCard').style.display = 'flex';
   document.getElementById('submitArea').style.display = 'flex';
 
-  // 填入回報人員 datalist（從 personnelStr 解析，相容純姓名與「隊別:姓名」兩種格式）
+  // 填入回報人員 datalist（技術組人員，從 personnelStr 解析）
   var names = (_curEv.personnelStr || '').split(',')
-    .map(function(s) {
-      var t = s.trim();
-      if (!t) return '';
-      // 若包含冒號，取冒號後的部分為姓名（相容「隊別:姓名」格式）
-      var colonIdx = t.indexOf(':');
-      return colonIdx >= 0 ? t.slice(colonIdx + 1).trim() : t;
-    }).filter(Boolean);
+    .map(function(s){ return s.trim(); }).filter(Boolean);
   // 儲存人員清單供下拉使用
   _reporterNames = names;
   renderReporterList('');
@@ -401,43 +395,84 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── GPS 定位 ──
-function getGPS() {
-  var btn = document.getElementById('gpsBtn');
+// ── GPS 持續追蹤（watchPosition）──
+var _gpsWatchId = null; // watchPosition 的 ID，null 表示未追蹤
+
+function toggleGPS() {
+  if (_gpsWatchId !== null) {
+    // 目前追蹤中 → 停止
+    stopGPS();
+  } else {
+    // 目前未追蹤 → 開始
+    startGPS();
+  }
+}
+
+function startGPS() {
+  var btn    = document.getElementById('gpsBtn');
   var status = document.getElementById('gpsStatus');
-  btn.textContent = '⏳ 定位中…';
-  btn.disabled = true;
 
   if (!navigator.geolocation) {
     status.textContent = '您的瀏覽器不支援 GPS';
-    status.className = 'gps-status err';
-    btn.textContent = '📍 取得目前位置';
-    btn.disabled = false;
+    status.className   = 'gps-status err';
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
+  btn.textContent  = '⏳ 定位中…';
+  btn.disabled     = true;
+  status.textContent = '等待 GPS 訊號…';
+  status.className   = 'gps-status';
+
+  _gpsWatchId = navigator.geolocation.watchPosition(
     function(pos) {
+      // 每次位置更新都自動寫入
       _lat = pos.coords.latitude.toFixed(6);
       _lng = pos.coords.longitude.toFixed(6);
       document.getElementById('inpLat').value = _lat;
       document.getElementById('inpLng').value = _lng;
-      status.textContent = '✔ ' + _lat + ', ' + _lng;
-      status.className = 'gps-status ok';
-      btn.textContent = '📍 重新定位';
-      btn.className = 'gps-btn got';
-      btn.disabled = false;
+
+      var acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) + 'm' : '';
+      status.textContent = '📡 持續定位中 · ' + _lat + ', ' + _lng + (acc ? '（精確度 ±' + acc + '）' : '');
+      status.className   = 'gps-status ok';
+
+      btn.textContent = '⏹ 停止定位';
+      btn.className   = 'gps-btn got';
+      btn.disabled    = false;
       validate();
     },
     function(err) {
       status.textContent = '定位失敗：' + (err.message || '未知錯誤');
-      status.className = 'gps-status err';
-      btn.textContent = '📍 重試';
-      btn.disabled = false;
+      status.className   = 'gps-status err';
+      btn.textContent    = '📍 開始持續定位';
+      btn.className      = 'gps-btn';
+      btn.disabled       = false;
+      _gpsWatchId        = null;
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
+
+function stopGPS() {
+  if (_gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(_gpsWatchId);
+    _gpsWatchId = null;
+  }
+  var btn    = document.getElementById('gpsBtn');
+  var status = document.getElementById('gpsStatus');
+  btn.textContent = '📍 開始持續定位';
+  btn.className   = 'gps-btn';
+  btn.disabled    = false;
+  if (_lat && _lng) {
+    status.textContent = '✔ 已停止定位（最後位置：' + _lat + ', ' + _lng + '）';
+    status.className   = 'gps-status ok';
+  } else {
+    status.textContent = '定位已停止';
+    status.className   = 'gps-status';
+  }
+}
+
+// 離開頁面時自動停止定位，節省電池
+window.addEventListener('beforeunload', stopGPS);
 
 // ── 表單驗證 ──
 function validate() {
@@ -501,11 +536,12 @@ function submitReport() {
 
 // ── 重置 ──
 function resetForm() {
+  stopGPS(); // 停止持續定位
   _lat = null; _lng = null;
   document.getElementById('inpReporter').value = '';
   document.getElementById('inpValue').value = '';
   document.getElementById('selInstrument').value = '';
-  document.getElementById('gpsBtn').textContent = '📍 取得目前位置';
+  document.getElementById('gpsBtn').textContent = '📍 開始持續定位';
   document.getElementById('gpsBtn').className = 'gps-btn';
   document.getElementById('gpsBtn').disabled = false;
   document.getElementById('gpsStatus').textContent = '尚未定位';
@@ -514,7 +550,6 @@ function resetForm() {
   document.getElementById('selEvent').value = '';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('submitArea').style.display = 'none';
-  // 還原送出按鈕
   var btn = document.getElementById('btnSubmit');
   if (btn) { btn.disabled = true; btn.innerHTML = '📤 送出回報'; }
 }
