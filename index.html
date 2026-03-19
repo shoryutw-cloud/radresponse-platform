@@ -911,6 +911,31 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) closeAllMenus();
   });
 
+  // ── 兜底：滑鼠完全離開 topbar 區域時，強制關閉所有選單 ──
+  var topbar = document.querySelector('.topbar');
+  if (topbar) {
+    topbar.addEventListener('mouseleave', function() {
+      // 給 150ms 緩衝，確保滑鼠是真的離開而不是移進下拉選單
+      setTimeout(function() {
+        if (!isInMenuSystem()) closeAllMenus();
+      }, 150);
+    });
+  }
+
+  // ── 下拉選單浮出在 topbar 外時，偵測所有選單都不 hover 才關閉 ──
+  document.addEventListener('mousemove', function() {
+    if (!isInMenuSystem()) {
+      // 若目前有選單開著但滑鼠不在任何選單上，延遲關閉
+      var anyOpen = document.querySelector('.top-drop.active, .top-drop-l3.active');
+      if (anyOpen) {
+        clearTimeout(leaveTimer);
+        leaveTimer = setTimeout(function() {
+          if (!isInMenuSystem()) closeAllMenus();
+        }, 200);
+      }
+    }
+  });
+
   // ════════════════════════════════════════════
   // 手機版選單
   // ════════════════════════════════════════════
