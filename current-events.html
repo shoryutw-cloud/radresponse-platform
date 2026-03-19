@@ -455,13 +455,6 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
       <label class="ev-edit-lbl">預估影響範圍</label>
       <input class="ev-edit-inp" id="editImpactRange" placeholder="例：半徑500公尺">
     </div>
-    <div class="ev-edit-row">
-      <label class="ev-edit-lbl">事件狀態</label>
-      <select class="ev-edit-sel" id="editStatus">
-        <option value="active">進行中 (active)</option>
-        <option value="closed">已結束 (closed)</option>
-      </select>
-    </div>
     <div class="ev-edit-btns">
       <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
       <button class="ev-edit-save" id="evEditSave" onclick="saveEdit()">💾 儲存</button>
@@ -614,7 +607,6 @@ function toggleEditPanel() {
     document.getElementById('editDoseRate').value   = ev.doseRate    || '';
     document.getElementById('editDoseMax').value    = ev.doseMax     || '';
     document.getElementById('editImpactRange').value= ev.impactRange || '';
-    document.getElementById('editStatus').value     = ev.status      || 'active';
   }
 }
 
@@ -632,8 +624,7 @@ function saveEdit() {
     windDir:     windVal,
     doseRate:    document.getElementById('editDoseRate').value.trim(),
     doseMax:     document.getElementById('editDoseMax').value.trim(),
-    impactRange: document.getElementById('editImpactRange').value.trim(),
-    status:      document.getElementById('editStatus').value
+    impactRange: document.getElementById('editImpactRange').value.trim()
   };
 
   // 用 no-cors 送出（與其他 POST 一致，無法讀回傳值但資料會寫入）
@@ -649,7 +640,6 @@ function saveEdit() {
     ev.doseRate    = payload.doseRate;
     ev.doseMax     = payload.doseMax;
     ev.impactRange = payload.impactRange;
-    ev.status      = payload.status;
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     // 關閉面板，重新渲染卡片
