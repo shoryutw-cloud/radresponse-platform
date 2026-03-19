@@ -864,15 +864,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     navItem.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        // 滑鼠不在任何選單元件上才關閉
         if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
-      }, 150);
+      }, 0);
     });
     drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     drop.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
         if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
-      }, 150);
+      }, 0);
     });
   });
 
@@ -885,15 +884,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     btnJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        // 只有滑鼠移到 L3 本身才保持開啟
         if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
-      }, 150);
+      }, 0);
     });
     dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     dropJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
         if (!btnJishi.matches(':hover')) dropJishi.classList.remove('active');
-      }, 150);
+      }, 0);
     });
   }
 
@@ -915,23 +913,20 @@ document.addEventListener('DOMContentLoaded', function() {
   var topbar = document.querySelector('.topbar');
   if (topbar) {
     topbar.addEventListener('mouseleave', function() {
-      // 給 150ms 緩衝，確保滑鼠是真的離開而不是移進下拉選單
       setTimeout(function() {
         if (!isInMenuSystem()) closeAllMenus();
-      }, 150);
+      }, 0);
     });
   }
 
-  // ── 下拉選單浮出在 topbar 外時，偵測所有選單都不 hover 才關閉 ──
   document.addEventListener('mousemove', function() {
     if (!isInMenuSystem()) {
-      // 若目前有選單開著但滑鼠不在任何選單上，延遲關閉
       var anyOpen = document.querySelector('.top-drop.active, .top-drop-l3.active');
       if (anyOpen) {
         clearTimeout(leaveTimer);
         leaveTimer = setTimeout(function() {
           if (!isInMenuSystem()) closeAllMenus();
-        }, 200);
+        }, 0);
       }
     }
   });
