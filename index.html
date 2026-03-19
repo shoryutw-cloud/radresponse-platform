@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>應變資訊平台</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 <style>
   /* ────── CSS 變數 ────── */
   :root {
@@ -503,7 +502,7 @@
             <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">🚨</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:2px">目前事件數</div>
             <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <span id="dashActiveSpinner" style="font-size:16px;color:#fdba74;font-weight:500">讀取中…</span>
+              <span id="dashActiveSpinner" style="display:inline-block;width:48px;height:12px;background:#fed7aa;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
             </div>
             <!-- 固定高度容器，初始空白，資料來了填入不撐高 -->
             <div id="dashByType" style="display:flex;flex-direction:column;gap:4px;width:100%;height:86px;flex-shrink:0;overflow:hidden"></div>
@@ -515,7 +514,7 @@
             <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✅</div>
             <div class="dash-card-label" style="font-size:14px;margin-top:2px">歷史事件數</div>
             <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <span id="dashClosedSpinner" style="font-size:16px;color:#86efac;font-weight:500">讀取中…</span>
+              <span id="dashClosedSpinner" style="display:inline-block;width:48px;height:12px;background:#bbf7d0;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
             </div>
             <!-- 佔位區，與左欄同高 -->
             <div style="height:86px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
@@ -579,6 +578,7 @@
 </div>
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
+  <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">編輯事件</button>
   <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">任務派送</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
   <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
