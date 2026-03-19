@@ -216,15 +216,10 @@
         </select>
       </div>
 
-      <!-- GPS 定位 -->
+      <!-- GPS 定位：自動持續追蹤，不需按鈕 -->
       <div class="form-group">
-        <label class="form-lbl">地點 <span style="font-size:11px;color:#94a3b8;font-weight:400">（選填）</span></label>
-        <div class="gps-wrap">
-          <button class="gps-btn" id="gpsBtn" onclick="toggleGPS()">
-            📍 開始持續定位
-          </button>
-          <span class="gps-status" id="gpsStatus">尚未定位</span>
-        </div>
+        <label class="form-lbl">地點 <span style="font-size:11px;color:#94a3b8;font-weight:400">（自動定位）</span></label>
+        <span class="gps-status" id="gpsStatus">⏳ 定位中…</span>
         <input type="hidden" id="inpLat">
         <input type="hidden" id="inpLng">
       </div>
@@ -395,58 +390,30 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── GPS 持續追蹤（watchPosition）──
-var _gpsWatchId = null; // watchPosition 的 ID，null 表示未追蹤
-
-function toggleGPS() {
-  if (_gpsWatchId !== null) {
-    // 目前追蹤中 → 停止
-    stopGPS();
-  } else {
-    // 目前未追蹤 → 開始
-    startGPS();
-  }
-}
+// ── GPS 持續追蹤（頁面載入後自動啟動）──
+var _gpsWatchId = null;
 
 function startGPS() {
-  var btn    = document.getElementById('gpsBtn');
   var status = document.getElementById('gpsStatus');
-
   if (!navigator.geolocation) {
-    status.textContent = '您的瀏覽器不支援 GPS';
+    status.textContent = '⚠️ 瀏覽器不支援 GPS';
     status.className   = 'gps-status err';
     return;
   }
-
-  btn.textContent  = '⏳ 定位中…';
-  btn.disabled     = true;
-  status.textContent = '等待 GPS 訊號…';
-  status.className   = 'gps-status';
-
   _gpsWatchId = navigator.geolocation.watchPosition(
     function(pos) {
-      // 每次位置更新都自動寫入
       _lat = pos.coords.latitude.toFixed(6);
       _lng = pos.coords.longitude.toFixed(6);
       document.getElementById('inpLat').value = _lat;
       document.getElementById('inpLng').value = _lng;
-
-      var acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) + 'm' : '';
-      status.textContent = '📡 持續定位中 · ' + _lat + ', ' + _lng + (acc ? '（精確度 ±' + acc + '）' : '');
+      var acc = pos.coords.accuracy ? '±' + Math.round(pos.coords.accuracy) + 'm' : '';
+      status.textContent = '📡 ' + _lat + ', ' + _lng + (acc ? '　' + acc : '');
       status.className   = 'gps-status ok';
-
-      btn.textContent = '⏹ 停止定位';
-      btn.className   = 'gps-btn got';
-      btn.disabled    = false;
       validate();
     },
     function(err) {
-      status.textContent = '定位失敗：' + (err.message || '未知錯誤');
+      status.textContent = '⚠️ 定位失敗：' + (err.message || '未知錯誤');
       status.className   = 'gps-status err';
-      btn.textContent    = '📍 開始持續定位';
-      btn.className      = 'gps-btn';
-      btn.disabled       = false;
-      _gpsWatchId        = null;
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
@@ -457,21 +424,8 @@ function stopGPS() {
     navigator.geolocation.clearWatch(_gpsWatchId);
     _gpsWatchId = null;
   }
-  var btn    = document.getElementById('gpsBtn');
-  var status = document.getElementById('gpsStatus');
-  btn.textContent = '📍 開始持續定位';
-  btn.className   = 'gps-btn';
-  btn.disabled    = false;
-  if (_lat && _lng) {
-    status.textContent = '✔ 已停止定位（最後位置：' + _lat + ', ' + _lng + '）';
-    status.className   = 'gps-status ok';
-  } else {
-    status.textContent = '定位已停止';
-    status.className   = 'gps-status';
-  }
 }
 
-// 離開頁面時自動停止定位，節省電池
 window.addEventListener('beforeunload', stopGPS);
 
 // ── 表單驗證 ──
@@ -536,15 +490,11 @@ function submitReport() {
 
 // ── 重置 ──
 function resetForm() {
-  stopGPS(); // 停止持續定位
   _lat = null; _lng = null;
   document.getElementById('inpReporter').value = '';
   document.getElementById('inpValue').value = '';
   document.getElementById('selInstrument').value = '';
-  document.getElementById('gpsBtn').textContent = '📍 開始持續定位';
-  document.getElementById('gpsBtn').className = 'gps-btn';
-  document.getElementById('gpsBtn').disabled = false;
-  document.getElementById('gpsStatus').textContent = '尚未定位';
+  document.getElementById('gpsStatus').textContent = '⏳ 定位中…';
   document.getElementById('gpsStatus').className = 'gps-status';
   document.getElementById('successBox').classList.remove('show');
   document.getElementById('selEvent').value = '';
@@ -556,6 +506,7 @@ function resetForm() {
 
 document.addEventListener('DOMContentLoaded', function() {
   loadEvents();
+  startGPS(); // 自動開始持續定位
 });
 </script>
 </body>
