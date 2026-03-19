@@ -1244,6 +1244,7 @@ function placeMarkers() {
     marker.on('click', function() {
       _curIdx = i;
       renderCard(i);
+      renderLayerPanel(); // 同步更新圖層面板
       // 打開收合的卡片
       var card = document.getElementById('evCard');
       if (card.classList.contains('collapsed')) toggleCollapse();
