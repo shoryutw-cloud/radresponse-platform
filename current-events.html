@@ -943,15 +943,36 @@ function removeEventLayers(idx) {
   if (lyr.sector) { lyr.sector.remove(); lyr.sector = null; }
 }
 
-// checkbox 狀態（預設全開）
+// ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
+// 預設全部為 true（全開），使用者勾選後自動記憶
+var _layerPrefs = {};
+
+// 取得指定事件+圖層的記憶狀態（未曾設定過則預設 true）
+function getLayerPref(eventId, type) {
+  if (!_layerPrefs[eventId]) return true;
+  var val = _layerPrefs[eventId][type];
+  return (val === undefined) ? true : val;
+}
+
+// 儲存使用者勾選狀態
+function saveLayerPref(eventId, type, checked) {
+  if (!_layerPrefs[eventId]) _layerPrefs[eventId] = {};
+  _layerPrefs[eventId][type] = checked;
+}
+
+// checkbox 狀態（先查記憶，再查 DOM）
 function isLayerOn(idx, type) {
+  var ev = _events[idx];
+  if (ev) {
+    // 優先從記憶取值（不依賴 DOM 是否存在）
+    return getLayerPref(ev.id, type);
+  }
   var cb = document.getElementById('lyr_' + idx + '_' + type);
   return cb ? cb.checked : true;
 }
 
 // ── 重建所有事件的圖層 ──
 function updateLayers(lat, lng) {
-  // 相容舊有呼叫（傳入 lat/lng 時只重建當前事件）
   _events.forEach(function(_, i) { buildEventLayers(i); });
 }
 
@@ -1139,7 +1160,7 @@ function renderMsrMarkers(eventId) {
   });
 }
 
-// ── 渲染圖層控制面板（只顯示目前事件）──
+// ── 渲染圖層控制面板（只顯示目前事件，自動還原記憶狀態）──
 function renderLayerPanel() {
   var body = document.getElementById('layerPanelBody');
   if (!body) return;
@@ -1147,15 +1168,40 @@ function renderLayerPanel() {
     body.innerHTML = '<div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">無進行中事件</div>';
     return;
   }
-  var i = _curIdx;
+  var i  = _curIdx;
+  var ev = _events[i];
+  // 從記憶取各圖層狀態，預設全開
+  var chk = {
+    circle: getLayerPref(ev.id, 'circle'),
+    line:   getLayerPref(ev.id, 'line'),
+    sector: getLayerPref(ev.id, 'sector'),
+    msr:    getLayerPref(ev.id, 'msr')
+  };
+
+  function c(type) { return chk[type] ? 'checked' : ''; }
+
   body.innerHTML =
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" checked onchange="buildEventLayers('+i+')"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" checked onchange="toggleMsrLayer('+i+')"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍圓</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
     '</div></div>';
+}
+
+// ── checkbox 變更：存入記憶 → 重繪圖層 ──
+function onLayerChk(idx, type, checked) {
+  var ev = _events[idx];
+  if (ev) saveLayerPref(ev.id, type, checked);
+  buildEventLayers(idx);
+}
+
+// ── 量測數值 checkbox 變更：存入記憶 → 開關量測圖層 ──
+function onMsrChk(idx, checked) {
+  var ev = _events[idx];
+  if (ev) saveLayerPref(ev.id, 'msr', checked);
+  toggleMsrLayer(idx);
 }
 
 // ── 圖層面板收合 ──
