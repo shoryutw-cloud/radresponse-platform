@@ -870,7 +870,9 @@ document.addEventListener('DOMContentLoaded', function() {
     drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
     drop.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
-        if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
+        // 直接關閉，不依賴 isInMenuSystem（避免 L3 hover 讓 L2 殘留）
+        drop.classList.remove('active');
+        closeL3();
       }, 0);
     });
   });
@@ -887,10 +889,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
       }, 0);
     });
-    dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    dropJishi.addEventListener('mouseenter', function() {
+      // L3 hover 時清除計時器，防止 drop-admin 被提前關閉
+      clearTimeout(leaveTimer);
+    });
     dropJishi.addEventListener('mouseleave', function() {
       leaveTimer = setTimeout(function() {
         if (!btnJishi.matches(':hover')) dropJishi.classList.remove('active');
+        // L3 離開時，drop-admin 也一併關閉
+        if (dropAdmin && !dropAdmin.matches(':hover')) dropAdmin.classList.remove('active');
       }, 0);
     });
   }
