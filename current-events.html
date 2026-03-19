@@ -1365,12 +1365,13 @@ function eraseNear(latlng) {
     }
     return true;
   });
-  // 抹除後延遲批次存檔（避免滑鼠移動時瘋狂發請求）
   if (changed) scheduleDrawingSave();
 }
 
 // ── 延遲批次存檔（300ms 防抖）──
 var _drawSaveTimer = null;
+var _savePending   = false; // 存檔進行中旗標，防止同步覆蓋未存資料
+
 function scheduleDrawingSave() {
   if (_drawSaveTimer) clearTimeout(_drawSaveTimer);
   _drawSaveTimer = setTimeout(saveAllDrawings, 300);
@@ -1378,6 +1379,7 @@ function scheduleDrawingSave() {
 
 // ── 將所有筆跡序列化後送至 Sheets ──
 function saveAllDrawings() {
+  _savePending = true; // 標記存檔進行中，暫停同步
   var payload = _drawLines.map(function(line) {
     var opts = line.options;
     return {
@@ -1390,6 +1392,9 @@ function saveAllDrawings() {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action: 'saveDrawings', drawings: payload })
+  }).finally(function() {
+    // 存檔完成（或失敗）後 2 秒才允許同步，確保 GAS 寫入完畢
+    setTimeout(function() { _savePending = false; }, 2000);
   });
 }
 
@@ -1397,31 +1402,30 @@ function saveAllDrawings() {
 function loadDrawings() {
   _jsonpGet(SHEETS_URL + '?action=getDrawings', function(data) {
     if (!data || !data.drawings) return;
-    // 正在畫線時跳過，避免畫到一半被清掉
-    if (_isDrawing) return;
-    // 清除目前所有線條，重新繪製從 Sheets 拿到的資料
+    // 畫線中或存檔未完成時跳過，避免覆蓋本機未存資料
+    if (_isDrawing || _savePending) return;
     _drawLines.forEach(function(l) { l.remove(); });
     _drawLines = [];
     data.drawings.forEach(function(d) {
       if (!d.pts || d.pts.length < 2) return;
       var lls = d.pts.map(function(p) { return L.latLng(p.lat, p.lng); });
       var line = L.polyline(lls, {
-        color:    d.color  || '#dc2626',
-        weight:   d.weight || 4,
-        opacity:  0.85,
-        lineCap:  'round',
-        lineJoin: 'round'
+        color:       d.color  || '#dc2626',
+        weight:      d.weight || 4,
+        opacity:     0.85,
+        lineCap:     'round',
+        lineJoin:    'round',
+        interactive: false  // 不攔截滑鼠事件，避免干擾畫筆操作
       }).addTo(gMap);
       _drawLines.push(line);
     });
   });
 }
 
-// ── 每 5 秒自動從 Sheets 同步標註（讓其他裝置能即時看到）──
+// ── 每 5 秒自動從 Sheets 同步標註 ──
 function startDrawingSyncTimer() {
   setInterval(function() {
-    // 畫筆或抹除模式進行中時暫停同步，避免干擾操作
-    if (_isDrawing) return;
+    if (_isDrawing || _savePending) return;
     loadDrawings();
   }, 5000);
 }
@@ -1466,30 +1470,30 @@ window.addEventListener('resize', function() {
 function initDrawTools() {
   var mapEl = document.getElementById('map');
 
-  // 滑鼠按下：開始畫線
+  // ── 滑鼠按下（在地圖上）：開始畫線 ──
   mapEl.addEventListener('mousedown', function(e) {
     if (!_drawMode) return;
-    if (e.button !== 0) return; // 只接受左鍵
+    if (e.button !== 0) return;
     e.preventDefault();
     _isDrawing = true;
     var ll = gMap.mouseEventToLatLng(e);
-
     if (_drawMode === 'pen') {
       _curLatLngs = [ll];
       _curLine = L.polyline(_curLatLngs, {
-        color:   _drawColor,
-        weight:  parseInt(document.getElementById('drawSize').value),
-        opacity: 0.85,
-        lineCap: 'round',
-        lineJoin: 'round'
+        color:       _drawColor,
+        weight:      parseInt(document.getElementById('drawSize').value),
+        opacity:     0.85,
+        lineCap:     'round',
+        lineJoin:    'round',
+        interactive: false  // ★ 不攔截滑鼠事件，畫過自己不會中斷
       }).addTo(gMap);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
     }
   });
 
-  // 滑鼠移動：延伸線條 / 連續抹除
-  mapEl.addEventListener('mousemove', function(e) {
+  // ── 滑鼠移動（監聽 document，避免移到 Leaflet 子元素時中斷）──
+  document.addEventListener('mousemove', function(e) {
     if (!_isDrawing || !_drawMode) return;
     var ll = gMap.mouseEventToLatLng(e);
     if (_drawMode === 'pen' && _curLine) {
@@ -1500,37 +1504,42 @@ function initDrawTools() {
     }
   });
 
-  // 滑鼠放開：結束這筆線，自動存至 Sheets
-  function endDraw() {
+  // ── 滑鼠放開（監聽 document，確保拖出地圖外放開也能結束）──
+  document.addEventListener('mouseup', function(e) {
     if (!_isDrawing) return;
     _isDrawing = false;
     if (_drawMode === 'pen' && _curLine) {
       if (_curLatLngs.length > 1) {
-        _drawLines.push(_curLine); // 超過一個點才保留
-        saveAllDrawings();         // 立即存至 Sheets
+        _drawLines.push(_curLine);
+        saveAllDrawings();
       } else {
         _curLine.remove();
       }
       _curLine    = null;
       _curLatLngs = [];
+    } else if (_drawMode === 'erase') {
+      // 抹除結束，scheduleDrawingSave 已在 eraseNear 裡觸發
     }
-  }
-  mapEl.addEventListener('mouseup',    endDraw);
-  mapEl.addEventListener('mouseleave', endDraw);
+  });
 
   // ── 觸控支援（手機/平板）──
   mapEl.addEventListener('touchstart', function(e) {
     if (!_drawMode) return;
     e.preventDefault();
     _isDrawing = true;
-    var ll = gMap.mouseEventToLatLng(e.touches[0]);
+    var touch = e.touches[0];
+    var ll = gMap.containerPointToLatLng(
+      gMap.mouseEventToContainerPoint(touch)
+    );
     if (_drawMode === 'pen') {
       _curLatLngs = [ll];
       _curLine = L.polyline(_curLatLngs, {
-        color:   _drawColor,
-        weight:  parseInt(document.getElementById('drawSize').value),
-        opacity: 0.85,
-        lineCap: 'round', lineJoin: 'round'
+        color:       _drawColor,
+        weight:      parseInt(document.getElementById('drawSize').value),
+        opacity:     0.85,
+        lineCap:     'round',
+        lineJoin:    'round',
+        interactive: false
       }).addTo(gMap);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
@@ -1540,7 +1549,10 @@ function initDrawTools() {
   mapEl.addEventListener('touchmove', function(e) {
     if (!_isDrawing || !_drawMode) return;
     e.preventDefault();
-    var ll = gMap.mouseEventToLatLng(e.touches[0]);
+    var touch = e.touches[0];
+    var ll = gMap.containerPointToLatLng(
+      gMap.mouseEventToContainerPoint(touch)
+    );
     if (_drawMode === 'pen' && _curLine) {
       _curLatLngs.push(ll);
       _curLine.setLatLngs(_curLatLngs);
@@ -1555,7 +1567,7 @@ function initDrawTools() {
     if (_drawMode === 'pen' && _curLine) {
       if (_curLatLngs.length > 1) {
         _drawLines.push(_curLine);
-        saveAllDrawings(); // 存至 Sheets
+        saveAllDrawings();
       } else {
         _curLine.remove();
       }
