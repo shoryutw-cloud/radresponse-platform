@@ -1339,11 +1339,14 @@ function clearAllDrawings() {
   if (!confirm('確定清除所有標註？此操作將同步刪除雲端資料。')) return;
   _drawLines.forEach(function(l) { l.remove(); });
   _drawLines = [];
-  // 通知後端清除所有標註
+  _savePending = true; // 清除進行中，暫停同步避免舊資料被拉回
   fetch(SHEETS_URL, {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action: 'clearDrawings' })
+  }).finally(function() {
+    // GAS 寫入需要時間，2 秒後才開放同步
+    setTimeout(function() { _savePending = false; }, 2000);
   });
 }
 
