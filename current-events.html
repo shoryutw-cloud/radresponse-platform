@@ -289,6 +289,12 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
 }
 .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
 
+/* ── 使用者位置藍點脈衝動畫 ── */
+@keyframes userPulse {
+  0%,100% { transform: scale(1);   opacity: .6; }
+  50%      { transform: scale(1.8); opacity: .1; }
+}
+
 /* ══════════════════════════════════════════
    手機版 RWD（≤ 600px）
    策略：
@@ -1920,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initDrawTools();
     loadDrawings();
     startDrawingSyncTimer();
+    initUserLocation(); // 初始化使用者位置藍點
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
@@ -1928,6 +1935,127 @@ document.addEventListener('DOMContentLoaded', function() {
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, function(){});
   });
 });
+
+// ════════════════════════════════════════════
+// 使用者即時位置（藍點 + 方向扇形 + 精確度圓）
+// ════════════════════════════════════════════
+var _userMarker   = null;  // 藍點主標記
+var _userAccCirc  = null;  // 精確度圓（淡藍色）
+var _userDirCone  = null;  // 方向扇形
+var _userHeading  = null;  // 目前方向（度）
+var _userWatchId  = null;  // watchPosition ID
+
+function initUserLocation() {
+  if (!navigator.geolocation) return;
+
+  // ── 監聽裝置方向（手機羅盤）──
+  function onOrientation(e) {
+    // iOS 用 webkitCompassHeading，Android 用 360 - alpha
+    var heading = null;
+    if (e.webkitCompassHeading !== undefined) {
+      heading = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      heading = (360 - e.alpha) % 360;
+    }
+    if (heading !== null) {
+      _userHeading = heading;
+      updateUserDirCone();
+    }
+  }
+
+  // iOS 13+ 需要使用者授權才能讀羅盤
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    document.addEventListener('click', function askCompass() {
+      DeviceOrientationEvent.requestPermission().then(function(state) {
+        if (state === 'granted') window.addEventListener('deviceorientation', onOrientation);
+      });
+      document.removeEventListener('click', askCompass);
+    }, { once: true });
+  } else {
+    window.addEventListener('deviceorientation', onOrientation);
+  }
+
+  // ── 持續追蹤位置 ──
+  _userWatchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      var acc = pos.coords.accuracy; // 精確度（公尺）
+
+      if (!gMap) return;
+
+      // 精確度圓
+      if (_userAccCirc) {
+        _userAccCirc.setLatLng([lat, lng]).setRadius(acc);
+      } else {
+        _userAccCirc = L.circle([lat, lng], {
+          radius: acc,
+          color: '#2563eb', fillColor: '#93c5fd',
+          fillOpacity: 0.15, weight: 1, opacity: 0.4
+        }).addTo(gMap);
+      }
+
+      // 藍點：自訂 divIcon，帶脈衝動畫
+      var dotHtml =
+        '<div style="position:relative;width:20px;height:20px">' +
+          // 脈衝外環
+          '<div style="position:absolute;inset:-6px;border-radius:50%;' +
+               'background:rgba(37,99,235,0.2);animation:userPulse 2s ease infinite"></div>' +
+          // 白色外圈
+          '<div style="position:absolute;inset:0;border-radius:50%;' +
+               'background:white;box-shadow:0 0 0 2px rgba(37,99,235,0.4)"></div>' +
+          // 藍色實心點
+          '<div style="position:absolute;inset:3px;border-radius:50%;background:#2563eb"></div>' +
+        '</div>';
+
+      if (_userMarker) {
+        _userMarker.setLatLng([lat, lng]);
+      } else {
+        var icon = L.divIcon({
+          className: '',
+          html: dotHtml,
+          iconSize: [20, 20], iconAnchor: [10, 10]
+        });
+        _userMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 500 }).addTo(gMap);
+        _userMarker.bindTooltip('您的位置', { direction: 'top', offset: [0, -12] });
+      }
+
+      // 方向扇形更新
+      updateUserDirCone();
+    },
+    function(err) {
+      console.warn('使用者位置取得失敗：', err.message);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+// ── 更新方向扇形（需要位置和方向都有才顯示）──
+function updateUserDirCone() {
+  if (!gMap || !_userMarker || _userHeading === null) return;
+  var ll  = _userMarker.getLatLng();
+  var lat = ll.lat, lng = ll.lng;
+  var hdg = _userHeading;
+  var FAN = 30;    // 扇形半角（度）
+  var R   = 60;    // 扇形半徑（公尺）
+
+  var conePoints = [[lat, lng]];
+  for (var i = 0; i <= 12; i++) {
+    conePoints.push(destPoint(lat, lng, hdg - FAN + (FAN * 2 * i / 12), R));
+  }
+  conePoints.push([lat, lng]);
+
+  if (_userDirCone) {
+    _userDirCone.setLatLngs(conePoints);
+  } else {
+    _userDirCone = L.polygon(conePoints, {
+      color: '#2563eb', fillColor: '#2563eb',
+      fillOpacity: 0.35, weight: 0
+    }).addTo(gMap);
+  }
+}
+
 </script>
 
 </body>
