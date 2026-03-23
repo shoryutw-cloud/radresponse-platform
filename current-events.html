@@ -923,61 +923,51 @@ function buildEventLayers(idx) {
       fillOpacity: 0.12, weight: 2, opacity: 0.7
     }).addTo(gMap);
 
-    // ── (4) 3km 弧線（扇形內，虛線）──
+    // ── 2km 弧線 ──
+    var arc2 = [];
+    for (var a2 = 0; a2 <= 24; a2++) arc2.push(destPoint(la, lo, (wd - 22.5) + 45 * a2 / 24, 2000));
+    _evLayers[idx].arc2 = L.polyline(arc2, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
+
+    // ── 3km 弧線 ──
     var arc3 = [];
-    for (var j = 0; j <= 24; j++) {
-      arc3.push(destPoint(la, lo, (wd - 22.5) + 45 * j / 24, 3000));
-    }
-    _evLayers[idx].arc3 = L.polyline(arc3, {
-      color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4'
-    }).addTo(gMap);
+    for (var a3 = 0; a3 <= 24; a3++) arc3.push(destPoint(la, lo, (wd - 22.5) + 45 * a3 / 24, 3000));
+    _evLayers[idx].arc3 = L.polyline(arc3, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
 
-    // ── (5) 4km 弧線（扇形內，虛線）──
+    // ── 4km 弧線 ──
     var arc4 = [];
-    for (var k = 0; k <= 24; k++) {
-      arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * k / 24, 4000));
-    }
-    _evLayers[idx].arc4 = L.polyline(arc4, {
-      color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4'
-    }).addTo(gMap);
+    for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
+    _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
 
-    // ── (6) 8 個編號交叉點（3~8）──
-    // 編號規則：內圈較小、外圈較大
-    //   3 = 3km × 中線
-    //   4 = 3km × 扇形上邊（wd-22.5°）
-    //   5 = 3km × 扇形下邊（wd+22.5°）
-    //   6 = 4km × 中線
-    //   7 = 4km × 扇形上邊
-    //   8 = 4km × 扇形下邊
-    var crossPts = [
-      destPoint(la, lo, wd,         3000),  // 3
-      destPoint(la, lo, wd - 22.5,  3000),  // 4
-      destPoint(la, lo, wd + 22.5,  3000),  // 5
-      destPoint(la, lo, wd,         4000),  // 6
-      destPoint(la, lo, wd - 22.5,  4000),  // 7
-      destPoint(la, lo, wd + 22.5,  4000),  // 8
+    // ── 8 個編號交叉點（3~10）──
+    // 越內圈編號越小
+    var crossDefs = [
+      { label: '3',  pt: destPoint(la, lo, wd,        2000), tip: '2km × 中線' },
+      { label: '4',  pt: destPoint(la, lo, wd,        3000), tip: '3km × 中線' },
+      { label: '5',  pt: destPoint(la, lo, wd - 22.5, 3000), tip: '3km × 扇形上緣' },
+      { label: '6',  pt: destPoint(la, lo, wd + 22.5, 3000), tip: '3km × 扇形下緣' },
+      { label: '7',  pt: destPoint(la, lo, wd,        4000), tip: '4km × 中線' },
+      { label: '8',  pt: destPoint(la, lo, wd,        5000), tip: '5km × 中線' },
+      { label: '9',  pt: destPoint(la, lo, wd - 22.5, 5000), tip: '5km × 扇形上緣' },
+      { label: '10', pt: destPoint(la, lo, wd + 22.5, 5000), tip: '5km × 扇形下緣' },
     ];
 
     var sectorMks = [];
-    crossPts.forEach(function(pt, n) {
-      var label = String(n + 3); // 3~8
+    crossDefs.forEach(function(def) {
+      var isDouble = def.label === '10'; // 兩位數字要稍小
       var icon = L.divIcon({
         className: '',
         html: '<div style="' +
-              'width:20px;height:20px;border-radius:50%;' +
+              'width:22px;height:22px;border-radius:50%;' +
               'background:#8b5cf6;border:2px solid white;' +
               'display:flex;align-items:center;justify-content:center;' +
-              'font-size:10px;font-weight:700;color:white;' +
+              'font-size:' + (isDouble ? '9' : '11') + 'px;font-weight:700;color:white;' +
               'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
               'font-family:ui-monospace,monospace' +
-              '">' + label + '</div>',
-        iconSize: [20, 20], iconAnchor: [10, 10]
+              '">' + def.label + '</div>',
+        iconSize: [22, 22], iconAnchor: [11, 11]
       });
-      var mk = L.marker(pt, { icon: icon }).addTo(gMap);
-      // popup 說明位置
-      var distLabel = n < 3 ? '3km' : '4km';
-      var dirLabel  = (n % 3 === 0) ? '中線' : (n % 3 === 1) ? '上緣（+22.5°）' : '下緣（−22.5°）';
-      mk.bindTooltip(label + '：' + distLabel + ' × ' + dirLabel, { permanent: false, direction: 'top' });
+      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
+      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
       sectorMks.push(mk);
     });
     _evLayers[idx].sectorMks = sectorMks;
@@ -990,6 +980,7 @@ function removeEventLayers(idx) {
   if (lyr.circle) { lyr.circle.remove(); lyr.circle = null; }
   if (lyr.line)   { lyr.line.remove();   lyr.line   = null; }
   if (lyr.sector) { lyr.sector.remove(); lyr.sector = null; }
+  if (lyr.arc2)   { lyr.arc2.remove();   lyr.arc2   = null; }
   if (lyr.arc3)   { lyr.arc3.remove();   lyr.arc3   = null; }
   if (lyr.arc4)   { lyr.arc4.remove();   lyr.arc4   = null; }
   if (lyr.sectorMks) {
