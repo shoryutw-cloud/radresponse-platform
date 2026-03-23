@@ -1242,46 +1242,123 @@ function loadEnvMonitor() {
   });
 }
 
-// ── 渲染環境監測站標記（菱形，青藍色，依數值深淺）──
+// ── 渲染環境監測站標記（菱形圓點 + 指引線 + 數值標籤）──
 function renderEnvMarkers(stations) {
-  stations.forEach(function(st) {
-    var lat = parseFloat(st.lat);
-    var lng = parseFloat(st.lng);
-    var val = parseFloat(st.value);
-    if (isNaN(lat) || isNaN(lng) || isNaN(val)) return;
+  var LW = 118, LH = 30;
+  var R_MIN  = 110;
+  var R_STEP = LH + 8;
+  var R_MAX  = 600;
+  var CLUSTER_R = 160;
 
-    // 顏色：與量測回報相同分界，但用青藍色系區分「官方固定站」
-    // >=100 深紅菱形、>=0.5 橘黃菱形、<0.5 青藍菱形（正常背景值）
-    var col  = val >= 100 ? '#be123c' : val >= 0.5 ? '#d97706' : '#0891b2';
-    var size = 14; // 菱形大小（px）
+  // 轉像素座標
+  var pts = stations.filter(function(st) {
+    return !isNaN(parseFloat(st.lat)) && !isNaN(parseFloat(st.lng)) && !isNaN(parseFloat(st.value));
+  }).map(function(st) {
+    var ll = L.latLng(parseFloat(st.lat), parseFloat(st.lng));
+    return { st: st, ll: ll, px: gMap.latLngToLayerPoint(ll) };
+  });
 
-    // 菱形 icon：旋轉 45° 的正方形
-    var icon = L.divIcon({
-      className: '',
-      html: '<div style="' +
-            'width:' + size + 'px;height:' + size + 'px;' +
-            'background:' + col + ';' +
-            'border:2px solid white;' +
-            'transform:rotate(45deg);' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45)' +
-            '"></div>',
-      iconSize:   [size, size],
-      iconAnchor: [size/2, size/2]
+  // 群聚偵測
+  var assigned = pts.map(function() { return -1; });
+  var groups   = [];
+  pts.forEach(function(pt, i) {
+    if (assigned[i] >= 0) return;
+    var grp = [i]; assigned[i] = groups.length;
+    pts.forEach(function(pt2, j) {
+      if (assigned[j] >= 0) return;
+      var dx = pt.px.x - pt2.px.x, dy = pt.px.y - pt2.px.y;
+      if (Math.sqrt(dx*dx + dy*dy) < CLUSTER_R) { grp.push(j); assigned[j] = groups.length; }
     });
+    groups.push(grp);
+  });
 
-    var marker = L.marker([lat, lng], { icon: icon, interactive: true }).addTo(gMap);
+  // 扇形角度分配（按數值降冪排序）
+  groups.forEach(function(grp) {
+    var n = grp.length;
+    grp.sort(function(a, b) { return parseFloat(pts[b].st.value) - parseFloat(pts[a].st.value); });
+    grp.forEach(function(i, gi) {
+      pts[i].fanAngle = n === 1 ? -50 : -90 + (gi / (n - 1) - 0.5) * 2 * 70;
+    });
+  });
 
-    // popup：顯示站名、數值、時間
-    marker.bindPopup(
-      '<div style="font-family:' + "'ui-monospace','Cascadia Mono',monospace" + ';min-width:160px">' +
-      '<div style="font-size:13px;font-weight:700;color:#1e2a3a;margin-bottom:4px">&#x25C6; ' + _esc(st.name) + '</div>' +
+  // 碰撞避讓
+  function overlaps(a, b) {
+    var PAD = 5;
+    return !(a.x + a.w + PAD < b.x || b.x + b.w + PAD < a.x ||
+             a.y + a.h + PAD < b.y || b.y + b.h + PAD < a.y);
+  }
+  var placed = [];
+
+  pts.forEach(function(pt) {
+    var rad = pt.fanAngle * Math.PI / 180;
+    var found = false;
+    for (var r = R_MIN; r <= R_MAX; r += R_STEP) {
+      var lx = pt.px.x + r * Math.cos(rad);
+      var ly = pt.px.y + r * Math.sin(rad);
+      var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
+      if (!placed.some(function(p) { return overlaps(rect, p); })) {
+        placed.push(rect);
+        pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      var lx2 = pt.px.x + R_MAX * Math.cos(rad);
+      var ly2 = pt.px.y + R_MAX * Math.sin(rad);
+      placed.push({ x: lx2 - LW/2, y: ly2 - LH/2, w: LW, h: LH });
+      pt.offLL = gMap.layerPointToLatLng(L.point(lx2, ly2));
+    }
+  });
+
+  // 渲染：菱形圓點 + 指引線 + 數值標籤
+  pts.forEach(function(pt) {
+    var st  = pt.st;
+    var val = parseFloat(st.value);
+    // 顏色分界與量測回報相同（>=100 紅、>=0.5 橘、<0.5 綠）
+    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
+    var offLL = pt.offLL;
+
+    // 菱形圓點（旋轉 45° 的正方形，區別於量測回報的圓點）
+    var dotIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:12px;height:12px;background:' + col + ';' +
+            'border:2px solid white;transform:rotate(45deg);' +
+            'box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>',
+      iconSize: [12, 12], iconAnchor: [6, 6]
+    });
+    _envMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
+
+    // 指引線（虛線）
+    _envMarkers.push(L.polyline([pt.ll, offLL], {
+      color: col, weight: 2, opacity: 0.75, dashArray: '5 3'
+    }).addTo(gMap));
+
+    // 數值標籤
+    var labelIcon = L.divIcon({
+      className: '',
+      html: '<div style="background:white;border-left:4px solid ' + col + ';' +
+            'border-radius:5px;padding:4px 10px 4px 8px;' +
+            'box-shadow:0 2px 8px rgba(0,0,0,.18);' +
+            'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
+            '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
+            val.toFixed(3) + '</span>' +
+            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
+            '</div>',
+      iconAnchor: [LW/2, LH/2]
+    });
+    var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
+    label.bindPopup(
+      '<div style="font-family:var(--font);min-width:150px">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:3px">&#x25C6; ' + _esc(st.name) + '</div>' +
       '<div style="font-size:11px;color:#6b7a92;margin-bottom:6px">' + _esc(st.nameEn) + '</div>' +
-      '<div style="font-size:20px;font-weight:800;color:' + col + '">' + val.toFixed(3) + ' <span style="font-size:11px;color:#6b7a92">&#x03BC;Sv/h</span></div>' +
+      '<div style="font-size:20px;font-weight:800;color:' + col + '">' + val.toFixed(3) +
+      ' <span style="font-size:11px;color:#6b7a92">&#x03BC;Sv/h</span></div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-top:4px">更新：' + _esc(st.time) + '</div>' +
       '<div style="font-size:10px;color:#cbd5e1;margin-top:2px">官方環境輻射監測站</div>' +
       '</div>'
     );
-    _envMarkers.push(marker);
+    _envMarkers.push(label);
   });
 }
 
@@ -1747,6 +1824,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!ev) return;
       var cb = document.getElementById('lyr_' + _curIdx + '_msr');
       if (!cb || cb.checked) renderMsrMarkers(ev.id);
+      // 環境監測站標籤也要重算
+      if (_envLayerOn && _envMarkers.length) loadEnvMonitor();
     });
 
     loadEvents();
