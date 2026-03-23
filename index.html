@@ -556,7 +556,7 @@
   <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
 </div>
 <div class="top-drop" id="drop-report">
-  <button class="top-drop-btn" onclick="showIframe('measurement-report.html');closeAllMenus()">人工回報量測數值</button>
+  <button class="top-drop-btn" onclick="askNavThenReport();closeAllMenus()">人工回報量測數值</button>
   <button class="top-drop-btn" onclick="openPanel('儀器回報量測數值');closeAllMenus()">儀器回報量測數值</button>
   <button class="top-drop-btn" onclick="openPanel('任務回報');closeAllMenus()">任務回報</button>
   <button class="top-drop-btn" onclick="openPanel('回報數值查詢');closeAllMenus()">回報數值查詢</button>
@@ -683,6 +683,8 @@ window.addEventListener('message', function(e) {
     }
     // 若編輯地圖模式開啟中，通知新載入的 iframe
     if (_mapEditOn) sendMapEditMsg();
+    // 若有待處理的導航指令
+    if (_pendingNav) sendNavMsg();
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
@@ -959,6 +961,40 @@ function closeAllMenus() {
 // ── closeSidebar（openCreateEvent 等地方仍會呼叫，保留空函數避免錯誤）──
 function closeSidebar() {}
 
+// ════════════════════════════════════════════
+// 導航模式詢問
+// ════════════════════════════════════════════
+function askNavThenReport() {
+  document.getElementById('navAskModal').style.display = 'flex';
+}
+function navAskNo() {
+  document.getElementById('navAskModal').style.display = 'none';
+  showIframe('measurement-report.html');
+}
+function navAskYes() {
+  document.getElementById('navAskModal').style.display = 'none';
+  // 確保目前顯示 current-events.html，再送導航指令
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    showIframe('current-events.html');
+    // 等 iframe 準備好再送訊息
+    _pendingNav = true;
+  } else {
+    sendNavMsg();
+  }
+}
+var _pendingNav = false;
+function sendNavMsg() {
+  try {
+    var frame = document.getElementById('contentFrame');
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage({ type: 'startNavigation' }, '*');
+    }
+  } catch(e) {}
+  _pendingNav = false;
+}
+
 // ── 編輯地圖模式（全域旗標）──
 var _mapEditOn = false;
 
@@ -1146,6 +1182,38 @@ function ceRstKeepOpen(){
         <button class="ce-btn ce-btn-g" onclick="ceRstKeepOpen()">&#x2795; 建立新事件</button>
         <button class="ce-btn ce-btn-p" onclick="closeCreateEvent()">&#x2190; 返回地圖</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 導航模式詢問 Modal -->
+<div id="navAskModal" style="
+  display:none; position:fixed; inset:0; z-index:99999;
+  background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:14px; padding:28px 28px 20px;
+    max-width:340px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.25);
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+    display:flex; flex-direction:column; gap:14px; text-align:center;">
+    <div style="font-size:36px">🧭</div>
+    <div style="font-size:16px; font-weight:700; color:#1e2a3a">切換導航模式？</div>
+    <div style="font-size:13px; color:#6b7a92; line-height:1.6">
+      地圖將以您的位置為中心，<br>並規劃步行路線前往<br>
+      <strong style="color:#8b5cf6">編號 3（距事件點 2km 中線位置）</strong>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:4px;">
+      <button onclick="navAskNo()" style="
+        flex:1; padding:10px; border:1px solid #e2e8f0; border-radius:8px;
+        background:none; font-family:inherit; font-size:14px;
+        color:#6b7a92; cursor:pointer;">
+        否，直接回報
+      </button>
+      <button onclick="navAskYes()" style="
+        flex:1; padding:10px; border:none; border-radius:8px;
+        background:#8b5cf6; color:white; font-family:inherit;
+        font-size:14px; font-weight:700; cursor:pointer;">
+        是，開始導航
+      </button>
     </div>
   </div>
 </div>
