@@ -1177,6 +1177,11 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
+    '</div></div>' +
+    // 環境監測站圖層（全域，與事件無關）
+    '<div class="layer-ev-block">' +
+    '<div class="layer-ev-cbs">' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
     '</div></div>';
 }
 
@@ -1192,6 +1197,92 @@ function onMsrChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msr', checked);
   toggleMsrLayer(idx);
+}
+
+// ════════════════════════════════════════════
+// 環境輻射監測站圖層（官方固定站，菱形標記）
+// ════════════════════════════════════════════
+var _envMarkers   = [];   // 監測站標記陣列
+var _envTimer     = null; // 定時更新計時器
+var _envLayerOn   = true; // 圖層開關狀態（預設開啟）
+
+// ── 開關環境監測站圖層 ──
+function onEnvChk(checked) {
+  _envLayerOn = checked;
+  if (checked) {
+    loadEnvMonitor();
+    startEnvTimer();
+  } else {
+    stopEnvTimer();
+    _envMarkers.forEach(function(m) { m.remove(); });
+    _envMarkers = [];
+  }
+}
+
+// ── 啟動 30 秒定時更新（GAS proxy 有執行時間限制，不要太頻繁）──
+function startEnvTimer() {
+  stopEnvTimer();
+  _envTimer = setInterval(function() {
+    if (_envLayerOn) loadEnvMonitor();
+  }, 30000);
+}
+
+function stopEnvTimer() {
+  if (_envTimer) { clearInterval(_envTimer); _envTimer = null; }
+}
+
+// ── 從 GAS proxy 抓官方 CSV 並渲染 ──
+function loadEnvMonitor() {
+  _jsonpGet(SHEETS_URL + '?action=envMonitor', function(data) {
+    if (!data || !data.stations) return;
+    // 清除舊標記
+    _envMarkers.forEach(function(m) { m.remove(); });
+    _envMarkers = [];
+    renderEnvMarkers(data.stations);
+  });
+}
+
+// ── 渲染環境監測站標記（菱形，青藍色，依數值深淺）──
+function renderEnvMarkers(stations) {
+  stations.forEach(function(st) {
+    var lat = parseFloat(st.lat);
+    var lng = parseFloat(st.lng);
+    var val = parseFloat(st.value);
+    if (isNaN(lat) || isNaN(lng) || isNaN(val)) return;
+
+    // 顏色：與量測回報相同分界，但用青藍色系區分「官方固定站」
+    // >=100 深紅菱形、>=0.5 橘黃菱形、<0.5 青藍菱形（正常背景值）
+    var col  = val >= 100 ? '#be123c' : val >= 0.5 ? '#d97706' : '#0891b2';
+    var size = 14; // 菱形大小（px）
+
+    // 菱形 icon：旋轉 45° 的正方形
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="' +
+            'width:' + size + 'px;height:' + size + 'px;' +
+            'background:' + col + ';' +
+            'border:2px solid white;' +
+            'transform:rotate(45deg);' +
+            'box-shadow:0 1px 5px rgba(0,0,0,.45)' +
+            '"></div>',
+      iconSize:   [size, size],
+      iconAnchor: [size/2, size/2]
+    });
+
+    var marker = L.marker([lat, lng], { icon: icon, interactive: true }).addTo(gMap);
+
+    // popup：顯示站名、數值、時間
+    marker.bindPopup(
+      '<div style="font-family:' + "'ui-monospace','Cascadia Mono',monospace" + ';min-width:160px">' +
+      '<div style="font-size:13px;font-weight:700;color:#1e2a3a;margin-bottom:4px">&#x25C6; ' + _esc(st.name) + '</div>' +
+      '<div style="font-size:11px;color:#6b7a92;margin-bottom:6px">' + _esc(st.nameEn) + '</div>' +
+      '<div style="font-size:20px;font-weight:800;color:' + col + '">' + val.toFixed(3) + ' <span style="font-size:11px;color:#6b7a92">&#x03BC;Sv/h</span></div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:4px">更新：' + _esc(st.time) + '</div>' +
+      '<div style="font-size:10px;color:#cbd5e1;margin-top:2px">官方環境輻射監測站</div>' +
+      '</div>'
+    );
+    _envMarkers.push(marker);
+  });
 }
 
 // ── 圖層面板收合 ──
@@ -1659,9 +1750,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     loadEvents();
-    initDrawTools();        // 初始化畫筆工具
-    loadDrawings();         // 載入已儲存的標註
+    initDrawTools();         // 初始化畫筆工具
+    loadDrawings();          // 載入已儲存的標註
     startDrawingSyncTimer(); // 每 5 秒自動同步
+    loadEnvMonitor();        // 載入環境輻射監測站
+    startEnvTimer();         // 每 30 秒自動更新
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
