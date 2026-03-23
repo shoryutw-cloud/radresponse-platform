@@ -278,7 +278,7 @@ transition: all .15s;
 
 /* ── 地圖縮放按鈕 ── */
 .map-controls {
-position: fixed; bottom: 24px; right: 80px; z-index: 999;
+position: fixed; bottom: 24px; right: 14px; z-index: 999;
 display: flex; flex-direction: column; gap: 2px;
 }
 .map-ctrl-btn {
@@ -362,7 +362,7 @@ box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: background .15s;
   .draw-tool-btn { width: 32px !important; height: 32px !important; font-size: 15px !important; }
 
   /* ── 縮放按鈕往上移 ── */
-  .map-controls { bottom: 68px !important; right: 12px !important; }
+  .map-controls { bottom: 68px !important; right: 14px !important; }
 
   /* ── 桌機版的收合按鈕在手機版隱藏（改用點擊 header 收合）── */
   .ev-collapse-btn { display: none !important; }
@@ -1202,9 +1202,9 @@ function onMsrChk(idx, checked) {
 // ════════════════════════════════════════════
 // 環境輻射監測站圖層（官方固定站，菱形標記）
 // ════════════════════════════════════════════
-var _envMarkers   = [];   // 監測站標記陣列
-var _envTimer     = null; // 定時更新計時器
-var _envLayerOn   = true; // 圖層開關狀態（預設開啟）
+var _envMarkers   = [];
+var _envTimer     = null;
+var _envLayerOn   = false; // 預設關閉，使用者主動勾選才載入
 
 // ── 開關環境監測站圖層 ──
 function onEnvChk(checked) {
@@ -1829,11 +1829,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     loadEvents();
-    initDrawTools();         // 初始化畫筆工具
-    loadDrawings();          // 載入已儲存的標註
-    startDrawingSyncTimer(); // 每 5 秒自動同步
-    loadEnvMonitor();        // 載入環境輻射監測站
-    startEnvTimer();         // 每 30 秒自動更新
+    initDrawTools();
+    loadDrawings();
+    startDrawingSyncTimer();
   }
 
   loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
