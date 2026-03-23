@@ -922,6 +922,65 @@ function buildEventLayers(idx) {
       color: '#8b5cf6', fillColor: '#8b5cf6',
       fillOpacity: 0.12, weight: 2, opacity: 0.7
     }).addTo(gMap);
+
+    // ── (4) 3km 弧線（扇形內，虛線）──
+    var arc3 = [];
+    for (var j = 0; j <= 24; j++) {
+      arc3.push(destPoint(la, lo, (wd - 22.5) + 45 * j / 24, 3000));
+    }
+    _evLayers[idx].arc3 = L.polyline(arc3, {
+      color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4'
+    }).addTo(gMap);
+
+    // ── (5) 4km 弧線（扇形內，虛線）──
+    var arc4 = [];
+    for (var k = 0; k <= 24; k++) {
+      arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * k / 24, 4000));
+    }
+    _evLayers[idx].arc4 = L.polyline(arc4, {
+      color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4'
+    }).addTo(gMap);
+
+    // ── (6) 8 個編號交叉點（3~8）──
+    // 編號規則：內圈較小、外圈較大
+    //   3 = 3km × 中線
+    //   4 = 3km × 扇形上邊（wd-22.5°）
+    //   5 = 3km × 扇形下邊（wd+22.5°）
+    //   6 = 4km × 中線
+    //   7 = 4km × 扇形上邊
+    //   8 = 4km × 扇形下邊
+    var crossPts = [
+      destPoint(la, lo, wd,         3000),  // 3
+      destPoint(la, lo, wd - 22.5,  3000),  // 4
+      destPoint(la, lo, wd + 22.5,  3000),  // 5
+      destPoint(la, lo, wd,         4000),  // 6
+      destPoint(la, lo, wd - 22.5,  4000),  // 7
+      destPoint(la, lo, wd + 22.5,  4000),  // 8
+    ];
+
+    var sectorMks = [];
+    crossPts.forEach(function(pt, n) {
+      var label = String(n + 3); // 3~8
+      var icon = L.divIcon({
+        className: '',
+        html: '<div style="' +
+              'width:20px;height:20px;border-radius:50%;' +
+              'background:#8b5cf6;border:2px solid white;' +
+              'display:flex;align-items:center;justify-content:center;' +
+              'font-size:10px;font-weight:700;color:white;' +
+              'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
+              'font-family:ui-monospace,monospace' +
+              '">' + label + '</div>',
+        iconSize: [20, 20], iconAnchor: [10, 10]
+      });
+      var mk = L.marker(pt, { icon: icon }).addTo(gMap);
+      // popup 說明位置
+      var distLabel = n < 3 ? '3km' : '4km';
+      var dirLabel  = (n % 3 === 0) ? '中線' : (n % 3 === 1) ? '上緣（+22.5°）' : '下緣（−22.5°）';
+      mk.bindTooltip(label + '：' + distLabel + ' × ' + dirLabel, { permanent: false, direction: 'top' });
+      sectorMks.push(mk);
+    });
+    _evLayers[idx].sectorMks = sectorMks;
   }
 }
 
@@ -931,6 +990,12 @@ function removeEventLayers(idx) {
   if (lyr.circle) { lyr.circle.remove(); lyr.circle = null; }
   if (lyr.line)   { lyr.line.remove();   lyr.line   = null; }
   if (lyr.sector) { lyr.sector.remove(); lyr.sector = null; }
+  if (lyr.arc3)   { lyr.arc3.remove();   lyr.arc3   = null; }
+  if (lyr.arc4)   { lyr.arc4.remove();   lyr.arc4   = null; }
+  if (lyr.sectorMks) {
+    lyr.sectorMks.forEach(function(m) { m.remove(); });
+    lyr.sectorMks = null;
+  }
 }
 
 // ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
