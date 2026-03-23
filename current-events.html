@@ -1245,7 +1245,7 @@ function loadEnvMonitor() {
 // ── 渲染環境監測站標記（菱形圓點 + 指引線 + 數值標籤）──
 function renderEnvMarkers(stations) {
   var LW = 118, LH = 30;
-  var R_MIN  = 110;
+  var R_MIN  = 52;
   var R_STEP = LH + 8;
   var R_MAX  = 600;
   var CLUSTER_R = 160;
@@ -1272,13 +1272,45 @@ function renderEnvMarkers(stations) {
     groups.push(grp);
   });
 
-  // 扇形角度分配（按數值降冪排序）
+  // 扇形角度分配：以群心為原點，每個點朝遠離群心的方向展開標籤
+  // 這樣可以避免指引線互相交叉
   groups.forEach(function(grp) {
     var n = grp.length;
-    grp.sort(function(a, b) { return parseFloat(pts[b].st.value) - parseFloat(pts[a].st.value); });
-    grp.forEach(function(i, gi) {
-      pts[i].fanAngle = n === 1 ? -50 : -90 + (gi / (n - 1) - 0.5) * 2 * 70;
-    });
+    // 計算群心
+    var cx = 0, cy = 0;
+    grp.forEach(function(i) { cx += pts[i].px.x; cy += pts[i].px.y; });
+    cx /= n; cy /= n;
+
+    if (n === 1) {
+      // 單點：右上方
+      pts[grp[0]].fanAngle = -45;
+    } else {
+      // 多點：每個點從自身到群心的反方向延伸（即朝外展開）
+      // 按數值降冪排序後，若角度太相近就均分調整
+      grp.sort(function(a, b) {
+        return parseFloat(pts[b].st.value) - parseFloat(pts[a].st.value);
+      });
+      var angles = grp.map(function(i) {
+        var dx = pts[i].px.x - cx;
+        var dy = pts[i].px.y - cy;
+        // 若點剛好在群心上，預設往右
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return 0;
+        return Math.atan2(dy, dx) * 180 / Math.PI;
+      });
+      // 確保相鄰角度至少差 35°，避免標籤重疊
+      var MIN_GAP = 35;
+      for (var pass = 0; pass < 3; pass++) {
+        for (var ai = 0; ai < angles.length - 1; ai++) {
+          var diff = angles[ai + 1] - angles[ai];
+          if (Math.abs(diff) < MIN_GAP) {
+            var push = (MIN_GAP - Math.abs(diff)) / 2;
+            angles[ai]     -= push;
+            angles[ai + 1] += push;
+          }
+        }
+      }
+      grp.forEach(function(i, gi) { pts[i].fanAngle = angles[gi]; });
+    }
   });
 
   // 碰撞避讓
