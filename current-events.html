@@ -680,9 +680,11 @@ function toggleCollapse() {
 // ── 切換事件 ──
 function navEvent(dir) {
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
+  // 切換事件時自動停止導航
+  if (_navFollowing) stopNavMode();
   renderCard(_curIdx);
   flyToEvent(_curIdx);
-  renderLayerPanel(); // 同步更新圖層面板
+  renderLayerPanel();
 }
 
 // ── 解析 personnelStr 取得人數（格式：姓名, 姓名, ...）──
@@ -925,12 +927,12 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
-    // ── 編號1：1km 橫切面 × 中線交點 ──
+    // ── 編號1：1km 橫切面 × 中線交點（橘色）──
     var pt1 = destPoint(la, lo, wd, 1000);
     var icon1 = L.divIcon({
       className: '',
       html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#3b82f6;border:2px solid white;' +
+            'background:#f97316;border:2px solid white;' +
             'display:flex;align-items:center;justify-content:center;' +
             'font-size:11px;font-weight:700;color:white;' +
             'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
@@ -941,20 +943,12 @@ function buildEventLayers(idx) {
     mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
     _evLayers[idx].ptMk1 = mk1;
 
-    // ── 編號2：500m 橫切面 × 中線交點 ──
-    // 500m 橫切面位置
-    var lineCenter500 = destPoint(la, lo, wd, 500);
-    var perpA500 = destPoint(lineCenter500[0], lineCenter500[1], (wd + 90) % 360, 500);
-    var perpB500 = destPoint(lineCenter500[0], lineCenter500[1], (wd - 90 + 360) % 360, 500);
-    _evLayers[idx].line500 = L.polyline([perpA500, perpB500], {
-      color: '#3b82f6', weight: 2, opacity: 0.65, dashArray: '6 4'
-    }).addTo(gMap);
-
-    var pt2 = lineCenter500;
+    // ── 編號2：500m 中線點（橘色，只顯示點，不畫橫切面）──
+    var pt2 = destPoint(la, lo, wd, 500);
     var icon2 = L.divIcon({
       className: '',
       html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#3b82f6;border:2px solid white;' +
+            'background:#f97316;border:2px solid white;' +
             'display:flex;align-items:center;justify-content:center;' +
             'font-size:11px;font-weight:700;color:white;' +
             'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
@@ -963,8 +957,7 @@ function buildEventLayers(idx) {
     });
     var mk2 = L.marker(pt2, { icon: icon2 }).addTo(gMap);
     mk2.bindTooltip('2：500m × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk2  = mk2;
-    _evLayers[idx].line500 = _evLayers[idx].line500;
+    _evLayers[idx].ptMk2 = mk2;
   }
 
   // (3) 5km 扇形（需有風向才顯示）
@@ -1035,7 +1028,6 @@ function removeEventLayers(idx) {
   if (!lyr) return;
   if (lyr.circle)  { lyr.circle.remove();  lyr.circle  = null; }
   if (lyr.line)    { lyr.line.remove();    lyr.line    = null; }
-  if (lyr.line500) { lyr.line500.remove(); lyr.line500 = null; }
   if (lyr.ptMk1)   { lyr.ptMk1.remove();  lyr.ptMk1   = null; }
   if (lyr.ptMk2)   { lyr.ptMk2.remove();  lyr.ptMk2   = null; }
   if (lyr.sector)  { lyr.sector.remove();  lyr.sector  = null; }
@@ -1558,9 +1550,10 @@ function placeMarkers() {
     );
     marker.on('click', function() {
       _curIdx = i;
+      // 切換事件時自動停止導航
+      if (_navFollowing) stopNavMode();
       renderCard(i);
-      renderLayerPanel(); // 同步更新圖層面板
-      // 打開收合的卡片
+      renderLayerPanel();
       var card = document.getElementById('evCard');
       if (card.classList.contains('collapsed')) toggleCollapse();
     });
