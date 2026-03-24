@@ -1982,21 +1982,8 @@ function startNavMode() {
       updateNavBannerDist(pt3);
       showRecenterBtn();
 
-      // ── 使用者拖動地圖 → 停止跟隨，圖釘按鈕變「活躍」狀態 ──
-      if (!_navDragBound) {
-        _navDragBound = true;
-        gMap.on('dragstart', function() {
-          if (_navFollowing) {
-            _navFollowing = false;
-            // 圖釘變活躍色，提示可以點擊重新置中
-            var btn = document.getElementById('locateBtn');
-            if (btn) {
-              btn.style.background = '#ede9fe';
-              btn.style.borderColor = '#7c3aed';
-            }
-          }
-        });
-      }
+      // dragstart 在 initMap 已全域監聽，此處只標記已綁定
+      if (!_navDragBound) { _navDragBound = true; }
     }
   }, 300);
 
@@ -2161,12 +2148,36 @@ function isMobile() { return window.innerWidth <= 600; }
 // ════════════════════════════════════════════
 // 地圖右鍵選單
 // ════════════════════════════════════════════
-var _ctxLatLng = null; // 右鍵點擊的座標
+var _ctxLatLng  = null;  // 右鍵點擊的座標
+var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
-function showCtxMenu(x, y) {
-  var menu = document.getElementById('mapCtxMenu');
+// ── 顯示右鍵選單，並在點擊位置放置暫時圖釘 ──
+function showCtxMenu(x, y, latlng) {
+  // (1) 放置暫時圖釘（仿 Google Maps 的紅色投影針）
+  removePinMarker();
+  var pinIcon = L.divIcon({
+    className: '',
+    html:
+      '<div style="position:relative;width:28px;height:44px">' +
+        '<div style="position:absolute;top:0;left:2px;width:24px;height:24px;' +
+             'background:#e63946;border:3px solid white;border-radius:50%;' +
+             'box-shadow:0 2px 8px rgba(0,0,0,.45)"></div>' +
+        '<div style="position:absolute;top:18px;left:9px;' +
+             'width:0;height:0;' +
+             'border-left:5px solid transparent;' +
+             'border-right:5px solid transparent;' +
+             'border-top:14px solid #e63946"></div>' +
+        '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);' +
+             'width:10px;height:4px;background:rgba(0,0,0,.22);border-radius:50%"></div>' +
+      '</div>',
+    iconSize:   [28, 44],
+    iconAnchor: [14, 44]
+  });
+  _ctxPinMk = L.marker(latlng, { icon: pinIcon, interactive: false }).addTo(gMap);
+
+  // (2) 顯示選單
+  var menu  = document.getElementById('mapCtxMenu');
   if (!menu) return;
-  // 避免超出視窗右邊/下邊
   var menuW = 180, menuH = 48;
   var left  = (x + menuW > window.innerWidth)  ? x - menuW : x;
   var top   = (y + menuH > window.innerHeight) ? y - menuH : y;
@@ -2175,14 +2186,24 @@ function showCtxMenu(x, y) {
   menu.style.display = 'block';
 }
 
+// ── 移除暫時圖釘 ──
+function removePinMarker() {
+  if (_ctxPinMk) { _ctxPinMk.remove(); _ctxPinMk = null; }
+}
+
+// ── 隱藏右鍵選單（同時移除圖釘） ──
 function hideCtxMenu() {
   var menu = document.getElementById('mapCtxMenu');
   if (menu) menu.style.display = 'none';
+  removePinMarker();
+  _ctxLatLng = null;
 }
 
 // ── 右鍵選單：點「設為量測點」──
+// 圖釘保留（Modal 關閉時才移除）
 function onCtxMeasure() {
-  hideCtxMenu();
+  var menu = document.getElementById('mapCtxMenu');
+  if (menu) menu.style.display = 'none';
   if (!_ctxLatLng) return;
   openAssignModal(_ctxLatLng);
 }
@@ -2190,12 +2211,10 @@ function onCtxMeasure() {
 // ════════════════════════════════════════════
 // 量測點分派 Modal
 // ════════════════════════════════════════════
-var _assignLatLng    = null; // 此次分派的座標
-var _selectedSquad   = '';   // 目前選擇的組別
+var _assignLatLng  = null;
+var _selectedSquad = '';
 
 // ── 從事件的 personnelStr 解析有哪些組別參與 ──
-// 新格式：「北一小隊:林志遠, 北二小隊:王雅婷」→ ['北一小隊','北二小隊']
-// 舊格式：「林志遠, 王雅婷」→ 無法判斷，回傳所有技術小隊
 function getEventSquads(ev) {
   if (!ev) return [];
   var found = [];
@@ -2209,9 +2228,7 @@ function getEventSquads(ev) {
       }
     });
   }
-  // 有從新格式解析到組別 → 回傳
   if (found.length > 0) return found;
-  // 舊格式或空 personnelStr：回傳所有技術小隊（不含「未分配」）
   return TECH_SQUADS.filter(function(s) { return s !== '未分配'; });
 }
 
@@ -2221,14 +2238,13 @@ function openAssignModal(latlng) {
   _selectedSquad = '';
   var ev = _events[_curIdx];
 
-  // 更新座標顯示
   document.getElementById('assignCoordVal').textContent =
     latlng.lat.toFixed(6) + ', ' + latlng.lng.toFixed(6);
   document.getElementById('assignAddrVal').textContent  = '查詢地址中…';
   document.getElementById('assignNote').value = '';
   document.getElementById('assignSubmitBtn').disabled = true;
+  document.getElementById('assignSubmitBtn').textContent = '派遣量測任務';
 
-  // 建立組別選項
   var squads  = getEventSquads(ev);
   var optHtml = '';
   squads.forEach(function(sq) {
@@ -2244,11 +2260,8 @@ function openAssignModal(latlng) {
     optHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">⚠️ 此事件尚無人員記錄</div>';
   }
   document.getElementById('squadOptions').innerHTML = optHtml;
-
-  // 顯示 Modal
   document.getElementById('assignModal').style.display = 'flex';
 
-  // 非同步：反向地理編碼取得地址
   reverseGeocode(latlng.lat, latlng.lng, function(addr) {
     document.getElementById('assignAddrVal').textContent = addr || '（無法取得地址）';
   });
@@ -2256,7 +2269,6 @@ function openAssignModal(latlng) {
 
 // ── 選擇組別 ──
 function selectSquad(name, el) {
-  // 清除其他選項的 selected 樣式
   document.querySelectorAll('.squad-option').forEach(function(opt) {
     opt.classList.remove('selected');
   });
@@ -2265,11 +2277,13 @@ function selectSquad(name, el) {
   document.getElementById('assignSubmitBtn').disabled = false;
 }
 
-// ── 關閉 Modal ──
+// ── 關閉 Modal（同時移除暫時圖釘） ──
 function closeAssignModal() {
   document.getElementById('assignModal').style.display = 'none';
+  removePinMarker();
   _assignLatLng  = null;
   _selectedSquad = '';
+  _ctxLatLng     = null;
 }
 
 // ── 點擊遮罩關閉 ──
@@ -2278,14 +2292,11 @@ function onModalOverlayClick(e) {
 }
 
 // ── 送出量測任務 ──
+// 策略：先建立地圖標記 + 關閉 Modal，再背景同步 GAS（fire-and-forget）
 function submitAssignment() {
   if (!_selectedSquad || !_assignLatLng) return;
   var ev = _events[_curIdx];
   if (!ev) { alert('找不到目前事件'); return; }
-
-  var btn  = document.getElementById('assignSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = '派遣中…';
 
   var note    = document.getElementById('assignNote').value.trim();
   var addrStr = document.getElementById('assignAddrVal').textContent;
@@ -2293,35 +2304,39 @@ function submitAssignment() {
                 '　地址：' + addrStr;
   var content = locDesc + (note ? '\n備註：' + note : '');
 
-  var payload = {
-    action:    'addTask',
-    eventId:   ev.id,
-    target:    _selectedSquad,
-    title:     '量測點任務',
-    content:   content,
-    priority:  'high'
-  };
+  // 先存起來，closeAssignModal 會清掉原始變數
+  var latlng = _assignLatLng;
+  var squad  = _selectedSquad;
 
+  // ★ 步驟1：立即建立標記、關閉 Modal
+  closeAssignModal();
+  placeTempMeasureMarker(latlng, squad);
+  showToast('✅ 已建立量測點，同步中…');
+
+  // ★ 步驟2：背景送出 GAS（不阻擋使用者）
+  var payload = {
+    action:   'addTask',
+    eventId:  ev.id,
+    target:   squad,
+    title:    '量測點任務',
+    content:  content,
+    priority: 'high'
+  };
   fetch(SHEETS_URL, {
-    method: 'POST',
-    mode:   'no-cors',
+    method:  'POST',
+    mode:    'no-cors',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload)
+    body:    JSON.stringify(payload)
   })
   .then(function() {
-    closeAssignModal();
-    // 在地圖上放置臨時量測點標記
-    placeTempMeasureMarker(_assignLatLng, _selectedSquad);
-    showToast('✅ 已派遣量測任務給 ' + _selectedSquad);
+    showToast('☁️ 已同步至試算表');
   })
   .catch(function() {
-    btn.disabled = false;
-    btn.textContent = '派遣量測任務';
-    alert('派遣失敗，請確認網路連線。');
+    showToast('⚠️ 同步失敗，標記已保留在地圖上');
   });
 }
 
-// ── 地圖上放置臨時量測任務標記（紫色星形）──
+// ── 地圖上放置正式量測任務標記（紫色📐） ──
 var _taskMarkers = [];
 function placeTempMeasureMarker(latlng, squadName) {
   var icon = L.divIcon({
@@ -2524,15 +2539,27 @@ document.addEventListener('DOMContentLoaded', function() {
       attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     }).addTo(gMap);
 
-    // ── 右鍵選單：顯示自訂 context menu ──
+    // ── 右鍵選單：顯示暫時圖釘 + context menu ──
     gMap.on('contextmenu', function(e) {
-      // 儲存右鍵點擊的座標，供「設為量測點」使用
       _ctxLatLng = e.latlng;
-      showCtxMenu(e.originalEvent.clientX, e.originalEvent.clientY);
+      showCtxMenu(e.originalEvent.clientX, e.originalEvent.clientY, e.latlng);
     });
 
-    // 點擊地圖其他地方時關閉右鍵選單
+    // 點擊地圖其他地方 → 關閉選單並取消圖釘
     gMap.on('click', function() { hideCtxMenu(); });
+
+    // 縮放或拖動 → 視為取消量測點建議，移除圖釘
+    gMap.on('zoomstart', function() { hideCtxMenu(); });
+    gMap.on('dragstart',  function() {
+      hideCtxMenu();
+      // 若同時在導航模式中拖動，停止跟隨
+      if (_navFollowing) {
+        _navFollowing = false;
+        var btn = document.getElementById('locateBtn');
+        if (btn) { btn.style.background = '#ede9fe'; btn.style.borderColor = '#7c3aed'; }
+      }
+    });
+
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') { hideCtxMenu(); closeAssignModal(); }
     });
