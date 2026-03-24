@@ -1852,8 +1852,11 @@ function startNavMode() {
           if (_navFollowing) {
             _navFollowing = false;
             // 重新置中按鈕變「活躍」狀態
-            var btn = document.getElementById('navRecenterBtn');
-            if (btn) btn.style.background = '#7c3aed';
+        var btn = document.getElementById('navRecenterBtn');
+            if (btn) {
+              btn.style.background = '#ede9fe';
+              btn.style.borderColor = '#7c3aed';
+            }
           }
         });
       }
@@ -1890,17 +1893,18 @@ function showRecenterBtn() {
   btn.innerHTML = '📍';
   btn.title = '重新以您的位置為中心';
   btn.style.cssText =
-    'position:fixed;bottom:80px;right:14px;z-index:1001;' +
-    'width:40px;height:40px;border-radius:50%;border:none;' +
-    'background:#7c3aed;color:white;font-size:18px;' +
-    'box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;' +
+    'position:fixed;bottom:130px;right:14px;z-index:1001;' +
+    'width:36px;height:36px;border-radius:8px;border:1px solid #d0d8e4;' +
+    'background:white;color:#7c3aed;font-size:18px;' +
+    'box-shadow:0 1px 3px rgba(0,0,0,.12);cursor:pointer;' +
     'display:flex;align-items:center;justify-content:center;' +
     'transition:background .15s;';
   btn.addEventListener('click', function() {
     if (!_userMarker) return;
     _navFollowing = true;
     gMap.setView(_userMarker.getLatLng(), 16, { animate: true });
-    btn.style.background = '#7c3aed';
+    btn.style.background   = 'white';
+    btn.style.borderColor  = '#d0d8e4';
   });
   document.body.appendChild(btn);
 }
@@ -1943,10 +1947,15 @@ function planRoute(fromLat, fromLng, toLat, toLng) {
         lineCap: 'round', lineJoin: 'round'
       }).addTo(gMap);
 
-      var dist = Math.round(data.routes[0].distance);
-      var dur  = Math.round(data.routes[0].duration / 60);
+      var distM   = Math.round(data.routes[0].distance);
+      // 步行速度約 5km/h = 83.3m/min，OSRM 的 duration 是汽車/自行車速，不適用步行
+      var walkMin = Math.round(distM / 83.3);
+      // 距離超過 1000m 換算公里
+      var distStr = distM >= 1000
+        ? (distM / 1000).toFixed(1) + ' km'
+        : distM + ' m';
       showNavBanner(
-        '🧭 前往編號3　步行約 ' + dist + 'm（' + dur + ' 分鐘）　' +
+        '🧭 前往編號3　步行約 ' + distStr + '（約 ' + walkMin + ' 分鐘）　' +
         '<button onclick="stopNavMode()" style="margin-left:12px;padding:3px 10px;border:1px solid white;' +
         'border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;' +
         'font-family:inherit;font-size:12px">結束導航</button>',
