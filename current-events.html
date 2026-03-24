@@ -2370,6 +2370,9 @@ function showToast(msg) {
 }
 
 
+// ── 事件卡：點擊 header 展開/收合（手機版）──
+document.addEventListener('DOMContentLoaded', function() {
+  var header = document.querySelector('.ev-card-header');
   if (header) {
     header.addEventListener('click', function(e) {
       if (!isMobile()) return;
