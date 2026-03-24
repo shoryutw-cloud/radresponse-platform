@@ -39,6 +39,9 @@ background: var(--surface); border-radius: var(--radius);
 box-shadow: var(--shadow-lg); width: 310px;
 border: 1px solid var(--border);
 transition: width .2s, box-shadow .2s;
+/* 最大高度：螢幕高度扣掉頂部16px和底部16px */
+max-height: calc(100vh - 32px);
+display: flex; flex-direction: column;
 }
 
 /* ── 卡片標題列 ── */
@@ -87,8 +90,14 @@ transition: all .12s; flex-shrink: 0;
 /* ── 卡片內容 ── */
 .ev-card-body {
 padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
-transition: all .2s; overflow: hidden;
+transition: all .2s;
+overflow-y: auto;   /* 內容超出時顯示捲動條 */
+flex: 1;            /* 撐滿剩餘高度 */
+min-height: 0;      /* flex 子元素需要才能正確捲動 */
 }
+.ev-card-body::-webkit-scrollbar { width: 4px; }
+.ev-card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.ev-card-body::-webkit-scrollbar-thumb:hover { background: #b0bec5; }
 .ev-card.collapsed .ev-card-body { display: none; }
 .ev-card.collapsed .ev-card-header { border-bottom: none; }
 
@@ -915,6 +924,47 @@ function buildEventLayers(idx) {
     _evLayers[idx].line = L.polyline([perpA, perpB], {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
+
+    // ── 編號1：1km 橫切面 × 中線交點 ──
+    var pt1 = destPoint(la, lo, wd, 1000);
+    var icon1 = L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;' +
+            'background:#3b82f6;border:2px solid white;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'font-size:11px;font-weight:700;color:white;' +
+            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
+            'font-family:ui-monospace,monospace">1</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+    var mk1 = L.marker(pt1, { icon: icon1 }).addTo(gMap);
+    mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
+    _evLayers[idx].ptMk1 = mk1;
+
+    // ── 編號2：500m 橫切面 × 中線交點 ──
+    // 500m 橫切面位置
+    var lineCenter500 = destPoint(la, lo, wd, 500);
+    var perpA500 = destPoint(lineCenter500[0], lineCenter500[1], (wd + 90) % 360, 500);
+    var perpB500 = destPoint(lineCenter500[0], lineCenter500[1], (wd - 90 + 360) % 360, 500);
+    _evLayers[idx].line500 = L.polyline([perpA500, perpB500], {
+      color: '#3b82f6', weight: 2, opacity: 0.65, dashArray: '6 4'
+    }).addTo(gMap);
+
+    var pt2 = lineCenter500;
+    var icon2 = L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;' +
+            'background:#3b82f6;border:2px solid white;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'font-size:11px;font-weight:700;color:white;' +
+            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
+            'font-family:ui-monospace,monospace">2</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+    var mk2 = L.marker(pt2, { icon: icon2 }).addTo(gMap);
+    mk2.bindTooltip('2：500m × 中線', { permanent: false, direction: 'top' });
+    _evLayers[idx].ptMk2  = mk2;
+    _evLayers[idx].line500 = _evLayers[idx].line500;
   }
 
   // (3) 5km 扇形（需有風向才顯示）
@@ -983,12 +1033,15 @@ function buildEventLayers(idx) {
 function removeEventLayers(idx) {
   var lyr = _evLayers[idx];
   if (!lyr) return;
-  if (lyr.circle) { lyr.circle.remove(); lyr.circle = null; }
-  if (lyr.line)   { lyr.line.remove();   lyr.line   = null; }
-  if (lyr.sector) { lyr.sector.remove(); lyr.sector = null; }
-  if (lyr.arc2)   { lyr.arc2.remove();   lyr.arc2   = null; }
-  if (lyr.arc3)   { lyr.arc3.remove();   lyr.arc3   = null; }
-  if (lyr.arc4)   { lyr.arc4.remove();   lyr.arc4   = null; }
+  if (lyr.circle)  { lyr.circle.remove();  lyr.circle  = null; }
+  if (lyr.line)    { lyr.line.remove();    lyr.line    = null; }
+  if (lyr.line500) { lyr.line500.remove(); lyr.line500 = null; }
+  if (lyr.ptMk1)   { lyr.ptMk1.remove();  lyr.ptMk1   = null; }
+  if (lyr.ptMk2)   { lyr.ptMk2.remove();  lyr.ptMk2   = null; }
+  if (lyr.sector)  { lyr.sector.remove();  lyr.sector  = null; }
+  if (lyr.arc2)    { lyr.arc2.remove();    lyr.arc2    = null; }
+  if (lyr.arc3)    { lyr.arc3.remove();    lyr.arc3    = null; }
+  if (lyr.arc4)    { lyr.arc4.remove();    lyr.arc4    = null; }
   if (lyr.sectorMks) {
     lyr.sectorMks.forEach(function(m) { m.remove(); });
     lyr.sectorMks = null;
