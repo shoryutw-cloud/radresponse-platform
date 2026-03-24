@@ -927,12 +927,12 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
-    // ── 編號1：1km 橫切面 × 中線交點（橘色）──
+    // ── 編號1：1km 橫切面 × 中線交點（藍色）──
     var pt1 = destPoint(la, lo, wd, 1000);
     var icon1 = L.divIcon({
       className: '',
       html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#f97316;border:2px solid white;' +
+            'background:#3b82f6;border:2px solid white;' +
             'display:flex;align-items:center;justify-content:center;' +
             'font-size:11px;font-weight:700;color:white;' +
             'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
@@ -943,7 +943,7 @@ function buildEventLayers(idx) {
     mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
     _evLayers[idx].ptMk1 = mk1;
 
-    // ── 編號2：500m 中線點（橘色，只顯示點，不畫橫切面）──
+    // ── 編號2：500m 中線點（橘色，只顯示點）──
     var pt2 = destPoint(la, lo, wd, 500);
     var icon2 = L.divIcon({
       className: '',
@@ -1808,7 +1808,6 @@ var _navFollowing = false; // 是否跟隨使用者移動
 var _navBanner   = null;  // 頂部導航提示列
 
 function startNavMode() {
-  // 等待使用者位置（最多 10 秒）
   showNavBanner('⏳ 取得您的位置中…', '#6b7a92');
 
   var timeout = setTimeout(function() {
@@ -1820,8 +1819,6 @@ function startNavMode() {
       clearInterval(check);
       clearTimeout(timeout);
       var userLL = _userMarker.getLatLng();
-
-      // 取得目前事件的 點3 座標
       var ev = _events[_curIdx];
       if (!ev || !ev.lat || !ev.windDir) {
         showNavBanner('⚠️ 目前事件無座標或風向資料，無法規劃路線', '#dc2626');
@@ -1829,13 +1826,11 @@ function startNavMode() {
       }
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
       var wd = (parseFloat(ev.windDir) + 180) % 360;
-      var pt3 = destPoint(la, lo, wd, 2000); // 編號3：2km × 中線
+      var pt3 = destPoint(la, lo, wd, 2000);
 
-      // 地圖跟隨使用者
       _navFollowing = true;
       gMap.setView(userLL, 16);
 
-      // 標記目的地（紫色菱形，大一點）
       if (_navDestMk) _navDestMk.remove();
       var destIcon = L.divIcon({
         className: '',
@@ -1846,36 +1841,90 @@ function startNavMode() {
       _navDestMk = L.marker(pt3, { icon: destIcon }).addTo(gMap);
       _navDestMk.bindTooltip('目的地：編號3（2km 中線位置）', { permanent: true, direction: 'top', offset: [0, -16] });
 
-      // 規劃步行路線（OSRM）
       planRoute(userLL.lat, userLL.lng, pt3[0], pt3[1]);
+      updateNavBannerDist(pt3);
+      showRecenterBtn();
 
-      showNavBanner('🧭 導航中　前往編號3（2km 中線位置）　<button onclick="stopNavMode()" style="margin-left:12px;padding:3px 10px;border:1px solid white;border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;font-family:inherit;font-size:12px">結束導航</button>', '#7c3aed');
+      // ── 使用者拖動地圖 → 停止跟隨，顯示重新置中按鈕 ──
+      if (!_navDragBound) {
+        _navDragBound = true;
+        gMap.on('dragstart', function() {
+          if (_navFollowing) {
+            _navFollowing = false;
+            // 重新置中按鈕變「活躍」狀態
+            var btn = document.getElementById('navRecenterBtn');
+            if (btn) btn.style.background = '#7c3aed';
+          }
+        });
+      }
     }
   }, 300);
 
-  // 地圖跟隨使用者移動
+  // 定時更新位置跟隨和路線重算
   if (!_navFollowListener) {
     _navFollowListener = setInterval(function() {
-      if (_navFollowing && _userMarker && gMap) {
-        gMap.panTo(_userMarker.getLatLng(), { animate: true, duration: 0.5 });
-        // 每 15 秒重新規劃路線
-        if (_navReplanCount++ % 50 === 0 && _events[_curIdx]) {
-          var ev2 = _events[_curIdx];
-          var wd2 = (parseFloat(ev2.windDir) + 180) % 360;
-          var pt3b = destPoint(parseFloat(ev2.lat), parseFloat(ev2.lng), wd2, 2000);
-          var uLL = _userMarker.getLatLng();
-          planRoute(uLL.lat, uLL.lng, pt3b[0], pt3b[1]);
-        }
+      if (!_userMarker) return;
+      var uLL = _userMarker.getLatLng();
+
+      // 跟隨模式：地圖跟著藍點走
+      if (_navFollowing) {
+        gMap.panTo(uLL, { animate: true, duration: 0.5 });
+      }
+
+      // 每 15 秒重新規劃路線（無論是否跟隨）
+      if (_events[_curIdx] && _navReplanCount++ % 50 === 0) {
+        var ev2 = _events[_curIdx];
+        var wd2 = (parseFloat(ev2.windDir) + 180) % 360;
+        var pt3b = destPoint(parseFloat(ev2.lat), parseFloat(ev2.lng), wd2, 2000);
+        planRoute(uLL.lat, uLL.lng, pt3b[0], pt3b[1]);
       }
     }, 300);
   }
 }
 
+// ── 右下角「重新置中」按鈕 ──
+function showRecenterBtn() {
+  if (document.getElementById('navRecenterBtn')) return;
+  var btn = document.createElement('button');
+  btn.id = 'navRecenterBtn';
+  btn.innerHTML = '📍';
+  btn.title = '重新以您的位置為中心';
+  btn.style.cssText =
+    'position:fixed;bottom:80px;right:14px;z-index:1001;' +
+    'width:40px;height:40px;border-radius:50%;border:none;' +
+    'background:#7c3aed;color:white;font-size:18px;' +
+    'box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'transition:background .15s;';
+  btn.addEventListener('click', function() {
+    if (!_userMarker) return;
+    _navFollowing = true;
+    gMap.setView(_userMarker.getLatLng(), 16, { animate: true });
+    btn.style.background = '#7c3aed';
+  });
+  document.body.appendChild(btn);
+}
+
+function removeRecenterBtn() {
+  var btn = document.getElementById('navRecenterBtn');
+  if (btn) btn.remove();
+}
+
 var _navFollowListener = null;
 var _navReplanCount    = 0;
+var _navDragBound      = false;
+
+function updateNavBannerDist(pt3) {
+  showNavBanner(
+    '🧭 前往編號3（2km 中線位置）　' +
+    '<button onclick="stopNavMode()" style="margin-left:12px;padding:3px 10px;border:1px solid white;' +
+    'border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;' +
+    'font-family:inherit;font-size:12px">結束導航</button>',
+    '#7c3aed'
+  );
+}
 
 function planRoute(fromLat, fromLng, toLat, toLng) {
-  // OSRM 步行路線 API（免費，無需 API key）
   var url = 'https://router.project-osrm.org/route/v1/foot/' +
             fromLng + ',' + fromLat + ';' +
             toLng   + ',' + toLat   +
@@ -1886,7 +1935,7 @@ function planRoute(fromLat, fromLng, toLat, toLng) {
     .then(function(data) {
       if (!data.routes || !data.routes.length) return;
       var coords = data.routes[0].geometry.coordinates.map(function(c) {
-        return [c[1], c[0]]; // OSRM 回 [lng,lat]，Leaflet 需 [lat,lng]
+        return [c[1], c[0]];
       });
       if (_navRoute) _navRoute.remove();
       _navRoute = L.polyline(coords, {
@@ -1894,13 +1943,17 @@ function planRoute(fromLat, fromLng, toLat, toLng) {
         lineCap: 'round', lineJoin: 'round'
       }).addTo(gMap);
 
-      // 距離提示
       var dist = Math.round(data.routes[0].distance);
       var dur  = Math.round(data.routes[0].duration / 60);
-      showNavBanner('🧭 前往編號3　步行約 ' + dist + 'm（' + dur + ' 分鐘）　<button onclick="stopNavMode()" style="margin-left:12px;padding:3px 10px;border:1px solid white;border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;font-family:inherit;font-size:12px">結束導航</button>', '#7c3aed');
+      showNavBanner(
+        '🧭 前往編號3　步行約 ' + dist + 'm（' + dur + ' 分鐘）　' +
+        '<button onclick="stopNavMode()" style="margin-left:12px;padding:3px 10px;border:1px solid white;' +
+        'border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;' +
+        'font-family:inherit;font-size:12px">結束導航</button>',
+        '#7c3aed'
+      );
     })
     .catch(function() {
-      // 網路失敗時畫直線
       if (_navRoute) _navRoute.remove();
       var uLL = _userMarker ? _userMarker.getLatLng() : null;
       if (uLL) {
@@ -1912,11 +1965,15 @@ function planRoute(fromLat, fromLng, toLat, toLng) {
 }
 
 function stopNavMode() {
-  _navFollowing = false;
+  _navFollowing  = false;
+  _navDragBound  = false;
+  _navReplanCount = 0;
   if (_navFollowListener) { clearInterval(_navFollowListener); _navFollowListener = null; }
   if (_navRoute)  { _navRoute.remove();  _navRoute  = null; }
   if (_navDestMk) { _navDestMk.remove(); _navDestMk = null; }
+  gMap.off('dragstart'); // 移除拖動監聽
   hideNavBanner();
+  removeRecenterBtn();
 }
 
 function showNavBanner(html, bg) {
