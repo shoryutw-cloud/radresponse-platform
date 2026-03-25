@@ -479,6 +479,11 @@ function sortData(rows, colIdx, asc) {
   rows.sort(function(a, b) {
     var va = String(a.values[colIdx] || '');
     var vb = String(b.values[colIdx] || '');
+    // ★ 若兩個值都是純數字，改用數值比較（避免 1,10,11 排在一起）
+    var na = parseFloat(va), nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb) && va.trim() !== '' && vb.trim() !== '') {
+      return asc ? na - nb : nb - na;
+    }
     return asc ? va.localeCompare(vb, 'zh-TW') : vb.localeCompare(va, 'zh-TW');
   });
 }
@@ -492,7 +497,6 @@ function openAddModal() {
   document.getElementById('modalTitle').textContent = '新增儀器';
   buildForm(null);
   document.getElementById('btnSave').innerHTML = '新增';
-  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('instrModal').classList.add('show');
 }
 
@@ -507,7 +511,6 @@ function openEditModal(rowIndex) {
   document.getElementById('modalTitle').textContent = '編輯儀器';
   buildForm(row ? row.values : null);
   document.getElementById('btnSave').innerHTML = '儲存修改';
-  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('instrModal').classList.add('show');
 }
 
@@ -571,8 +574,6 @@ function saveMember() {
     body:    JSON.stringify(payload)
   })
   .then(function() {
-    btn.disabled = false;                                          // ★ 修：成功後恢復按鈕
-    btn.innerHTML = editMode === 'add' ? '新增' : '儲存修改';
     closeModal();
     showToast(editMode === 'add' ? '儀器已新增' : '儀器已更新', 'ok');
     setTimeout(function(){ loadData(); }, 800);
