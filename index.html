@@ -253,7 +253,7 @@
       <button class="tnav-btn">&#x1F4DD; 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn">&#x1F4DE; 現場回報 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">&#x1F4DE; 回報 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-settings">
       <button class="tnav-btn">&#x2699;&#xFE0F; 設定 <span class="tnav-arrow">&#9660;</span></button>
@@ -342,7 +342,7 @@
   <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
 </div>
 <div class="top-drop" id="drop-report">
-  <button class="top-drop-btn" onclick="askNavThenReport();closeAllMenus()">🧭 導航至現場</button>
+  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">🧭 導航至現場</button>
   <button class="top-drop-btn" onclick="askNavThenReport();closeAllMenus()">人工回報量測數值</button>
   <button class="top-drop-btn" onclick="openPanel('儀器回報量測數值');closeAllMenus()">儀器回報量測數值</button>
   <button class="top-drop-btn" onclick="openPanel('任務回報');closeAllMenus()">任務回報</button>
@@ -472,11 +472,35 @@ window.addEventListener('message', function(e) {
     if (_mapEditOn) sendMapEditMsg();
     // 若有待處理的導航指令
     if (_pendingNav) sendNavMsg();
+    // 若有等待中的導航點位 Modal
+    if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
   if (e.data && e.data.type === 'navigate') {
     showIframe(e.data.src + '?idx=' + e.data.idx);
+  }
+
+  // ── current-events 回傳點位清單，填入選擇格子 ──
+  if (e.data && e.data.type === 'navPoints') {
+    _navPointsCache = e.data.points || [];
+    _navSelectedLabel = null;
+    var grid = document.getElementById('navPointGrid');
+    if (!grid) return;
+    if (!_navPointsCache.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:8px">⚠️ 目前事件無風向資料，無法計算點位</div>';
+      return;
+    }
+    grid.innerHTML = _navPointsCache.map(function(p) {
+      return '<button onclick="selectNavPoint(\'' + p.label + '\')" id="navpt_' + p.label + '" style="' +
+        'padding:8px 4px;border:2px solid #e2e8f0;border-radius:8px;background:white;' +
+        'font-family:inherit;font-size:13px;font-weight:600;color:#1e2a3a;cursor:pointer;' +
+        'transition:all .15s;text-align:center;line-height:1.3">' +
+        '<div style="font-size:16px;font-weight:800;color:#8b5cf6">' + p.label + '</div>' +
+        '<div style="font-size:10px;color:#94a3b8;margin-top:2px">' + p.shortTip + '</div>' +
+        '</button>';
+    }).join('');
+    return;
   }
 
   // ── 導航 Banner（來自 current-events.html 的 postMessage）──
@@ -495,6 +519,18 @@ window.addEventListener('message', function(e) {
     }
   }
 });
+
+// ── 導航點位選擇 ──
+function selectNavPoint(label) {
+  _navSelectedLabel = label;
+  // 更新所有按鈕樣式
+  document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
+    var isSelected = btn.id === 'navpt_' + label;
+    btn.style.borderColor = isSelected ? '#8b5cf6' : '#e2e8f0';
+    btn.style.background  = isSelected ? '#ede9fe' : 'white';
+  });
+  document.getElementById('navStartBtn').style.background = '#8b5cf6';
+}
 
 // -- 切換回儀表板首頁 --
 function showMap() {
@@ -768,25 +804,10 @@ function closeSidebar() {}
 // 導航模式詢問
 // ════════════════════════════════════════════
 function askNavThenReport() {
-  document.getElementById('navAskModal').style.display = 'flex';
-}
-function navAskNo() {
-  document.getElementById('navAskModal').style.display = 'none';
   showIframe('measurement-report.html');
 }
-function navAskYes() {
-  document.getElementById('navAskModal').style.display = 'none';
-  // 確保目前顯示 current-events.html，再送導航指令
-  var frame = document.getElementById('contentFrame');
-  var src = frame ? (frame.src || '') : '';
-  if (src.indexOf('current-events.html') === -1) {
-    showIframe('current-events.html');
-    // 等 iframe 準備好再送訊息
-    _pendingNav = true;
-  } else {
-    sendNavMsg();
-  }
-}
+function navAskNo() {}
+function navAskYes() {}
 var _pendingNav = false;
 function sendNavMsg() {
   try {
@@ -837,33 +858,32 @@ function sendMapEditMsg() {
 
 </script>
 
-<!-- 導航模式詢問 Modal -->
-<div id="navAskModal" style="
+<!-- 導航點位選擇 Modal -->
+<div id="navSelectModal" style="
   display:none; position:fixed; inset:0; z-index:99999;
   background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
   <div style="
-    background:white; border-radius:14px; padding:28px 28px 20px;
-    max-width:340px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.25);
+    background:white; border-radius:14px; padding:24px 24px 20px;
+    max-width:400px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.25);
     font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
-    display:flex; flex-direction:column; gap:14px; text-align:center;">
-    <div style="font-size:36px">🧭</div>
-    <div style="font-size:16px; font-weight:700; color:#1e2a3a">切換導航模式？</div>
-    <div style="font-size:13px; color:#6b7a92; line-height:1.6">
-      地圖將以您的位置為中心，<br>並規劃步行路線前往<br>
-      <strong style="color:#8b5cf6">編號 3（距事件點 2km 中線位置）</strong>
+    display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:16px;font-weight:700;color:#1e2a3a">🧭 選擇導航目的地</div>
+      <button onclick="closeNavSelectModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8">✕</button>
     </div>
-    <div style="display:flex; gap:10px; margin-top:4px;">
-      <button onclick="navAskNo()" style="
-        flex:1; padding:10px; border:1px solid #e2e8f0; border-radius:8px;
-        background:none; font-family:inherit; font-size:14px;
-        color:#6b7a92; cursor:pointer;">
-        否，直接回報
+    <div style="font-size:12px;color:#6b7a92">選擇要前往的測量點位（依事件座標與風向計算）</div>
+    <div id="navPointGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="closeNavSelectModal()" style="
+        flex:1;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
+        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer;">
+        取消
       </button>
-      <button onclick="navAskYes()" style="
-        flex:1; padding:10px; border:none; border-radius:8px;
-        background:#8b5cf6; color:white; font-family:inherit;
-        font-size:14px; font-weight:700; cursor:pointer;">
-        是，開始導航
+      <button onclick="startNavWithSelected()" id="navStartBtn" style="
+        flex:1;padding:9px;border:none;border-radius:8px;
+        background:#8b5cf6;color:white;font-family:inherit;
+        font-size:14px;font-weight:700;cursor:pointer;">
+        開始導航
       </button>
     </div>
   </div>
