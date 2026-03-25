@@ -63,7 +63,17 @@
     background: rgba(255,255,255,0.08); color: #e8f0fa;
     border-bottom-color: #4a9cf5;
   }
-  .tnav-arrow { font-size: 9px; opacity: .6; }
+  .tnav-arrow {
+    font-size: 9px; opacity: .6;
+    display: inline-block;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+  }
+  .tnav-item.open > .tnav-btn .tnav-arrow { transform: rotate(-90deg); }
+  /* 後台功能開啟中 */
+  .tnav-item.admin-on > .tnav-btn {
+    background: rgba(26,86,219,.25); color: #93c5fd;
+    border-bottom-color: #60a5fa;
+  }
 
   /* ────── TOP NAV 下拉選單（桌機版）────── */
   .top-drop {
@@ -121,10 +131,18 @@
   /* 手機（< 600px）：logo 文字隱藏，節省空間 */
   @media (max-width: 600px) {
     .logo-text { display: none; }
-    .topbar-logo { margin-right: 4px; }
-    .tnav-btn { padding: 0 8px; font-size: 12px; }
+    .topbar-logo { margin-right: 2px; }
+    .tnav-btn { padding: 0 6px; font-size: 11px; gap: 2px; }
     .tnav-arrow { display: none; }
-    .topbar-logout { display: none; } /* 手機版隱藏登出按鈕，避免超出螢幕 */
+    .topbar-logout {
+      padding: 4px 8px; font-size: 11px; margin-left: 4px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+  }
+  /* 超小螢幕（<375px）再縮 */
+  @media (max-width: 375px) {
+    .tnav-btn { padding: 0 4px; font-size: 10px; }
+    .topbar-logout { display: none; }
   }
 
   /* ────── LAYOUT ────── */
@@ -251,16 +269,16 @@
   <!-- 桌機橫向導覽列（靠右）-->
   <nav class="top-nav" id="topNav">
     <div class="tnav-item" id="tnav-dashboard">
-      <button class="tnav-btn">&#x1F4DD; 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">📋 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn" onclick="onReportBtnClick(event)">&#x1F4DE; 回報 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn" onclick="onReportBtnClick(event)">📡 回報 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-settings">
-      <button class="tnav-btn">&#x2699;&#xFE0F; 設定 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">⚙️ 設定 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-admin">
-      <button class="tnav-btn">&#x1F511; 後台功能 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">🔑 後台功能 <span class="tnav-arrow">&#9660;</span></button>
     </div>
   </nav>
 
@@ -337,40 +355,37 @@
 
 <!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
 <div class="top-drop" id="drop-dashboard">
-  <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">目前事件</button>
-  <button class="top-drop-btn" onclick="showIframe('event-personnel.html');closeAllMenus()">事件出勤人員</button>
-  <button class="top-drop-btn" onclick="showIframe('event-instruments.html');closeAllMenus()">事件出動儀器</button>
-  <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
+  <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">🗺️ 目前事件</button>
+  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">🧭 導航至現場</button>
+  <button class="top-drop-btn" onclick="showIframe('event-personnel.html');closeAllMenus()">👥 事件出勤人員</button>
+  <button class="top-drop-btn" onclick="showIframe('event-instruments.html');closeAllMenus()">🔧 事件出動儀器</button>
+  <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">📋 歷史事件查詢</button>
 </div>
 <div class="top-drop" id="drop-report">
-  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">🧭 導航至現場</button>
-  <button class="top-drop-btn" onclick="askNavThenReport();closeAllMenus()">人工回報量測數值</button>
-  <button class="top-drop-btn" onclick="openPanel('儀器回報量測數值');closeAllMenus()">儀器回報量測數值</button>
-  <button class="top-drop-btn" onclick="openPanel('任務回報');closeAllMenus()">任務回報</button>
-  <button class="top-drop-btn" onclick="openPanel('回報數值查詢');closeAllMenus()">回報數值查詢</button>
-  <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
+  <button class="top-drop-btn" id="btnReportActive" onclick="toggleReportFabs();closeAllMenus()">📡 我要回報</button>
+  <button class="top-drop-btn" onclick="openPanel('回報數值查詢');closeAllMenus()">🔍 回報數值查詢</button>
+  <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">📝 現場其他事情回報</button>
 </div>
 <div class="top-drop" id="drop-settings">
-  <button class="top-drop-btn" onclick="openPanel('個人資料維護');closeAllMenus()">&#x1FABA; 個人資料維護</button>
-  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">&#x2139;&#xFE0F; 使用說明</button>
+  <button class="top-drop-btn" onclick="openPanel('個人資料維護');closeAllMenus()">🪺 個人資料維護</button>
+  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">ℹ️ 使用說明</button>
 </div>
 <div class="top-drop" id="drop-admin">
-  <button class="top-drop-btn" id="btn-jishi">&#x1F4CB; 事件管理 <span class="drop-arrow">&#9654;</span></button>
-  <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">&#x1F465; 編組管理</button>
-  <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">&#x1F527; 儀器管理</button>
-  <button class="top-drop-btn" onclick="openPanel('新增地圖Icon圖示');closeAllMenus()">&#x1F4CD; 新增地圖Icon圖示</button>
-  <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">&#x1F4F1; 出勤通知簡訊紀錄</button>
-  <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">&#x1F4DC; 事件異動紀錄</button>
-  <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">&#x1F5D2;&#xFE0F; 各帳號異動紀錄</button>
-  <button class="top-drop-btn" onclick="openPanel('各帳號登入紀錄');closeAllMenus()">&#x1F510; 各帳號登入紀錄</button>
+  <button class="top-drop-btn" id="btn-jishi">📋 事件管理 <span class="drop-arrow">&#9654;</span></button>
+  <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">👥 編組管理</button>
+  <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">🔧 儀器管理</button>
+  <button class="top-drop-btn" onclick="openPanel('儀器回報量測數值');closeAllMenus()">📡 儀器回報量測數值</button>
+  <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">📱 出勤通知簡訊紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">📜 事件異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">🗒️ 各帳號異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號登入紀錄');closeAllMenus()">🔐 各帳號登入紀錄</button>
 </div>
 <div class="top-drop-l3" id="drop-jishi">
-  <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
-  <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">編輯事件</button>
-  <button class="top-drop-l3-btn" id="btnMapEdit" onclick="toggleMapEdit();closeAllMenus()">編輯地圖</button>
-  <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">任務派送</button>
-  <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
-  <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
+  <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">➕ 建立事件</button>
+  <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">✏️ 編輯事件</button>
+  <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">📨 任務派送</button>
+  <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">👤 出勤人員異動</button>
+  <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">🔩 出動儀器異動</button>
 </div>
 
 <script>
@@ -621,9 +636,8 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ════════════════════════════════════════════
-  // 桌機版：Top-nav hover 下拉選單
+  // 桌機版：Top-nav 點擊 toggle 下拉選單
   // ════════════════════════════════════════════
-  var leaveTimer = null;
 
   // tnav-item id → 對應 drop id
   var NAV_MAP = {
@@ -633,19 +647,17 @@ document.addEventListener('DOMContentLoaded', function() {
     'tnav-admin':     'drop-admin'
   };
 
-  // ── 定位下拉選單於 trigger 正下方（自動偵測是否超出螢幕邊界）──
+  // ── 定位下拉選單於 trigger 正下方 ──
   function positionDrop(drop, trigger) {
     drop.style.left = '-9999px'; drop.style.top = '-9999px';
     drop.style.display = 'block';
     var dw = drop.offsetWidth, dh = drop.offsetHeight;
     drop.style.display = '';
-    var r    = trigger.getBoundingClientRect();
-    var vw   = window.innerWidth, vh = window.innerHeight;
-    // 水平：預設對齊 trigger 左側，超出右邊則靠右對齊
+    var r  = trigger.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
     var left = r.left;
     if (left + dw > vw - 8) left = r.right - dw;
     if (left < 4) left = 4;
-    // 垂直：預設在 trigger 下方，超出底部則往上
     var top = r.bottom + 1;
     if (top + dh > vh - 8) top = r.top - dh - 1;
     if (top < 4) top = 4;
@@ -653,21 +665,18 @@ document.addEventListener('DOMContentLoaded', function() {
     drop.style.top  = top  + 'px';
   }
 
-  // ── 定位 L3（側邊展開，自動判斷左右）──
+  // ── 定位 L3（側邊展開）──
   function positionL3(l3, parentDrop, triggerBtn) {
     l3.style.left = '-9999px'; l3.style.top = '-9999px';
     l3.style.display = 'block';
     var lw = l3.offsetWidth, lh = l3.offsetHeight;
     l3.style.display = '';
-    var pr  = parentDrop.getBoundingClientRect();
-    var tr  = triggerBtn.getBoundingClientRect();
-    var vw  = window.innerWidth, vh = window.innerHeight;
-    // 預設展開在 L2 右側
+    var pr = parentDrop.getBoundingClientRect();
+    var tr = triggerBtn.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
     var left = pr.right + 2;
-    // 若右側放不下，改展開在 L2 左側
     if (left + lw > vw - 8) left = pr.left - lw - 2;
     if (left < 4) left = 4;
-    // 垂直對齊觸發行
     var top = tr.top;
     if (top + lh > vh - 8) top = vh - lh - 8;
     if (top < 4) top = 4;
@@ -675,13 +684,21 @@ document.addEventListener('DOMContentLoaded', function() {
     l3.style.top  = top  + 'px';
   }
 
-  // 關閉所有桌機下拉（除了指定的）
+  // ── 關閉所有下拉（除了指定的）──
   function closeDrops(except) {
     document.querySelectorAll('.top-drop').forEach(function(d) {
       if (d !== except) d.classList.remove('active');
     });
     var l3 = document.getElementById('drop-jishi');
     if (except !== l3) l3.classList.remove('active');
+    // 同步 tnav-item open 狀態和三角形
+    Object.keys(NAV_MAP).forEach(function(navId) {
+      var item = document.getElementById(navId);
+      var drop = document.getElementById(NAV_MAP[navId]);
+      if (item && drop && drop !== except) {
+        item.classList.remove('open');
+      }
+    });
   }
 
   var btnJishi  = document.getElementById('btn-jishi');
@@ -690,99 +707,77 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
 
-  // ── 判斷滑鼠是否還在整個選單系統內 ──
-  // 傳入「目前這組的 navItem + drop」，若滑鼠在其他任何選單元件上也不關閉
-  function isInMenuSystem() {
-    var els = document.querySelectorAll('.tnav-item, .top-drop, .top-drop-l3');
-    return Array.from(els).some(function(el) { return el.matches(':hover'); });
-  }
-
+  // ── 每個 tnav-item 綁定 click toggle ──
   Object.keys(NAV_MAP).forEach(function(navId) {
     var navItem = document.getElementById(navId);
     var drop    = document.getElementById(NAV_MAP[navId]);
     if (!navItem || !drop) return;
 
-    navItem.addEventListener('mouseenter', function() {
-      clearTimeout(leaveTimer);
-      closeDrops(drop);
-      drop.classList.add('active');
-      positionDrop(drop, navItem);
-    });
-    navItem.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function() {
-        if (!isInMenuSystem()) { drop.classList.remove('active'); closeL3(); }
-      }, 50);
-    });
-    drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
-    drop.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function() {
-        // 直接關閉，不依賴 isInMenuSystem（避免 L3 hover 讓 L2 殘留）
+    navItem.querySelector('.tnav-btn').addEventListener('click', function(e) {
+      // 回報按鈕有自己的 onclick，不在這裡處理
+      if (navId === 'tnav-report' && isMobile()) return;
+
+      var isOpen = drop.classList.contains('active');
+
+      // ── 後台功能：點擊同時 toggle 地圖編輯模式 ──
+      if (navId === 'tnav-admin') {
+        if (isOpen) {
+          // 關閉後台功能 → 同時關閉編輯地圖
+          closeDrops(null);
+          navItem.classList.remove('open', 'admin-on');
+          if (_mapEditOn) toggleMapEdit();
+        } else {
+          closeDrops(drop);
+          drop.classList.add('active');
+          positionDrop(drop, navItem);
+          navItem.classList.add('open', 'admin-on');
+          // 開啟後台功能 → 同時開啟編輯地圖
+          if (!_mapEditOn) toggleMapEdit();
+        }
+        return;
+      }
+
+      if (isOpen) {
         drop.classList.remove('active');
+        navItem.classList.remove('open');
         closeL3();
-      }, 50);
+      } else {
+        closeDrops(drop);
+        drop.classList.add('active');
+        positionDrop(drop, navItem);
+        navItem.classList.add('open');
+      }
     });
   });
 
-  // ── L3：事件管理 hover ──
+  // ── L3：事件管理 click toggle ──
   if (btnJishi && dropJishi && dropAdmin) {
-    btnJishi.addEventListener('mouseenter', function() {
-      clearTimeout(leaveTimer);
-      dropJishi.classList.add('active');
-      positionL3(dropJishi, dropAdmin, btnJishi);
-    });
-    btnJishi.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function() {
-        if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
-      }, 50);
-    });
-    dropJishi.addEventListener('mouseenter', function() {
-      // L3 hover 時清除計時器，防止 drop-admin 被提前關閉
-      clearTimeout(leaveTimer);
-    });
-    dropJishi.addEventListener('mouseleave', function() {
-      leaveTimer = setTimeout(function() {
-        if (!btnJishi.matches(':hover')) dropJishi.classList.remove('active');
-        // L3 離開時，drop-admin 也一併關閉
-        if (dropAdmin && !dropAdmin.matches(':hover')) dropAdmin.classList.remove('active');
-      }, 50);
+    btnJishi.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = dropJishi.classList.contains('active');
+      if (isOpen) {
+        dropJishi.classList.remove('active');
+      } else {
+        dropJishi.classList.add('active');
+        positionL3(dropJishi, dropAdmin, btnJishi);
+      }
     });
   }
-
-  // ── drop-admin 的其他選項 mouseenter 時，立即關閉 L3 ──
-  dropAdmin.querySelectorAll('.top-drop-btn').forEach(function(btn) {
-    if (btn === btnJishi) return; // 略過事件管理本身
-    btn.addEventListener('mouseenter', function() {
-      clearTimeout(leaveTimer);
-      closeL3();
-    });
-  });
 
   // ── 點選選單外關閉 ──
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) closeAllMenus();
-  });
-
-  // ── 兜底：滑鼠完全離開 topbar 區域時，強制關閉所有選單 ──
-  var topbar = document.querySelector('.topbar');
-  if (topbar) {
-    topbar.addEventListener('mouseleave', function() {
-      setTimeout(function() {
-        if (!isInMenuSystem()) closeAllMenus();
-      }, 50);
-    });
-  }
-
-  document.addEventListener('mousemove', function() {
-    if (!isInMenuSystem()) {
-      var anyOpen = document.querySelector('.top-drop.active, .top-drop-l3.active');
-      if (anyOpen) {
-        clearTimeout(leaveTimer);
-        leaveTimer = setTimeout(function() {
-          if (!isInMenuSystem()) closeAllMenus();
-        }, 50);
+    if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) {
+      // 若後台功能開啟中，關閉時同時關閉編輯地圖
+      var adminItem = document.getElementById('tnav-admin');
+      if (adminItem && adminItem.classList.contains('admin-on')) {
+        adminItem.classList.remove('open', 'admin-on');
+        if (_mapEditOn) toggleMapEdit();
       }
+      closeAllMenus();
     }
   });
+
+  // mousemove 自動關閉已移除（改為點擊模式）
 
   // ════════════════════════════════════════════
   // 手機版選單
@@ -794,6 +789,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── closeAllMenus（全站共用：關閉桌機下拉 + 手機選單）──
 function closeAllMenus() {
+  // 清除 tnav-item 的 open / admin-on 狀態
+  document.querySelectorAll('.tnav-item').forEach(function(el) {
+    el.classList.remove('open');
+  });
   document.querySelectorAll('.top-drop, .top-drop-l3').forEach(function(m) {
     m.classList.remove('active');
   });
@@ -824,10 +823,35 @@ function onReportBtnClick(e) {
   }
 }
 var _pendingReportFab = false;
-function sendReportFabMsg() {
+// sendReportFabMsg 已在 toggleReportFabs 上方定義
+
+// ── 我要回報：toggle 持續浮動按鈕 ──
+var _reportFabsVisible = false;
+
+function toggleReportFabs() {
+  _reportFabsVisible = !_reportFabsVisible;
+  var btn = document.getElementById('btnReportActive');
+  if (btn) btn.textContent = _reportFabsVisible ? '📡 我要回報（開啟中）' : '📡 我要回報';
+
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+
+  if (_reportFabsVisible) {
+    if (!isOnMap) {
+      _pendingReportFab = true;
+      showIframe('current-events.html');
+    } else {
+      sendReportFabMsg(true);
+    }
+  } else {
+    if (isOnMap) sendReportFabMsg(false);
+  }
+}
+
+function sendReportFabMsg(show) {
   var frame = document.getElementById('contentFrame');
   if (frame && frame.contentWindow) {
-    frame.contentWindow.postMessage({ type: 'showReportBtns' }, '*');
+    frame.contentWindow.postMessage({ type: show ? 'showReportBtns' : 'hideReportBtns' }, '*');
   }
 }
 
@@ -910,9 +934,13 @@ var _mapEditOn = false;
 function toggleMapEdit() {
   _mapEditOn = !_mapEditOn;
 
-  // 更新選單按鈕文字
-  var btn = document.getElementById('btnMapEdit');
-  if (btn) btn.textContent = _mapEditOn ? '✏️ 編輯地圖（開啟中）' : '編輯地圖';
+  // ★ 更新後台功能按鈕文字
+  var adminBtn = document.querySelector('#tnav-admin .tnav-btn');
+  if (adminBtn) {
+    adminBtn.innerHTML = _mapEditOn
+      ? '🔑 後台功能<span style="font-size:10px;color:#93c5fd;margin-left:3px">（開啟中）</span> <span class="tnav-arrow">&#9660;</span>'
+      : '🔑 後台功能 <span class="tnav-arrow">&#9660;</span>';
+  }
 
   // 確保目前顯示 current-events.html
   var frame = document.getElementById('contentFrame');
