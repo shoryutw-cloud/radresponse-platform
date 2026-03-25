@@ -808,6 +808,63 @@ function askNavThenReport() {
 }
 function navAskNo() {}
 function navAskYes() {}
+
+// ── 導航點位選擇 Modal ──
+var _navSelectedLabel = null;
+var _navPointsCache   = null;
+var _pendingNavModal  = false;
+
+function openNavSelectModal() {
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+  if (!isOnMap) {
+    _pendingNavModal = true;
+    showIframe('current-events.html');
+    return;
+  }
+  _navSelectedLabel = null;
+  _navPointsCache   = null;
+  document.getElementById('navSelectModal').style.display = 'flex';
+  // 向 iframe 請求點位清單
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
+  }
+  document.getElementById('navPointGrid').innerHTML =
+    '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:8px">⏳ 計算點位中…</div>';
+}
+
+function closeNavSelectModal() {
+  document.getElementById('navSelectModal').style.display = 'none';
+  _navSelectedLabel = null;
+}
+
+function startNavWithSelected() {
+  if (!_navSelectedLabel || !_navPointsCache) return;
+  var target = null;
+  for (var i = 0; i < _navPointsCache.length; i++) {
+    if (_navPointsCache[i].label === _navSelectedLabel) { target = _navPointsCache[i]; break; }
+  }
+  if (!target) return;
+  closeNavSelectModal();
+  var frame = document.getElementById('contentFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({
+      type:        'startNavigation',
+      targetLabel: target.label,
+      targetPt:    target.pt
+    }, '*');
+  }
+}
+
+function selectNavPoint(label) {
+  _navSelectedLabel = label;
+  document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
+    var sel = btn.id === 'navpt_' + label;
+    btn.style.borderColor = sel ? '#8b5cf6' : '#e2e8f0';
+    btn.style.background  = sel ? '#ede9fe' : 'white';
+  });
+  document.getElementById('navStartBtn').style.background = '#8b5cf6';
+}
 var _pendingNav = false;
 function sendNavMsg() {
   try {
