@@ -774,6 +774,11 @@ function showOnlyPage(n) {
 function goPage1() {
   showOnlyPage(1);
   document.getElementById('ceFSt').className = 'ce-fstatus';
+  // ★ 回到第一頁時重置人員清單旗標
+  // 讓使用者修改事件類型後，下次進入第二頁一定重新載入對應技術組
+  _cePersonnelRendered = false;
+  _ceCache = {}; // 清除人員快取，確保重新向 GAS 查詢
+  document.getElementById('cePersonnel').innerHTML = '';
   ceVal();
 }
 
@@ -820,9 +825,16 @@ function ceVal() {
 }
 
 function cePick(el, t) {
+  var prev = document.getElementById('ceType').value;
   document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
   el.classList.add(el.getAttribute('data-c'));
   document.getElementById('ceType').value = t;
+  // ★ 事件類型改變時，清除人員清單旗標讓第二頁重新載入
+  if (prev !== t) {
+    _cePersonnelRendered = false;
+    _ceCache = {};
+    document.getElementById('cePersonnel').innerHTML = '';
+  }
   ceVal();
 }
 
