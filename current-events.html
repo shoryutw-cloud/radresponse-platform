@@ -2280,23 +2280,28 @@ function openAssignModal(latlng) {
   document.getElementById('assignNote').value = '';
   document.getElementById('assignSubmitBtn').disabled = true;
   document.getElementById('assignSubmitBtn').textContent = '派遣量測任務';
-
-  var squads  = getEventSquads(ev);
-  var optHtml = '';
-  squads.forEach(function(sq) {
-    var emoji = sq.indexOf('參謀') !== -1 ? '🎖️' :
-                sq.indexOf('新聞') !== -1 ? '📡' : '🔬';
-    optHtml +=
-      '<label class="squad-option" onclick="selectSquad(\'' + _esc(sq) + '\', this)">' +
-      '<input type="radio" name="squadRadio" value="' + _esc(sq) + '">' +
-      '<span>' + emoji + ' ' + _esc(sq) + '</span>' +
-      '</label>';
-  });
-  if (!optHtml) {
-    optHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">⚠️ 此事件尚無人員記錄</div>';
-  }
-  document.getElementById('squadOptions').innerHTML = optHtml;
+  document.getElementById('squadOptions').innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">⏳ 載入組別中…</div>';
   document.getElementById('assignModal').style.display = 'flex';
+
+  // ★ 確保隊別清單已載入，再建組別選項
+  loadSquads(function(squads) {
+    TECH_SQUADS = squads.concat(['未分配']);
+    var evSquads = getEventSquads(ev);
+    var optHtml = '';
+    evSquads.forEach(function(sq) {
+      var emoji = sq.indexOf('參謀') !== -1 ? '🎖️' :
+                  sq.indexOf('新聞') !== -1 ? '📡' : '🔬';
+      optHtml +=
+        '<label class="squad-option" onclick="selectSquad(\'' + _esc(sq) + '\', this)">' +
+        '<input type="radio" name="squadRadio" value="' + _esc(sq) + '">' +
+        '<span>' + emoji + ' ' + _esc(sq) + '</span>' +
+        '</label>';
+    });
+    if (!optHtml) {
+      optHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">⚠️ 此事件尚無人員記錄</div>';
+    }
+    document.getElementById('squadOptions').innerHTML = optHtml;
+  });
 
   reverseGeocode(latlng.lat, latlng.lng, function(addr) {
     document.getElementById('assignAddrVal').textContent = addr || '（無法取得地址）';

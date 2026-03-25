@@ -909,21 +909,25 @@ function _loadPersonnel() {
     return;
   }
   box.innerHTML = '<div class="ce-p-loading">&#x23F3; 讀取人員名單中…</div>';
-  var targets = [
-    { id: techId,  label: '技術組' },
-    { id: 'staff', label: '參謀組' },
-    { id: 'press', label: '新聞組' }
-  ];
-  var promises = targets.map(function(t) {
-    if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
-    return new Promise(function(resolve) {
-      _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
-        if (d && d.members) { _ceCache[t.id] = d.members; resolve({ id:t.id, label:t.label, members:d.members }); }
-        else resolve({ id:t.id, label:t.label, members:[] });
+  // ★ 確保隊別清單已載入，再讀取人員
+  loadSquads(function(squads) {
+    CE_SQUAD_ORDER = squads;
+    var targets = [
+      { id: techId,  label: '技術組' },
+      { id: 'staff', label: '參謀組' },
+      { id: 'press', label: '新聞組' }
+    ];
+    var promises = targets.map(function(t) {
+      if (_ceCache[t.id]) return Promise.resolve({ id:t.id, label:t.label, members:_ceCache[t.id] });
+      return new Promise(function(resolve) {
+        _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
+          if (d && d.members) { _ceCache[t.id] = d.members; resolve({ id:t.id, label:t.label, members:d.members }); }
+          else resolve({ id:t.id, label:t.label, members:[] });
+        });
       });
     });
-  });
-  Promise.all(promises).then(function(results) { _renderPersonnel(results, techId); });
+    Promise.all(promises).then(function(results) { _renderPersonnel(results, techId); });
+  }); // end loadSquads
 }
 
 function _renderPersonnel(groups, techId) {
@@ -941,8 +945,19 @@ function _renderPersonnel(groups, techId) {
         if (!squads[s]) squads[s] = [];
         squads[s].push(m);
       });
-      CE_SQUAD_ORDER.forEach(function(sname) {
-        if (squads[sname] && squads[sname].length) html += _squadBlock(sname, squads[sname]);
+      // ★ 以 CE_SQUAD_ORDER 為優先順序，沒出現在清單裡的隊別也一律顯示
+      var rendered = {};
+      (CE_SQUAD_ORDER.length ? CE_SQUAD_ORDER : Object.keys(squads)).forEach(function(sname) {
+        if (squads[sname] && squads[sname].length) {
+          html += _squadBlock(sname, squads[sname]);
+          rendered[sname] = true;
+        }
+      });
+      // CE_SQUAD_ORDER 沒涵蓋到的隊別（新增的）也補上
+      Object.keys(squads).forEach(function(sname) {
+        if (!rendered[sname] && sname !== '未分配') {
+          html += _squadBlock(sname, squads[sname]);
+        }
       });
       if (squads['未分配'] && squads['未分配'].length) html += _squadBlock('未分配', squads['未分配']);
     } else {
