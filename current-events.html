@@ -1440,10 +1440,10 @@ function renderLayerPanel() {
   body.innerHTML =
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>Phase 1：100m 範圍</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>Phase 1：1km 橫切面</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>Phase 2：5km 扇形</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>Phase 2：附近場域</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
@@ -1747,7 +1747,39 @@ window.addEventListener('message', function(e) {
   }
 
   // ── 導航模式：定位使用者 → 規劃步行到編號3 ──
+  // ── parent 請求點位清單 ──
+  if (e.data.type === 'getNavPoints') {
+    var ev = _events[_curIdx];
+    if (!ev || !ev.lat || !ev.windDir) {
+      try { parent.postMessage({ type: 'navPoints', points: [] }, '*'); } catch(e) {}
+      return;
+    }
+    var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+    var wd = (parseFloat(ev.windDir) + 180) % 360;
+    // 10 個點位定義（與地圖標記一致）
+    var pts = [
+      { label:'1',  shortTip:'1km中線',   pt: destPoint(la, lo, wd,        1000) },
+      { label:'2',  shortTip:'500m中線',   pt: destPoint(la, lo, wd,         500) },
+      { label:'3',  shortTip:'2km中線',    pt: destPoint(la, lo, wd,        2000) },
+      { label:'4',  shortTip:'3km上緣',    pt: destPoint(la, lo, wd - 22.5, 3000) },
+      { label:'5',  shortTip:'3km中線',    pt: destPoint(la, lo, wd,        3000) },
+      { label:'6',  shortTip:'3km下緣',    pt: destPoint(la, lo, wd + 22.5, 3000) },
+      { label:'7',  shortTip:'4km中線',    pt: destPoint(la, lo, wd,        4000) },
+      { label:'8',  shortTip:'5km上緣',    pt: destPoint(la, lo, wd - 22.5, 5000) },
+      { label:'9',  shortTip:'5km中線',    pt: destPoint(la, lo, wd,        5000) },
+      { label:'10', shortTip:'5km下緣',    pt: destPoint(la, lo, wd + 22.5, 5000) }
+    ];
+    try { parent.postMessage({ type: 'navPoints', points: pts }, '*'); } catch(err) {}
+    return;
+  }
+
   if (e.data.type === 'startNavigation') {
+    // ★ 接收目標點位選擇
+    if (e.data.targetLabel) {
+      _navTargetPt = { label: e.data.targetLabel, pt: e.data.targetPt };
+    } else {
+      _navTargetPt = null; // 未指定則 startNavMode 用預設
+    }
     startNavMode();
     return;
   }
@@ -1965,10 +1997,11 @@ function startDrawingSyncTimer() {
 // ════════════════════════════════════════════
 // 導航模式：以使用者為中心，路線到編號3
 // ════════════════════════════════════════════
-var _navRoute    = null;  // 路線 Polyline
-var _navDestMk   = null;  // 目的地標記
+var _navRoute     = null;  // 路線 Polyline
+var _navDestMk    = null;  // 目的地標記
 var _navFollowing = false; // 是否跟隨使用者移動
-var _navBanner   = null;  // 頂部導航提示列
+var _navBanner    = null;  // 頂部導航提示列
+var _navTargetPt  = null;  // { label, pt } 使用者選擇的目標點位
 
 function startNavMode() {
   showNavBanner('⏳ 取得您的位置中…', '#6b7a92');
@@ -1989,7 +2022,10 @@ function startNavMode() {
       }
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
       var wd = (parseFloat(ev.windDir) + 180) % 360;
-      var pt3 = destPoint(la, lo, wd, 2000);
+
+      // 使用者選擇的點位（由 index.html 傳入），預設編號3
+      var target = _navTargetPt || { label: '3', pt: destPoint(la, lo, wd, 2000) };
+      var navPt = target.pt;
 
       _navFollowing = true;
       gMap.setView(userLL, 16);
@@ -2001,11 +2037,11 @@ function startNavMode() {
               'transform:rotate(45deg);box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',
         iconSize: [28, 28], iconAnchor: [14, 14]
       });
-      _navDestMk = L.marker(pt3, { icon: destIcon }).addTo(gMap);
-      _navDestMk.bindTooltip('目的地：編號3（2km 中線位置）', { permanent: true, direction: 'top', offset: [0, -16] });
+      _navDestMk = L.marker(navPt, { icon: destIcon }).addTo(gMap);
+      _navDestMk.bindTooltip('目的地：編號' + target.label, { permanent: true, direction: 'top', offset: [0, -16] });
 
-      planRoute(userLL.lat, userLL.lng, pt3[0], pt3[1]);
-      updateNavBannerDist(pt3);
+      planRoute(userLL.lat, userLL.lng, navPt[0], navPt[1]);
+      updateNavBannerTarget(target, navPt);
       showRecenterBtn();
 
       // dragstart 在 initMap 已全域監聽，此處只標記已綁定
@@ -2028,8 +2064,8 @@ function startNavMode() {
       if (_events[_curIdx] && _navReplanCount++ % 50 === 0) {
         var ev2 = _events[_curIdx];
         var wd2 = (parseFloat(ev2.windDir) + 180) % 360;
-        var pt3b = destPoint(parseFloat(ev2.lat), parseFloat(ev2.lng), wd2, 2000);
-        planRoute(uLL.lat, uLL.lng, pt3b[0], pt3b[1]);
+        var tgt = _navTargetPt || { pt: destPoint(parseFloat(ev2.lat), parseFloat(ev2.lng), wd2, 2000) };
+        planRoute(uLL.lat, uLL.lng, tgt.pt[0], tgt.pt[1]);
       }
     }, 300);
   }
@@ -2079,12 +2115,12 @@ var _navFollowListener = null;
 var _navReplanCount    = 0;
 var _navDragBound      = false;
 
-function updateNavBannerDist(pt3) {
+function updateNavBannerTarget(target, pt) {
   showNavBanner(
-    '🧭 前往編號3（2km 中線位置）　' +
+    '🧭 前往編號' + target.label + '　' +
     '<button onclick="window.__stopNav&&window.__stopNav()" style="margin-left:12px;padding:3px 10px;border:1px solid white;' +
     'border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;' +
-    'font-family:inherit;font-size:12px">結束導航</button>',
+    'font-family:inherit;font-size:12px">取消導航</button>',
     '#7c3aed'
   );
 }
@@ -2115,11 +2151,12 @@ function planRoute(fromLat, fromLng, toLat, toLng) {
       var distStr = distM >= 1000
         ? (distM / 1000).toFixed(1) + ' km'
         : distM + ' m';
+      var lbl = _navTargetPt ? _navTargetPt.label : '3';
       showNavBanner(
-        '🧭 前往編號3　步行約 ' + distStr + '（約 ' + walkMin + ' 分鐘）　' +
+        '🧭 前往編號' + lbl + '　步行約 ' + distStr + '（約 ' + walkMin + ' 分鐘）　' +
         '<button onclick="window.__stopNav&&window.__stopNav()" style="margin-left:12px;padding:3px 10px;border:1px solid white;' +
         'border-radius:4px;background:rgba(255,255,255,.2);color:white;cursor:pointer;' +
-        'font-family:inherit;font-size:12px">結束導航</button>',
+        'font-family:inherit;font-size:12px">取消導航</button>',
         '#7c3aed'
       );
     })
@@ -2259,7 +2296,9 @@ function getEventSquads(ev) {
   if (ev.personnelStr) {
     ev.personnelStr.split(',').forEach(function(item) {
       var s = item.trim();
-      var colonIdx = s.indexOf(':');
+      // 格式：「隊別:姓名」，冒號前為隊別
+      // 注意隊別本身可能含「-」（如「北部應變區-先遣小組」），取最後一個冒號前
+      var colonIdx = s.lastIndexOf(':');
       if (colonIdx > 0) {
         var squad = s.slice(0, colonIdx).trim();
         if (squad && found.indexOf(squad) === -1) found.push(squad);
@@ -2267,8 +2306,7 @@ function getEventSquads(ev) {
     });
   }
   if (found.length > 0) return found;
-  // ★ 無法從 personnelStr 解析到組別時回傳空陣列
-  // （舊格式純姓名無組別資訊，不應顯示所有隊別）
+  // 無法解析組別（舊格式純姓名）→ 回傳空陣列
   return [];
 }
 
