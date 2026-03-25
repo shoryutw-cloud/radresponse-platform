@@ -1176,15 +1176,15 @@ function _getInstruments() {
   document.querySelectorAll('.ce-instr-tbl input[type=checkbox]:checked').forEach(function(cb) {
     var i    = parseInt(cb.id.replace('icb',''), 10);
     var vals = (rows[i] || {}).values || [];
-    var name     = vals[1] || '';
-    var model    = vals[4] || '';
-    var detector = vals[2] || ''; // C欄：偵檢類型
-    if (!name) return;
-    // 格式：名稱(型號)[偵檢類型]
-    // 懸浮卡讀 [偵檢類型]，出動儀器頁讀名稱(型號)
-    var key = name;
-    if (model)    key += '(' + model + ')';
-    if (detector) key += '[' + detector + ']';
+    // 新欄位：[0]項次 [1]儀器種類 [2]儀器名稱 [3]存放地點 [4]使用者（由使用者下拉決定）
+    var kind = vals[1] || ''; // 儀器種類
+    var name = vals[2] || ''; // 儀器名稱
+    if (!kind && !name) return;
+    // 格式：儀器種類-儀器名稱:使用者
+    var key = kind ? kind + '-' + name : name;
+    var sel = document.getElementById('isel' + i);
+    var user = sel ? sel.value : '';
+    if (user) key += ':' + user;
     result.push(key);
   });
   return result.join(', ');

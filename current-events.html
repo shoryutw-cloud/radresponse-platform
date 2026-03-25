@@ -850,16 +850,17 @@ function parseTechCount(personnelStr) {
   return personnelStr.split(',').filter(function(s) { return s.trim(); }).length;
 }
 
-// ── 解析 instrumentStr 取得不重複偵檢類型 ──
-// 格式：名稱(型號)[偵檢類型]:使用者
+// ── 解析 instrumentStr 取得不重複儀器種類 ──
+// 新格式：儀器種類-儀器名稱:使用者
 function parseDetectorTypes(instrStr) {
   if (!instrStr) return [];
   var types = [];
   instrStr.split(',').forEach(function(item) {
-    var m = item.match(/\[([^\]]+)\]/);
-    if (m && m[1] && types.indexOf(m[1].trim()) === -1) {
-      types.push(m[1].trim());
-    }
+    var t = item.trim().split(':')[0].trim(); // 去掉使用者部分
+    // 取 - 前的「儀器種類」；若無 - 則用完整字串
+    var dashIdx = t.indexOf('-');
+    var kind = dashIdx >= 0 ? t.slice(0, dashIdx).trim() : t;
+    if (kind && types.indexOf(kind) === -1) types.push(kind);
   });
   return types;
 }
@@ -974,7 +975,7 @@ function renderCard(idx) {
 
   // 攜帶偵檢器種類
   html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">偵檢器種類</span>';
+  html += '<span class="ev-lbl">出動儀器種類</span>';
   if (detTypes.length) {
     html += '<div class="ev-tags">';
     detTypes.forEach(function(t) { html += '<span class="ev-tag">' + _esc(t) + '</span>'; });
