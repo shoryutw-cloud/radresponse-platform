@@ -676,7 +676,24 @@ cursor: pointer; transition: background .15s;
 
 <script>
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
-var TECH_SQUADS = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
+var TECH_SQUADS = []; // 從 GAS 動態載入，見 loadSquads()
+// ── 動態隊別清單（從 GAS getSquads 讀取，sessionStorage 快取）──
+var _squadsList = null;
+function loadSquads(cb) {
+  if (_squadsList) { cb(_squadsList); return; }
+  try {
+    var cached = sessionStorage.getItem('_squadsCache');
+    if (cached) { _squadsList = JSON.parse(cached); cb(_squadsList); return; }
+  } catch(e) {}
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    _squadsList = (data && data.squads && data.squads.length)
+      ? data.squads
+      : ['北部應變區-先遣小組','北部應變區-支援小組','南部應變區-先遣小組','南部應變區-支援小組'];
+    try { sessionStorage.setItem('_squadsCache', JSON.stringify(_squadsList)); } catch(e) {}
+    cb(_squadsList);
+  });
+}
+
 
 var gMap = null;
 var _events = [];    // 所有進行中事件
@@ -1756,6 +1773,8 @@ window.addEventListener('message', function(e) {
 });
 
 function loadEvents() {
+  // 先載入隊別清單，再載入事件（確保 TECH_SQUADS 有值）
+  loadSquads(function(squads) { TECH_SQUADS = squads.concat(['未分配']); });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
     // 套用 pendingIdx（postMessage 比 JSONP 早到的情況）
@@ -2246,7 +2265,7 @@ function getEventSquads(ev) {
     });
   }
   if (found.length > 0) return found;
-  return TECH_SQUADS.filter(function(s) { return s !== '未分配'; });
+  return (_squadsList || TECH_SQUADS).filter(function(s) { return s !== '未分配'; });
 }
 
 // ── 開啟分派 Modal ──
