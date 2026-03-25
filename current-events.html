@@ -2028,6 +2028,7 @@ function startNavMode() {
       var navPt = target.pt;
 
       _navFollowing = true;
+      // 僅初始進入時飛到使用者位置，後續由圖釘按鈕控制
       gMap.setView(userLL, 16);
 
       if (_navDestMk) _navDestMk.remove();
@@ -2055,9 +2056,9 @@ function startNavMode() {
       if (!_userMarker) return;
       var uLL = _userMarker.getLatLng();
 
-      // 跟隨模式：地圖跟著藍點走
+      // 跟隨模式：地圖跟著藍點走（每 2 秒更新一次，不強制，讓使用者可以自由拖動）
       if (_navFollowing) {
-        gMap.panTo(uLL, { animate: true, duration: 0.5 });
+        gMap.panTo(uLL, { animate: true, duration: 1.0 });
       }
 
       // 每 15 秒重新規劃路線（無論是否跟隨）
@@ -2067,7 +2068,7 @@ function startNavMode() {
         var tgt = _navTargetPt || { pt: destPoint(parseFloat(ev2.lat), parseFloat(ev2.lng), wd2, 2000) };
         planRoute(uLL.lat, uLL.lng, tgt.pt[0], tgt.pt[1]);
       }
-    }, 300);
+    }, 2000); // ★ 改為 2 秒更新一次，讓使用者可以自由拖動地圖
   }
 }
 
