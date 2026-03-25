@@ -774,11 +774,8 @@ function showOnlyPage(n) {
 function goPage1() {
   showOnlyPage(1);
   document.getElementById('ceFSt').className = 'ce-fstatus';
-  // ★ 回到第一頁時重置人員清單旗標
-  // 讓使用者修改事件類型後，下次進入第二頁一定重新載入對應技術組
-  _cePersonnelRendered = false;
-  _ceCache = {}; // 清除人員快取，確保重新向 GAS 查詢
-  document.getElementById('cePersonnel').innerHTML = '';
+  // ★ 回上一頁不清除人員選擇記憶
+  // 只有切換事件類型（cePick）才會重置人員清單
   ceVal();
 }
 
