@@ -200,13 +200,21 @@
   .ce-squad-bd { padding: 12px 16px; }
   .ce-member-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .ce-mbr {
-    display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+    display: inline-flex; flex-direction: column; align-items: center;
+    gap: 1px; padding: 5px 12px;
     border: 1.5px solid var(--border); border-radius: 6px; cursor: pointer;
     transition: all .15s; background: white; font-size: 13px; color: var(--text); user-select: none;
   }
   .ce-mbr:hover { border-color: var(--accent); background: var(--hover); }
   .ce-mbr.checked { border-color: var(--accent); background: #e8effd; color: var(--accent); font-weight: 600; }
   .ce-mbr input[type=checkbox] { display: none; }
+  /* 職稱小字 */
+  .ce-mbr-title {
+    font-size: 10px; color: var(--text-muted); font-weight: 400;
+    line-height: 1.2; letter-spacing: .02em;
+  }
+  .ce-mbr.checked .ce-mbr-title { color: #6b9af0; }
+  .ce-mbr-name { font-size: 13px; line-height: 1.3; }
 
   /* ── 第三頁：出動儀器 ── */
   .ce-instr-wrap { flex: 1; overflow-y: auto; padding: 20px 24px; min-height: 0; }
@@ -990,8 +998,8 @@ function _squadBlock(title, members) {
     var mid = sid + '_' + i;
     h += '<label class="ce-mbr" id="lbl' + mid + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_tglMbr(this)">' +
       '<input type="checkbox" id="cb' + mid + '" data-name="' + _esc(m.name) + '" data-squad="' + _esc(title) + '">' +
-      _esc(m.name) + '</label>';
-  });
+      (m.title ? '<span class="ce-mbr-title">' + _esc(m.title) + '</span>' : '') +
+      '<span class="ce-mbr-name">' + _esc(m.name) + '</span></label>';
   h += '</div></div></div>';
   return h;
 }
