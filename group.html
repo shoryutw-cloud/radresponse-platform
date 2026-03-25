@@ -377,9 +377,7 @@
 <div class="page-header">
   <div style="display:flex;align-items:center;gap:10px">
     <h1>&#x1F465; 編組管理</h1>
-    <span style="font-size:12px;color:var(--muted);background:var(--bg);padding:3px 9px;border-radius:20px;border:1px solid var(--border)">
-      唯讀模式：新增/修改後自動同步至 Google 試算表
-    </span>
+
   </div>
 </div>
 
@@ -441,8 +439,7 @@
       <!-- 隊別欄位：技術組才顯示，由 JS 控制 display -->
       <div class="form-group" id="fTeamGroup" style="display:none">
         <label class="ce-lbl">隊別</label>
-        <input id="fTeam" list="fTeamList" placeholder="選擇或輸入隊別" autocomplete="off">
-        <datalist id="fTeamList"></datalist>
+        <input id="fTeam" placeholder="例：第一隊、第二隊">
       </div>
     </div>
     <div class="modal-footer">
@@ -474,7 +471,6 @@
 // ════════════════════════════════════════════════════════════
 
 // ── Apps Script 網址（與 index.html 相同）──
-var _squadsList = null;
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 
 // ── 目前選取的編組 ID ──
@@ -612,11 +608,11 @@ function renderAllTable(members, col, asc) {
   // 欄位定義：key / 顯示名稱 / 可排序
   // 欄位順序：職稱/姓名/手機/電話/所屬編組/所屬組室（排序在最右）
   var COLS = [
-    { key:'title',  label:'職稱',     sort:false },
-    { key:'name',   label:'姓名',     sort:false },
+    { key:'title',  label:'職稱',     sort:true },
+    { key:'name',   label:'姓名',     sort:true },
     { key:'mobile', label:'手機',     sort:false },
     { key:'phone',  label:'電話',     sort:false },
-    { key:'group',  label:'所屬編組', sort:false },
+    { key:'group',  label:'所屬編組', sort:true },
     { key:'dept',   label:'所屬組室', sort:true  }
   ];
 
@@ -845,13 +841,7 @@ function openAddModal() {
   var isTech = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
   document.getElementById('fTeamGroup').style.display = isTech ? '' : 'none';
   document.getElementById('btnSave').innerHTML = '新增';
-  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('memberModal').classList.add('show');
-  // 填充隊別 datalist
-  loadSquads(function(squads) {
-    var dl = document.getElementById('fTeamList');
-    if (dl) dl.innerHTML = squads.map(function(s){ return '<option value="' + s + '">'; }).join('');
-  });
   document.getElementById('fTitle').focus();
 }
 
@@ -873,13 +863,7 @@ function openEditModal(rowIndex, title, name, mobile, phone, dept, team) {
   var teamField = document.getElementById('fTeam');
   if (teamField) teamField.value = team || '';
   document.getElementById('btnSave').innerHTML = '儲存修改';
-  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('memberModal').classList.add('show');
-  // 填充隊別 datalist
-  loadSquads(function(squads) {
-    var dl = document.getElementById('fTeamList');
-    if (dl) dl.innerHTML = squads.map(function(s){ return '<option value="' + s + '">'; }).join('');
-  });
   document.getElementById('fTitle').focus();
 }
 
@@ -928,8 +912,6 @@ function saveMember() {
     body:    JSON.stringify(payload)
   })
   .then(function() {
-    btn.disabled = false;                                          // ★ 修：成功後恢復按鈕
-    btn.innerHTML = editMode === 'add' ? '新增' : '儲存修改';
     closeModal();
     showToast(editMode === 'add' ? '成員已新增' : '成員已更新', 'ok');
     // 重新讀取最新資料
