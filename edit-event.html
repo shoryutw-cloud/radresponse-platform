@@ -786,17 +786,15 @@ function renderInstruments(data) {
   columns.forEach(function(h, i) { if (String(h).trim() === '使用者') userColIdx = i; });
   var displayCols = columns.slice(0, userColIdx);
 
-  // 解析現有儀器字串：格式 "名稱(型號)[類型]:使用者"
-  var existingInstr = {}; // { 名稱 : 使用者 }
+  // 解析現有儀器字串：格式「儀器種類-儀器名稱:使用者」
+  var existingInstr = {}; // { '儀器種類-儀器名稱' : 使用者 }
   (_curEv.instrumentStr || '').split(',').forEach(function(s) {
     var t = s.trim();
     if (!t) return;
     var colon = t.lastIndexOf(':');
     var key   = colon >= 0 ? t.slice(0, colon).trim() : t;
     var user  = colon >= 0 ? t.slice(colon + 1).trim() : '';
-    // key 格式：名稱(型號)[類型]，取名稱部分作為比對
-    var nameOnly = key.replace(/\(.*?\)/,'').replace(/\[.*?\]/,'').trim();
-    existingInstr[nameOnly] = user;
+    existingInstr[key] = user;
   });
 
   var html = '<table class="instr-table"><thead><tr>';
@@ -806,7 +804,10 @@ function renderInstruments(data) {
 
   rows.forEach(function(rowObj, i) {
     var vals    = rowObj.values || [];
-    var nameVal = vals[1] || vals[0] || ''; // 通常第二欄是儀器名稱
+    // 新欄位：[1]=儀器種類, [2]=儀器名稱 → 組合為比對 key
+    var kind    = vals[1] || '';
+    var name    = vals[2] || '';
+    var nameVal = kind ? kind + '-' + name : name;
     var checked = existingInstr.hasOwnProperty(nameVal);
     var prevUser= existingInstr[nameVal] || '';
     var rowCls  = checked ? ' class="isel"' : '';
@@ -866,16 +867,14 @@ function getInstrumentStr() {
   _instrCache.rows.forEach(function(rowObj, i) {
     var cb = document.getElementById('icb' + i);
     if (!cb || !cb.checked) return;
-    var vals    = rowObj.values || [];
-    var name    = vals[1] || '';
-    var model   = vals[4] || '';
-    var detect  = vals[2] || '';
-    var user    = (document.getElementById('isel' + i) || {}).value || '';
-    if (!name) return;
-    var key = name;
-    if (model)  key += '(' + model + ')';
-    if (detect) key += '[' + detect + ']';
-    if (user)   key += ':' + user;
+    var vals = rowObj.values || [];
+    // 新欄位：[0]項次 [1]儀器種類 [2]儀器名稱 [3]存放地點 [4]使用者（下拉）
+    var kind = vals[1] || '';
+    var name = vals[2] || '';
+    if (!kind && !name) return;
+    var key  = kind ? kind + '-' + name : name;
+    var user = (document.getElementById('isel' + i) || {}).value || '';
+    if (user) key += ':' + user;
     result.push(key);
   });
   return result.join(', ');
