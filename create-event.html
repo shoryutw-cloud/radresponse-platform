@@ -1000,6 +1000,7 @@ function _squadBlock(title, members) {
       '<input type="checkbox" id="cb' + mid + '" data-name="' + _esc(m.name) + '" data-squad="' + _esc(title) + '">' +
       (m.title ? '<span class="ce-mbr-title">' + _esc(m.title) + '</span>' : '') +
       '<span class="ce-mbr-name">' + _esc(m.name) + '</span></label>';
+  });
   h += '</div></div></div>';
   return h;
 }
