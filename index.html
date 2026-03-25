@@ -132,7 +132,7 @@
   @media (max-width: 600px) {
     .logo-text { display: none; }
     .topbar-logo { margin-right: 2px; }
-    .tnav-btn { padding: 0 6px; font-size: 11px; gap: 2px; }
+    .tnav-btn { padding: 0 8px; font-size: 13px; gap: 3px; }
     .tnav-arrow { display: none; }
     .topbar-logout {
       padding: 4px 8px; font-size: 11px; margin-left: 4px;
@@ -269,16 +269,16 @@
   <!-- 桌機橫向導覽列（靠右）-->
   <nav class="top-nav" id="topNav">
     <div class="tnav-item" id="tnav-dashboard">
-      <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">📋 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn" onclick="onReportBtnClick(event)">回報 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">📡 回報 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-settings">
-      <button class="tnav-btn">設定 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">⚙️ 設定 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-admin">
-      <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn">🔑 後台功能 <span class="tnav-arrow">&#9660;</span></button>
     </div>
   </nav>
 
@@ -740,10 +740,10 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // ── 回報：點擊 toggle ──
+    // ── 回報：點擊 toggle（手機、桌機統一）──
     if (navId === 'tnav-report') {
       navItem.querySelector('.tnav-btn').addEventListener('click', function(e) {
-        if (isMobile()) return; // 手機版有自己的 onReportBtnClick
+        e.stopPropagation();
         var isOpen = drop.classList.contains('active');
         if (isOpen) {
           drop.classList.remove('active');
