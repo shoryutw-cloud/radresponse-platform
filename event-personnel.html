@@ -162,7 +162,24 @@
 <script>
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 
-var SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
+var SQUAD_ORDER = []; // 從 GAS 動態載入
+// ── 動態隊別清單（從 GAS getSquads 讀取，sessionStorage 快取）──
+var _squadsList = null;
+function loadSquads(cb) {
+  if (_squadsList) { cb(_squadsList); return; }
+  try {
+    var cached = sessionStorage.getItem('_squadsCache');
+    if (cached) { _squadsList = JSON.parse(cached); cb(_squadsList); return; }
+  } catch(e) {}
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    _squadsList = (data && data.squads && data.squads.length)
+      ? data.squads
+      : ['北部應變區-先遣小組','北部應變區-支援小組','南部應變區-先遣小組','南部應變區-支援小組'];
+    try { sessionStorage.setItem('_squadsCache', JSON.stringify(_squadsList)); } catch(e) {}
+    cb(_squadsList);
+  });
+}
+
 var NON_TECH_SQUADS = ['參謀組','新聞組']; // 非技術組但有獨立分頁
 var CE_TYPE_GROUP = {
   '輻射彈事件':     'tech-rdd',
@@ -392,6 +409,7 @@ function renderSquadBlock(title, members, lookup) {
 
 // ── 初始化 ──
 document.addEventListener('DOMContentLoaded', function() {
+  loadSquads(function(squads) { SQUAD_ORDER = squads; });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
     var savedIdx = 0;

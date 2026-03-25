@@ -611,7 +611,24 @@ var CE_TYPE_GROUP = {
   '放射性物質事件': 'tech-substance',
   '放射性物料事件': 'tech-material'
 };
-var CE_SQUAD_ORDER = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊'];
+var CE_SQUAD_ORDER = []; // 從 GAS 動態載入
+// ── 動態隊別清單（從 GAS getSquads 讀取，sessionStorage 快取）──
+var _squadsList = null;
+function loadSquads(cb) {
+  if (_squadsList) { cb(_squadsList); return; }
+  try {
+    var cached = sessionStorage.getItem('_squadsCache');
+    if (cached) { _squadsList = JSON.parse(cached); cb(_squadsList); return; }
+  } catch(e) {}
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    _squadsList = (data && data.squads && data.squads.length)
+      ? data.squads
+      : ['北部應變區-先遣小組','北部應變區-支援小組','南部應變區-先遣小組','南部應變區-支援小組'];
+    try { sessionStorage.setItem('_squadsCache', JSON.stringify(_squadsList)); } catch(e) {}
+    cb(_squadsList);
+  });
+}
+
 
 // ── 全域狀態 ──
 var _ceMap = null, _ceMk = null, _ceLat = null, _ceLng = null, _ceTmr = null;
@@ -1020,7 +1037,7 @@ function _refreshInstrUserSels() {
 
 // ── 取得勾選的技術組成員名單 ──
 function _getSelectedTechNames() {
-  var techSquads = ['北一小隊','北二小隊','北三小隊','南一小隊','南二小隊','南三小隊','未分配'];
+  var techSquads = (_squadsList || CE_SQUAD_ORDER).concat(['未分配']);
   var names = [];
   document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
     if (techSquads.indexOf(cb.getAttribute('data-squad') || '') !== -1)
@@ -1385,6 +1402,7 @@ function ceReset() {
   showOnlyPage(1);
   // 重新查詢編號
   document.getElementById('ceEvId').textContent = '查詢中…';
+  loadSquads(function(squads) { CE_SQUAD_ORDER = squads; });
   _jsonpGet(SHEETS_URL + '?action=maxSeq', function(data) {
     if (data && typeof data.maxSeq !== 'undefined') {
       document.getElementById('ceEvId').textContent = _ceIdFromMax(data.maxSeq);
