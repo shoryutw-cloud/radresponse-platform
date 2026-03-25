@@ -843,6 +843,7 @@ function openAddModal() {
   var isTech = ['tech-rdd','tech-material','tech-substance'].indexOf(currentGroup) >= 0;
   document.getElementById('fTeamGroup').style.display = isTech ? '' : 'none';
   document.getElementById('btnSave').innerHTML = '新增';
+  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('memberModal').classList.add('show');
   document.getElementById('fTitle').focus();
 }
@@ -865,6 +866,7 @@ function openEditModal(rowIndex, title, name, mobile, phone, dept, team) {
   var teamField = document.getElementById('fTeam');
   if (teamField) teamField.value = team || '';
   document.getElementById('btnSave').innerHTML = '儲存修改';
+  document.getElementById('btnSave').disabled = false;          // ★ 確保按鈕可用
   document.getElementById('memberModal').classList.add('show');
   document.getElementById('fTitle').focus();
 }
@@ -914,6 +916,8 @@ function saveMember() {
     body:    JSON.stringify(payload)
   })
   .then(function() {
+    btn.disabled = false;                                          // ★ 修：成功後恢復按鈕
+    btn.innerHTML = editMode === 'add' ? '新增' : '儲存修改';
     closeModal();
     showToast(editMode === 'add' ? '成員已新增' : '成員已更新', 'ok');
     // 重新讀取最新資料
