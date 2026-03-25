@@ -210,6 +210,21 @@
 
 
 
+
+  /* ────── 導航 Banner（iframe 透過 postMessage 觸發）────── */
+  #navBannerBar {
+    display: none;           /* 預設隱藏 */
+    align-items: center; justify-content: center;
+    padding: 9px 20px;
+    font-size: 13px; font-weight: 600; color: white;
+    font-family: var(--font);
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    flex-shrink: 0;
+    z-index: 500;
+    position: relative;
+  }
+  #navBannerBar.show { display: flex; }
+
 </style>
 </head>
 <body>
@@ -251,6 +266,9 @@
   <button class="topbar-logout">&#x2190; 登出</button>
 </div>
 
+
+<!-- 導航 Banner（顯示在 topbar 正下方，由 iframe postMessage 控制）-->
+<div id="navBannerBar"></div>
 
 <!-- LAYOUT -->
 <div class="layout">
@@ -457,6 +475,22 @@ window.addEventListener('message', function(e) {
   // iframe 要求導覽到另一個頁面（帶 idx）
   if (e.data && e.data.type === 'navigate') {
     showIframe(e.data.src + '?idx=' + e.data.idx);
+  }
+
+  // ── 導航 Banner（來自 current-events.html 的 postMessage）──
+  if (e.data && e.data.type === 'navBanner') {
+    var bar = document.getElementById('navBannerBar');
+    if (!bar) return;
+    if (!e.data.content) {
+      // 隱藏 banner
+      bar.classList.remove('show');
+      bar.innerHTML = '';
+    } else {
+      // 顯示 banner（content 可含 HTML，例如「結束導航」按鈕）
+      bar.style.background = e.data.bg || '#7c3aed';
+      bar.innerHTML = e.data.content;
+      bar.classList.add('show');
+    }
   }
 });
 
