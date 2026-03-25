@@ -121,9 +121,10 @@
   /* 手機（< 600px）：logo 文字隱藏，節省空間 */
   @media (max-width: 600px) {
     .logo-text { display: none; }
-    .topbar-logo { margin-right: 8px; }
+    .topbar-logo { margin-right: 4px; }
     .tnav-btn { padding: 0 8px; font-size: 12px; }
     .tnav-arrow { display: none; }
+    .topbar-logout { display: none; } /* 手機版隱藏登出按鈕，避免超出螢幕 */
   }
 
   /* ────── LAYOUT ────── */
@@ -253,7 +254,7 @@
       <button class="tnav-btn">&#x1F4DD; 事件儀表板 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn">&#x1F4DE; 回報 <span class="tnav-arrow">&#9660;</span></button>
+      <button class="tnav-btn" onclick="onReportBtnClick(event)">&#x1F4DE; 回報 <span class="tnav-arrow">&#9660;</span></button>
     </div>
     <div class="tnav-item" id="tnav-settings">
       <button class="tnav-btn">&#x2699;&#xFE0F; 設定 <span class="tnav-arrow">&#9660;</span></button>
@@ -474,6 +475,7 @@ window.addEventListener('message', function(e) {
     if (_pendingNav) sendNavMsg();
     // 若有等待中的導航點位 Modal
     if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
+    if (_pendingReportFab) { _pendingReportFab = false; setTimeout(sendReportFabMsg, 400); }
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
@@ -803,6 +805,32 @@ function closeSidebar() {}
 // ════════════════════════════════════════════
 // 導航模式詢問
 // ════════════════════════════════════════════
+function isMobile() { return window.innerWidth <= 600; }
+
+// 手機版「回報」按鈕點擊：顯示浮動按鈕；桌機版維持下拉選單
+function onReportBtnClick(e) {
+  if (!isMobile()) return; // 桌機版讓原有下拉選單處理
+  e.stopPropagation(); // 阻止觸發下拉選單
+  closeAllMenus();
+  // 確保目前是地圖（current-events）頁面
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+  if (!isOnMap) {
+    // 先載入地圖，載入後再通知顯示 FAB
+    _pendingReportFab = true;
+    showIframe('current-events.html');
+  } else {
+    sendReportFabMsg();
+  }
+}
+var _pendingReportFab = false;
+function sendReportFabMsg() {
+  var frame = document.getElementById('contentFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'showReportBtns' }, '*');
+  }
+}
+
 function askNavThenReport() {
   showIframe('measurement-report.html');
 }
