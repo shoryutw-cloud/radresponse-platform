@@ -1734,6 +1734,7 @@ window.addEventListener('message', function(e) {
   // ── 編輯地圖模式開關 ──
   if (e.data.type === 'mapEditMode') {
     var on = !!e.data.on;
+    _mapEditOn = on; // ★ 同步旗標，控制右鍵選單
     var editBtn   = document.getElementById('evEditBtn');
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
@@ -1747,6 +1748,16 @@ window.addEventListener('message', function(e) {
   }
 
   // ── 導航模式：定位使用者 → 規劃步行到編號3 ──
+  // ── 顯示/隱藏浮動回報按鈕（手機用） ──
+  if (e.data.type === 'showReportBtns') {
+    showReportFabs();
+    return;
+  }
+  if (e.data.type === 'hideReportBtns') {
+    hideReportFabs();
+    return;
+  }
+
   // ── parent 請求點位清單 ──
   if (e.data.type === 'getNavPoints') {
     var ev = _events[_curIdx];
@@ -2224,6 +2235,7 @@ function isMobile() { return window.innerWidth <= 600; }
 // ════════════════════════════════════════════
 // 地圖右鍵選單
 // ════════════════════════════════════════════
+var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -2455,6 +2467,52 @@ function reverseGeocode(lat, lng, cb) {
 }
 
 // ── 臨時 Toast 提示 ──
+// ════════════════════════════════════════════
+// 浮動回報按鈕（手機版「回報」選單觸發）
+// ════════════════════════════════════════════
+var _reportFabEl = null;
+
+function showReportFabs() {
+  hideReportFabs();
+  var el = document.createElement('div');
+  el.id = 'reportFabWrap';
+  el.style.cssText =
+    'position:fixed;bottom:80px;left:0;right:0;z-index:3000;' +
+    'display:flex;justify-content:center;gap:14px;';
+
+  var btn1 = document.createElement('button');
+  btn1.textContent = '回報劑量';
+  btn1.style.cssText =
+    'padding:14px 28px;border-radius:40px;border:none;' +
+    'background:#f97316;color:white;font-family:inherit;font-size:16px;font-weight:700;' +
+    'box-shadow:0 4px 16px rgba(249,115,22,.5);cursor:pointer;';
+  btn1.onclick = function() {
+    hideReportFabs();
+    try { parent.postMessage({ type: 'navigate', src: 'measurement-report.html', idx: _curIdx }, '*'); } catch(e) {}
+  };
+
+  var btn2 = document.createElement('button');
+  btn2.textContent = '回報任務';
+  btn2.style.cssText =
+    'padding:14px 28px;border-radius:40px;border:none;' +
+    'background:#1a56db;color:white;font-family:inherit;font-size:16px;font-weight:700;' +
+    'box-shadow:0 4px 16px rgba(26,86,219,.5);cursor:pointer;';
+  btn2.onclick = function() {
+    hideReportFabs();
+    try { parent.postMessage({ type: 'navigate', src: 'task-dispatch.html', idx: _curIdx }, '*'); } catch(e) {}
+  };
+
+  el.appendChild(btn1);
+  el.appendChild(btn2);
+  document.body.appendChild(el);
+  _reportFabEl = el;
+  setTimeout(hideReportFabs, 6000);
+}
+
+function hideReportFabs() {
+  if (_reportFabEl) { _reportFabEl.remove(); _reportFabEl = null; }
+}
+
 function showToast(msg) {
   var el = document.createElement('div');
   el.textContent = msg;
@@ -2625,6 +2683,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── 右鍵選單：顯示暫時圖釘 + context menu ──
     gMap.on('contextmenu', function(e) {
+      // ★ 只有「編輯地圖」模式開啟時才顯示右鍵選單
+      if (!_mapEditOn) return;
       _ctxLatLng = e.latlng;
       showCtxMenu(e.originalEvent.clientX, e.originalEvent.clientY, e.latlng);
     });
