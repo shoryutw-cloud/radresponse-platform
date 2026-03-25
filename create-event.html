@@ -592,13 +592,13 @@
     <div id="ceF2Btns" style="display:none;gap:8px">
       <button class="ce-btn ce-btn-g" onclick="goPage1()">&#x2B05; 上一步</button>
       <button class="ce-btn ce-btn-g" onclick="goPage3(true)">略過人員</button>
-      <button class="ce-btn ce-btn-p" onclick="goPage3(false)">下一步 &#x27A1;</button>
+      <button class="ce-btn ce-btn-p" id="ceP2Next" onclick="goPage3(false)" disabled>下一步 &#x27A1;</button>
     </div>
     <!-- 第三頁按鈕 -->
     <div id="ceF3Btns" style="display:none;gap:8px">
       <button class="ce-btn ce-btn-g" onclick="goPage2back()">&#x2B05; 上一步</button>
       <button class="ce-btn ce-btn-g" onclick="goPage4(true)">略過儀器</button>
-      <button class="ce-btn ce-btn-p" onclick="goPage4(false)">下一步 &#x27A1;</button>
+      <button class="ce-btn ce-btn-p" id="ceP3Next" onclick="goPage4(false)" disabled>下一步 &#x27A1;</button>
     </div>
     <!-- 第四頁按鈕 -->
     <div id="ceF4Btns" style="display:none;gap:8px">
@@ -777,6 +777,10 @@ function showOnlyPage(n) {
   document.getElementById('ceF3Btns').style.display = n === 3 ? 'flex' : 'none';
   document.getElementById('ceF4Btns').style.display = n === 4 ? 'flex' : 'none';
   setStep(n);
+  // ★ 切回第一頁時通知 Leaflet 重算地圖容器尺寸，防止地圖縮小
+  if (n === 1 && _ceMap) {
+    setTimeout(function() { _ceMap.invalidateSize(); }, 50);
+  }
 }
 
 function goPage1() {
@@ -790,6 +794,10 @@ function goPage1() {
 function goPage2() {
   showOnlyPage(2);
   document.getElementById('ceFSt').textContent = '請勾選出勤人員（可略過）';
+  // ★ 依目前勾選狀態決定按鈕
+  var n = document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').length;
+  var p2Next = document.getElementById('ceP2Next');
+  if (p2Next) p2Next.disabled = (n === 0);
   _loadPersonnel();
 }
 
@@ -797,6 +805,10 @@ function goPage3(skipPersonnel) {
   _ceSkipPersonnel = !!skipPersonnel;
   showOnlyPage(3);
   document.getElementById('ceFSt').textContent = '請勾選出動儀器並指定使用者（可略過）';
+  // ★ 依目前勾選狀態決定按鈕
+  var cbs = document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]:checked');
+  var p3Next = document.getElementById('ceP3Next');
+  if (p3Next) p3Next.disabled = (cbs.length === 0);
   _loadInstruments();
 }
 
@@ -1033,6 +1045,9 @@ function _updateSelCount() {
   var n = document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').length;
   var el = document.getElementById('ceSelN');
   if (el) el.textContent = n;
+  // ★ 有勾選才亮藍「下一步」，否則 disabled
+  var p2Next = document.getElementById('ceP2Next');
+  if (p2Next) p2Next.disabled = (n === 0);
 }
 function _getPersonnel() {
   var r = [];
@@ -1159,6 +1174,9 @@ function _instrChgAll(allCb) {
   var n = allCb.checked ? rows.length : 0;
   var el = document.getElementById('ceInstrN');
   if (el) el.textContent = n;
+  // ★ 有勾選才亮藍「下一步」
+  var p3Next = document.getElementById('ceP3Next');
+  if (p3Next) p3Next.disabled = (n === 0);
 }
 
 function _instrChg(i) {
@@ -1176,6 +1194,9 @@ function _instrChg(i) {
   // 同步全選狀態
   var allCb = document.getElementById('icbAll');
   if (allCb) allCb.checked = (checked.length === cbs.length) && cbs.length > 0;
+  // ★ 有勾選才亮藍「下一步」
+  var p3Next = document.getElementById('ceP3Next');
+  if (p3Next) p3Next.disabled = (checked.length === 0);
 }
 
 function _getInstruments() {
