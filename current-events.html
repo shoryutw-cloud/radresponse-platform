@@ -652,6 +652,75 @@ cursor: pointer; transition: background .15s;
   </div>
 </div>
 
+
+<!-- 回報劑量 Modal（可拖曳）-->
+<div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none">
+  <div id="measureCard" style="
+    position:absolute;top:80px;left:50%;transform:translateX(-50%);
+    background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.22);
+    width:340px;max-width:calc(100vw - 32px);
+    display:flex;flex-direction:column;pointer-events:auto;
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;">
+    <!-- 拖曳把手 -->
+    <div id="measureDragBar" style="
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px 10px;border-bottom:1px solid #e2e8f0;
+      cursor:move;user-select:none;border-radius:14px 14px 0 0;background:#f8fafc;">
+      <span style="font-size:14px;font-weight:700;color:#1e2a3a">📐 回報劑量</span>
+      <button onclick="closeMeasureModal()" style="
+        background:none;border:none;font-size:16px;cursor:pointer;
+        color:#94a3b8;padding:2px 6px;border-radius:4px;">✕</button>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:70vh">
+      <!-- 定位 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📍 定位座標</div>
+        <div id="msrCoordVal" style="font-size:12px;font-family:ui-monospace,monospace;color:#1a56db;background:#f0f4ff;padding:6px 10px;border-radius:6px">取得中…</div>
+      </div>
+      <!-- 回報人員 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">👤 回報人員 <span style="color:#dc2626">*</span></div>
+        <select id="msrReporter" style="
+          width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          outline:none;appearance:none;">
+          <option value="">— 選擇人員 —</option>
+        </select>
+      </div>
+      <!-- 劑量值 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">☢️ 劑量率 (μSv/h) <span style="color:#dc2626">*</span></div>
+        <input id="msrValue" type="number" step="0.001" min="0" placeholder="例：0.15"
+          style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          outline:none;box-sizing:border-box;">
+      </div>
+      <!-- 儀器 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">🔧 使用儀器（選填）</div>
+        <input id="msrInstrument" type="text" placeholder="例：6150AD4(85572)"
+          style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          outline:none;box-sizing:border-box;">
+      </div>
+    </div>
+    <!-- 底部按鈕 -->
+    <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e2e8f0">
+      <button onclick="closeMeasureModal()" style="
+        flex:1;padding:9px;border-radius:8px;border:1px solid #e2e8f0;
+        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer;">
+        取消
+      </button>
+      <button id="msrSubmitBtn" onclick="submitMeasure()" style="
+        flex:1;padding:9px;border-radius:8px;border:none;
+        background:#f97316;color:white;font-family:inherit;font-size:14px;
+        font-weight:700;cursor:pointer;">
+        送出回報
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- 圖層控制面板 -->
 
 <!-- 手機版：圖層開關浮動按鈕（右上角）-->
@@ -2337,6 +2406,12 @@ function openAssignModal(latlng) {
   document.getElementById('assignSubmitBtn').textContent = '派遣量測任務';
   document.getElementById('squadOptions').innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">⏳ 載入組別中…</div>';
   document.getElementById('assignModal').style.display = 'flex';
+  // ★ 重置拖曳位置後初始化拖曳
+  var card = document.querySelector('#assignModal .modal-card');
+  if (card) { card.style.left=''; card.style.top=''; card.style.position=''; card.style.margin=''; }
+  document.getElementById('assignModal').style.alignItems = '';
+  document.getElementById('assignModal').style.justifyContent = '';
+  setTimeout(initAssignDrag, 50);
 
   // ★ 確保隊別清單已載入，再建組別選項
   loadSquads(function(squads) {
@@ -2476,29 +2551,29 @@ function showReportFabs() {
   hideReportFabs();
   var el = document.createElement('div');
   el.id = 'reportFabWrap';
+  // ★ 持續顯示，不自動收起；避免與畫筆工具列重疊（畫筆工具列 bottom:24px，高約52px）
+  var drawVisible = document.getElementById('drawToolbar') &&
+                    document.getElementById('drawToolbar').style.display !== 'none';
+  var bottomBase = drawVisible ? 90 : 70;
   el.style.cssText =
-    'position:fixed;bottom:80px;left:0;right:0;z-index:3000;' +
-    'display:flex;justify-content:center;gap:14px;';
+    'position:fixed;bottom:' + bottomBase + 'px;left:0;right:0;z-index:3000;' +
+    'display:flex;justify-content:center;gap:14px;pointer-events:none;';
 
   var btn1 = document.createElement('button');
   btn1.textContent = '回報劑量';
   btn1.style.cssText =
-    'padding:14px 28px;border-radius:40px;border:none;' +
-    'background:#f97316;color:white;font-family:inherit;font-size:16px;font-weight:700;' +
+    'pointer-events:auto;padding:13px 26px;border-radius:40px;border:none;' +
+    'background:#f97316;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(249,115,22,.5);cursor:pointer;';
-  btn1.onclick = function() {
-    hideReportFabs();
-    try { parent.postMessage({ type: 'navigate', src: 'measurement-report.html', idx: _curIdx }, '*'); } catch(e) {}
-  };
+  btn1.onclick = function() { openMeasureModal(); };
 
   var btn2 = document.createElement('button');
   btn2.textContent = '回報任務';
   btn2.style.cssText =
-    'padding:14px 28px;border-radius:40px;border:none;' +
-    'background:#1a56db;color:white;font-family:inherit;font-size:16px;font-weight:700;' +
+    'pointer-events:auto;padding:13px 26px;border-radius:40px;border:none;' +
+    'background:#1a56db;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(26,86,219,.5);cursor:pointer;';
   btn2.onclick = function() {
-    hideReportFabs();
     try { parent.postMessage({ type: 'navigate', src: 'task-dispatch.html', idx: _curIdx }, '*'); } catch(e) {}
   };
 
@@ -2506,11 +2581,210 @@ function showReportFabs() {
   el.appendChild(btn2);
   document.body.appendChild(el);
   _reportFabEl = el;
-  setTimeout(hideReportFabs, 6000);
+  // ★ 不自動收起
 }
 
 function hideReportFabs() {
   if (_reportFabEl) { _reportFabEl.remove(); _reportFabEl = null; }
+}
+
+
+// ════════════════════════════════════════════
+// 回報劑量 Modal（含定位、人員、劑量、儀器、拖曳）
+// ════════════════════════════════════════════
+var _msrLat = null, _msrLng = null;
+
+function openMeasureModal() {
+  var modal = document.getElementById('measureModal');
+  var ev    = _events[_curIdx];
+  if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
+
+  // 重置欄位
+  document.getElementById('msrValue').value      = '';
+  document.getElementById('msrInstrument').value = '';
+  document.getElementById('msrSubmitBtn').textContent = '送出回報';
+  document.getElementById('msrSubmitBtn').disabled    = false;
+  document.getElementById('msrCoordVal').textContent  = '取得中…';
+
+  // 填充人員清單（從事件的 personnelStr）
+  var sel = document.getElementById('msrReporter');
+  sel.innerHTML = '<option value="">— 選擇人員 —</option>';
+  if (ev.personnelStr) {
+    ev.personnelStr.split(',').forEach(function(item) {
+      var s = item.trim();
+      var colonIdx = s.lastIndexOf(':');
+      var name = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
+      if (name) {
+        var opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  // 取目前使用者位置
+  _msrLat = null; _msrLng = null;
+  if (_userMarker) {
+    var ll = _userMarker.getLatLng();
+    _msrLat = ll.lat; _msrLng = ll.lng;
+    document.getElementById('msrCoordVal').textContent =
+      _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      _msrLat = pos.coords.latitude;
+      _msrLng = pos.coords.longitude;
+      document.getElementById('msrCoordVal').textContent =
+        _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+    }, function() {
+      document.getElementById('msrCoordVal').textContent = '（無法取得定位）';
+    });
+  }
+
+  modal.style.display = 'block';
+  initMeasureDrag();
+}
+
+function closeMeasureModal() {
+  document.getElementById('measureModal').style.display = 'none';
+}
+
+function submitMeasure() {
+  var ev       = _events[_curIdx];
+  var reporter = document.getElementById('msrReporter').value.trim();
+  var value    = document.getElementById('msrValue').value.trim();
+  var instr    = document.getElementById('msrInstrument').value.trim();
+
+  if (!reporter) { showToast('⚠️ 請選擇回報人員'); return; }
+  if (!value || isNaN(parseFloat(value))) { showToast('⚠️ 請輸入有效的劑量值'); return; }
+
+  var btn = document.getElementById('msrSubmitBtn');
+  btn.disabled    = true;
+  btn.textContent = '送出中…';
+
+  var payload = {
+    action:     'addMeasurement',
+    eventId:    ev ? ev.id : '',
+    reporter:   reporter,
+    value:      parseFloat(value).toString(),
+    instrument: instr,
+    lat:        _msrLat ? _msrLat.toString() : '',
+    lng:        _msrLng ? _msrLng.toString() : ''
+  };
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  })
+  .then(function() {
+    closeMeasureModal();
+    showToast('✅ 劑量回報已送出');
+    // 強制重載量測標記
+    if (ev) { _msrCache[ev.id] = null; loadMeasurements(_curIdx, true); }
+  })
+  .catch(function() {
+    btn.disabled    = false;
+    btn.textContent = '送出回報';
+    showToast('⚠️ 送出失敗，請確認網路連線');
+  });
+}
+
+// ── 拖曳功能（drag bar 拖曳整張 card）──
+function initMeasureDrag() {
+  var card = document.getElementById('measureCard');
+  var bar  = document.getElementById('measureDragBar');
+  if (!card || !bar) return;
+
+  // 重置位置到初始
+  card.style.left      = '50%';
+  card.style.top       = '80px';
+  card.style.transform = 'translateX(-50%)';
+
+  var startX, startY, startL, startT;
+  function onDown(e) {
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    var rect = card.getBoundingClientRect();
+    startX = clientX; startY = clientY;
+    startL = rect.left; startT = rect.top;
+    card.style.left      = startL + 'px';
+    card.style.top       = startT + 'px';
+    card.style.transform = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onUp);
+  }
+  function onMove(e) {
+    if (e.touches) e.preventDefault();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    var newL = startL + (clientX - startX);
+    var newT = startT + (clientY - startY);
+    // 限制在視窗內
+    newL = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  newL));
+    newT = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, newT));
+    card.style.left = newL + 'px';
+    card.style.top  = newT + 'px';
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup',   onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend',  onUp);
+  }
+  bar.addEventListener('mousedown',  onDown);
+  bar.addEventListener('touchstart', onDown, { passive: true });
+}
+
+
+// ── assign Modal 拖曳功能 ──
+function initAssignDrag() {
+  var card = document.querySelector('#assignModal .modal-card');
+  var header = document.querySelector('#assignModal .modal-header');
+  if (!card || !header) return;
+  header.style.cursor = 'move';
+  var startX, startY;
+  function onDown(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    var rect = card.getBoundingClientRect();
+    startX = clientX - rect.left;
+    startY = clientY - rect.top;
+    // 固定定位
+    card.style.position = 'fixed';
+    card.style.margin   = '0';
+    card.style.left     = rect.left + 'px';
+    card.style.top      = rect.top  + 'px';
+    // 讓 overlay 不再 flex-center
+    document.getElementById('assignModal').style.alignItems  = 'flex-start';
+    document.getElementById('assignModal').style.justifyContent = 'flex-start';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onUp);
+  }
+  function onMove(e) {
+    if (e.touches) e.preventDefault();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    var newL = clientX - startX;
+    var newT = clientY - startY;
+    newL = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  newL));
+    newT = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, newT));
+    card.style.left = newL + 'px';
+    card.style.top  = newT + 'px';
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup',   onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend',  onUp);
+  }
+  header.addEventListener('mousedown',  onDown);
+  header.addEventListener('touchstart', onDown, { passive: false });
 }
 
 function showToast(msg) {
