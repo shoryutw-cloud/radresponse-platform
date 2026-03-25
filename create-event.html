@@ -340,9 +340,9 @@
   .ce-p4-col-bd::-webkit-scrollbar { width: 4px; }
   .ce-p4-col-bd::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   /* 欄寬 */
-  .ce-p4-col-upload { width: 260px; flex-shrink: 0; background: white; }
-  .ce-p4-col-person { width: 320px; flex-shrink: 0; background: white; }
-  .ce-p4-col-sms    { flex: 1; background: var(--bg); }
+  .ce-p4-col-upload { width: 220px; flex-shrink: 0; background: white; }
+  .ce-p4-col-person { width: 380px; flex-shrink: 0; background: white; }
+  .ce-p4-col-sms    { flex: 1; min-width: 320px; background: var(--bg); }
   /* 備註 */
   .ce-p4-hint {
     font-size: 12px; color: #92400e;
@@ -360,16 +360,19 @@
   /* 人員清單 */
   .ce-p4-person-list { display: flex; flex-direction: column; }
   .ce-p4-person-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 0; border-bottom: 1px solid #f0f4f8; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0; border-bottom: 1px solid #f0f4f8; font-size: 13px;
+    flex-wrap: nowrap; min-width: 0; /* ★ 單行不換行 */
   }
   .ce-p4-person-row:last-child { border-bottom: none; }
   .ce-p4-person-squad {
-    font-size: 11px; color: var(--text-muted); background: var(--bg);
-    padding: 2px 8px; border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+    font-size: 10px; color: var(--text-muted); background: var(--bg);
+    padding: 2px 7px; border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis; /* 隊別名稱過長時截斷 */
   }
-  .ce-p4-person-name { font-weight: 600; color: var(--text); min-width: 56px; }
-  .ce-p4-person-mobile { font-family: var(--font-mono); color: #3d5070; font-size: 12px; flex: 1; }
+  .ce-p4-person-name { font-weight: 600; color: var(--text); white-space: nowrap; flex-shrink: 0; }
+  .ce-p4-person-mobile { font-family: var(--font-mono); color: #3d5070; font-size: 12px;
+                         white-space: nowrap; flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .ce-p4-person-chk { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
   .ce-p4-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 14px 0; }
   /* 簡訊內容 */
@@ -1085,6 +1088,8 @@ function _refreshInstrUserSels() {
 
 // ── 取得勾選的技術組成員名單 ──
 function _getSelectedTechNames() {
+  // ★ 略過人員時回傳空陣列，儀器使用者下拉顯示無人可選
+  if (_ceSkipPersonnel) return [];
   var techSquads = (_squadsList || CE_SQUAD_ORDER).concat(['未分配']);
   var names = [];
   document.querySelectorAll('#cePersonnel input[type=checkbox]:checked').forEach(function(cb) {
