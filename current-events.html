@@ -1349,11 +1349,17 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  var LW = 144, LH = 34;  // 標籤寬高（px）
-  var DOT_R  = 18;         // 量測點圓圈半徑（佔位用）
-  var R_START = 52;        // 搜尋起始距離
-  var R_MAX   = 280;       // 最大搜尋半徑
-  var ANG_STEP = 20;       // 角度掃描步距（度）
+  var LW = 144, LH = 34;   // 標籤寬高（px）
+  var DOT_R  = 16;          // 量測點圓圈佔位半徑
+  var EV_R   = 28;          // 事發地點圖釘佔位半徑（較大）
+  var ANG_STEP = 18;        // 角度掃描步距（度）
+
+  // ★ 虛線長度隨縮放自動調整（地理距離固定 ~100m，轉像素）
+  // zoom 15 ≈ 70px，zoom 14 ≈ 35px，zoom 16 ≈ 140px
+  var zoom   = gMap.getZoom();
+  var R_START = Math.round(40 * Math.pow(2, zoom - 14));
+  R_START = Math.max(44, Math.min(150, R_START)); // 夾在 44~150px
+  var R_MAX   = R_START + 200;
 
   // 轉像素座標
   var pts = valid.map(function(msr) {
@@ -1376,10 +1382,19 @@ function renderMsrMarkers(eventId) {
     return [lx, ly];
   }
 
-  // 已佔位清單：先把所有量測點圓圈加入
+  // ── 已佔位清單 ──
   var placed = [];
+
+  // 1. 所有量測點圓圈
   pts.forEach(function(pt) {
     placed.push({ x: pt.px.x - DOT_R, y: pt.px.y - DOT_R, w: DOT_R*2, h: DOT_R*2 });
+  });
+
+  // 2. ★ 事發地點圖釘（當前事件 + 所有其他事件）
+  _events.forEach(function(ev) {
+    if (isNaN(parseFloat(ev.lat)) || isNaN(parseFloat(ev.lng))) return;
+    var evPx = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
+    placed.push({ x: evPx.x - EV_R, y: evPx.y - EV_R, w: EV_R*2, h: EV_R*2 });
   });
 
   // 依數值大小排序（高→低），大值優先
@@ -1388,41 +1403,39 @@ function renderMsrMarkers(eventId) {
   });
 
   pts.forEach(function(pt) {
-    // ── 計算「最佳起始角度」：指向距離所有其他量測點最遠的方向 ──
-    var ox = 0, oy = 0, cnt = 0;
+    // 計算「最佳起始角度」：遠離其他量測點 + 事發地點的方向
+    var ox = 0, oy = 0;
     pts.forEach(function(other) {
       if (other === pt) return;
-      var dx = pt.px.x - other.px.x;
-      var dy = pt.px.y - other.px.y;
-      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
-      ox += dx / dist;  // 歸一化後累加，遠離其他點的方向
-      oy += dy / dist;
-      cnt++;
+      var dx = pt.px.x - other.px.x, dy = pt.px.y - other.px.y;
+      var d = Math.sqrt(dx*dx + dy*dy) || 1;
+      ox += dx/d; oy += dy/d;
     });
-    // 若只有一個點，預設往右上
-    var bestAngle = cnt > 0
+    _events.forEach(function(ev) {
+      var evPx = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev.lat)||0, parseFloat(ev.lng)||0));
+      var dx = pt.px.x - evPx.x, dy = pt.px.y - evPx.y;
+      var d = Math.sqrt(dx*dx + dy*dy) || 1;
+      if (d < 200) { ox += dx/d * 1.5; oy += dy/d * 1.5; } // 事發地點權重較高
+    });
+    var bestAngle = (ox !== 0 || oy !== 0)
       ? Math.atan2(oy, ox) * 180 / Math.PI
       : -45;
 
-    // ── 從最佳角度出發，螺旋掃描（先近後遠，先左後右交替展開）──
-    var placed_ok = false;
+    // 螺旋掃描：從最佳角度往兩側展開
     var angOffsets = [0];
     for (var a = ANG_STEP; a < 180; a += ANG_STEP) {
-      angOffsets.push(a);
-      angOffsets.push(-a);
+      angOffsets.push(a); angOffsets.push(-a);
     }
     angOffsets.push(180);
 
+    var placed_ok = false;
     outer2:
-    for (var ri = 0; ri <= (R_MAX - R_START) / 12; ri++) {
-      var r = R_START + ri * 12;
+    for (var r = R_START; r <= R_MAX; r += 10) {
       for (var ai = 0; ai < angOffsets.length; ai++) {
-        var angDeg = bestAngle + angOffsets[ai];
-        var rad = angDeg * Math.PI / 180;
+        var rad = (bestAngle + angOffsets[ai]) * Math.PI / 180;
         var lx = pt.px.x + r * Math.cos(rad);
         var ly = pt.px.y + r * Math.sin(rad);
-        var cl = clamp(lx, ly);
-        lx = cl[0]; ly = cl[1];
+        var cl = clamp(lx, ly); lx = cl[0]; ly = cl[1];
         var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
         var clash = false;
         for (var pi = 0; pi < placed.length; pi++) {
@@ -1436,10 +1449,11 @@ function renderMsrMarkers(eventId) {
         }
       }
     }
-
     if (!placed_ok) {
-      var cl3 = clamp(pt.px.x + R_MAX * Math.cos(bestAngle * Math.PI / 180),
-                      pt.px.y + R_MAX * Math.sin(bestAngle * Math.PI / 180));
+      var cl3 = clamp(
+        pt.px.x + R_MAX * Math.cos(bestAngle * Math.PI / 180),
+        pt.px.y + R_MAX * Math.sin(bestAngle * Math.PI / 180)
+      );
       placed.push({ x: cl3[0]-LW/2, y: cl3[1]-LH/2, w: LW, h: LH });
       pt.offLL = gMap.layerPointToLatLng(L.point(cl3[0], cl3[1]));
     }
