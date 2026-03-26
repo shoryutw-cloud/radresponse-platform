@@ -68,7 +68,7 @@
     display: inline-block;
     transition: transform .25s cubic-bezier(.4,0,.2,1);
   }
-  .tnav-item.open > .tnav-btn .tnav-arrow { transform: rotate(-90deg); }
+  .tnav-item.open > .tnav-btn .tnav-arrow { transform: rotate(180deg); }
   /* 後台功能開啟中 */
   .tnav-item.admin-on > .tnav-btn {
     background: rgba(26,86,219,.25); color: #93c5fd;
@@ -740,25 +740,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // ── 回報：點擊 toggle（手機、桌機統一）──
-    if (navId === 'tnav-report') {
-      navItem.querySelector('.tnav-btn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        var isOpen = drop.classList.contains('active');
-        if (isOpen) {
-          drop.classList.remove('active');
-          navItem.classList.remove('open');
-        } else {
-          closeDrops(drop);
-          drop.classList.add('active');
-          positionDrop(drop, navItem);
-          navItem.classList.add('open');
-        }
-      });
-      return;
-    }
-
-    // ── 事件儀表板、設定：hover 彈出 ──
+    // ── 事件儀表板、設定、回報：hover 彈出 ──
     navItem.addEventListener('mouseenter', function() {
       clearTimeout(leaveTimer);
       closeDrops(drop);
