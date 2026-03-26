@@ -275,20 +275,6 @@ transition: all .12s; flex-shrink: 0;
   transition: transform .15s;
 }
 .msr-cluster:hover { transform: scale(1.15); }
-/* ── 聚合模式切換 ── */
-.cluster-toggle {
-  display: flex; gap: 4px; margin-top: 6px; padding: 0 2px;
-}
-.cluster-btn {
-  flex: 1; padding: 4px 0; font-size: 10px; font-weight: 600;
-  border-radius: 4px; border: 1px solid var(--border);
-  background: white; color: var(--text-muted); cursor: pointer;
-  transition: all .12s; text-align: center;
-}
-.cluster-btn.active {
-  background: var(--accent); color: white; border-color: var(--accent);
-}
-
 /* ── 量測標記 popup ── */
 .msr-popup { font-family: var(--font); min-width: 140px; }
 .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
@@ -1128,7 +1114,7 @@ function flyToEvent(idx) {
 var _evLayers = {};
 var _windDeg  = 270; // 預設東風
 var _msrMarkers   = []; // 量測標記
-var _clusterMode  = 'pixel'; // 'pixel' | 'geo' | 'none'
+var _clusterMode  = 'none'; // 'pixel' | 'geo' | 'none'
 var _clusterPixel = 80;      // 像素聚合距離（px）
 var _clusterGeoM  = 500;     // 地理聚合距離（公尺）
 var _msrCache   = {}; // { eventId: [measurements] }
@@ -1475,8 +1461,8 @@ function renderMsrMarkers(eventId) {
   var EV_R  = 26;          // 事發地點佔位半徑
 
   // ★ 固定虛線長度：60px（不隨縮放變，保持視覺一致）
-  var LINE_LEN = 60;
-  var R_MAX    = LINE_LEN + 180; // 找不到時最多往外推 180px
+  var LINE_LEN = 55;
+  var R_MAX    = LINE_LEN + 100; // 最多往外推 100px，不讓標籤跑太遠
 
   // ★ 使用 containerPoint（容器像素座標），確保 clamp 與碰撞在同一座標系
   var pts = valid.map(function(msr) {
@@ -1520,7 +1506,7 @@ function renderMsrMarkers(eventId) {
   _events.forEach(function(ev) {
     if (isNaN(parseFloat(ev.lat))) return;
     var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
-    forbidCircles.push({ x: ep.x, y: ep.y, r: EV_R + 10 });
+    forbidCircles.push({ x: ep.x, y: ep.y, r: EV_R });
   });
 
   // ── 已佔位清單（容器像素座標）──
@@ -1623,11 +1609,32 @@ function renderMsrMarkers(eventId) {
       }
     }
     if (!placed_ok) {
-      var rad0 = baseAngle * Math.PI / 180;
-      var cl0  = clamp(pt.cp.x + R_MAX * Math.cos(rad0),
-                       pt.cp.y + R_MAX * Math.sin(rad0));
-      placed.push({ x: cl0.x - LW/2, y: cl0.y - LH/2, w: LW, h: LH });
-      pt.offLL = gMap.containerPointToLatLng(L.point(cl0.x, cl0.y));
+      // fallback：忽略禁區，只保證不和其他標籤重疊，取最近可放位置
+      outer4:
+      for (var r2 = LINE_LEN; r2 <= R_MAX + 80; r2 += 8) {
+        for (var ai2 = 0; ai2 < angles.length; ai2++) {
+          var rad2 = angles[ai2] * Math.PI / 180;
+          var cx2 = pt.cp.x + r2 * Math.cos(rad2);
+          var cy2 = pt.cp.y + r2 * Math.sin(rad2);
+          var cl2 = clamp(cx2, cy2);
+          var rect2 = { x: cl2.x - LW/2, y: cl2.y - LH/2, w: LW, h: LH };
+          var clash2 = false;
+          for (var pi2 = 0; pi2 < placed.length; pi2++) {
+            if (rectsOverlap(rect2, placed[pi2])) { clash2 = true; break; }
+          }
+          if (!clash2) {
+            placed.push(rect2);
+            pt.offLL = gMap.containerPointToLatLng(L.point(cl2.x, cl2.y));
+            break outer4;
+          }
+        }
+      }
+      if (!pt.offLL) {
+        var cl0 = clamp(pt.cp.x + LINE_LEN * Math.cos(baseAngle*Math.PI/180),
+                        pt.cp.y + LINE_LEN * Math.sin(baseAngle*Math.PI/180));
+        placed.push({ x: cl0.x - LW/2, y: cl0.y - LH/2, w: LW, h: LH });
+        pt.offLL = gMap.containerPointToLatLng(L.point(cl0.x, cl0.y));
+      }
     }
   });
   // ── 渲染三件組：圓點 + 指引線 + 標籤 ──
@@ -1719,11 +1726,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
-      '<div class="cluster-toggle" id="clusterToggle">' +
-        '<button class="cluster-btn' + (_clusterMode==='none'  ?' active':'') + '" onclick="setClusterMode(\'none\')">不聚合</button>' +
-        '<button class="cluster-btn' + (_clusterMode==='pixel'?' active':'') + '" onclick="setClusterMode(\'pixel\')">像素聚合</button>' +
-        '<button class="cluster-btn' + (_clusterMode==='geo'  ?' active':'') + '" onclick="setClusterMode(\'geo\')">地理聚合</button>' +
-      '</div>' +
+
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
     '<div class="layer-ev-block">' +
