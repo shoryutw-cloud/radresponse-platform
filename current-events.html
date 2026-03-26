@@ -1450,6 +1450,7 @@ function savePersonnel() {
     body: JSON.stringify({ action: 'updateEvent', eventId: ev.id, personnelStr: newStr })
   }).then(function() {
     ev.personnelStr = newStr;
+    renderCard(_curIdx);
     btn.disabled = false; btn.textContent = '💾 儲存';
     closePersonnelModal();
     showToast('✅ 出勤人員已更新');
@@ -1628,6 +1629,7 @@ function saveInstruments() {
   }).then(function() {
     ev.instrumentStr = newStr;
     // 清除 event-instruments 頁的儀器快取，下次開啟時重新比對
+    renderCard(_curIdx);
     try { sessionStorage.removeItem('_instrCache'); } catch(e) {}
     btn.disabled = false; btn.textContent = '💾 儲存';
     closeInstrModal();
