@@ -213,7 +213,7 @@ cursor: pointer; transition: all .15s;
 }
 .ev-edit-change-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
 
-/* ── 人員/儀器異動 Modal ── */
+/* ── 人員/儀器 Modal（編輯 + 唯讀共用外框）── */
 .chg-modal-overlay {
   position: fixed; inset: 0; z-index: 3000;
   background: rgba(0,0,0,0.45); display: none;
@@ -223,7 +223,7 @@ cursor: pointer; transition: all .15s;
 .chg-modal {
   background: white; border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-  width: min(720px, 95vw); max-height: 85vh;
+  width: min(720px, 95vw); max-height: 90vh;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .chg-modal-hd {
@@ -254,6 +254,7 @@ cursor: pointer; transition: all .15s;
   padding: 8px 16px; border-radius: 6px;
   border: 1px solid var(--border); background: none;
   font-family: var(--font); font-size: 13px; color: var(--text-muted); cursor: pointer;
+  transition: all .15s;
 }
 .chg-btn-cancel:hover { border-color: #94a3b8; color: var(--text); }
 .chg-btn-save {
@@ -265,7 +266,7 @@ cursor: pointer; transition: all .15s;
 .chg-btn-save:hover { background: #1648c0; }
 .chg-btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
 
-/* Squad 區塊（複用 create-event 樣式） */
+/* Squad 區塊（人員編輯 Modal 用）*/
 .ce-squad { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .ce-squad-hd {
   display: flex; align-items: center; gap: 10px; padding: 10px 16px;
@@ -297,7 +298,7 @@ cursor: pointer; transition: all .15s;
 .ce-mbr.checked .ce-mbr-title { color: #6b9af0; }
 .ce-mbr-name { font-size: 13px; line-height: 1.3; }
 
-/* 儀器表格（複用 create-event 樣式） */
+/* 儀器表格（儀器編輯 Modal 用）*/
 .ce-instr-tbl { width: 100%; border-collapse: collapse; }
 .ce-instr-tbl th {
   font-size: 12px; color: var(--text-muted); font-weight: 600;
@@ -709,7 +710,7 @@ cursor: pointer; transition: background .15s;
       <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
       <button class="ev-edit-save" id="evEditSave" onclick="saveEdit()">💾 儲存</button>
     </div>
-    <!-- 出勤/儀器異動快捷按鈕 -->
+    <!-- 出勤/儀器異動快捷按鈕（編輯模式專用，有儲存功能）-->
     <div class="ev-edit-change-btns">
       <button class="ev-edit-change-btn" onclick="openPersonnelModal()">👥 出勤人員異動</button>
       <button class="ev-edit-change-btn" onclick="openInstrModal()">🔧 出動儀器異動</button>
@@ -763,7 +764,7 @@ cursor: pointer; transition: background .15s;
 
 
 <!-- ══════════════════════════════════════════
-     出勤人員異動 Modal
+     出勤人員異動 Modal（編輯模式，可勾選儲存）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="personnelModal">
   <div class="chg-modal">
@@ -785,7 +786,7 @@ cursor: pointer; transition: background .15s;
 </div>
 
 <!-- ══════════════════════════════════════════
-     出動儀器異動 Modal
+     出動儀器異動 Modal（編輯模式，可勾選儲存）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="instrModal">
   <div class="chg-modal">
@@ -802,6 +803,42 @@ cursor: pointer; transition: background .15s;
         <button class="chg-btn-cancel" onclick="closeInstrModal()">取消</button>
         <button class="chg-btn-save" id="instrSaveBtn" onclick="saveInstruments()">💾 儲存</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     出勤人員 唯讀檢視 Modal（觀看模式，無編輯）
+════════════════════════════════════════════ -->
+<div class="chg-modal-overlay" id="personnelViewModal">
+  <div class="chg-modal" style="width:min(820px,95vw);max-height:90vh">
+    <div class="chg-modal-hd">
+      <span>👥 事件出勤人員</span>
+      <button class="chg-modal-close" onclick="closePersonnelViewModal()">✕</button>
+    </div>
+    <div class="chg-modal-bd" id="personnelViewBody">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
+    </div>
+    <div class="chg-modal-ft" style="justify-content:flex-end">
+      <button class="chg-btn-cancel" onclick="closePersonnelViewModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     出動儀器 唯讀檢視 Modal（觀看模式，無編輯）
+════════════════════════════════════════════ -->
+<div class="chg-modal-overlay" id="instrViewModal">
+  <div class="chg-modal" style="width:min(820px,95vw);max-height:90vh">
+    <div class="chg-modal-hd">
+      <span>🔧 事件出動儀器</span>
+      <button class="chg-modal-close" onclick="closeInstrViewModal()">✕</button>
+    </div>
+    <div class="chg-modal-bd" id="instrViewBody">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
+    </div>
+    <div class="chg-modal-ft" style="justify-content:flex-end">
+      <button class="chg-btn-cancel" onclick="closeInstrViewModal()">關閉</button>
     </div>
   </div>
 </div>
@@ -1236,7 +1273,7 @@ function renderCard(idx) {
   }
   html += '</div>';
 
-  // 快捷按鈕
+  // 快捷按鈕（觀看模式 → 唯讀 Modal）
   html += '<div class="ev-shortcuts">';
   html += '<button class="ev-shortcut-btn" onclick="goPersonnel()">&#x1F465; 出勤人員</button>';
   html += '<button class="ev-shortcut-btn" onclick="goInstruments()">&#x1F527; 出動儀器</button>';
@@ -1251,55 +1288,52 @@ function notifyReady() {
   // 讓 parent 的 navBannerBar「結束導航」按鈕可以呼叫 iframe 裡的 stopNavMode
   try { parent.window.__stopNav = function() { stopNavMode(); }; } catch(e) {}
 }
-function goPersonnel() {
-  openPersonnelModal();
-}
-function goInstruments() {
-  openInstrModal();
-}
+// 快捷按鈕：觀看模式 → 開唯讀 Modal
+function goPersonnel() { openPersonnelViewModal(); }
+function goInstruments() { openInstrViewModal(); }
 // 前往回報數值查詢頁
 function goMeasurements() {
-  try { parent.showIframe('measurement-query.html'); }
-  catch(e) {}
+  try { parent.showIframe('measurement-query.html'); } catch(e) {}
 }
 
 // ════════════════════════════════════════════════════════
-// 出勤人員異動 Modal
+// 工具：HTML 跳脫（避免 XSS）
 // ════════════════════════════════════════════════════════
-
-var _pmCache      = null;  // 人員資料快取（三個群組）
-var _pmSquadOrder = [];    // 隊別排列順序
-var _pmSqIdx      = 0;     // squad block id 計數器
-
-// 開啟人員 Modal
-function openPersonnelModal() {
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  document.getElementById('personnelModal').classList.add('show');
-  _renderPersonnelModal(ev);
-}
-function closePersonnelModal() {
-  document.getElementById('personnelModal').classList.remove('show');
-}
-function onPersonnelOverlayClick(e) {
-  if (e.target === document.getElementById('personnelModal')) closePersonnelModal();
+function _esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// 渲染人員清單，並根據 personnelStr 預勾選
-function _renderPersonnelModal(ev) {
-  var body = document.getElementById('personnelModalBody');
-  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員名單中…</div>';
-  _pmSqIdx = 0;
+// ════════════════════════════════════════════════════════
+// 出勤人員 唯讀檢視 Modal
+// ════════════════════════════════════════════════════════
+function openPersonnelViewModal() {
+  var ev = _events[_curIdx]; if (!ev) return;
+  document.getElementById('personnelViewModal').classList.add('show');
+  _renderPersonnelView(ev);
+}
+function closePersonnelViewModal() {
+  document.getElementById('personnelViewModal').classList.remove('show');
+}
 
-  // 解析目前已出勤人員：格式 "隊別:姓名, ..."
-  var curSelected = {};
+function _renderPersonnelView(ev) {
+  var body = document.getElementById('personnelViewBody');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員資料中…</div>';
+
+  // 解析 personnelStr → squadMap { 隊別: [姓名,...] }
+  var squadMap = {}, squadOrder = [];
   (ev.personnelStr || '').split(',').forEach(function(item) {
-    item = item.trim();
-    if (!item) return;
+    item = item.trim(); if (!item) return;
     var colon = item.indexOf(':');
-    var name = colon >= 0 ? item.slice(colon + 1).trim() : item;
-    if (name) curSelected[name] = true;
+    var squad = colon >= 0 ? item.slice(0, colon).trim() : '未分類';
+    var name  = colon >= 0 ? item.slice(colon + 1).trim() : item;
+    if (!squadMap[squad]) { squadMap[squad] = []; squadOrder.push(squad); }
+    squadMap[squad].push(name);
   });
+
+  if (!squadOrder.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無出勤人員紀錄</div>';
+    return;
+  }
 
   // 依事件類型決定技術組分頁
   var techId = 'tech-rdd';
@@ -1307,333 +1341,439 @@ function _renderPersonnelModal(ev) {
   else if (ev.type === '放射性物質') techId = 'tech-substance';
 
   // 有快取直接渲染
-  if (_pmCache) {
-    _doRenderPersonnel(body, _pmCache, curSelected);
-    return;
-  }
+  if (_pmCache) { _doRenderPersonnelView(body, _pmCache, squadMap, squadOrder); return; }
 
   var targets = [
     { id: techId,  label: '技術組' },
     { id: 'staff', label: '參謀組' },
     { id: 'press', label: '新聞組' }
   ];
-  var results = new Array(targets.length);
-  var done = 0;
+  var results = new Array(targets.length), done = 0;
+  targets.forEach(function(t, i) {
+    _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
+      results[i] = { id: t.id, label: t.label, members: (d && d.members) ? d.members : [] };
+      if (++done === targets.length) { _pmCache = results; _doRenderPersonnelView(body, results, squadMap, squadOrder); }
+    });
+  });
+}
 
-  // 先取隊別順序，再並行抓三個群組
-  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
-    _pmSquadOrder = (data && data.squads) ? data.squads : [];
-    targets.forEach(function(t, i) {
-      _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
-        results[i] = { id: t.id, label: t.label, members: (d && d.members) ? d.members : [] };
-        if (++done === targets.length) {
-          _pmCache = results;
-          _doRenderPersonnel(body, results, curSelected);
-        }
+function _doRenderPersonnelView(body, groups, squadMap, squadOrder) {
+  // 建立姓名 → 詳細資料 lookup
+  var lookup = {};
+  groups.forEach(function(g) { (g.members||[]).forEach(function(m){ lookup[m.name]=m; }); });
+
+  var total = 0;
+  squadOrder.forEach(function(s){ total += squadMap[s].length; });
+
+  // 統計卡片列
+  var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
+  html += _viewStatCard('出動總人數', total);
+  squadOrder.forEach(function(s){ html += _viewStatCard(s, squadMap[s].length); });
+  html += '</div>';
+
+  // 詳細表格
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:#f1f5f9">';
+  ['職稱','姓名','手機','電話','所屬組室'].forEach(function(h){
+    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;'
+          + 'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  squadOrder.forEach(function(squad) {
+    html += '<tr><td colspan="5" style="padding:10px 14px 4px;font-size:13px;font-weight:700;'
+          + 'color:#1e2a3a;background:#f8fafc;border-bottom:1px solid #e2e8f0">'
+          + _esc(squad)
+          + ' <span style="font-size:11px;font-weight:400;color:#6b7a92;background:#e2e8f0;'
+          + 'padding:1px 7px;border-radius:10px">' + squadMap[squad].length + ' 人</span></td></tr>';
+    squadMap[squad].forEach(function(name) {
+      var m = lookup[name] || {};
+      html += '<tr style="border-bottom:1px solid #f0f4f8">';
+      html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(m.title||'—') + '</td>';
+      html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(name) + '</td>';
+      html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(m.mobile||'—') + '</td>';
+      html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(m.phone||'—') + '</td>';
+      html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(m.dept||'—') + '</td>';
+      html += '</tr>';
+    });
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+// 出動儀器 唯讀檢視 Modal
+// ════════════════════════════════════════════════════════
+function openInstrViewModal() {
+  var ev = _events[_curIdx]; if (!ev) return;
+  document.getElementById('instrViewModal').classList.add('show');
+  _renderInstrView(ev);
+}
+function closeInstrViewModal() {
+  document.getElementById('instrViewModal').classList.remove('show');
+}
+
+function _renderInstrView(ev) {
+  var body = document.getElementById('instrViewBody');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入儀器資料中…</div>';
+  var instruments = _parseInstrStr(ev.instrumentStr);
+  if (!instruments.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無出動儀器紀錄</div>';
+    return;
+  }
+  if (_imCache) { _doRenderInstrView(body, instruments, _imCache.rows||[]); return; }
+  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+    if (data && data.rows) _imCache = data;
+    _doRenderInstrView(body, instruments, (data&&data.rows)?data.rows:[]);
+  });
+}
+
+function _parseInstrStr(str) {
+  if (!str) return [];
+  return str.split(',').map(function(item) {
+    item = item.trim(); if (!item) return null;
+    var colon = item.lastIndexOf(':');
+    var user = colon >= 0 ? item.slice(colon+1).trim() : '';
+    var key  = colon >= 0 ? item.slice(0, colon).trim() : item;
+    var dash = key.indexOf('-');
+    var kind = dash >= 0 ? key.slice(0, dash).trim() : '';
+    var name = dash >= 0 ? key.slice(dash+1).trim() : key;
+    return { kind:kind, name:name, user:user };
+  }).filter(Boolean);
+}
+
+function _doRenderInstrView(body, instruments, instrList) {
+  var kindCnt = {};
+  instruments.forEach(function(i){ if(i.kind) kindCnt[i.kind]=(kindCnt[i.kind]||0)+1; });
+
+  var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
+  html += _viewStatCard('出動儀器數量', instruments.length);
+  Object.keys(kindCnt).forEach(function(k){ html += _viewStatCard(k, kindCnt[k]); });
+  html += '</div>';
+
+  // 比對儀器清單取項次、存放地點
+  var usedIdx = [];
+  var matched = instruments.map(function(instr) {
+    for (var i=0; i<instrList.length; i++) {
+      if (usedIdx.indexOf(i)!==-1) continue;
+      var row = instrList[i].values||[];
+      if (String(row[2]||'').trim()===instr.name && (!instr.kind||String(row[1]||'').trim()===instr.kind)) {
+        usedIdx.push(i);
+        return { seq:String(row[0]||''), location:String(row[3]||'') };
+      }
+    }
+    return null;
+  });
+
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:#f1f5f9">';
+  ['項次','儀器種類','儀器名稱','存放地點','使用者'].forEach(function(h){
+    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;'
+          + 'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  instruments.forEach(function(instr, i) {
+    var info = matched[i];
+    html += '<tr style="border-bottom:1px solid #f0f4f8">';
+    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;font-family:monospace">' + (info?_esc(info.seq):'—') + '</td>';
+    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(instr.kind||'—') + '</td>';
+    html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(instr.name) + '</td>';
+    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + (info?_esc(info.location):'—') + '</td>';
+    html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1a56db">' + _esc(instr.user||'—') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+// 統計卡片（唯讀 Modal 用）
+function _viewStatCard(label, value) {
+  return '<div style="background:white;border:1px solid #e2e8f0;border-radius:8px;'
+    + 'padding:10px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">'
+    + '<div style="font-size:11px;color:#6b7a92;font-weight:600;letter-spacing:.05em;text-transform:uppercase">' + _esc(String(label)) + '</div>'
+    + '<div style="font-size:22px;font-weight:700;color:#1a56db;font-family:monospace">' + _esc(String(value)) + '</div>'
+    + '</div>';
+}
+
+// ════════════════════════════════════════════════════════
+// 出勤人員異動 Modal（編輯模式，有勾選和儲存）
+// ════════════════════════════════════════════════════════
+var _pmCache      = null;  // 人員資料快取
+var _pmSquadOrder = [];    // 隊別排列順序
+var _pmSqIdx      = 0;     // squad block id 計數器
+
+function openPersonnelModal() {
+  var ev = _events[_curIdx]; if (!ev) return;
+  document.getElementById('personnelModal').classList.add('show');
+  _renderPersonnelModal(ev);
+}
+function closePersonnelModal() {
+  document.getElementById('personnelModal').classList.remove('show');
+}
+
+function _renderPersonnelModal(ev) {
+  var body = document.getElementById('personnelModalBody');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員名單中…</div>';
+  _pmSqIdx = 0;
+
+  // 解析目前已勾選人員
+  var curSelected = {};
+  (ev.personnelStr||'').split(',').forEach(function(item){
+    item=item.trim(); if(!item) return;
+    var colon=item.indexOf(':');
+    var name=colon>=0?item.slice(colon+1).trim():item;
+    if(name) curSelected[name]=true;
+  });
+
+  var techId='tech-rdd';
+  if(ev.type==='放射性物料') techId='tech-material';
+  else if(ev.type==='放射性物質') techId='tech-substance';
+
+  if (_pmCache) { _doRenderPersonnel(body, _pmCache, curSelected); return; }
+
+  var targets=[{id:techId,label:'技術組'},{id:'staff',label:'參謀組'},{id:'press',label:'新聞組'}];
+  var results=new Array(targets.length), done=0;
+  _jsonpGet(SHEETS_URL+'?action=getSquads', function(data){
+    _pmSquadOrder=(data&&data.squads)?data.squads:[];
+    targets.forEach(function(t,i){
+      _jsonpGet(SHEETS_URL+'?action=group&id='+t.id, function(d){
+        results[i]={id:t.id,label:t.label,members:(d&&d.members)?d.members:[]};
+        if(++done===targets.length){ _pmCache=results; _doRenderPersonnel(body,results,curSelected); }
       });
     });
   });
 }
 
 function _doRenderPersonnel(body, groups, curSelected) {
-  _pmSqIdx = 0;
-  var html = '';
-  groups.forEach(function(g) {
-    if (!g.members || !g.members.length) return;
-    if (g.id !== 'staff' && g.id !== 'press') {
-      // 技術組：按隊別分組
-      var squads = {};
-      g.members.forEach(function(m) {
-        var s = (m.team || '').trim() || '未分配';
-        if (!squads[s]) squads[s] = [];
-        squads[s].push(m);
+  _pmSqIdx=0;
+  var html='';
+  groups.forEach(function(g){
+    if(!g.members||!g.members.length) return;
+    if(g.id!=='staff'&&g.id!=='press'){
+      var squads={};
+      g.members.forEach(function(m){ var s=(m.team||'').trim()||'未分配'; if(!squads[s]) squads[s]=[]; squads[s].push(m); });
+      var rendered={};
+      (_pmSquadOrder.length?_pmSquadOrder:Object.keys(squads)).forEach(function(sname){
+        if(squads[sname]&&squads[sname].length){ html+=_pmSquadBlock(sname,squads[sname],curSelected); rendered[sname]=true; }
       });
-      var rendered = {};
-      (_pmSquadOrder.length ? _pmSquadOrder : Object.keys(squads)).forEach(function(sname) {
-        if (squads[sname] && squads[sname].length) {
-          html += _pmSquadBlock(sname, squads[sname], curSelected);
-          rendered[sname] = true;
-        }
-      });
-      Object.keys(squads).forEach(function(sname) {
-        if (!rendered[sname] && sname !== '未分配') html += _pmSquadBlock(sname, squads[sname], curSelected);
-      });
-      if (squads['未分配'] && squads['未分配'].length) html += _pmSquadBlock('未分配', squads['未分配'], curSelected);
+      Object.keys(squads).forEach(function(sname){ if(!rendered[sname]&&sname!=='未分配') html+=_pmSquadBlock(sname,squads[sname],curSelected); });
+      if(squads['未分配']&&squads['未分配'].length) html+=_pmSquadBlock('未分配',squads['未分配'],curSelected);
     } else {
-      html += _pmSquadBlock(g.label, g.members, curSelected);
+      html+=_pmSquadBlock(g.label,g.members,curSelected);
     }
   });
-  if (!html) html = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ 無人員資料</div>';
-  body.innerHTML = html;
-  // 渲染後更新各 squad 計數
-  var sids = body.querySelectorAll('.ce-squad-bd');
-  sids.forEach(function(bd) {
-    var sid = bd.id.replace('pmbd', '');
-    _pmUpdSqCnt(sid);
-  });
+  if(!html) html='<div style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ 無人員資料</div>';
+  body.innerHTML=html;
+  body.querySelectorAll('.ce-squad-bd').forEach(function(bd){ _pmUpdSqCnt(bd.id.replace('pmbd','')); });
   _pmUpdateCount();
 }
 
 function _pmSquadBlock(title, members, curSelected) {
-  var sid = 'pmsq' + _pmSqIdx++;
-  var h = '<div class="ce-squad">'
-    + '<div class="ce-squad-hd">'
-    + '<button class="ce-chk-all" data-sid="' + sid + '" onclick="_pmChkAll(this,event)">全選</button>'
-    + '<span class="ce-squad-cnt" id="pmcnt' + sid + '">0 / ' + members.length + '</span>'
-    + '<span class="ce-squad-title">' + _esc(title) + '</span>'
-    + '</div><div class="ce-squad-bd" id="pmbd' + sid + '"><div class="ce-member-list">';
-  members.forEach(function(m, i) {
-    var mid = sid + '_' + i;
-    var isChecked = !!curSelected[m.name];
-    h += '<label class="ce-mbr' + (isChecked ? ' checked' : '') + '" id="pmlbl' + mid
-      + '" data-mid="' + mid + '" data-sid="' + sid + '" onclick="_pmTglMbr(this)">'
-      + '<input type="checkbox" id="pmcb' + mid + '" data-name="' + _esc(m.name)
-      + '" data-squad="' + _esc(title) + '"' + (isChecked ? ' checked' : '') + '>'
-      + (m.title ? '<span class="ce-mbr-title">' + _esc(m.title) + '</span>' : '')
-      + '<span class="ce-mbr-name">' + _esc(m.name) + '</span></label>';
+  var sid='pmsq'+_pmSqIdx++;
+  var h='<div class="ce-squad"><div class="ce-squad-hd">'
+    +'<button class="ce-chk-all" data-sid="'+sid+'" onclick="_pmChkAll(this,event)">全選</button>'
+    +'<span class="ce-squad-cnt" id="pmcnt'+sid+'">0 / '+members.length+'</span>'
+    +'<span class="ce-squad-title">'+_esc(title)+'</span>'
+    +'</div><div class="ce-squad-bd" id="pmbd'+sid+'"><div class="ce-member-list">';
+  members.forEach(function(m,i){
+    var mid=sid+'_'+i, isChk=!!curSelected[m.name];
+    h+='<label class="ce-mbr'+(isChk?' checked':'')+'" id="pmlbl'+mid+'" data-mid="'+mid+'" data-sid="'+sid+'" onclick="_pmTglMbr(this)">'
+      +'<input type="checkbox" id="pmcb'+mid+'" data-name="'+_esc(m.name)+'" data-squad="'+_esc(title)+'"'+(isChk?' checked':'')+'>'
+      +(m.title?'<span class="ce-mbr-title">'+_esc(m.title)+'</span>':'')
+      +'<span class="ce-mbr-name">'+_esc(m.name)+'</span></label>';
   });
-  h += '</div></div></div>';
+  h+='</div></div></div>';
   return h;
 }
-
-function _pmTglMbr(el) {
-  var mid = el.getAttribute('data-mid'), sid = el.getAttribute('data-sid');
-  var cb = document.getElementById('pmcb' + mid);
-  cb.checked = !cb.checked;
-  el.classList.toggle('checked', cb.checked);
+function _pmTglMbr(el){
+  var mid=el.getAttribute('data-mid'),sid=el.getAttribute('data-sid');
+  var cb=document.getElementById('pmcb'+mid);
+  cb.checked=!cb.checked; el.classList.toggle('checked',cb.checked);
   _pmUpdSqCnt(sid); _pmUpdateCount();
 }
-function _pmChkAll(el, e) {
+function _pmChkAll(el,e){
   e.stopPropagation();
-  var sid = el.getAttribute('data-sid');
-  var cbs = document.getElementById('pmbd' + sid).querySelectorAll('input[type=checkbox]');
-  var all = Array.from(cbs).every(function(c){ return c.checked; });
-  cbs.forEach(function(c) {
-    c.checked = !all;
-    var l = document.getElementById('pmlbl' + c.id.replace('pmcb',''));
-    if (l) l.classList.toggle('checked', !all);
-  });
+  var sid=el.getAttribute('data-sid');
+  var cbs=document.getElementById('pmbd'+sid).querySelectorAll('input[type=checkbox]');
+  var all=Array.from(cbs).every(function(c){return c.checked;});
+  cbs.forEach(function(c){ c.checked=!all; var l=document.getElementById('pmlbl'+c.id.replace('pmcb','')); if(l) l.classList.toggle('checked',!all); });
   _pmUpdSqCnt(sid); _pmUpdateCount();
 }
-function _pmUpdSqCnt(sid) {
-  var bd = document.getElementById('pmbd' + sid);
-  if (!bd) return;
-  var cbs = bd.querySelectorAll('input[type=checkbox]');
-  var n = Array.from(cbs).filter(function(c){ return c.checked; }).length;
-  var el = document.getElementById('pmcnt' + sid);
-  if (el) el.textContent = n + ' / ' + cbs.length;
+function _pmUpdSqCnt(sid){
+  var bd=document.getElementById('pmbd'+sid); if(!bd) return;
+  var cbs=bd.querySelectorAll('input[type=checkbox]');
+  var n=Array.from(cbs).filter(function(c){return c.checked;}).length;
+  var el=document.getElementById('pmcnt'+sid); if(el) el.textContent=n+' / '+cbs.length;
 }
-function _pmUpdateCount() {
-  var n = document.querySelectorAll('#personnelModalBody input[type=checkbox]:checked').length;
-  var st = document.getElementById('personnelModalStatus');
-  if (!st) return;
-  st.textContent = '已選 ' + n + ' 人';
-  st.className = 'chg-modal-status' + (n > 0 ? ' ok' : '');
+function _pmUpdateCount(){
+  var n=document.querySelectorAll('#personnelModalBody input[type=checkbox]:checked').length;
+  var st=document.getElementById('personnelModalStatus'); if(!st) return;
+  st.textContent='已選 '+n+' 人'; st.className='chg-modal-status'+(n>0?' ok':'');
 }
 
-// 儲存人員異動到 Google Sheets
-function savePersonnel() {
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var result = [];
-  document.querySelectorAll('#personnelModalBody input[type=checkbox]:checked').forEach(function(cb) {
-    result.push(cb.getAttribute('data-squad') + ':' + cb.getAttribute('data-name'));
+function savePersonnel(){
+  var ev=_events[_curIdx]; if(!ev) return;
+  var result=[];
+  document.querySelectorAll('#personnelModalBody input[type=checkbox]:checked').forEach(function(cb){
+    result.push(cb.getAttribute('data-squad')+':'+cb.getAttribute('data-name'));
   });
-  var newStr = result.join(', ');
-  var btn = document.getElementById('personnelSaveBtn');
-  btn.disabled = true; btn.textContent = '儲存中…';
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'updateEvent', eventId: ev.id, personnelStr: newStr })
-  }).then(function() {
-    ev.personnelStr = newStr;
-    renderCard(_curIdx);
-    btn.disabled = false; btn.textContent = '💾 儲存';
+  var newStr=result.join(', ');
+  var btn=document.getElementById('personnelSaveBtn');
+  btn.disabled=true; btn.textContent='儲存中…';
+  fetch(SHEETS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'updateEvent',eventId:ev.id,personnelStr:newStr})
+  }).then(function(){
+    ev.personnelStr=newStr;
+    renderCard(_curIdx);  // 即時更新卡片
+    btn.disabled=false; btn.textContent='💾 儲存';
     closePersonnelModal();
     showToast('✅ 出勤人員已更新');
-  }).catch(function() {
-    btn.disabled = false; btn.textContent = '💾 儲存';
+  }).catch(function(){
+    btn.disabled=false; btn.textContent='💾 儲存';
     showToast('⚠️ 儲存失敗，請確認網路連線');
   });
 }
 
 // ════════════════════════════════════════════════════════
-// 出動儀器異動 Modal
+// 出動儀器異動 Modal（編輯模式，有勾選和儲存）
 // ════════════════════════════════════════════════════════
+var _imCache=null;  // 儀器清單快取
 
-var _imCache = null;  // 儀器清單快取 { columns, rows }
-
-function openInstrModal() {
-  var ev = _events[_curIdx];
-  if (!ev) return;
+function openInstrModal(){
+  var ev=_events[_curIdx]; if(!ev) return;
   document.getElementById('instrModal').classList.add('show');
   _renderInstrModal(ev);
 }
-function closeInstrModal() {
+function closeInstrModal(){
   document.getElementById('instrModal').classList.remove('show');
 }
-function onInstrOverlayClick(e) {
-  if (e.target === document.getElementById('instrModal')) closeInstrModal();
-}
 
-function _renderInstrModal(ev) {
-  var body = document.getElementById('instrModalBody');
-  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入儀器清單中…</div>';
+function _renderInstrModal(ev){
+  var body=document.getElementById('instrModalBody');
+  body.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入儀器清單中…</div>';
 
-  // 解析目前出動儀器：格式 "種類-名稱:使用者, ..."
-  var curInstrs = {};
-  (ev.instrumentStr || '').split(',').forEach(function(item) {
-    item = item.trim();
-    if (!item) return;
-    var colon = item.lastIndexOf(':');
-    var key  = colon >= 0 ? item.slice(0, colon).trim() : item;
-    var user = colon >= 0 ? item.slice(colon + 1).trim() : '';
-    curInstrs[key] = user;
+  // 解析目前已出動儀器
+  var curInstrs={};
+  (ev.instrumentStr||'').split(',').forEach(function(item){
+    item=item.trim(); if(!item) return;
+    var colon=item.lastIndexOf(':');
+    var key=colon>=0?item.slice(0,colon).trim():item;
+    var user=colon>=0?item.slice(colon+1).trim():'';
+    curInstrs[key]=user;
   });
 
-  // 從 personnelStr 取出人員名單供使用者下拉
-  var personnelNames = [];
-  (ev.personnelStr || '').split(',').forEach(function(item) {
-    item = item.trim();
-    if (!item) return;
-    var colon = item.indexOf(':');
-    var name = colon >= 0 ? item.slice(colon + 1).trim() : item;
-    if (name) personnelNames.push(name);
+  // 從 personnelStr 取人員名單作為使用者下拉選項
+  var personnelNames=[];
+  (ev.personnelStr||'').split(',').forEach(function(item){
+    item=item.trim(); if(!item) return;
+    var colon=item.indexOf(':');
+    var name=colon>=0?item.slice(colon+1).trim():item;
+    if(name) personnelNames.push(name);
   });
 
-  if (_imCache) {
-    _doRenderInstruments(body, _imCache, curInstrs, personnelNames);
-    return;
-  }
-  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
-    if (!data || !data.rows) {
-      body.innerHTML = '<div class="ce-instr-empty">⚠️ 無法載入儀器清單</div>';
-      return;
-    }
-    _imCache = data;
-    _doRenderInstruments(body, data, curInstrs, personnelNames);
+  if(_imCache){ _doRenderInstruments(body,_imCache,curInstrs,personnelNames); return; }
+  _jsonpGet(SHEETS_URL+'?action=instrument', function(data){
+    if(!data||!data.rows){ body.innerHTML='<div class="ce-instr-empty">⚠️ 無法載入儀器清單</div>'; return; }
+    _imCache=data;
+    _doRenderInstruments(body,data,curInstrs,personnelNames);
   });
 }
 
-function _doRenderInstruments(body, data, curInstrs, personnelNames) {
-  var columns = data.columns || [], rows = data.rows || [];
-  if (!rows.length) {
-    body.innerHTML = '<div class="ce-instr-empty">📭 儀器清單目前為空</div>';
-    return;
-  }
+function _doRenderInstruments(body,data,curInstrs,personnelNames){
+  var columns=data.columns||[],rows=data.rows||[];
+  if(!rows.length){ body.innerHTML='<div class="ce-instr-empty">📭 儀器清單目前為空</div>'; return; }
 
-  // 找「使用者」欄索引
-  var userColIdx = columns.length - 1;
-  columns.forEach(function(h, i){ if (String(h).trim() === '使用者') userColIdx = i; });
-  var displayCols = columns.slice(0, userColIdx);
+  var userColIdx=columns.length-1;
+  columns.forEach(function(h,i){ if(String(h).trim()==='使用者') userColIdx=i; });
+  var displayCols=columns.slice(0,userColIdx);
 
-  var html = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;padding:7px 10px;'
-    + 'background:#f8fafc;border:1px solid var(--border);border-radius:6px">'
-    + '已選 <strong id="imInstrN" style="color:var(--accent)">0</strong> 件儀器</div>';
-  html += '<table class="ce-instr-tbl"><thead><tr>';
-  html += '<th class="ce-instr-chk"><input type="checkbox" id="imCbAll" title="全選"'
-    + ' onchange="_imChgAll(this)" style="width:16px;height:16px;cursor:pointer;accent-color:#1a56db;margin:0;vertical-align:middle"></th>';
-  displayCols.forEach(function(h){ html += '<th>' + _esc(h) + '</th>'; });
-  html += '<th>' + _esc(columns[userColIdx] || '使用者') + '</th>';
-  html += '</tr></thead><tbody>';
+  var html='<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;padding:7px 10px;'
+    +'background:#f8fafc;border:1px solid var(--border);border-radius:6px">'
+    +'已選 <strong id="imInstrN" style="color:var(--accent)">0</strong> 件儀器</div>';
+  html+='<table class="ce-instr-tbl"><thead><tr>';
+  html+='<th class="ce-instr-chk"><input type="checkbox" id="imCbAll" title="全選" onchange="_imChgAll(this)"'
+    +' style="width:16px;height:16px;cursor:pointer;accent-color:#1a56db;margin:0;vertical-align:middle"></th>';
+  displayCols.forEach(function(h){ html+='<th>'+_esc(h)+'</th>'; });
+  html+='<th>'+_esc(columns[userColIdx]||'使用者')+'</th>';
+  html+='</tr></thead><tbody>';
 
-  rows.forEach(function(rowObj, i) {
-    var vals = rowObj.values || [];
-    var kind = String(vals[1] || '').trim();
-    var name = String(vals[2] || '').trim();
-    var key  = kind ? kind + '-' + name : name;
-    var prevUser = curInstrs.hasOwnProperty(key) ? curInstrs[key] : '';
-    var isChecked = curInstrs.hasOwnProperty(key);
-
-    html += '<tr id="imrow' + i + '"' + (isChecked ? ' class="ce-isel"' : '') + '>';
-    html += '<td class="ce-instr-chk"><input type="checkbox" id="imcb' + i + '"'
-      + (isChecked ? ' checked' : '') + ' onchange="_imChg(' + i + ')" /></td>';
-    displayCols.forEach(function(h, j){ html += '<td>' + _esc(vals[j] || '') + '</td>'; });
-    html += '<td><select class="ce-instr-user-sel" id="imsel' + i + '"' + (!isChecked ? ' disabled' : '') + '>';
-    html += '<option value="">— 請先勾選 —</option>';
-    personnelNames.forEach(function(n) {
-      html += '<option value="' + _esc(n) + '"' + (n === prevUser ? ' selected' : '') + '>' + _esc(n) + '</option>';
+  rows.forEach(function(rowObj,i){
+    var vals=rowObj.values||[];
+    var kind=String(vals[1]||'').trim(), name=String(vals[2]||'').trim();
+    var key=kind?kind+'-'+name:name;
+    var isChk=curInstrs.hasOwnProperty(key), prevUser=isChk?curInstrs[key]:'';
+    html+='<tr id="imrow'+i+'"'+(isChk?' class="ce-isel"':'')+'>';
+    html+='<td class="ce-instr-chk"><input type="checkbox" id="imcb'+i+'"'+(isChk?' checked':'')+' onchange="_imChg('+i+')" /></td>';
+    displayCols.forEach(function(h,j){ html+='<td>'+_esc(vals[j]||'')+'</td>'; });
+    html+='<td><select class="ce-instr-user-sel" id="imsel'+i+'"'+(!isChk?' disabled':'')+'>';
+    html+='<option value="">— 請先勾選 —</option>';
+    personnelNames.forEach(function(n){
+      html+='<option value="'+_esc(n)+'"'+(n===prevUser?' selected':'')+'>'+_esc(n)+'</option>';
     });
-    if (!personnelNames.length) html += '<option value="" disabled>（無出勤人員）</option>';
-    html += '</select></td></tr>';
+    if(!personnelNames.length) html+='<option value="" disabled>（無出勤人員）</option>';
+    html+='</select></td></tr>';
   });
-  html += '</tbody></table>';
-  body.innerHTML = html;
+  html+='</tbody></table>';
+  body.innerHTML=html;
   _imUpdateCount();
 }
 
-function _imChgAll(allCb) {
-  var rows = (_imCache && _imCache.rows) ? _imCache.rows : [];
-  rows.forEach(function(_, i) {
-    var cb  = document.getElementById('imcb'  + i);
-    var sel = document.getElementById('imsel' + i);
-    var row = document.getElementById('imrow' + i);
-    if (!cb) return;
-    cb.checked = allCb.checked;
-    if (sel) { sel.disabled = !allCb.checked; if (!allCb.checked) sel.value = ''; }
-    if (row) row.classList.toggle('ce-isel', allCb.checked);
+function _imChgAll(allCb){
+  var rows=(_imCache&&_imCache.rows)?_imCache.rows:[];
+  rows.forEach(function(_,i){
+    var cb=document.getElementById('imcb'+i),sel=document.getElementById('imsel'+i),row=document.getElementById('imrow'+i);
+    if(!cb) return;
+    cb.checked=allCb.checked;
+    if(sel){sel.disabled=!allCb.checked; if(!allCb.checked) sel.value='';}
+    if(row) row.classList.toggle('ce-isel',allCb.checked);
   });
   _imUpdateCount();
 }
-function _imChg(i) {
-  var cb  = document.getElementById('imcb'  + i);
-  var sel = document.getElementById('imsel' + i);
-  var row = document.getElementById('imrow' + i);
-  sel.disabled = !cb.checked;
-  if (!cb.checked) sel.value = '';
-  if (row) row.classList.toggle('ce-isel', cb.checked);
-  var cbs = document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]');
-  var checked = Array.from(cbs).filter(function(x){ return x.checked; });
-  var allCb = document.getElementById('imCbAll');
-  if (allCb) allCb.checked = (checked.length === cbs.length && cbs.length > 0);
+function _imChg(i){
+  var cb=document.getElementById('imcb'+i),sel=document.getElementById('imsel'+i),row=document.getElementById('imrow'+i);
+  sel.disabled=!cb.checked; if(!cb.checked) sel.value='';
+  if(row) row.classList.toggle('ce-isel',cb.checked);
+  var cbs=document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]');
+  var checked=Array.from(cbs).filter(function(x){return x.checked;});
+  var allCb=document.getElementById('imCbAll');
+  if(allCb) allCb.checked=(checked.length===cbs.length&&cbs.length>0);
   _imUpdateCount();
 }
-function _imUpdateCount() {
-  var cbs = document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]');
-  var n = Array.from(cbs).filter(function(c){ return c.checked; }).length;
-  var el = document.getElementById('imInstrN');
-  if (el) el.textContent = n;
-  var st = document.getElementById('instrModalStatus');
-  if (!st) return;
-  st.textContent = '已選 ' + n + ' 件儀器';
-  st.className = 'chg-modal-status' + (n > 0 ? ' ok' : '');
+function _imUpdateCount(){
+  var cbs=document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]');
+  var n=Array.from(cbs).filter(function(c){return c.checked;}).length;
+  var el=document.getElementById('imInstrN'); if(el) el.textContent=n;
+  var st=document.getElementById('instrModalStatus'); if(!st) return;
+  st.textContent='已選 '+n+' 件儀器'; st.className='chg-modal-status'+(n>0?' ok':'');
 }
 
-// 儲存儀器異動到 Google Sheets
-function saveInstruments() {
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var rows = (_imCache && _imCache.rows) ? _imCache.rows : [];
-  var result = [];
-  document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]:checked').forEach(function(cb) {
-    var i    = parseInt(cb.id.replace('imcb', ''), 10);
-    var vals = (rows[i] || {}).values || [];
-    var kind = String(vals[1] || '').trim();
-    var name = String(vals[2] || '').trim();
-    if (!kind && !name) return;
-    var key = kind ? kind + '-' + name : name;
-    var sel = document.getElementById('imsel' + i);
-    var user = sel ? sel.value : '';
-    result.push(user ? key + ':' + user : key);
+function saveInstruments(){
+  var ev=_events[_curIdx]; if(!ev) return;
+  var rows=(_imCache&&_imCache.rows)?_imCache.rows:[];
+  var result=[];
+  document.querySelectorAll('.ce-instr-tbl tbody input[type=checkbox]:checked').forEach(function(cb){
+    var i=parseInt(cb.id.replace('imcb',''),10);
+    var vals=(rows[i]||{}).values||[];
+    var kind=String(vals[1]||'').trim(), name=String(vals[2]||'').trim();
+    if(!kind&&!name) return;
+    var key=kind?kind+'-'+name:name;
+    var sel=document.getElementById('imsel'+i);
+    var user=sel?sel.value:'';
+    result.push(user?key+':'+user:key);
   });
-  var newStr = result.join(', ');
-  var btn = document.getElementById('instrSaveBtn');
-  btn.disabled = true; btn.textContent = '儲存中…';
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'updateEvent', eventId: ev.id, instrumentStr: newStr })
-  }).then(function() {
-    ev.instrumentStr = newStr;
-    // 清除 event-instruments 頁的儀器快取，下次開啟時重新比對
-    renderCard(_curIdx);
-    try { sessionStorage.removeItem('_instrCache'); } catch(e) {}
-    btn.disabled = false; btn.textContent = '💾 儲存';
+  var newStr=result.join(', ');
+  var btn=document.getElementById('instrSaveBtn');
+  btn.disabled=true; btn.textContent='儲存中…';
+  fetch(SHEETS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'updateEvent',eventId:ev.id,instrumentStr:newStr})
+  }).then(function(){
+    ev.instrumentStr=newStr;
+    renderCard(_curIdx);  // 即時更新卡片
+    btn.disabled=false; btn.textContent='💾 儲存';
     closeInstrModal();
     showToast('✅ 出動儀器已更新');
-  }).catch(function() {
-    btn.disabled = false; btn.textContent = '💾 儲存';
+  }).catch(function(){
+    btn.disabled=false; btn.textContent='💾 儲存';
     showToast('⚠️ 儲存失敗，請確認網路連線');
   });
 }
