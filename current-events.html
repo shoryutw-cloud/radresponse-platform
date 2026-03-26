@@ -1349,11 +1349,16 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  var LW = 140, LH = 34;   // 標籤估計寬高（px，加大避免低估）
-  var R_MIN  = 60;          // 扇形起始半徑
-  var R_STEP = LH + 14;     // 加大步距，跳開距離更明確
-  var R_MAX  = 220;         // 最大半徑限制，避免標籤跑出螢幕
-  var CLUSTER_R = 120;      // 視為同群的像素距離門檻
+  var LW = 144, LH = 34;  // 標籤寬高（px）
+  var DOT_R = 20;         // 量測點圓圈佔位半徑（避免標籤蓋住圓點）
+  var R_START = 56;       // 從圓點邊緣開始往外找位置的初始距離
+  var R_STEP  = 10;       // 每次往外推的步距（小步距，找到空位就停）
+  var R_MAX   = 260;      // 最大搜尋半徑
+
+  // 8個候選方向（優先上方，依序順時針）
+  var DIRS = [-90, -45, -135, 0, -180, 45, 135, 90].map(function(d) {
+    return d * Math.PI / 180;
+  });
 
   // 轉像素座標
   var pts = valid.map(function(msr) {
@@ -1361,82 +1366,70 @@ function renderMsrMarkers(eventId) {
     return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
   });
 
-  // ── 群聚偵測：將距離近的點歸為同一群 ──
-  var assigned = pts.map(function() { return -1; });
-  var groups   = [];
-  pts.forEach(function(pt, i) {
-    if (assigned[i] >= 0) return;
-    var grp = [i];
-    assigned[i] = groups.length;
-    pts.forEach(function(pt2, j) {
-      if (assigned[j] >= 0) return;
-      var dx = pt.px.x - pt2.px.x, dy = pt.px.y - pt2.px.y;
-      if (Math.sqrt(dx*dx + dy*dy) < CLUSTER_R) {
-        grp.push(j);
-        assigned[j] = groups.length;
-      }
-    });
-    groups.push(grp);
+  // 依數值大小排序（高→低），大值優先找位置
+  pts.sort(function(a, b) {
+    return parseFloat(b.msr.value) - parseFloat(a.msr.value);
   });
 
-  // ── 每群內計算群心、扇形基準角、均分角度 ──
-  // 群內先按數值大小排序（高→低），使同色標籤相鄰，呈 紅紅紅/橘橘橘/綠綠 的排列
-  // 排序後從扇形中央往兩側交替分配角度，讓最大值居中
-  var FAN_HALF = 70; // 扇形半角（度）
+  var mSize = gMap.getSize();
+  var PAD   = 8; // 螢幕邊界內縮
 
-  groups.forEach(function(grp) {
-    var n = grp.length;
-
-    // 按數值大小排序（降冪），同色聚在一起
-    grp.sort(function(a, b) {
-      return parseFloat(pts[b].msr.value) - parseFloat(pts[a].msr.value);
-    });
-
-    grp.forEach(function(i, gi) {
-      // 角度從正上方（-90°）起，均分扇形
-      var baseAngle = -90;
-      var spread    = n === 1 ? 45 : (gi / (n - 1) - 0.5) * 2 * FAN_HALF;
-      pts[i].fanAngle = baseAngle + spread;
-    });
-  });
-
-  // ── 碰撞避讓：沿扇形角方向，從 R_MIN 開始往外推直到不重疊 ──
-  function overlaps(a, b) {
-    var PAD = 16; // ★ 加大間距，確保標籤絕對不重疊
-    return !(a.x + a.w + PAD < b.x || b.x + b.w + PAD < a.x ||
-             a.y + a.h + PAD < b.y || b.y + b.h + PAD < a.y);
-  }
+  // 已佔用區域（含量測點圓圈本身）
   var placed = [];
 
+  // 先把所有量測點圓圈位置加入佔位清單，標籤不能壓在圓點上
   pts.forEach(function(pt) {
-    var rad = pt.fanAngle * Math.PI / 180;
-    var found = false;
-    for (var r = R_MIN; r <= R_MAX; r += R_STEP) {
-      var lx = pt.px.x + r * Math.cos(rad);
-      var ly = pt.px.y + r * Math.sin(rad);
-      var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
-      var clash = placed.some(function(p) { return overlaps(rect, p); });
-      if (!clash) {
-        // ★ 限制在地圖可視區域內（邊界留 LW/2 + 4px 避免超出螢幕）
-        var mSize = gMap.getSize();
-        var pad   = 8;
-        lx = Math.max(LW/2 + pad, Math.min(mSize.x - LW/2 - pad, lx));
-        ly = Math.max(LH/2 + pad, Math.min(mSize.y - LH/2 - pad, ly));
-        placed.push({ x: lx - LW/2, y: ly - LH/2, w: LW, h: LH });
-        pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
-        found = true;
-        break;
+    placed.push({
+      x: pt.px.x - DOT_R, y: pt.px.y - DOT_R,
+      w: DOT_R * 2,        h: DOT_R * 2
+    });
+  });
+
+  function rectsOverlap(a, b) {
+    var GAP = 6;
+    return !(a.x + a.w + GAP < b.x || b.x + b.w + GAP < a.x ||
+             a.y + a.h + GAP < b.y || b.y + b.h + GAP < a.y);
+  }
+
+  function clamp(lx, ly) {
+    lx = Math.max(LW/2 + PAD, Math.min(mSize.x - LW/2 - PAD, lx));
+    ly = Math.max(LH/2 + PAD, Math.min(mSize.y - LH/2 - PAD, ly));
+    return [lx, ly];
+  }
+
+  pts.forEach(function(pt) {
+    var placed_ok = false;
+
+    // 8 個方向輪流嘗試，每個方向從 R_START 開始往外推
+    outer:
+    for (var r = R_START; r <= R_MAX; r += R_STEP) {
+      for (var di = 0; di < DIRS.length; di++) {
+        var rad = DIRS[di];
+        var lx = pt.px.x + r * Math.cos(rad);
+        var ly = pt.px.y + r * Math.sin(rad);
+        var cl = clamp(lx, ly);
+        lx = cl[0]; ly = cl[1];
+        var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
+        var clash = false;
+        for (var pi = 0; pi < placed.length; pi++) {
+          if (rectsOverlap(rect, placed[pi])) { clash = true; break; }
+        }
+        if (!clash) {
+          placed.push(rect);
+          pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
+          placed_ok = true;
+          break outer;
+        }
       }
     }
-    // 萬一全碰，強制放在最遠處
-    if (!found) {
-      var lx2 = pt.px.x + R_MAX * Math.cos(rad);
-      var ly2 = pt.px.y + R_MAX * Math.sin(rad);
-      var mSize2 = gMap.getSize();
-      lx2 = Math.max(LW/2 + 8, Math.min(mSize2.x - LW/2 - 8, lx2));
-      ly2 = Math.max(LH/2 + 8, Math.min(mSize2.y - LH/2 - 8, ly2));
-      placed.push({ x: lx2 - LW/2, y: ly2 - LH/2, w: LW, h: LH });
-      pt.offLL = gMap.layerPointToLatLng(L.point(lx2, ly2));
+
+    // 萬一找不到，強制放在右上方最遠處
+    if (!placed_ok) {
+      var lx2 = pt.px.x + R_MAX * Math.cos(-45 * Math.PI / 180);
+      var ly2 = pt.px.y + R_MAX * Math.sin(-45 * Math.PI / 180);
+      var cl2 = clamp(lx2, ly2);
+      placed.push({ x: cl2[0] - LW/2, y: cl2[1] - LH/2, w: LW, h: LH });
+      pt.offLL = gMap.layerPointToLatLng(L.point(cl2[0], cl2[1]));
     }
   });
 
