@@ -614,9 +614,9 @@ function buildToolbar(rows) {
   var html = '<div class="toolbar">';
   /* 篩選按鈕 */
   html += filterBtn('all',    '全部 ' + cnt.all, null,       '');
-  html += filterBtn('green',  '正常 ' + cnt.green,  '#16a34a', 'f-green');
-  html += filterBtn('orange', '偏高 ' + cnt.orange, '#d97706', 'f-orange');
-  html += filterBtn('red',    '過高 ' + cnt.red,    '#dc2626', 'f-red');
+  html += filterBtn('green',  '冷區 ' + cnt.green,  '#16a34a', 'f-green');
+  html += filterBtn('orange', '暖區 ' + cnt.orange, '#d97706', 'f-orange');
+  html += filterBtn('red',    '熱區 ' + cnt.red,    '#dc2626', 'f-red');
   /* 彈性空間 + 排序按鈕 */
   html += '<div class="toolbar-sep"></div>';
   html += '<button class="sort-btn" id="sortBtn" onclick="toggleSort()">'
