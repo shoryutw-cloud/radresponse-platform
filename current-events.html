@@ -1067,6 +1067,7 @@ function renderCard(idx) {
   html += '<div class="ev-shortcuts">';
   html += '<button class="ev-shortcut-btn" onclick="goPersonnel()">&#x1F465; 出勤人員</button>';
   html += '<button class="ev-shortcut-btn" onclick="goInstruments()">&#x1F527; 出動儀器</button>';
+  html += '<button class="ev-shortcut-btn" onclick="goMeasurements()">&#x1F4CA; 回報查詢</button>';
   html += '</div>';
 
   body.innerHTML = html;
@@ -1084,6 +1085,11 @@ function goPersonnel() {
 }
 function goInstruments() {
   try { parent.showIframe('event-instruments.html'); }
+  catch(e) {}
+}
+// 前往回報數值查詢頁
+function goMeasurements() {
+  try { parent.showIframe('measurement-query.html'); }
   catch(e) {}
 }
 
