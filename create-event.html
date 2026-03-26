@@ -353,6 +353,8 @@
   }
   .ce-p4-col.collapsed .ce-p4-col-toggle { transform: rotate(180deg); }
   .ce-p4-col.collapsed .ce-p4-col-bd { display: none; }
+  /* 收合後欄位不再佔空間，緊縮成 header 高度 */
+  .ce-p4-col.collapsed { flex: 0 0 auto !important; min-height: 0 !important; }
 
   /* 備註 */
   .ce-p4-hint {
@@ -434,10 +436,10 @@
     .ce-evid  { font-size: 12px; max-width: 100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
     /* 第四頁：三欄改直排 */
-    .ce-p4-outer { flex-direction: column; overflow-y: auto; }
-    .ce-p4-col   { width: 100% !important; flex-shrink: 0; border-right: none; border-bottom: 1px solid var(--border); }
+    .ce-p4-outer { flex-direction: column; overflow-y: auto; align-items: stretch; }
+    .ce-p4-col   { width: 100% !important; flex-shrink: 0; border-right: none; border-bottom: 1px solid var(--border); min-height: 0; }
     .ce-p4-col-upload { min-height: auto; }
-    .ce-p4-col-person { min-width: 0; min-height: 120px; max-height: 40vh; overflow-y: auto; }
+    .ce-p4-col-person { min-width: 0; max-height: 40vh; overflow-y: auto; }
     .ce-p4-col-sms    { min-width: 0; }
     .ce-p4-col-toggle { display: inline-flex; align-items: center; } /* 直排才顯示 */
 
