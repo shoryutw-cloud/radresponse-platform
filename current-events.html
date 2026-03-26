@@ -2547,16 +2547,33 @@ function reverseGeocode(lat, lng, cb) {
 // ════════════════════════════════════════════
 var _reportFabEl = null;
 
+
+// ── 更新 FAB 按鈕位置：貼在事件卡頂部上方 ──
+function updateFabPosition() {
+  var el = document.getElementById('reportFabWrap');
+  if (!el) return;
+  var card = document.getElementById('evCard');
+  if (!card || window.innerWidth > 600) {
+    // 桌機版固定位置
+    el.style.bottom = '70px';
+    return;
+  }
+  // 手機版：算出事件卡目前的高度，FAB 貼在上方 + 12px 間距
+  var cardH = card.getBoundingClientRect().height;
+  var safeBottom = parseInt(getComputedStyle(document.documentElement)
+    .getPropertyValue('--sab') || '0') || 0;
+  var drawVisible = document.getElementById('drawToolbar') &&
+                    document.getElementById('drawToolbar').style.display !== 'none';
+  var extraOffset = drawVisible ? 56 : 0; // 畫筆工具列高度
+  el.style.bottom = (cardH + 12 + extraOffset) + 'px';
+}
 function showReportFabs() {
   hideReportFabs();
   var el = document.createElement('div');
   el.id = 'reportFabWrap';
   // ★ 持續顯示，不自動收起；避免與畫筆工具列重疊（畫筆工具列 bottom:24px，高約52px）
-  var drawVisible = document.getElementById('drawToolbar') &&
-                    document.getElementById('drawToolbar').style.display !== 'none';
-  var bottomBase = drawVisible ? 90 : 70;
   el.style.cssText =
-    'position:fixed;bottom:' + bottomBase + 'px;left:0;right:0;z-index:3000;' +
+    'position:fixed;bottom:70px;left:0;right:0;z-index:3000;' +
     'display:flex;justify-content:center;gap:14px;pointer-events:none;';
 
   var btn1 = document.createElement('button');
@@ -2581,7 +2598,7 @@ function showReportFabs() {
   el.appendChild(btn2);
   document.body.appendChild(el);
   _reportFabEl = el;
-  // ★ 不自動收起
+  updateFabPosition(); // ★ 立即更新位置
 }
 
 function hideReportFabs() {
@@ -2811,6 +2828,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.target.closest('button')) return;
       var card = document.getElementById('evCard');
       card.classList.toggle('mob-expanded');
+      // ★ 事件卡展開/收合時更新 FAB 位置
+      setTimeout(updateFabPosition, 320); // 等 transition 結束
     });
   }
 });
@@ -2824,10 +2843,10 @@ function toggleMobLayer() {
 // ── 視窗縮放時重設樣式 ──
 window.addEventListener('resize', function() {
   if (!isMobile()) {
-    // 回到桌機版：清除手機版狀態
     document.getElementById('evCard').classList.remove('mob-expanded');
     document.getElementById('layerPanel').classList.remove('mob-show');
   }
+  updateFabPosition();
 });
 
 // ── 初始化畫筆事件（在 initMap 後呼叫）──
