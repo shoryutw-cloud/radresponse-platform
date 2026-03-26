@@ -1499,6 +1499,30 @@ function renderMsrMarkers(eventId) {
     return { x: cx, y: cy };
   }
 
+  // ★ 判斷線段 (ax,ay)→(bx,by) 是否穿過以 (cx,cy) 為圓心 r 為半徑的圓
+  function lineIntersectsCircle(ax, ay, bx, by, cx, cy, r) {
+    var dx = bx - ax, dy = by - ay;
+    var fx = ax - cx, fy = ay - cy;
+    var a = dx*dx + dy*dy;
+    if (a === 0) return Math.hypot(fx, fy) < r;
+    var b = 2*(fx*dx + fy*dy);
+    var cc = fx*fx + fy*fy - r*r;
+    var disc = b*b - 4*a*cc;
+    if (disc < 0) return false;
+    var sq = Math.sqrt(disc);
+    var t1 = (-b - sq) / (2*a);
+    var t2 = (-b + sq) / (2*a);
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1) || (t1 < 0 && t2 > 1);
+  }
+
+  // 建立禁區圓清單（事發地點）
+  var forbidCircles = [];
+  _events.forEach(function(ev) {
+    if (isNaN(parseFloat(ev.lat))) return;
+    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
+    forbidCircles.push({ x: ep.x, y: ep.y, r: EV_R + 10 });
+  });
+
   // ── 已佔位清單（容器像素座標）──
   var placed = [];
 
@@ -1579,6 +1603,15 @@ function renderMsrMarkers(eventId) {
         var clash = false;
         for (var pi = 0; pi < placed.length; pi++) {
           if (rectsOverlap(rect, placed[pi])) { clash = true; break; }
+        }
+        // ★ 檢查虛線是否穿過事發地點禁區
+        if (!clash) {
+          for (var ci = 0; ci < forbidCircles.length; ci++) {
+            var fc = forbidCircles[ci];
+            if (lineIntersectsCircle(pt.cp.x, pt.cp.y, cl.x, cl.y, fc.x, fc.y, fc.r)) {
+              clash = true; break;
+            }
+          }
         }
         if (!clash) {
           placed.push(rect);
