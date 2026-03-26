@@ -26,19 +26,19 @@
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  /* iOS Safari：-webkit-fill-available 鎖定初始 viewport，避免動態工具列造成跳動 */
+  /* iOS Safari：svh = small viewport height，鍵盤出現/消失都不會改變，根本解決跑版 */
   html {
-    height: 100%;
-    height: -webkit-fill-available;
+    height: 100svh;   /* 現代瀏覽器 */
+    height: -webkit-fill-available;  /* iOS 14 以下 fallback */
     overflow: hidden;
   }
   body {
-    height: 100%;
+    height: 100svh;
     height: -webkit-fill-available;
     overflow: hidden;
     font-family: var(--font); background: var(--bg); color: var(--text);
     font-size: 14px;
-    display: flex; flex-direction: column; /* topbar + navBanner + layout 垂直排列 */
+    display: flex; flex-direction: column;
   }
 
   /* ────── TOP BAR：正常流（不用 fixed/sticky，不會被 iOS 捲走）────── */
