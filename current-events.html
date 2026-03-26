@@ -1402,24 +1402,62 @@ function renderMsrMarkers(eventId) {
     return parseFloat(b.msr.value) - parseFloat(a.msr.value);
   });
 
+  // 取當前事件的像素座標（扇形中心）
+  var curEv = _events[_curIdx];
+  var evPxCenter = (curEv && !isNaN(parseFloat(curEv.lat)))
+    ? gMap.latLngToLayerPoint(L.latLng(parseFloat(curEv.lat), parseFloat(curEv.lng)))
+    : null;
+
   pts.forEach(function(pt) {
-    // 計算「最佳起始角度」：遠離其他量測點 + 事發地點的方向
-    var ox = 0, oy = 0;
-    pts.forEach(function(other) {
-      if (other === pt) return;
-      var dx = pt.px.x - other.px.x, dy = pt.px.y - other.px.y;
-      var d = Math.sqrt(dx*dx + dy*dy) || 1;
-      ox += dx/d; oy += dy/d;
-    });
-    _events.forEach(function(ev) {
-      var evPx = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev.lat)||0, parseFloat(ev.lng)||0));
-      var dx = pt.px.x - evPx.x, dy = pt.px.y - evPx.y;
-      var d = Math.sqrt(dx*dx + dy*dy) || 1;
-      if (d < 200) { ox += dx/d * 1.5; oy += dy/d * 1.5; } // 事發地點權重較高
-    });
-    var bestAngle = (ox !== 0 || oy !== 0)
-      ? Math.atan2(oy, ox) * 180 / Math.PI
-      : -45;
+    // ★ 核心邏輯：
+    // 1. 計算「事發點→量測點」的方向向量
+    // 2. 最佳展開方向 = 垂直於這個向量（即扇形側邊方向）
+    // 3. 同時避開其他量測點和所有事發地點
+    var bestAngle;
+
+    if (evPxCenter) {
+      var radialDx = pt.px.x - evPxCenter.x;
+      var radialDy = pt.px.y - evPxCenter.y;
+      var radialDist = Math.sqrt(radialDx*radialDx + radialDy*radialDy) || 1;
+
+      // 垂直方向（順時針 90° 和 逆時針 90°）
+      var perpAngle1 = Math.atan2(radialDy, radialDx) * 180 / Math.PI + 90;
+      var perpAngle2 = Math.atan2(radialDy, radialDx) * 180 / Math.PI - 90;
+
+      // 評估兩個垂直方向，選遠離其他點的那個
+      function evalDir(ang) {
+        var rad = ang * Math.PI / 180;
+        var tx = pt.px.x + R_START * Math.cos(rad);
+        var ty = pt.px.y + R_START * Math.sin(rad);
+        var score = 0;
+        // 遠離其他量測點（加分）
+        pts.forEach(function(other) {
+          if (other === pt) return;
+          var dx = tx - other.px.x, dy = ty - other.px.y;
+          score += Math.sqrt(dx*dx + dy*dy);
+        });
+        // 遠離事發地點（加分，權重高）
+        _events.forEach(function(ev2) {
+          if (isNaN(parseFloat(ev2.lat))) return;
+          var ep = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev2.lat), parseFloat(ev2.lng)));
+          var dx = tx - ep.x, dy = ty - ep.y;
+          score += Math.sqrt(dx*dx + dy*dy) * 2;
+        });
+        return score;
+      }
+
+      bestAngle = evalDir(perpAngle1) >= evalDir(perpAngle2) ? perpAngle1 : perpAngle2;
+    } else {
+      // 無事發點資料：fallback 遠離其他量測點
+      var ox = 0, oy = 0;
+      pts.forEach(function(other) {
+        if (other === pt) return;
+        var dx = pt.px.x - other.px.x, dy = pt.px.y - other.px.y;
+        var d = Math.sqrt(dx*dx + dy*dy) || 1;
+        ox += dx/d; oy += dy/d;
+      });
+      bestAngle = (ox || oy) ? Math.atan2(oy, ox) * 180 / Math.PI : -45;
+    }
 
     // 螺旋掃描：從最佳角度往兩側展開
     var angOffsets = [0];
