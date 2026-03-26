@@ -223,7 +223,7 @@ cursor: pointer; transition: all .15s;
 .chg-modal {
   background: white; border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-  width: min(540px, 95vw); max-height: 85vh;
+  width: min(720px, 95vw); max-height: 85vh;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .chg-modal-hd {
@@ -765,7 +765,7 @@ cursor: pointer; transition: background .15s;
 <!-- ══════════════════════════════════════════
      出勤人員異動 Modal
 ════════════════════════════════════════════ -->
-<div class="chg-modal-overlay" id="personnelModal" onclick="onPersonnelOverlayClick(event)">
+<div class="chg-modal-overlay" id="personnelModal">
   <div class="chg-modal">
     <div class="chg-modal-hd">
       <span>👥 出勤人員異動</span>
@@ -787,7 +787,7 @@ cursor: pointer; transition: background .15s;
 <!-- ══════════════════════════════════════════
      出動儀器異動 Modal
 ════════════════════════════════════════════ -->
-<div class="chg-modal-overlay" id="instrModal" onclick="onInstrOverlayClick(event)">
+<div class="chg-modal-overlay" id="instrModal">
   <div class="chg-modal">
     <div class="chg-modal-hd">
       <span>🔧 出動儀器異動</span>
@@ -1252,12 +1252,10 @@ function notifyReady() {
   try { parent.window.__stopNav = function() { stopNavMode(); }; } catch(e) {}
 }
 function goPersonnel() {
-  try { parent.showIframe('event-personnel.html'); }
-  catch(e) {}
+  openPersonnelModal();
 }
 function goInstruments() {
-  try { parent.showIframe('event-instruments.html'); }
-  catch(e) {}
+  openInstrModal();
 }
 // 前往回報數值查詢頁
 function goMeasurements() {
