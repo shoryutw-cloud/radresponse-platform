@@ -2024,6 +2024,7 @@ window.addEventListener('message', function(e) {
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
     if (toolbar) toolbar.style.display = on ? '' : 'none';
+    setTimeout(updateFabPosition, 50); // ★ 工具列開關後更新 FAB 位置
     if (!on) {
       var panel = document.getElementById('evEditPanel');
       if (panel && panel.classList.contains('show')) toggleEditPanel();
@@ -2768,19 +2769,23 @@ var _reportFabEl = null;
 function updateFabPosition() {
   var el = document.getElementById('reportFabWrap');
   if (!el) return;
+
+  // 畫筆工具列是否顯示（bottom:24px，高約52px → 佔到 76px）
+  var drawBar = document.getElementById('drawToolbar');
+  var drawVisible = drawBar && drawBar.style.display !== 'none';
+  var drawOffset = drawVisible ? (24 + drawBar.offsetHeight + 8) : 0;
+
   if (window.innerWidth > 600) {
-    el.style.bottom = '70px';
+    // 桌機版：畫筆工具列未開啟時 70px，開啟時避開工具列
+    el.style.bottom = (drawVisible ? Math.max(70, drawOffset) : 70) + 'px';
     return;
   }
+
+  // 手機版：事件卡高度 + 工具列偏移
   var card = document.getElementById('evCard');
-  if (!card) { el.style.bottom = '70px'; return; }
-  // 事件卡高度：展開時 75vh，收合時只有 header（約52px + safe area）
+  if (!card) { el.style.bottom = (drawVisible ? drawOffset : 70) + 'px'; return; }
   var cardH = card.getBoundingClientRect().height;
-  var drawVisible = document.getElementById('drawToolbar') &&
-                    document.getElementById('drawToolbar').style.display !== 'none';
-  var extraOffset = drawVisible ? 60 : 0;
-  // CSS transition 會自動接手動畫效果
-  el.style.bottom = (cardH + 12 + extraOffset) + 'px';
+  el.style.bottom = (cardH + 12 + (drawVisible ? drawBar.offsetHeight + 8 : 0)) + 'px';
 }
 function showReportFabs() {
   hideReportFabs();
