@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>目前事件</title>
 <style>
   :root {
@@ -21,7 +21,7 @@
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; height: 100dvh; overflow: hidden; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
   body { font-family: var(--font); font-size: 14px; color: var(--text); }
 
 /* ── 地圖全螢幕 ── */
@@ -1349,9 +1349,9 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  var LW = 118, LH = 30;   // 標籤估計寬高（px）
-  var R_MIN  = 60;          // 扇形起始半徑（縮小避免虛線太長）
-  var R_STEP = LH + 6;
+  var LW = 140, LH = 34;   // 標籤估計寬高（px，加大避免低估）
+  var R_MIN  = 60;          // 扇形起始半徑
+  var R_STEP = LH + 14;     // 加大步距，跳開距離更明確
   var R_MAX  = 220;         // 最大半徑限制，避免標籤跑出螢幕
   var CLUSTER_R = 120;      // 視為同群的像素距離門檻
 
@@ -1402,7 +1402,7 @@ function renderMsrMarkers(eventId) {
 
   // ── 碰撞避讓：沿扇形角方向，從 R_MIN 開始往外推直到不重疊 ──
   function overlaps(a, b) {
-    var PAD = 5;
+    var PAD = 16; // ★ 加大間距，確保標籤絕對不重疊
     return !(a.x + a.w + PAD < b.x || b.x + b.w + PAD < a.x ||
              a.y + a.h + PAD < b.y || b.y + b.h + PAD < a.y);
   }
@@ -1589,9 +1589,9 @@ function loadEnvMonitor() {
 
 // ── 渲染環境監測站標記（菱形圓點 + 指引線 + 數值標籤）──
 function renderEnvMarkers(stations) {
-  var LW = 118, LH = 30;
+  var LW = 140, LH = 34;
   var R_MIN  = 60;
-  var R_STEP = LH + 6;
+  var R_STEP = LH + 14;
   var R_MAX  = 220;
   var CLUSTER_R = 120;
 
@@ -1660,7 +1660,7 @@ function renderEnvMarkers(stations) {
 
   // 碰撞避讓
   function overlaps(a, b) {
-    var PAD = 5;
+    var PAD = 16; // ★ 加大間距，確保標籤絕對不重疊
     return !(a.x + a.w + PAD < b.x || b.x + b.w + PAD < a.x ||
              a.y + a.h + PAD < b.y || b.y + b.h + PAD < a.y);
   }
