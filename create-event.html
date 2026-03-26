@@ -413,12 +413,6 @@
     padding: 7px 10px; line-height: 1.6;
   }
 
-  /* 大螢幕（>700px）橫排：無論收合狀態，強制顯示欄位內容 */
-  @media (min-width: 701px) {
-    .ce-p4-col.collapsed .ce-p4-col-bd { display: flex !important; }
-    .ce-p4-col-toggle { display: none !important; }
-  }
-
   /* ── RWD：平板（<900px）──  */
   @media (max-width: 900px) {
     .ce-p4-col-upload { width: 180px; }
@@ -1274,10 +1268,32 @@ function _getInstruments() {
 
 // ── 第四頁欄位收合（直排模式）──
 function toggleP4Col(btn) {
-  var col = btn.closest('.ce-p4-col');
+  var col = btn.closest ? btn.closest('.ce-p4-col') : null;
+  if (!col) {
+    // fallback for older browsers
+    var el = btn.parentElement;
+    while (el && !el.classList.contains('ce-p4-col')) el = el.parentElement;
+    col = el;
+  }
   if (!col) return;
   col.classList.toggle('collapsed');
 }
+
+// 視窗大小改變時：橫排展開所有欄，直排保持現狀
+function onP4Resize() {
+  var isVertical = window.innerWidth <= 700;
+  var cols = document.querySelectorAll('.ce-p4-col');
+  var toggleBtns = document.querySelectorAll('.ce-p4-col-toggle');
+  if (!isVertical) {
+    // 橫排：全部展開 + 隱藏按鈕
+    cols.forEach(function(col) { col.classList.remove('collapsed'); });
+    toggleBtns.forEach(function(btn) { btn.style.display = 'none'; });
+  } else {
+    // 直排：顯示按鈕
+    toggleBtns.forEach(function(btn) { btn.style.display = ''; });
+  }
+}
+window.addEventListener('resize', onP4Resize);
 
 // ════════════════════════════════════════
 // 第四頁：通報單 + 簡訊確認
