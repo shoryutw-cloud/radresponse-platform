@@ -22,7 +22,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body { font-family: var(--font); background: var(--bg); color: var(--text);
-         display: flex; flex-direction: column; font-size: 14px; overflow: hidden; }
+         display: flex; flex-direction: column; font-size: 15px; overflow: hidden; }
 
   /* ── 頁首 ── */
   .page-header {
@@ -83,19 +83,19 @@
   }
   .instr-table { width: 100%; border-collapse: collapse; }
   .instr-table thead th {
-    font-size: 13px; color: var(--text-muted); font-weight: 600;
+    font-size: 14px; color: var(--text-muted); font-weight: 600;
     padding: 10px 20px; background: #f1f5f9;
     border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap;
   }
   .instr-table tbody td {
-    padding: 12px 20px; font-size: 14px;
+    padding: 12px 20px; font-size: 15px;
     border-bottom: 1px solid #f0f4f8; vertical-align: middle;
   }
   .instr-table tbody tr:last-child td { border-bottom: none; }
   .instr-table tbody tr:hover td { background: #f8fafc; }
-  .td-seq   { font-family: var(--font-mono); color: var(--text-muted); font-size: 13px; width: 60px; }
+  .td-seq   { font-family: var(--font-mono); color: var(--text-muted); font-size: 14px; width: 60px; }
   .td-name  { font-weight: 600; color: var(--text); }
-  .td-mono  { font-family: var(--font-mono); font-size: 13px; color: #3d5070; }
+  .td-mono  { font-family: var(--font-mono); font-size: 14px; color: #3d5070; }
   .td-muted { color: var(--text-muted); }
   .td-user  { font-weight: 600; color: var(--accent); }
 
@@ -119,11 +119,9 @@
     .page-header { padding: 0 14px; }
     .page-body { padding: 14px; }
     .ev-nav-info { max-width: 140px; }
-    /* 隱藏廠牌、存放地點 */
+    /* 手機隱藏存放地點（第4欄）*/
     .instr-table thead th:nth-child(4),
-    .instr-table tbody td:nth-child(4),
-    .instr-table thead th:nth-child(6),
-    .instr-table tbody td:nth-child(6) { display: none; }
+    .instr-table tbody td:nth-child(4) { display: none; }
   }
 </style>
 </head>
@@ -192,42 +190,41 @@ function updateNav() {
 }
 
 // ── 解析 instrumentStr ──
-// 格式：名稱(型號)[偵檢類型]:使用者, ...
+// 新格式：儀器種類-儀器名稱:使用者, ...
 function parseInstruments(str) {
   if (!str) return [];
   return str.split(',').map(function(item) {
     item = item.trim();
-    // 格式：名稱(型號)[偵檢類型]
-    var nameMatch  = item.match(/^([^([]+)/);
-    var modelMatch = item.match(/\(([^)]+)\)/);
-    var detMatch   = item.match(/\[([^\]]+)\]/);
-    return {
-      name:     nameMatch  ? nameMatch[1].trim()  : item,
-      model:    modelMatch ? modelMatch[1].trim() : '',
-      detector: detMatch   ? detMatch[1].trim()   : ''
-    };
-  }).filter(function(i) { return i.name; });
+    if (!item) return null;
+    // 取使用者（最後一個冒號後）
+    var colonIdx = item.lastIndexOf(':');
+    var user = colonIdx >= 0 ? item.slice(colonIdx + 1).trim() : '';
+    var key  = colonIdx >= 0 ? item.slice(0, colonIdx).trim() : item;
+    // 取儀器種類和儀器名稱（以第一個 - 分割）
+    var dashIdx = key.indexOf('-');
+    var kind = dashIdx >= 0 ? key.slice(0, dashIdx).trim() : '';
+    var name = dashIdx >= 0 ? key.slice(dashIdx + 1).trim() : key;
+    return { kind: kind, name: name, user: user };
+  }).filter(function(i) { return i && (i.kind || i.name); });
 }
 
-// ── 從儀器清單找對應資料（用名稱+型號比對）──
-// 已配對的索引（避免同名儀器重複配對到同一列）
+// ── 從儀器清單找對應資料（用儀器種類+儀器名稱比對）──
+// 新欄位：[0]項次 [1]儀器種類 [2]儀器名稱 [3]存放地點 [4]使用者
 var _matchedRows = [];
 
-function lookupInstr(name, model, instrList) {
+function lookupInstr(kind, name, instrList) {
   for (var i = 0; i < instrList.length; i++) {
-    if (_matchedRows.indexOf(i) !== -1) continue; // 已被配對，跳過
-    var row = instrList[i].values || [];
-    var rName  = String(row[1] || '').trim();
-    var rModel = String(row[4] || '').trim();
-    if (rName === name && (!model || rModel === model)) {
-      _matchedRows.push(i); // 標記已配對
+    if (_matchedRows.indexOf(i) !== -1) continue;
+    var row   = instrList[i].values || [];
+    var rKind = String(row[1] || '').trim();
+    var rName = String(row[2] || '').trim();
+    if (rName === name && (!kind || rKind === kind)) {
+      _matchedRows.push(i);
       return {
         seq:      String(row[0] || ''),
-        detector: String(row[2] || ''),
-        brand:    String(row[3] || ''),
-        model:    String(row[4] || ''),
-        location: String(row[5] || ''),
-        keeper:   String(row[6] || '')
+        kind:     String(row[1] || ''),
+        name:     String(row[2] || ''),
+        location: String(row[3] || ''),
       };
     }
   }
@@ -272,11 +269,10 @@ function renderInstruments(instruments) {
   var body = document.getElementById('pageBody');
   var list = _instrCache || [];
 
-  // 統計：不重複偵檢類型
-  var detTypes = [];
+  // 統計：不重複儀器種類
+  var kindTypes = [];
   instruments.forEach(function(i) {
-    var det = i.detector;
-    if (det && detTypes.indexOf(det) === -1) detTypes.push(det);
+    if (i.kind && kindTypes.indexOf(i.kind) === -1) kindTypes.push(i.kind);
   });
 
   var html = '';
@@ -284,35 +280,28 @@ function renderInstruments(instruments) {
   // 統計列
   html += '<div class="stat-bar">';
   html += '<div class="stat-card"><div class="stat-label">出動儀器數量</div><div class="stat-value">' + instruments.length + '</div></div>';
-  detTypes.forEach(function(d) {
-    var cnt = instruments.filter(function(i){ return i.detector === d; }).length;
-    html += '<div class="stat-card"><div class="stat-label">' + _esc(d) + '</div><div class="stat-value" style="font-size:18px">' + cnt + '</div></div>';
+  kindTypes.forEach(function(k) {
+    var cnt = instruments.filter(function(i){ return i.kind === k; }).length;
+    html += '<div class="stat-card"><div class="stat-label">' + _esc(k) + '</div><div class="stat-value" style="font-size:18px">' + cnt + '</div></div>';
   });
   html += '</div>';
 
   // 儀器表格
   html += '<div class="instr-wrap">';
   html += '<table class="instr-table"><thead><tr>';
-  html += '<th>項次</th><th>名稱</th><th>偵檢類型</th><th>廠牌</th><th>型號</th><th>存放地點</th><th>保管人</th><th>使用者</th>';
+  html += '<th>項次</th><th>儀器種類</th><th>儀器名稱</th><th>存放地點</th><th>使用者</th>';
   html += '</tr></thead><tbody>';
 
   instruments.forEach(function(instr) {
-    var info = lookupInstr(instr.name, instr.model, list);
+    var info     = lookupInstr(instr.kind, instr.name, list);
     var seq      = info ? info.seq      : '—';
-    var detector = instr.detector || (info ? info.detector : '') || '—';
-    var brand    = info ? info.brand    : '—';
-    var model    = instr.model || (info ? info.model : '') || '—';
     var location = info ? info.location : '—';
-    var keeper   = info ? info.keeper   : '—';
 
     html += '<tr>';
-    html += '<td class="td-seq">'   + _esc(seq)      + '</td>';
-    html += '<td class="td-name">'  + _esc(instr.name) + '</td>';
-    html += '<td><span class="det-badge">' + _esc(detector) + '</span></td>';
-    html += '<td class="td-muted">' + _esc(brand)    + '</td>';
-    html += '<td class="td-mono">'  + _esc(model)    + '</td>';
-    html += '<td class="td-muted">' + _esc(location) + '</td>';
-    html += '<td class="td-muted">' + _esc(keeper)   + '</td>';
+    html += '<td class="td-seq">'   + _esc(seq)             + '</td>';
+    html += '<td class="td-muted">' + _esc(instr.kind || '—') + '</td>';
+    html += '<td class="td-name">'  + _esc(instr.name)      + '</td>';
+    html += '<td class="td-muted">' + _esc(location)        + '</td>';
     html += '<td class="td-user">'  + _esc(instr.user || '—') + '</td>';
     html += '</tr>';
   });
