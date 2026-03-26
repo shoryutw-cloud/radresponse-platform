@@ -2552,19 +2552,18 @@ var _reportFabEl = null;
 function updateFabPosition() {
   var el = document.getElementById('reportFabWrap');
   if (!el) return;
-  var card = document.getElementById('evCard');
-  if (!card || window.innerWidth > 600) {
-    // 桌機版固定位置
+  if (window.innerWidth > 600) {
     el.style.bottom = '70px';
     return;
   }
-  // 手機版：算出事件卡目前的高度，FAB 貼在上方 + 12px 間距
+  var card = document.getElementById('evCard');
+  if (!card) { el.style.bottom = '70px'; return; }
+  // 事件卡高度：展開時 75vh，收合時只有 header（約52px + safe area）
   var cardH = card.getBoundingClientRect().height;
-  var safeBottom = parseInt(getComputedStyle(document.documentElement)
-    .getPropertyValue('--sab') || '0') || 0;
   var drawVisible = document.getElementById('drawToolbar') &&
                     document.getElementById('drawToolbar').style.display !== 'none';
-  var extraOffset = drawVisible ? 56 : 0; // 畫筆工具列高度
+  var extraOffset = drawVisible ? 60 : 0;
+  // CSS transition 會自動接手動畫效果
   el.style.bottom = (cardH + 12 + extraOffset) + 'px';
 }
 function showReportFabs() {
@@ -2574,7 +2573,8 @@ function showReportFabs() {
   // ★ 持續顯示，不自動收起；避免與畫筆工具列重疊（畫筆工具列 bottom:24px，高約52px）
   el.style.cssText =
     'position:fixed;bottom:70px;left:0;right:0;z-index:3000;' +
-    'display:flex;justify-content:center;gap:14px;pointer-events:none;';
+    'display:flex;justify-content:center;gap:14px;pointer-events:none;' +
+    'transition:bottom .3s cubic-bezier(.4,0,.2,1);';
 
   var btn1 = document.createElement('button');
   btn1.textContent = '回報劑量';
