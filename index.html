@@ -26,7 +26,9 @@
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; }
+  html { overflow: hidden; }
+  body { overflow: hidden; }
   body { font-family: var(--font); background: var(--bg); color: var(--text);
          display: flex; flex-direction: column; font-size: 14px; }
 
@@ -35,7 +37,7 @@
     height: var(--header-h); background: #1e2a3a;
     display: flex; align-items: center; padding: 0 24px; gap: 0;
     flex-shrink: 0; border-bottom: 1px solid #0f1820;
-    position: relative; z-index: 400;
+    position: sticky; top: 0; z-index: 400;  /* ★ sticky 強制固定置頂 */
   }
   .topbar-logo {
     display: flex; align-items: center; gap: 8px;
