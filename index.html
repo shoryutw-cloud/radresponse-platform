@@ -122,29 +122,80 @@
   .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
 
 
+  /* ────── 漢堡按鈕 ────── */
+  .hamburger-btn {
+    display: none; flex-direction: column; justify-content: center;
+    gap: 5px; padding: 8px; background: none; border: none;
+    cursor: pointer; margin-left: auto;
+  }
+  .hamburger-btn span {
+    display: block; width: 22px; height: 2px;
+    background: #b8cce0; border-radius: 2px;
+    transition: all .25s;
+  }
+  /* 側邊抽屜 */
+  .drawer-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 5000;
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: -280px; bottom: 0;
+    width: 260px; background: #1e2a3a;
+    z-index: 5001; transition: right .28s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column; overflow-y: auto;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .drawer.open { right: 0; }
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .drawer-title { color: #e8f0fa; font-weight: 700; font-size: 15px; }
+  .drawer-close {
+    background: none; border: none; color: #8da0b8; font-size: 20px;
+    cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  }
+  .drawer-section {
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .drawer-section-title {
+    padding: 8px 18px 4px; font-size: 11px; font-weight: 600;
+    color: #4a6080; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .drawer-item {
+    display: block; width: 100%; padding: 11px 18px;
+    background: none; border: none; text-align: left;
+    color: #b8cce0; font-family: var(--font); font-size: 14px;
+    cursor: pointer; transition: background .12s, color .12s;
+  }
+  .drawer-item:hover, .drawer-item:active {
+    background: rgba(255,255,255,.08); color: #e8f0fa;
+  }
+  .drawer-item.admin-item { color: #93c5fd; }
+  .drawer-logout {
+    margin: 12px 18px; padding: 10px; border-radius: 8px;
+    border: 1px solid rgba(220,38,38,.4); background: none;
+    color: #fca5a5; font-family: var(--font); font-size: 14px;
+    cursor: pointer; text-align: center; transition: all .15s;
+  }
+  .drawer-logout:hover { background: rgba(220,38,38,.15); }
+
   /* ────── RWD ────── */
-  /* 平板（< 900px）：topbar 允許水平捲動，字體略縮 */
   @media (max-width: 900px) {
-    .topbar { overflow-x: auto; overflow-y: hidden; padding: 0 12px; gap: 0; }
-    .tnav-btn { padding: 0 10px; font-size: 13px; }
+    .topbar { padding: 0 14px; }
+    .tnav-btn { padding: 0 12px; font-size: 13px; }
     .logo-text { font-size: 18px; }
     .topbar-logout { padding: 5px 10px; font-size: 12px; }
   }
-  /* 手機（< 600px）：logo 文字隱藏，節省空間 */
   @media (max-width: 600px) {
-    .logo-text { display: none; }
-    .topbar-logo { margin-right: 2px; }
-    .tnav-btn { padding: 0 8px; font-size: 13px; gap: 3px; }
-    .tnav-arrow { display: none; }
-    .topbar-logout {
-      padding: 4px 8px; font-size: 11px; margin-left: 4px;
-      white-space: nowrap; flex-shrink: 0;
-    }
-  }
-  /* 超小螢幕（<375px）再縮 */
-  @media (max-width: 375px) {
-    .tnav-btn { padding: 0 4px; font-size: 10px; }
-    .topbar-logout { display: none; }
+    /* 桌機版 nav 整個隱藏 */
+    .top-nav { display: none !important; }
+    .topbar-logout { display: none !important; }
+    /* 顯示漢堡 */
+    .hamburger-btn { display: flex; }
+    .logo-text { font-size: 17px; }
+    .topbar { padding: 0 14px; overflow: visible; }
   }
 
   /* ────── LAYOUT ────── */
@@ -284,8 +335,62 @@
     </div>
   </nav>
 
-  <!-- 登出按鈕 -->
+  <!-- 登出按鈕（桌機）-->
   <button class="topbar-logout">&#x2190; 登出</button>
+  <!-- 漢堡按鈕（手機）-->
+  <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+
+<!-- 手機版側邊抽屜 -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span class="drawer-title">🛡️ 應變平台</span>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">事件儀表板</div>
+    <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">🗺️ 目前事件</button>
+    <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">🧭 導航至現場</button>
+    <button class="drawer-item" onclick="showIframe('event-personnel.html');closeDrawer()">👥 事件出勤人員</button>
+    <button class="drawer-item" onclick="showIframe('event-instruments.html');closeDrawer()">🔧 事件出動儀器</button>
+    <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">📋 歷史事件查詢</button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">回報</div>
+    <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">📡 我要回報</button>
+    <button class="drawer-item" onclick="openPanel('回報數值查詢');closeDrawer()">🔍 回報數值查詢</button>
+    <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">設定</div>
+    <button class="drawer-item" onclick="openPanel('個人資料維護');closeDrawer()">🪺 個人資料維護</button>
+    <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">ℹ️ 使用說明</button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">後台功能</div>
+    <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
+    <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
+    <button class="drawer-item" onclick="showIframe('edit-event.html');closeDrawer()">✏️ 編輯事件</button>
+    <button class="drawer-item" onclick="showIframe('task-dispatch.html');closeDrawer()">📨 任務派送</button>
+    <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
+    <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
+    <button class="drawer-item" onclick="openPanel('儀器回報量測數值');closeDrawer()">📡 儀器回報量測數值</button>
+    <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
+    <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">📜 事件異動紀錄</button>
+    <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">🗒️ 各帳號異動紀錄</button>
+    <button class="drawer-item" onclick="openPanel('各帳號登入紀錄');closeDrawer()">🔐 各帳號登入紀錄</button>
+    <button class="drawer-item" onclick="openPanel('出勤人員異動');closeDrawer()">👤 出勤人員異動</button>
+    <button class="drawer-item" onclick="openPanel('出動儀器異動');closeDrawer()">🔩 出動儀器異動</button>
+  </div>
+
+  <button class="drawer-logout" onclick="closeDrawer()">← 登出</button>
 </div>
 
 
@@ -549,6 +654,24 @@ function selectNavPoint(label) {
     btn.style.background  = isSelected ? '#ede9fe' : 'white';
   });
   document.getElementById('navStartBtn').style.background = '#8b5cf6';
+}
+
+// ── 手機版抽屜選單 ──
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function drawerToggleAdmin() {
+  toggleMapEdit();
+  var btn = document.getElementById('drawerAdminBtn');
+  if (btn) btn.textContent = _mapEditOn ? '🔑 編輯地圖（開啟中）' : '🔑 開啟/關閉編輯地圖';
+  closeDrawer();
 }
 
 // -- 切換回儀表板首頁 --
