@@ -26,19 +26,18 @@
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  html { overflow: hidden; }
-  body { overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; }
   body { font-family: var(--font); background: var(--bg); color: var(--text);
-         display: flex; flex-direction: column; font-size: 14px; }
+         font-size: 14px; height: 100%; }
 
   /* ────── TOP BAR ────── */
   .topbar {
     height: var(--header-h); background: #1e2a3a;
     display: flex; align-items: center; padding: 0 24px; gap: 0;
     flex-shrink: 0; border-bottom: 1px solid #0f1820;
-    position: sticky; top: 0; z-index: 400;  /* ★ sticky 強制固定置頂 */
+    position: fixed; top: 0; left: 0; right: 0; z-index: 400;
   }
+  /* layout 頂部留出 topbar 高度 */
   .topbar-logo {
     display: flex; align-items: center; gap: 8px;
     text-decoration: none; flex-shrink: 0;
@@ -199,7 +198,7 @@
   }
 
   /* ────── LAYOUT ────── */
-  .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .layout { display: flex; min-height: 0; overflow: hidden; position: relative; margin-top: var(--header-h); height: calc(100% - var(--header-h)); }
 
   /* ────── MAP ────── */
   .map-area { flex: 1; position: relative; overflow: hidden; isolation: isolate; }
