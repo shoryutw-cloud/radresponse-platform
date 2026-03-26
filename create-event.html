@@ -601,13 +601,12 @@
             oninput="document.getElementById('ceSmsLen').textContent=this.value.length + ' 字'"></textarea>
           <div class="ce-sms-count" id="ceSmsLen">0 字</div>
         </div>
-        <!-- 按鈕區固定在底部，不擠壓 textarea -->
-        <div style="flex-shrink:0;padding:10px 18px 14px;display:flex;flex-direction:column;gap:8px;background:var(--bg)">
+        <!-- 按鈕區固定在底部 -->
+        <div style="flex-shrink:0;padding:16px 18px 18px;background:var(--bg)">
           <button class="ce-sms-send-btn" id="ceSmsBtn" onclick="sendSms()">
             &#x1F4E8; 發送簡訊給勾選人員
           </button>
-          <div class="ce-sms-status" id="ceSmsStatus"></div>
-          <div class="ce-sms-note">&#x2139;&#xFE0F; 簡訊功能需串接電信業者 API（如 Every8d、簡訊王）。目前送出後資料會傳至 GAS，請確認後端已完成串接。</div>
+          <div class="ce-sms-status" id="ceSmsStatus" style="margin-top:6px"></div>
         </div>
       </div>
 
