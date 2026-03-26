@@ -342,7 +342,18 @@
   /* 欄寬 */
   .ce-p4-col-upload { width: 260px; min-width: 160px; flex-shrink: 1; background: white; }
   .ce-p4-col-person { flex: 1; min-width: 200px; background: white; }
-  .ce-p4-col-sms    { width: 420px; min-width: 260px; flex-shrink: 1; background: var(--bg); }
+  .ce-p4-col-sms    { flex: 2; min-width: 260px; flex-shrink: 1; background: var(--bg); }
+  /* 收合按鈕（直排版） */
+  .ce-p4-col-toggle {
+    display: none; /* 預設隱藏，直排時才顯示 */
+    margin-left: auto; background: none; border: none;
+    cursor: pointer; color: var(--text-muted); font-size: 13px;
+    padding: 0 4px; line-height: 1; transition: transform .25s;
+    flex-shrink: 0;
+  }
+  .ce-p4-col.collapsed .ce-p4-col-toggle { transform: rotate(180deg); }
+  .ce-p4-col.collapsed .ce-p4-col-bd { display: none; }
+
   /* 備註 */
   .ce-p4-hint {
     font-size: 12px; color: #92400e;
@@ -428,6 +439,7 @@
     .ce-p4-col-upload { min-height: auto; }
     .ce-p4-col-person { min-width: 0; max-height: 300px; }
     .ce-p4-col-sms    { min-width: 0; }
+    .ce-p4-col-toggle { display: inline-flex; align-items: center; } /* 直排才顯示 */
 
     /* 人員 chip 文字不換行 */
     .ce-p4-person-squad { max-width: 120px; }
@@ -548,6 +560,7 @@
       <div class="ce-p4-col ce-p4-col-upload">
         <div class="ce-p4-col-hd">&#x1F4CB; 通報單上傳
           <span style="font-size:11px;font-weight:400;color:#94a3b8">（選填）</span>
+          <button class="ce-p4-col-toggle" onclick="toggleP4Col(this)" title="收合">&#x25BC;</button>
         </div>
         <div class="ce-p4-col-bd">
           <label class="ce-attach-label">
@@ -566,6 +579,7 @@
         <div class="ce-p4-col-hd">&#x1F465; 接收簡訊人員
           <span id="ceSmsPersonCount" style="font-size:11px;font-weight:400;color:#94a3b8"></span>
           <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:4px">可取消勾選不發送</span>
+          <button class="ce-p4-col-toggle" onclick="toggleP4Col(this)" title="收合">&#x25BC;</button>
         </div>
         <div class="ce-p4-col-bd">
           <label class="ce-p4-chk-all-row" onclick="smsChkAll(this)">
@@ -577,7 +591,9 @@
 
       <!-- 第三欄：簡訊內容 -->
       <div class="ce-p4-col ce-p4-col-sms">
-        <div class="ce-p4-col-hd">&#x1F4DD; 簡訊內容</div>
+        <div class="ce-p4-col-hd">&#x1F4DD; 簡訊內容
+          <button class="ce-p4-col-toggle" onclick="toggleP4Col(this)" title="收合">&#x25BC;</button>
+        </div>
         <div class="ce-p4-col-bd">
           <textarea class="ce-sms-ta" id="ceSmsContent"
             oninput="document.getElementById('ceSmsLen').textContent=this.value.length + ' 字'"></textarea>
@@ -1249,6 +1265,13 @@ function _getInstruments() {
   return result.join(', ');
 }
 
+
+// ── 第四頁欄位收合（直排模式）──
+function toggleP4Col(btn) {
+  var col = btn.closest('.ce-p4-col');
+  if (!col) return;
+  col.classList.toggle('collapsed');
+}
 
 // ════════════════════════════════════════
 // 第四頁：通報單 + 簡訊確認
