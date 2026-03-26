@@ -1350,15 +1350,10 @@ function renderMsrMarkers(eventId) {
   if (!valid.length) return;
 
   var LW = 144, LH = 34;  // 標籤寬高（px）
-  var DOT_R = 20;         // 量測點圓圈佔位半徑（避免標籤蓋住圓點）
-  var R_START = 56;       // 從圓點邊緣開始往外找位置的初始距離
-  var R_STEP  = 10;       // 每次往外推的步距（小步距，找到空位就停）
-  var R_MAX   = 260;      // 最大搜尋半徑
-
-  // 8個候選方向（優先上方，依序順時針）
-  var DIRS = [-90, -45, -135, 0, -180, 45, 135, 90].map(function(d) {
-    return d * Math.PI / 180;
-  });
+  var DOT_R  = 18;         // 量測點圓圈半徑（佔位用）
+  var R_START = 52;        // 搜尋起始距離
+  var R_MAX   = 280;       // 最大搜尋半徑
+  var ANG_STEP = 20;       // 角度掃描步距（度）
 
   // 轉像素座標
   var pts = valid.map(function(msr) {
@@ -1366,27 +1361,11 @@ function renderMsrMarkers(eventId) {
     return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
   });
 
-  // 依數值大小排序（高→低），大值優先找位置
-  pts.sort(function(a, b) {
-    return parseFloat(b.msr.value) - parseFloat(a.msr.value);
-  });
-
   var mSize = gMap.getSize();
-  var PAD   = 8; // 螢幕邊界內縮
-
-  // 已佔用區域（含量測點圓圈本身）
-  var placed = [];
-
-  // 先把所有量測點圓圈位置加入佔位清單，標籤不能壓在圓點上
-  pts.forEach(function(pt) {
-    placed.push({
-      x: pt.px.x - DOT_R, y: pt.px.y - DOT_R,
-      w: DOT_R * 2,        h: DOT_R * 2
-    });
-  });
+  var PAD   = 6;
 
   function rectsOverlap(a, b) {
-    var GAP = 6;
+    var GAP = 8;
     return !(a.x + a.w + GAP < b.x || b.x + b.w + GAP < a.x ||
              a.y + a.h + GAP < b.y || b.y + b.h + GAP < a.y);
   }
@@ -1397,14 +1376,49 @@ function renderMsrMarkers(eventId) {
     return [lx, ly];
   }
 
+  // 已佔位清單：先把所有量測點圓圈加入
+  var placed = [];
   pts.forEach(function(pt) {
-    var placed_ok = false;
+    placed.push({ x: pt.px.x - DOT_R, y: pt.px.y - DOT_R, w: DOT_R*2, h: DOT_R*2 });
+  });
 
-    // 8 個方向輪流嘗試，每個方向從 R_START 開始往外推
-    outer:
-    for (var r = R_START; r <= R_MAX; r += R_STEP) {
-      for (var di = 0; di < DIRS.length; di++) {
-        var rad = DIRS[di];
+  // 依數值大小排序（高→低），大值優先
+  pts.sort(function(a, b) {
+    return parseFloat(b.msr.value) - parseFloat(a.msr.value);
+  });
+
+  pts.forEach(function(pt) {
+    // ── 計算「最佳起始角度」：指向距離所有其他量測點最遠的方向 ──
+    var ox = 0, oy = 0, cnt = 0;
+    pts.forEach(function(other) {
+      if (other === pt) return;
+      var dx = pt.px.x - other.px.x;
+      var dy = pt.px.y - other.px.y;
+      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      ox += dx / dist;  // 歸一化後累加，遠離其他點的方向
+      oy += dy / dist;
+      cnt++;
+    });
+    // 若只有一個點，預設往右上
+    var bestAngle = cnt > 0
+      ? Math.atan2(oy, ox) * 180 / Math.PI
+      : -45;
+
+    // ── 從最佳角度出發，螺旋掃描（先近後遠，先左後右交替展開）──
+    var placed_ok = false;
+    var angOffsets = [0];
+    for (var a = ANG_STEP; a < 180; a += ANG_STEP) {
+      angOffsets.push(a);
+      angOffsets.push(-a);
+    }
+    angOffsets.push(180);
+
+    outer2:
+    for (var ri = 0; ri <= (R_MAX - R_START) / 12; ri++) {
+      var r = R_START + ri * 12;
+      for (var ai = 0; ai < angOffsets.length; ai++) {
+        var angDeg = bestAngle + angOffsets[ai];
+        var rad = angDeg * Math.PI / 180;
         var lx = pt.px.x + r * Math.cos(rad);
         var ly = pt.px.y + r * Math.sin(rad);
         var cl = clamp(lx, ly);
@@ -1418,18 +1432,16 @@ function renderMsrMarkers(eventId) {
           placed.push(rect);
           pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
           placed_ok = true;
-          break outer;
+          break outer2;
         }
       }
     }
 
-    // 萬一找不到，強制放在右上方最遠處
     if (!placed_ok) {
-      var lx2 = pt.px.x + R_MAX * Math.cos(-45 * Math.PI / 180);
-      var ly2 = pt.px.y + R_MAX * Math.sin(-45 * Math.PI / 180);
-      var cl2 = clamp(lx2, ly2);
-      placed.push({ x: cl2[0] - LW/2, y: cl2[1] - LH/2, w: LW, h: LH });
-      pt.offLL = gMap.layerPointToLatLng(L.point(cl2[0], cl2[1]));
+      var cl3 = clamp(pt.px.x + R_MAX * Math.cos(bestAngle * Math.PI / 180),
+                      pt.px.y + R_MAX * Math.sin(bestAngle * Math.PI / 180));
+      placed.push({ x: cl3[0]-LW/2, y: cl3[1]-LH/2, w: LW, h: LH });
+      pt.offLL = gMap.layerPointToLatLng(L.point(cl3[0], cl3[1]));
     }
   });
 
