@@ -1349,57 +1349,48 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  var LW = 144, LH = 34;   // 標籤寬高（px）
-  var DOT_R  = 16;          // 量測點圓圈佔位半徑
-  var EV_R   = 28;          // 事發地點圖釘佔位半徑（較大）
-  var ANG_STEP = 18;        // 角度掃描步距（度）
+  var LW = 144, LH = 34;  // 標籤估計寬高（px）
+  var DOT_R = 14;          // 量測點圓圈佔位半徑
+  var EV_R  = 26;          // 事發地點佔位半徑
 
-  // ★ 虛線長度隨縮放自動調整（地理距離固定 ~100m，轉像素）
-  // zoom 15 ≈ 70px，zoom 14 ≈ 35px，zoom 16 ≈ 140px
-  var zoom   = gMap.getZoom();
-  var R_START = Math.round(40 * Math.pow(2, zoom - 14));
-  R_START = Math.max(54, Math.min(160, R_START)); // 夾在 54~160px
-  var R_MAX   = R_START + 200;
+  // ★ 固定虛線長度：60px（不隨縮放變，保持視覺一致）
+  var LINE_LEN = 60;
+  var R_MAX    = LINE_LEN + 180; // 找不到時最多往外推 180px
 
-  // 轉像素座標
+  // ★ 使用 containerPoint（容器像素座標），確保 clamp 與碰撞在同一座標系
   var pts = valid.map(function(msr) {
     var ll = L.latLng(parseFloat(msr.lat), parseFloat(msr.lng));
-    return { msr: msr, ll: ll, px: gMap.latLngToLayerPoint(ll) };
+    return { msr: msr, ll: ll, cp: gMap.latLngToContainerPoint(ll) };
   });
 
-  var mSize = gMap.getSize();
+  var mSize = gMap.getSize();  // {x: width, y: height}
   var PAD   = 6;
 
   function rectsOverlap(a, b) {
-    var GAP = 8;
+    var GAP = 10;
     return !(a.x + a.w + GAP < b.x || b.x + b.w + GAP < a.x ||
              a.y + a.h + GAP < b.y || b.y + b.h + GAP < a.y);
   }
 
-  function clamp(lx, ly) {
-    lx = Math.max(LW/2 + PAD, Math.min(mSize.x - LW/2 - PAD, lx));
-    ly = Math.max(LH/2 + PAD, Math.min(mSize.y - LH/2 - PAD, ly));
-    return [lx, ly];
+  function clamp(cx, cy) {
+    cx = Math.max(LW/2 + PAD, Math.min(mSize.x - LW/2 - PAD, cx));
+    cy = Math.max(LH/2 + PAD, Math.min(mSize.y - LH/2 - PAD, cy));
+    return { x: cx, y: cy };
   }
 
-  // ── 已佔位清單 ──
+  // ── 已佔位清單（容器像素座標）──
   var placed = [];
 
-  // 1. 所有量測點圓圈
+  // 量測點圓圈
   pts.forEach(function(pt) {
-    placed.push({ x: pt.px.x - DOT_R, y: pt.px.y - DOT_R, w: DOT_R*2, h: DOT_R*2 });
+    placed.push({ x: pt.cp.x - DOT_R, y: pt.cp.y - DOT_R, w: DOT_R*2, h: DOT_R*2 });
   });
 
-  // 2. ★ 事發地點禁區：隨 zoom 計算 100m 的像素半徑
-  //    zoom 14 ≈ 30px/100m, zoom 15 ≈ 60px, zoom 16 ≈ 120px
-  var zoom100m = Math.round(30 * Math.pow(2, zoom - 14));
-  zoom100m = Math.max(24, Math.min(180, zoom100m));
+  // 事發地點（不隨 zoom 做 100m 禁區，只保護圖釘本身）
   _events.forEach(function(ev) {
-    if (isNaN(parseFloat(ev.lat)) || isNaN(parseFloat(ev.lng))) return;
-    var evPx = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
-    // 加大禁區（圖釘本身 + 100m 範圍圓）
-    var forbidR = Math.max(EV_R, zoom100m);
-    placed.push({ x: evPx.x - forbidR, y: evPx.y - forbidR, w: forbidR*2, h: forbidR*2 });
+    if (isNaN(parseFloat(ev.lat))) return;
+    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
+    placed.push({ x: ep.x - EV_R, y: ep.y - EV_R, w: EV_R*2, h: EV_R*2 });
   });
 
   // 依數值大小排序（高→低），大值優先
@@ -1407,102 +1398,84 @@ function renderMsrMarkers(eventId) {
     return parseFloat(b.msr.value) - parseFloat(a.msr.value);
   });
 
-  // 取當前事件的像素座標（扇形中心）
+  // 當前事發點容器座標
   var curEv = _events[_curIdx];
-  var evPxCenter = (curEv && !isNaN(parseFloat(curEv.lat)))
-    ? gMap.latLngToLayerPoint(L.latLng(parseFloat(curEv.lat), parseFloat(curEv.lng)))
+  var evCP = (curEv && !isNaN(parseFloat(curEv.lat)))
+    ? gMap.latLngToContainerPoint(L.latLng(parseFloat(curEv.lat), parseFloat(curEv.lng)))
     : null;
 
+  // 候選角度：以「垂直於徑向」為基準，往兩側每 20° 展開
+  function buildAngles(base) {
+    var angles = [base, base + 180];
+    for (var a = 20; a < 180; a += 20) {
+      angles.push(base + a);
+      angles.push(base - a);
+    }
+    return angles;
+  }
+
   pts.forEach(function(pt) {
-    // ★ 核心邏輯：
-    // 1. 計算「事發點→量測點」的方向向量
-    // 2. 最佳展開方向 = 垂直於這個向量（即扇形側邊方向）
-    // 3. 同時避開其他量測點和所有事發地點
-    var bestAngle;
-
-    if (evPxCenter) {
-      var radialDx = pt.px.x - evPxCenter.x;
-      var radialDy = pt.px.y - evPxCenter.y;
-      var radialDist = Math.sqrt(radialDx*radialDx + radialDy*radialDy) || 1;
-
-      // 垂直方向（順時針 90° 和 逆時針 90°）
-      var perpAngle1 = Math.atan2(radialDy, radialDx) * 180 / Math.PI + 90;
-      var perpAngle2 = Math.atan2(radialDy, radialDx) * 180 / Math.PI - 90;
-
-      // 評估兩個垂直方向，選遠離其他點的那個
-      function evalDir(ang) {
-        var rad = ang * Math.PI / 180;
-        var tx = pt.px.x + R_START * Math.cos(rad);
-        var ty = pt.px.y + R_START * Math.sin(rad);
-        var score = 0;
-        // 遠離其他量測點（加分）
-        pts.forEach(function(other) {
-          if (other === pt) return;
-          var dx = tx - other.px.x, dy = ty - other.px.y;
-          score += Math.sqrt(dx*dx + dy*dy);
-        });
-        // 遠離事發地點（強烈懲罰靠近事發點的方向）
-        _events.forEach(function(ev2) {
-          if (isNaN(parseFloat(ev2.lat))) return;
-          var ep = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev2.lat), parseFloat(ev2.lng)));
-          var dx = tx - ep.x, dy = ty - ep.y;
-          var dist = Math.sqrt(dx*dx + dy*dy);
-          score += dist * 3; // 加重遠離事發點的方向
-        });
-        return score;
-      }
-
-      bestAngle = evalDir(perpAngle1) >= evalDir(perpAngle2) ? perpAngle1 : perpAngle2;
+    // 最佳起始角 = 垂直於「事發點→量測點」的徑向
+    var baseAngle;
+    if (evCP) {
+      var dx = pt.cp.x - evCP.x, dy = pt.cp.y - evCP.y;
+      var radial = Math.atan2(dy, dx) * 180 / Math.PI;
+      // 選垂直方向（+90 或 -90）中，遠離其他量測點的那個
+      var perp1 = radial + 90, perp2 = radial - 90;
+      var score1 = 0, score2 = 0;
+      pts.forEach(function(other) {
+        if (other === pt) return;
+        var r1 = Math.hypot(pt.cp.x + LINE_LEN*Math.cos(perp1*Math.PI/180) - other.cp.x,
+                             pt.cp.y + LINE_LEN*Math.sin(perp1*Math.PI/180) - other.cp.y);
+        var r2 = Math.hypot(pt.cp.x + LINE_LEN*Math.cos(perp2*Math.PI/180) - other.cp.x,
+                             pt.cp.y + LINE_LEN*Math.sin(perp2*Math.PI/180) - other.cp.y);
+        score1 += r1; score2 += r2;
+      });
+      baseAngle = (score1 >= score2) ? perp1 : perp2;
     } else {
-      // 無事發點資料：fallback 遠離其他量測點
+      // fallback：遠離其他量測點
       var ox = 0, oy = 0;
       pts.forEach(function(other) {
         if (other === pt) return;
-        var dx = pt.px.x - other.px.x, dy = pt.px.y - other.px.y;
-        var d = Math.sqrt(dx*dx + dy*dy) || 1;
-        ox += dx/d; oy += dy/d;
+        var d = Math.hypot(pt.cp.x - other.cp.x, pt.cp.y - other.cp.y) || 1;
+        ox += (pt.cp.x - other.cp.x)/d;
+        oy += (pt.cp.y - other.cp.y)/d;
       });
-      bestAngle = (ox || oy) ? Math.atan2(oy, ox) * 180 / Math.PI : -45;
+      baseAngle = (ox||oy) ? Math.atan2(oy,ox)*180/Math.PI : -45;
     }
 
-    // 螺旋掃描：從最佳角度往兩側展開
-    var angOffsets = [0];
-    for (var a = ANG_STEP; a < 180; a += ANG_STEP) {
-      angOffsets.push(a); angOffsets.push(-a);
-    }
-    angOffsets.push(180);
-
+    var angles = buildAngles(baseAngle);
     var placed_ok = false;
-    outer2:
-    for (var r = R_START; r <= R_MAX; r += 10) {
-      for (var ai = 0; ai < angOffsets.length; ai++) {
-        var rad = (bestAngle + angOffsets[ai]) * Math.PI / 180;
-        var lx = pt.px.x + r * Math.cos(rad);
-        var ly = pt.px.y + r * Math.sin(rad);
-        var cl = clamp(lx, ly); lx = cl[0]; ly = cl[1];
-        var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
+
+    outer3:
+    for (var r = LINE_LEN; r <= R_MAX; r += 8) {
+      for (var ai = 0; ai < angles.length; ai++) {
+        var rad = angles[ai] * Math.PI / 180;
+        var cx  = pt.cp.x + r * Math.cos(rad);
+        var cy  = pt.cp.y + r * Math.sin(rad);
+        var cl  = clamp(cx, cy);
+        var rect = { x: cl.x - LW/2, y: cl.y - LH/2, w: LW, h: LH };
         var clash = false;
         for (var pi = 0; pi < placed.length; pi++) {
           if (rectsOverlap(rect, placed[pi])) { clash = true; break; }
         }
         if (!clash) {
           placed.push(rect);
-          pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
+          // ★ 用 containerPointToLatLng 轉回地理座標
+          pt.offLL = gMap.containerPointToLatLng(L.point(cl.x, cl.y));
           placed_ok = true;
-          break outer2;
+          break outer3;
         }
       }
     }
     if (!placed_ok) {
-      var cl3 = clamp(
-        pt.px.x + R_MAX * Math.cos(bestAngle * Math.PI / 180),
-        pt.px.y + R_MAX * Math.sin(bestAngle * Math.PI / 180)
-      );
-      placed.push({ x: cl3[0]-LW/2, y: cl3[1]-LH/2, w: LW, h: LH });
-      pt.offLL = gMap.layerPointToLatLng(L.point(cl3[0], cl3[1]));
+      var rad0 = baseAngle * Math.PI / 180;
+      var cl0  = clamp(pt.cp.x + R_MAX * Math.cos(rad0),
+                       pt.cp.y + R_MAX * Math.sin(rad0));
+      placed.push({ x: cl0.x - LW/2, y: cl0.y - LH/2, w: LW, h: LH });
+      pt.offLL = gMap.containerPointToLatLng(L.point(cl0.x, cl0.y));
     }
   });
-
   // ── 渲染三件組：圓點 + 指引線 + 標籤 ──
   pts.forEach(function(pt) {
     var msr = pt.msr;
@@ -3083,7 +3056,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 縮放後像素座標改變，需重新跑碰撞偵測重繪標籤
-    gMap.on('zoomend', function() {
+    gMap.on('moveend', function() {
       if (!_events.length) return;
       var ev = _events[_curIdx];
       if (!ev) return;
