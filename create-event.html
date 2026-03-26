@@ -596,10 +596,13 @@
         <div class="ce-p4-col-hd">&#x1F4DD; 簡訊內容
           <button class="ce-p4-col-toggle" onclick="toggleP4Col(this)" title="收合">&#x25BC;</button>
         </div>
-        <div class="ce-p4-col-bd">
+        <div class="ce-p4-col-bd" style="padding-bottom:0">
           <textarea class="ce-sms-ta" id="ceSmsContent"
             oninput="document.getElementById('ceSmsLen').textContent=this.value.length + ' 字'"></textarea>
           <div class="ce-sms-count" id="ceSmsLen">0 字</div>
+        </div>
+        <!-- 按鈕區固定在底部，不擠壓 textarea -->
+        <div style="flex-shrink:0;padding:10px 18px 14px;display:flex;flex-direction:column;gap:8px;background:var(--bg)">
           <button class="ce-sms-send-btn" id="ceSmsBtn" onclick="sendSms()">
             &#x1F4E8; 發送簡訊給勾選人員
           </button>
