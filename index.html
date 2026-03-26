@@ -72,7 +72,9 @@
   }
   .tnav-arrow {
     font-size: 9px; opacity: .6;
-    display: inline-block;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 10px; height: 10px; line-height: 1;
+    transform-origin: center center;
     transition: transform .25s cubic-bezier(.4,0,.2,1);
   }
   .tnav-item.open > .tnav-btn .tnav-arrow { transform: rotate(-90deg); }
