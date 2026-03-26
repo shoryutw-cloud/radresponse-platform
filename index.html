@@ -26,15 +26,18 @@
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  /* iOS Safari：svh = small viewport height，鍵盤出現/消失都不會改變，根本解決跑版 */
+  /* iOS Safari RWD 正確做法：
+     1. 先設 100%（所有瀏覽器都懂）
+     2. 再用 100dvh 覆蓋（動態 viewport，現代瀏覽器）
+     3. overflow:hidden 防止內容溢出 */
   html {
-    height: 100svh;   /* 現代瀏覽器 */
-    height: -webkit-fill-available;  /* iOS 14 以下 fallback */
+    height: 100%;
+    height: 100dvh;
     overflow: hidden;
   }
   body {
-    height: 100svh;
-    height: -webkit-fill-available;
+    height: 100%;
+    height: 100dvh;
     overflow: hidden;
     font-family: var(--font); background: var(--bg); color: var(--text);
     font-size: 14px;
