@@ -1358,7 +1358,7 @@ function renderMsrMarkers(eventId) {
   // zoom 15 ≈ 70px，zoom 14 ≈ 35px，zoom 16 ≈ 140px
   var zoom   = gMap.getZoom();
   var R_START = Math.round(40 * Math.pow(2, zoom - 14));
-  R_START = Math.max(44, Math.min(150, R_START)); // 夾在 44~150px
+  R_START = Math.max(54, Math.min(160, R_START)); // 夾在 54~160px
   var R_MAX   = R_START + 200;
 
   // 轉像素座標
@@ -1390,11 +1390,16 @@ function renderMsrMarkers(eventId) {
     placed.push({ x: pt.px.x - DOT_R, y: pt.px.y - DOT_R, w: DOT_R*2, h: DOT_R*2 });
   });
 
-  // 2. ★ 事發地點圖釘（當前事件 + 所有其他事件）
+  // 2. ★ 事發地點禁區：隨 zoom 計算 100m 的像素半徑
+  //    zoom 14 ≈ 30px/100m, zoom 15 ≈ 60px, zoom 16 ≈ 120px
+  var zoom100m = Math.round(30 * Math.pow(2, zoom - 14));
+  zoom100m = Math.max(24, Math.min(180, zoom100m));
   _events.forEach(function(ev) {
     if (isNaN(parseFloat(ev.lat)) || isNaN(parseFloat(ev.lng))) return;
     var evPx = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev.lat), parseFloat(ev.lng)));
-    placed.push({ x: evPx.x - EV_R, y: evPx.y - EV_R, w: EV_R*2, h: EV_R*2 });
+    // 加大禁區（圖釘本身 + 100m 範圍圓）
+    var forbidR = Math.max(EV_R, zoom100m);
+    placed.push({ x: evPx.x - forbidR, y: evPx.y - forbidR, w: forbidR*2, h: forbidR*2 });
   });
 
   // 依數值大小排序（高→低），大值優先
@@ -1436,12 +1441,13 @@ function renderMsrMarkers(eventId) {
           var dx = tx - other.px.x, dy = ty - other.px.y;
           score += Math.sqrt(dx*dx + dy*dy);
         });
-        // 遠離事發地點（加分，權重高）
+        // 遠離事發地點（強烈懲罰靠近事發點的方向）
         _events.forEach(function(ev2) {
           if (isNaN(parseFloat(ev2.lat))) return;
           var ep = gMap.latLngToLayerPoint(L.latLng(parseFloat(ev2.lat), parseFloat(ev2.lng)));
           var dx = tx - ep.x, dy = ty - ep.y;
-          score += Math.sqrt(dx*dx + dy*dy) * 2;
+          var dist = Math.sqrt(dx*dx + dy*dy);
+          score += dist * 3; // 加重遠離事發點的方向
         });
         return score;
       }
@@ -1534,16 +1540,23 @@ function renderMsrMarkers(eventId) {
     });
     var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
 
-    var timeStr = '';
+    var dtStr = '';
     try {
       var d = new Date(msr.time);
-      if (!isNaN(d.getTime())) timeStr = d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+      if (!isNaN(d.getTime())) {
+        var yy = d.getFullYear();
+        var mm = String(d.getMonth()+1).padStart(2,'0');
+        var dd = String(d.getDate()).padStart(2,'0');
+        var hh = String(d.getHours()).padStart(2,'0');
+        var mi = String(d.getMinutes()).padStart(2,'0');
+        dtStr = yy + '/' + mm + '/' + dd + ' ' + hh + ':' + mi;
+      }
     } catch(e) {}
     label.bindPopup(
       '<div class="msr-popup">' +
       '<span class="msr-popup-val" style="color:' + col + '">' + val.toFixed(3) + '</span>' +
       '<span class="msr-popup-unit">&#x03BC;Sv/h</span>' +
-      '<div class="msr-popup-info">' + (msr.reporter||'') + (timeStr ? ' · '+timeStr : '') + '</div>' +
+      '<div class="msr-popup-info">' + (msr.reporter||'') + (dtStr ? ' · '+dtStr : '') + '</div>' +
       (msr.instrument ? '<div class="msr-popup-info">'+msr.instrument+'</div>' : '') +
       '</div>'
     );
