@@ -1350,10 +1350,10 @@ function renderMsrMarkers(eventId) {
   if (!valid.length) return;
 
   var LW = 118, LH = 30;   // 標籤估計寬高（px）
-  var R_MIN  = 110;         // 扇形起始半徑（px）
-  var R_STEP = LH + 8;      // 碰撞時往外擴一層的步距（剛好一個標籤高度）
-  var R_MAX  = 600;
-  var CLUSTER_R = 160;      // 視為同群的像素距離門檻
+  var R_MIN  = 60;          // 扇形起始半徑（縮小避免虛線太長）
+  var R_STEP = LH + 6;
+  var R_MAX  = 220;         // 最大半徑限制，避免標籤跑出螢幕
+  var CLUSTER_R = 120;      // 視為同群的像素距離門檻
 
   // 轉像素座標
   var pts = valid.map(function(msr) {
@@ -1417,7 +1417,12 @@ function renderMsrMarkers(eventId) {
       var rect = { x: lx - LW/2, y: ly - LH/2, w: LW, h: LH };
       var clash = placed.some(function(p) { return overlaps(rect, p); });
       if (!clash) {
-        placed.push(rect);
+        // ★ 限制在地圖可視區域內（邊界留 LW/2 + 4px 避免超出螢幕）
+        var mSize = gMap.getSize();
+        var pad   = 8;
+        lx = Math.max(LW/2 + pad, Math.min(mSize.x - LW/2 - pad, lx));
+        ly = Math.max(LH/2 + pad, Math.min(mSize.y - LH/2 - pad, ly));
+        placed.push({ x: lx - LW/2, y: ly - LH/2, w: LW, h: LH });
         pt.offLL = gMap.layerPointToLatLng(L.point(lx, ly));
         found = true;
         break;
@@ -1427,6 +1432,9 @@ function renderMsrMarkers(eventId) {
     if (!found) {
       var lx2 = pt.px.x + R_MAX * Math.cos(rad);
       var ly2 = pt.px.y + R_MAX * Math.sin(rad);
+      var mSize2 = gMap.getSize();
+      lx2 = Math.max(LW/2 + 8, Math.min(mSize2.x - LW/2 - 8, lx2));
+      ly2 = Math.max(LH/2 + 8, Math.min(mSize2.y - LH/2 - 8, ly2));
       placed.push({ x: lx2 - LW/2, y: ly2 - LH/2, w: LW, h: LH });
       pt.offLL = gMap.layerPointToLatLng(L.point(lx2, ly2));
     }
@@ -1582,10 +1590,10 @@ function loadEnvMonitor() {
 // ── 渲染環境監測站標記（菱形圓點 + 指引線 + 數值標籤）──
 function renderEnvMarkers(stations) {
   var LW = 118, LH = 30;
-  var R_MIN  = 52;
-  var R_STEP = LH + 8;
-  var R_MAX  = 600;
-  var CLUSTER_R = 160;
+  var R_MIN  = 60;
+  var R_STEP = LH + 6;
+  var R_MAX  = 220;
+  var CLUSTER_R = 120;
 
   // 轉像素座標
   var pts = stations.filter(function(st) {
@@ -1675,6 +1683,9 @@ function renderEnvMarkers(stations) {
     if (!found) {
       var lx2 = pt.px.x + R_MAX * Math.cos(rad);
       var ly2 = pt.px.y + R_MAX * Math.sin(rad);
+      var mSize2 = gMap.getSize();
+      lx2 = Math.max(LW/2 + 8, Math.min(mSize2.x - LW/2 - 8, lx2));
+      ly2 = Math.max(LH/2 + 8, Math.min(mSize2.y - LH/2 - 8, ly2));
       placed.push({ x: lx2 - LW/2, y: ly2 - LH/2, w: LW, h: LH });
       pt.offLL = gMap.layerPointToLatLng(L.point(lx2, ly2));
     }

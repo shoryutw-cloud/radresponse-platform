@@ -26,22 +26,18 @@
     --ease: cubic-bezier(.4,0,.2,1);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  /* iOS Safari RWD 正確做法：
-     1. 先設 100%（所有瀏覽器都懂）
-     2. 再用 100dvh 覆蓋（動態 viewport，現代瀏覽器）
-     3. overflow:hidden 防止內容溢出 */
   html {
     height: 100%;
-    height: 100dvh;
     overflow: hidden;
   }
   body {
     height: 100%;
-    height: 100dvh;
     overflow: hidden;
     font-family: var(--font); background: var(--bg); color: var(--text);
     font-size: 14px;
     display: flex; flex-direction: column;
+    /* iOS：鎖住初始高度，鍵盤/工具列出現時不重排 */
+    max-height: 100%;
   }
 
   /* ────── TOP BAR：正常流（不用 fixed/sticky，不會被 iOS 捲走）────── */
@@ -757,6 +753,20 @@ function closePanel() {
 // DOMContentLoaded：頁面 HTML 載入完成後執行
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
+  // ── iOS Safari：用 visualViewport 鎖定 body 高度，避免鍵盤/工具列造成跑版 ──
+  if (window.visualViewport) {
+    function lockHeight() {
+      // 只在非鍵盤狀態更新（鍵盤出現時 visualViewport.height 會縮小，不更新）
+      var vh = window.visualViewport.height;
+      // 判斷鍵盤是否彈出：若 vh 明顯小於 window.innerHeight 則跳過
+      if (vh < window.innerHeight * 0.75) return;
+      document.documentElement.style.height = vh + 'px';
+      document.body.style.height = vh + 'px';
+    }
+    lockHeight();
+    window.visualViewport.addEventListener('resize', lockHeight);
+  }
+
 
   // 載入儀表板統計
   loadDashStats();
