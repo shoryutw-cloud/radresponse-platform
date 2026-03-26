@@ -340,9 +340,9 @@
   .ce-p4-col-bd::-webkit-scrollbar { width: 4px; }
   .ce-p4-col-bd::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   /* 欄寬 */
-  .ce-p4-col-upload { width: 300px; flex-shrink: 0; background: white; }
-  .ce-p4-col-person { flex: 1; min-width: 280px; background: white; }
-  .ce-p4-col-sms    { width: 510px; flex-shrink: 0; background: var(--bg); }
+  .ce-p4-col-upload { width: 260px; min-width: 160px; flex-shrink: 1; background: white; }
+  .ce-p4-col-person { flex: 1; min-width: 200px; background: white; }
+  .ce-p4-col-sms    { width: 420px; min-width: 260px; flex-shrink: 1; background: var(--bg); }
   /* 備註 */
   .ce-p4-hint {
     font-size: 12px; color: #92400e;
@@ -402,15 +402,39 @@
     padding: 7px 10px; line-height: 1.6;
   }
 
-  /* ── RWD ── */
+  /* ── RWD：平板（<900px）──  */
+  @media (max-width: 900px) {
+    .ce-p4-col-upload { width: 180px; }
+    .ce-p4-col-sms    { width: auto; flex: 1; min-width: 220px; }
+  }
+
+  /* ── RWD：手機（<700px）── */
   @media (max-width: 700px) {
+    /* 第一頁：表單上、地圖下 */
     .ce-form-col { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
     #cePage1 { flex-direction: column; }
-    .ce-map-col { height: 220px; }
+    .ce-map-col { height: 200px; }
+
+    /* header/footer 縮排 */
     .ce-header { padding: 0 12px; }
     .ce-footer { padding: 8px 12px; }
     .ce-step-label { display: none; }
     .ce-title { font-size: 13px; }
+    .ce-evid  { font-size: 12px; max-width: 100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* 第四頁：三欄改直排 */
+    .ce-p4-outer { flex-direction: column; overflow-y: auto; }
+    .ce-p4-col   { width: 100% !important; flex-shrink: 0; border-right: none; border-bottom: 1px solid var(--border); }
+    .ce-p4-col-upload { min-height: auto; }
+    .ce-p4-col-person { min-width: 0; max-height: 300px; }
+    .ce-p4-col-sms    { min-width: 0; }
+
+    /* 人員 chip 文字不換行 */
+    .ce-p4-person-squad { max-width: 120px; }
+
+    /* 儀器表格欄位手機隱藏存放地點 */
+    .ce-instr-tbl thead th:nth-child(4),
+    .ce-instr-tbl tbody td:nth-child(4) { display: none; }
   }
 </style>
 </head>
