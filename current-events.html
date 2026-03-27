@@ -2412,11 +2412,20 @@ function removeEventLayers(idx) {
 // 預設全部為 true（全開），使用者勾選後自動記憶
 var _layerPrefs = {};
 
-// 取得指定事件+圖層的記憶狀態（未曾設定過則預設 true）
+// 取得指定事件+圖層的記憶狀態
+// 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
+var _LAYER_DEFAULTS = { circle: true, line: false, sector: false, msr: true };
 function getLayerPref(eventId, type) {
-  if (!_layerPrefs[eventId]) return true;
+  if (!_layerPrefs[eventId]) {
+    var def = _LAYER_DEFAULTS[type];
+    return (def !== undefined) ? def : false;
+  }
   var val = _layerPrefs[eventId][type];
-  return (val === undefined) ? true : val;
+  if (val === undefined) {
+    var def = _LAYER_DEFAULTS[type];
+    return (def !== undefined) ? def : false;
+  }
+  return val;
 }
 
 // 儲存使用者勾選狀態
