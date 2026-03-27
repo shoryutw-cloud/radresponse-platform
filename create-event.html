@@ -1457,7 +1457,7 @@ function ceDo() {
     note:          document.getElementById('ceNote').value.trim(),
     createdAt:     new Date().toISOString(),
     status:        'active',
-    personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.name; }).join(', '),
+    personnelStr: _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.squad + ':' + p.name; }).join(', '),
     instrumentStr: _ceSkipInstruments ? '' : _getInstruments(),
     attachmentUrl: _attachUrl || ''
   };
