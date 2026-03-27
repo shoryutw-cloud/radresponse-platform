@@ -3786,7 +3786,7 @@ function openAssignModal(latlng) {
       optHtml +=
         '<label class="squad-option" onclick="selectSquad(\'' + _esc(sq) + '\', this)">' +
         '<input type="radio" name="squadRadio" value="' + _esc(sq) + '">' +
-        '<span>' + emoji + ' ' + _esc(sq) + '</span>' +
+        '<span>' + _esc(sq) + '</span>' +
         '</label>';
     });
     if (!optHtml) {
