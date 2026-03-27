@@ -1255,28 +1255,23 @@ function renderCard(idx) {
 
   html += '<hr class="ev-divider">';
 
-  // 赴現場人數（技術組）
+  // 出勤人員（可點查看）
   html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">赴現場人數</span>';
-  html += '<span class="ev-val accent">' + techCount + ' 人</span>';
+  html += '<span class="ev-lbl">出勤人員</span>';
+  html += '<span class="ev-val accent" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="openPersonnelViewModal()">' + techCount + ' 人（查看）</span>';
   html += '</div>';
 
-  // 攜帶偵檢器種類
+  // 攜帶儀器種類（可點查看）
   html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">出動儀器種類</span>';
+  html += '<span class="ev-lbl">攜帶儀器種類</span>';
   if (detTypes.length) {
-    html += '<div class="ev-tags">';
-    detTypes.forEach(function(t) { html += '<span class="ev-tag">' + _esc(t) + '</span>'; });
+    html += '<div class="ev-tags" style="cursor:pointer" onclick="openInstrViewModal()">';
+    detTypes.forEach(function(t) { html += '<span class="ev-tag" style="text-decoration:underline;text-underline-offset:3px">' + _esc(t) + '</span>'; });
+    html += '<span style="font-size:11px;color:var(--accent);margin-left:4px">（查看）</span>';
     html += '</div>';
   } else {
     html += '<span class="ev-val" style="color:#b0bec5">—</span>';
   }
-  html += '</div>';
-
-  // 快捷按鈕（觀看模式 → 唯讀 Modal）
-  html += '<div class="ev-shortcuts">';
-  html += '<button class="ev-shortcut-btn" onclick="goPersonnel()">&#x1F465; 出勤人員</button>';
-  html += '<button class="ev-shortcut-btn" onclick="goInstruments()">&#x1F527; 出動儀器</button>';
   html += '</div>';
 
   body.innerHTML = html;
