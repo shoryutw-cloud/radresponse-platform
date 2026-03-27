@@ -2283,6 +2283,30 @@ function buildEventLayers(idx) {
     mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
     _evLayers[idx].ptMk1 = mk1;
 
+    // ── 橫切面 20 等分點（編號 A01~A20，綠色小點）──
+    var crossMks = [];
+    for (var ci = 0; ci < 20; ci++) {
+      // 從 perpB（-500m）到 perpA（+500m）均勻分 19 份，共 20 個點
+      var t  = ci / 19;
+      var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
+      var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
+      var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
+      var cIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:18px;height:18px;border-radius:50%;' +
+              'background:#16a34a;border:2px solid white;' +
+              'display:flex;align-items:center;justify-content:center;' +
+              'font-size:8px;font-weight:700;color:white;' +
+              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
+              'font-family:ui-monospace,monospace">' + (ci+1) + '</div>',
+        iconSize: [18, 18], iconAnchor: [9, 9]
+      });
+      var cMk = L.marker([cLat, cLng], { icon: cIcon }).addTo(gMap);
+      cMk.bindTooltip(cLabel + '：橫切面', { permanent: false, direction: 'top' });
+      crossMks.push(cMk);
+    }
+    _evLayers[idx].crossMks = crossMks;
+
     // ── 編號2：500m 中線點（橘色，只顯示點）──
     var pt2 = destPoint(la, lo, wd, 500);
     var icon2 = L.divIcon({
@@ -2377,6 +2401,10 @@ function removeEventLayers(idx) {
   if (lyr.sectorMks) {
     lyr.sectorMks.forEach(function(m) { m.remove(); });
     lyr.sectorMks = null;
+  }
+  if (lyr.crossMks) {
+    lyr.crossMks.forEach(function(m) { m.remove(); });
+    lyr.crossMks = null;
   }
 }
 
@@ -3167,6 +3195,17 @@ window.addEventListener('message', function(e) {
       { label:'9',  shortTip:'5km中線',    pt: destPoint(la, lo, wd,        5000) },
       { label:'10', shortTip:'5km下緣',    pt: destPoint(la, lo, wd + 22.5, 5000) }
     ];
+    // 橫切面 20 等分點（A01~A20）
+    var lineCenter2 = destPoint(la, lo, wd, 1000);
+    var perpA2 = destPoint(lineCenter2[0], lineCenter2[1], (wd + 90) % 360, 500);
+    var perpB2 = destPoint(lineCenter2[0], lineCenter2[1], (wd - 90 + 360) % 360, 500);
+    for (var ni = 0; ni < 20; ni++) {
+      var nt = ni / 19;
+      var nLat = perpB2[0] + (perpA2[0] - perpB2[0]) * nt;
+      var nLng = perpB2[1] + (perpA2[1] - perpB2[1]) * nt;
+      var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
+      pts.push({ label: nLabel, shortTip: '橫切面' + (ni+1), pt: [nLat, nLng] });
+    }
     try { parent.postMessage({ type: 'navPoints', points: pts }, '*'); } catch(err) {}
     return;
   }
