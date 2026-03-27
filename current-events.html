@@ -2434,6 +2434,8 @@ function loadMeasurements(idx, force) {
   _jsonpGet(SHEETS_URL + '?action=measurements&eventId=' + encodeURIComponent(ev.id), function(data) {
     _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
     renderMsrMarkers(ev.id);
+    // 量測數據載入後重繪卡片，確保最大劑量率欄位即時更新
+    if (idx === _curIdx) renderCard(idx);
   });
 }
 
