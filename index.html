@@ -603,6 +603,14 @@ window.addEventListener('message', function(e) {
   }
 
   // ── current-events 回傳點位清單，填入選擇格子 ──
+  // iframe 通知有新量測點，重新取最新導航點位
+  if (e.data && e.data.type === 'requestNavPointsRefresh') {
+    try {
+      var frame2 = document.getElementById('contentFrame');
+      if (frame2) frame2.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
+    } catch(e2) {}
+    return;
+  }
   if (e.data && e.data.type === 'navPoints') {
     _navPointsCache = e.data.points || [];
     _navSelectedLabel = null;
