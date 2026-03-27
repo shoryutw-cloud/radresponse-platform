@@ -1856,10 +1856,16 @@ function _pmBuildLookup() {
   Object.keys(_pmGroupCache).forEach(function(gid) {
     var grp = _pmGroupCache[gid];
     Object.keys(grp).forEach(function(name) {
-      lookup[name] = grp[name];
-      if (gid === 'staff')        nameToSquad[name] = '參謀組';
-      else if (gid === 'press')   nameToSquad[name] = '新聞組';
-      else if (grp[name].team)    nameToSquad[name] = grp[name].team;
+      var squad = '';
+      if (gid === 'staff')        squad = '參謀組';
+      else if (gid === 'press')   squad = '新聞組';
+      else if (grp[name].team)    squad = grp[name].team;
+      // 複合 key：隊別:姓名，確保同名不同隊各自獨立
+      var compKey = squad ? (squad + ':' + name) : name;
+      lookup[compKey] = grp[name];
+      // 姓名 key 保留作備用
+      if (!lookup[name]) lookup[name] = grp[name];
+      if (squad) nameToSquad[name] = squad;
     });
   });
   return { lookup: lookup, nameToSquad: nameToSquad };
@@ -1931,7 +1937,7 @@ function _renderPersonnelView(ev) {
             + _esc(sname)
             + ' <span style="font-size:11px;font-weight:400;color:#6b7a92;background:#e2e8f0;padding:1px 7px;border-radius:10px">' + squads[sname].length + ' 人</span></td></tr>';
       squads[sname].forEach(function(p) {
-        var info = lookup[p.name] || {};
+        var info = lookup[(p.squad ? p.squad + ':' + p.name : p.name)] || lookup[p.name] || {};
         html += '<tr style="border-bottom:1px solid #f0f4f8">';
         html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(info.title||'—') + '</td>';
         html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(p.name) + '</td>';
