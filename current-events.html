@@ -3297,7 +3297,10 @@ function loadEvents() {
     placeMarkers();
     renderLayerPanel();          // 渲染圖層控制面板
     updateLayers();              // 建立所有事件圖層
-    if (_events.length) flyToEvent(_curIdx);
+    // 用 setTimeout 確保地圖完全初始化後再 fly
+    if (_events.length) {
+      setTimeout(function() { flyToEvent(_curIdx); }, 100);
+    }
     // 載入所有進行中事件的量測點任務
     _loadTaskMarkers();
     notifyReady();
