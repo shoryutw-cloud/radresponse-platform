@@ -1472,7 +1472,7 @@ function _mqFBtn(level, label, dot, colorKey) {
   var color = active ? 'white' : 'var(--text-muted)';
   var border = active ? (colors[colorKey]||'var(--accent)') : 'var(--border)';
   var dotHtml = dot ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+dot+';margin-right:4px"></span>' : '';
-  return '<button data-mqlevel="'+level+'" onclick="mqSetFilter(''+level+'')" style="display:flex;align-items:center;padding:4px 12px;border:1px solid '+border+';border-radius:20px;background:'+bg+';color:'+color+';font-family:var(--font);font-size:12px;cursor:pointer">'+dotHtml+label+'</button>';
+  return '<button data-mqlevel="'+level+'" onclick="mqSetFilter(\u0027'+level+'\u0027)" style="display:flex;align-items:center;padding:4px 12px;border:1px solid '+border+';border-radius:20px;background:'+bg+';color:'+color+';font-family:var(--font);font-size:12px;cursor:pointer">'+dotHtml+label+'</button>';
 }
 function _mqStatCard(label, value, colorKey) {
   var colors = { green:'#16a34a', orange:'#d97706', red:'#dc2626', '':'var(--accent)' };
@@ -1531,23 +1531,23 @@ function mqExportCSV() {
   if (!ev) { showToast('⚠️ 無可匯出的事件'); return; }
   var rows = _msrCache[ev.id];
   if (!rows || !rows.length) { showToast('⚠️ 尚無量測資料可匯出'); return; }
-  var bom = '﻿';
-  var head = '回報編號,事件編號,回報人員,數值(μSv/h),使用儀器,緯度,經度,時間
-';
-  var body2 = rows.map(function(r){
-    return [r.id,r.eventId,r.reporter,r.value,r.instrument||'',r.lat||'',r.lng||'',r.time].map(function(c){
-      var s=String(c||'').replace(/"/g,'""');
-      return s.indexOf(',')>-1||s.indexOf('
-')>-1?'"'+s+'"':s;
+  var bom  = '\uFEFF';
+  var head = '\u56de\u5831\u7de8\u865f,\u4e8b\u4ef6\u7de8\u865f,\u56de\u5831\u4eba\u54e1,\u6578\u5024(\u03bcSv/h),\u4f7f\u7528\u5100\u5668,\u7def\u5ea6,\u7d93\u5ea6,\u6642\u9593\r\n';
+  var body2 = rows.map(function(r) {
+    var cols = [r.id, r.eventId, r.reporter, r.value, r.instrument||'', r.lat||'', r.lng||'', r.time];
+    return cols.map(function(c) {
+      var s = String(c || '').replace(/"/g, '""');
+      return (s.indexOf(',') > -1 || s.indexOf('\n') > -1) ? ('"' + s + '"') : s;
     }).join(',');
-  }).join('
-');
-  var blob = new Blob([bom+head+body2],{type:'text/csv;charset=utf-8'});
+  }).join('\r\n');
+  var blob = new Blob([bom + head + body2], { type: 'text/csv;charset=utf-8' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
-  a.href=url; a.download=ev.name+'_量測數據_'+new Date().toISOString().slice(0,10)+'.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('✅ CSV 匯出成功');
+  a.href = url;
+  a.download = ev.name + '_\u91cf\u6e2c\u6578\u64da_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('\u2705 CSV \u5316\u51fa\u6210\u529f');
 }
 
 // ════════════════════════════════════════════════════════
