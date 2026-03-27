@@ -3707,8 +3707,8 @@ function getEventSquads(ev) {
     });
   }
   if (found.length > 0) return found;
-  // 無法解析組別（舊格式純姓名）→ 回傳空陣列
-  return [];
+  // 舊格式純姓名 → fallback 用已知隊別清單
+  return TECH_SQUADS.filter(function(s){ return s !== '未分配'; });
 }
 
 // ── 開啟分派 Modal ──
