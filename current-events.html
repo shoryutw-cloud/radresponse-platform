@@ -3215,6 +3215,10 @@ window.addEventListener('message', function(e) {
       var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
       pts.push({ label: nLabel, shortTip: '橫切面' + (ni+1), pt: [nLat, nLng] });
     }
+    // 加入手動設置的量測點（T01, T02...）
+    _taskMarkers.forEach(function(t) {
+      pts.push({ label: t.label, shortTip: t.squad + '量測點', pt: [t.latlng.lat, t.latlng.lng] });
+    });
     try { parent.postMessage({ type: 'navPoints', points: pts }, '*'); } catch(err) {}
     return;
   }
@@ -3874,28 +3878,41 @@ function submitAssignment() {
   });
 }
 
-// ── 地圖上放置正式量測任務標記（紫色📐） ──
-var _taskMarkers = [];
+// ── 地圖上放置正式量測任務標記（紫色，有編號） ──
+var _taskMarkers = [];  // [{ mk, latlng, squad, num }]
 function placeTempMeasureMarker(latlng, squadName) {
+  var num = _taskMarkers.length + 1;
+  var label = 'T' + (num < 10 ? '0' + num : num);
   var icon = L.divIcon({
     className: '',
-    html: '<div style="' +
-      'width:32px;height:32px;background:#7c3aed;' +
-      'border:3px solid white;border-radius:50%;' +
-      'display:flex;align-items:center;justify-content:center;' +
-      'font-size:16px;box-shadow:0 2px 8px rgba(124,58,237,.5)">' +
-      '📐</div>',
-    iconSize: [32, 32], iconAnchor: [16, 16]
+    html: '<div style="width:28px;height:28px;background:#7c3aed;' +
+          'border:2px solid white;border-radius:50%;' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'font-size:11px;font-weight:700;color:white;' +
+          'box-shadow:0 2px 8px rgba(124,58,237,.5);' +
+          'font-family:ui-monospace,monospace">' + num + '</div>',
+    iconSize: [28, 28], iconAnchor: [14, 14]
   });
   var mk = L.marker(latlng, { icon: icon }).addTo(gMap);
   mk.bindPopup(
     '<div style="font-family:var(--font);min-width:140px">' +
-    '<div style="font-size:13px;font-weight:700;margin-bottom:4px">📐 量測任務</div>' +
+    '<div style="font-size:13px;font-weight:700;margin-bottom:4px">' + label + ' 量測任務</div>' +
     '<div style="font-size:12px;color:#7c3aed;font-weight:600">' + _esc(squadName) + '</div>' +
     '<div style="font-size:11px;color:#94a3b8;margin-top:4px">待量測</div>' +
     '</div>'
   ).openPopup();
-  _taskMarkers.push(mk);
+  _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label });
+  // 導航點位更新
+  _refreshNavPoints();
+}
+
+// 通知 parent 更新導航點位（量測點新增時呼叫）
+function _refreshNavPoints() {
+  try {
+    var ev = _events[_curIdx];
+    if (!ev || !ev.lat || !ev.windDir) return;
+    parent.postMessage({ type: 'requestNavPointsRefresh' }, '*');
+  } catch(e) {}
 }
 
 // ── Nominatim 反向地理編碼 ──
