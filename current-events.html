@@ -1816,16 +1816,18 @@ var _PM_NON_TECH = ['參謀組', '新聞組'];
 function _pmLoadGroup(groupId, cb) {
   if (_pmGroupCache[groupId]) { cb(); return; }
   _jsonpGet(SHEETS_URL + '?action=group&id=' + groupId, function(data) {
-    _pmGroupCache[groupId] = {};
+    // 存成陣列，保留同名但不同隊的所有資料
+    _pmGroupCache[groupId] = [];
     if (data && data.members) {
       data.members.forEach(function(m) {
-        _pmGroupCache[groupId][m.name] = {
+        _pmGroupCache[groupId].push({
+          name:   m.name   || '',
           title:  m.title  || '',
           mobile: m.mobile || '',
           phone:  m.phone  || '',
           dept:   m.dept   || '',
           team:   m.team   || ''
-        };
+        });
       });
     }
     cb();
@@ -1853,20 +1855,22 @@ function _pmLoadAll(ev, cb) {
 
 function _pmBuildLookup(techId) {
   var lookup = {}, nameToSquad = {};
-  // 只掃這次事件對應的群組，不掃其他技術組的快取
   var relevantGids = [techId || 'tech-rdd', 'staff', 'press'];
   relevantGids.forEach(function(gid) {
-    var grp = _pmGroupCache[gid];
-    if (!grp) return;
-    Object.keys(grp).forEach(function(name) {
+    var members = _pmGroupCache[gid];
+    if (!members || !members.length) return;
+    members.forEach(function(m) {
       var squad = '';
-      if (gid === 'staff')        squad = '參謀組';
-      else if (gid === 'press')   squad = '新聞組';
-      else if (grp[name].team)    squad = grp[name].team;
-      var compKey = squad ? (squad + ':' + name) : name;
-      lookup[compKey] = grp[name];
-      if (!lookup[name]) lookup[name] = grp[name];
-      if (squad) nameToSquad[name] = squad;
+      if (gid === 'staff')      squad = '參謀組';
+      else if (gid === 'press') squad = '新聞組';
+      else if (m.team)          squad = m.team;
+      // 複合 key：隊別:姓名 → 精確對應
+      if (squad) {
+        lookup[squad + ':' + m.name] = m;
+        if (!nameToSquad[m.name]) nameToSquad[m.name] = squad;
+      }
+      // 姓名 key 備用（找不到複合 key 時）
+      if (!lookup[m.name]) lookup[m.name] = m;
     });
   });
   return { lookup: lookup, nameToSquad: nameToSquad };
@@ -1986,12 +1990,12 @@ function _renderPersonnelModal(ev) {
   });
 
   _pmLoadAll(ev, function(techId) {
-    var techGrp = _pmGroupCache[techId] || {};
+    var techMembers = _pmGroupCache[techId] || [];
     var squads = {};
-    Object.keys(techGrp).forEach(function(name) {
-      var s = (techGrp[name].team || '').trim() || '未分配';
+    techMembers.forEach(function(m) {
+      var s = (m.team || '').trim() || '未分配';
       if (!squads[s]) squads[s] = [];
-      squads[s].push({ name: name, title: techGrp[name].title });
+      squads[s].push({ name: m.name, title: m.title });
     });
 
     var html = '';
@@ -2005,8 +2009,8 @@ function _renderPersonnelModal(ev) {
     if (squads['未分配'] && squads['未分配'].length) html += _pmSquadBlock('未分配', squads['未分配'], curSelected);
 
     ['staff','press'].forEach(function(gid) {
-      var grp = _pmGroupCache[gid] || {};
-      var members = Object.keys(grp).map(function(name){ return { name: name, title: grp[name].title }; });
+      var arr = _pmGroupCache[gid] || [];
+      var members = arr.map(function(m){ return { name: m.name, title: m.title }; });
       if (members.length) html += _pmSquadBlock(gid==='staff'?'參謀組':'新聞組', members, curSelected);
     });
 
