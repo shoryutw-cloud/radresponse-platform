@@ -843,6 +843,32 @@ cursor: pointer; transition: background .15s;
   </div>
 </div>
 
+
+<!-- ══════════════════════════════════════════
+     回報數值查詢 Modal
+════════════════════════════════════════════ -->
+<div class="chg-modal-overlay" id="msrQueryModal">
+  <div class="chg-modal" style="width:min(820px,95vw);max-height:90vh">
+    <div class="chg-modal-hd">
+      <span>📊 回報數值查詢</span>
+      <button class="chg-modal-close" onclick="closeMsrQueryModal()">✕</button>
+    </div>
+    <div class="chg-modal-bd" id="msrQueryBody" style="padding:12px 16px">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
+    </div>
+    <div class="chg-modal-ft" style="justify-content:space-between">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="mqRefreshBtn" onclick="mqToggleAutoRefresh()" style="display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">
+          <span id="mqRefreshDot" style="display:none;width:7px;height:7px;border-radius:50%;background:#16a34a;animation:rfpulse 1.5s ease infinite"></span>
+          ↻ 自動刷新
+        </button>
+        <button onclick="mqExportCSV()" style="border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">↓ 匯出</button>
+      </div>
+      <button class="chg-btn-cancel" onclick="closeMsrQueryModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- 畫筆工具列（底部置中）-->
 <div class="draw-toolbar" id="drawToolbar" style="display:none">
   <!-- 畫筆 -->
@@ -1289,9 +1315,239 @@ function notifyReady() {
 // 快捷按鈕：觀看模式 → 開唯讀 Modal
 function goPersonnel() { openPersonnelViewModal(); }
 function goInstruments() { openInstrViewModal(); }
-// 前往回報數值查詢頁
-function goMeasurements() {
-  try { parent.showIframe('measurement-query.html'); } catch(e) {}
+// 開啟回報數值查詢 Modal
+function goMeasurements() { openMsrQueryModal(); }
+
+// ════════════════════════════════════════════════════════
+// 回報數值查詢 Modal
+// ════════════════════════════════════════════════════════
+var _mqFilter      = 'all';
+var _mqSortDesc    = true;
+var _mqAutoRefresh = false;
+var _mqTimer       = null;
+
+function openMsrQueryModal() {
+  document.getElementById('msrQueryModal').classList.add('show');
+  _mqFilter   = 'all';
+  _mqSortDesc = true;
+  _renderMsrQuery();
+}
+function closeMsrQueryModal() {
+  document.getElementById('msrQueryModal').classList.remove('show');
+  if (_mqTimer) { clearInterval(_mqTimer); _mqTimer = null; _mqAutoRefresh = false; }
+  var dot = document.getElementById('mqRefreshDot');
+  var btn = document.getElementById('mqRefreshBtn');
+  if (dot) dot.style.display = 'none';
+  if (btn) btn.style.color = 'var(--text-muted)';
+}
+
+function _renderMsrQuery() {
+  var ev = _events[_curIdx];
+  var body = document.getElementById('msrQueryBody');
+  if (!ev) { body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">目前無進行中事件</div>'; return; }
+
+  // 用 current-events 既有的 _msrCache
+  if (_msrCache[ev.id] !== undefined) {
+    _drawMsrTable(_msrCache[ev.id]);
+  } else {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入量測數據中…</div>';
+    _jsonpGet(SHEETS_URL + '?action=measurements&eventId=' + encodeURIComponent(ev.id), function(data) {
+      _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
+      _drawMsrTable(_msrCache[ev.id]);
+    });
+  }
+}
+
+function _mqValueLevel(val) {
+  var v = parseFloat(val);
+  if (isNaN(v)) return 'unknown';
+  if (v >= 100) return 'red';
+  if (v >= 0.5) return 'orange';
+  return 'green';
+}
+
+function _mqFmtTime(raw) {
+  if (!raw) return '—';
+  var d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw).slice(0, 19);
+  var p = function(n){ return String(n).padStart(2,'0'); };
+  return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+function _drawMsrTable(allRows) {
+  var body = document.getElementById('msrQueryBody');
+  if (!allRows || !allRows.length) {
+    body.innerHTML = _mqToolbar([]) + '<div style="text-align:center;padding:40px;color:var(--text-muted)">📋 此事件尚無量測回報</div>';
+    _mqUpdateFilterBtns(); return;
+  }
+
+  // 篩選
+  var filtered = _mqFilter === 'all' ? allRows.slice()
+    : allRows.filter(function(r){ return _mqValueLevel(r.value) === _mqFilter; });
+
+  // 排序
+  filtered.sort(function(a,b){
+    var ta = new Date(a.time).getTime()||0, tb = new Date(b.time).getTime()||0;
+    return _mqSortDesc ? tb-ta : ta-tb;
+  });
+
+  // 統計
+  var vals = allRows.map(function(r){ return parseFloat(r.value); }).filter(function(v){ return !isNaN(v); });
+  var latestRow = allRows.slice().sort(function(a,b){ return new Date(b.time).getTime()-new Date(a.time).getTime(); })[0];
+
+  var html = _mqToolbar(allRows);
+
+  // 統計卡片
+  if (vals.length) {
+    var min = Math.min.apply(null,vals), max = Math.max.apply(null,vals);
+    var avg = vals.reduce(function(s,v){return s+v;},0)/vals.length;
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+    html += _mqStatCard('回報筆數', allRows.length, '');
+    html += _mqStatCard('最新數值', parseFloat(latestRow.value).toFixed(3)+' μSv/h', _mqValueLevel(latestRow.value));
+    html += _mqStatCard('最低值', min.toFixed(3)+' μSv/h', _mqValueLevel(min));
+    html += _mqStatCard('最高值', max.toFixed(3)+' μSv/h', _mqValueLevel(max));
+    html += _mqStatCard('平均值', avg.toFixed(3)+' μSv/h', _mqValueLevel(avg));
+    html += '</div>';
+  }
+
+  if (!filtered.length) {
+    html += '<div style="text-align:center;padding:30px;color:var(--text-muted)">🔍 無符合篩選條件的資料</div>';
+    body.innerHTML = html; _mqUpdateFilterBtns(); return;
+  }
+
+  var latestId = latestRow.id;
+  var colorMap = { green:'#16a34a', orange:'#d97706', red:'#dc2626', unknown:'#6b7a92' };
+  var bgMap    = { green:'#f0fdf4', orange:'#fffbeb', red:'#fef2f2', unknown:'#f8fafc' };
+  var bdMap    = { green:'#bbf7d0', orange:'#fed7aa', red:'#fecaca', unknown:'#e2e8f0' };
+
+  html += '<div style="font-size:12px;color:var(--text-muted);padding:5px 0 8px">顯示 '+filtered.length+' 筆'+(filtered.length<allRows.length?'（共 '+allRows.length+' 筆）':'')+' </div>';
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:#f1f5f9">';
+  ['#','時間','回報人員','數值','使用儀器','定位'].forEach(function(h){
+    html += '<th style="font-size:11px;color:#6b7a92;font-weight:600;padding:8px 10px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">'+_esc(h)+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(row, i) {
+    var lvl = _mqValueLevel(row.value);
+    var valNum = parseFloat(row.value);
+    var valTxt = isNaN(valNum) ? '—' : valNum.toFixed(3);
+    var isLatest = row.id === latestId;
+    var lat = parseFloat(row.lat), lng = parseFloat(row.lng);
+    var gpsHtml = '<span style="color:#b0bec5;font-size:12px">—</span>';
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      gpsHtml = '<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:var(--accent);font-size:11px;font-family:monospace;text-decoration:none;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">📍 '+lat.toFixed(4)+','+lng.toFixed(4)+'</a>';
+    }
+    html += '<tr style="border-bottom:1px solid #f0f4f8">';
+    html += '<td style="padding:8px 10px;font-size:12px;color:#6b7a92;font-family:monospace">'+(i+1)+'</td>';
+    html += '<td style="padding:8px 10px;font-size:12px;font-family:monospace;white-space:nowrap">'+_esc(_mqFmtTime(row.time))+'</td>';
+    html += '<td style="padding:8px 10px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(row.reporter||'—')+(isLatest?'<span style="font-size:10px;background:#dbeafe;color:#1a56db;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">最新</span>':'')+'</td>';
+    html += '<td style="padding:8px 10px"><span style="font-family:monospace;font-size:13px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:2px 8px;border-radius:4px">'+_esc(valTxt)+' μSv/h</span></td>';
+    html += '<td style="padding:8px 10px;font-size:12px;color:#6b7a92">'+_esc(row.instrument||'—')+'</td>';
+    html += '<td style="padding:8px 10px">'+gpsHtml+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+  _mqUpdateFilterBtns();
+}
+
+function _mqToolbar(rows) {
+  var cnt = { all: rows.length, green:0, orange:0, red:0 };
+  rows.forEach(function(r){ var l=_mqValueLevel(r.value); if(cnt[l]!==undefined) cnt[l]++; });
+  var html = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+  html += _mqFBtn('all',    '全部 '+cnt.all,    null,       '');
+  html += _mqFBtn('green',  '冷區 '+cnt.green,  '#16a34a',  'green');
+  html += _mqFBtn('orange', '暖區 '+cnt.orange, '#d97706',  'orange');
+  html += _mqFBtn('red',    '熱區 '+cnt.red,    '#dc2626',  'red');
+  html += '<div style="flex:1"></div>';
+  html += '<button id="mqSortBtn" onclick="mqToggleSort()" style="border:1px solid var(--border);border-radius:6px;padding:4px 10px;background:white;font-family:var(--font);font-size:12px;color:var(--text-muted);cursor:pointer">'+(_mqSortDesc?'⇩ 最新在前':'⇧ 最舊在前')+'</button>';
+  html += '</div>';
+  return html;
+}
+function _mqFBtn(level, label, dot, colorKey) {
+  var active = _mqFilter === level;
+  var colors = { green:'#16a34a', orange:'#d97706', red:'#dc2626' };
+  var bg = active ? (colors[colorKey]||'var(--accent)') : 'white';
+  var color = active ? 'white' : 'var(--text-muted)';
+  var border = active ? (colors[colorKey]||'var(--accent)') : 'var(--border)';
+  var dotHtml = dot ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+dot+';margin-right:4px"></span>' : '';
+  return '<button data-mqlevel="'+level+'" onclick="mqSetFilter(''+level+'')" style="display:flex;align-items:center;padding:4px 12px;border:1px solid '+border+';border-radius:20px;background:'+bg+';color:'+color+';font-family:var(--font);font-size:12px;cursor:pointer">'+dotHtml+label+'</button>';
+}
+function _mqStatCard(label, value, colorKey) {
+  var colors = { green:'#16a34a', orange:'#d97706', red:'#dc2626', '':'var(--accent)' };
+  return '<div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">'
+    +'<div style="font-size:10px;color:#6b7a92;font-weight:600;letter-spacing:.05em;text-transform:uppercase">'+_esc(label)+'</div>'
+    +'<div style="font-size:16px;font-weight:700;color:'+(colors[colorKey]||'var(--accent)')+';font-family:monospace">'+_esc(String(value))+'</div>'
+    +'</div>';
+}
+function _mqUpdateFilterBtns() {
+  var btns = document.querySelectorAll('[data-mqlevel]');
+  var colors = { green:'#16a34a', orange:'#d97706', red:'#dc2626' };
+  btns.forEach(function(btn) {
+    var lvl = btn.getAttribute('data-mqlevel');
+    var active = lvl === _mqFilter;
+    var c = colors[lvl] || 'var(--accent)';
+    btn.style.background = active ? c : 'white';
+    btn.style.color      = active ? 'white' : 'var(--text-muted)';
+    btn.style.borderColor= active ? c : 'var(--border)';
+  });
+}
+function mqSetFilter(level) {
+  _mqFilter = level;
+  var ev = _events[_curIdx];
+  if (ev && _msrCache[ev.id] !== undefined) _drawMsrTable(_msrCache[ev.id]);
+}
+function mqToggleSort() {
+  _mqSortDesc = !_mqSortDesc;
+  var btn = document.getElementById('mqSortBtn');
+  if (btn) btn.textContent = _mqSortDesc ? '⇩ 最新在前' : '⇧ 最舊在前';
+  var ev = _events[_curIdx];
+  if (ev && _msrCache[ev.id] !== undefined) _drawMsrTable(_msrCache[ev.id]);
+}
+function mqToggleAutoRefresh() {
+  _mqAutoRefresh = !_mqAutoRefresh;
+  var dot = document.getElementById('mqRefreshDot');
+  var btn = document.getElementById('mqRefreshBtn');
+  if (_mqAutoRefresh) {
+    if (dot) dot.style.display = 'inline-block';
+    if (btn) btn.style.color = '#16a34a';
+    var ev = _events[_curIdx];
+    if (ev) { delete _msrCache[ev.id]; _renderMsrQuery(); }
+    _mqTimer = setInterval(function(){
+      var ev = _events[_curIdx];
+      if (ev) { delete _msrCache[ev.id]; _renderMsrQuery(); }
+    }, 30000);
+    showToast('✅ 自動刷新已開啟（每30秒）');
+  } else {
+    if (dot) dot.style.display = 'none';
+    if (btn) btn.style.color = 'var(--text-muted)';
+    if (_mqTimer) { clearInterval(_mqTimer); _mqTimer = null; }
+    showToast('⏸ 自動刷新已關閉');
+  }
+}
+function mqExportCSV() {
+  var ev = _events[_curIdx];
+  if (!ev) { showToast('⚠️ 無可匯出的事件'); return; }
+  var rows = _msrCache[ev.id];
+  if (!rows || !rows.length) { showToast('⚠️ 尚無量測資料可匯出'); return; }
+  var bom = '﻿';
+  var head = '回報編號,事件編號,回報人員,數值(μSv/h),使用儀器,緯度,經度,時間
+';
+  var body2 = rows.map(function(r){
+    return [r.id,r.eventId,r.reporter,r.value,r.instrument||'',r.lat||'',r.lng||'',r.time].map(function(c){
+      var s=String(c||'').replace(/"/g,'""');
+      return s.indexOf(',')>-1||s.indexOf('
+')>-1?'"'+s+'"':s;
+    }).join(',');
+  }).join('
+');
+  var blob = new Blob([bom+head+body2],{type:'text/csv;charset=utf-8'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href=url; a.download=ev.name+'_量測數據_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('✅ CSV 匯出成功');
 }
 
 // ════════════════════════════════════════════════════════
@@ -2953,6 +3209,7 @@ window.addEventListener('message', function(e) {
     }
   }
   // 新式 eventId（從建立事件頁跳過來）
+  if (e.data && e.data.type === 'openMsrQuery') { openMsrQueryModal(); return; }
   if (e.data.type === 'setEventId' && e.data.id) {
     if (_events.length > 0) {
       var found = -1;

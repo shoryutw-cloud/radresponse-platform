@@ -368,7 +368,7 @@
   <div class="drawer-section">
     <div class="drawer-section-title">回報</div>
     <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">📡 我要回報</button>
-    <button class="drawer-item" onclick="openPanel('回報數值查詢');closeDrawer()">🔍 回報數值查詢</button>
+    <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">🔍 回報數值查詢</button>
     <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
   </div>
 
@@ -473,7 +473,7 @@
 </div>
 <div class="top-drop" id="drop-report">
   <button class="top-drop-btn" id="btnReportActive" onclick="toggleReportFabs();closeAllMenus()">我要回報</button>
-  <button class="top-drop-btn" onclick="openPanel('回報數值查詢');closeAllMenus()">回報數值查詢</button>
+  <button class="top-drop-btn" onclick="openMsrQueryInIframe();closeAllMenus()">回報數值查詢</button>
   <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
 </div>
 <div class="top-drop" id="drop-settings">
