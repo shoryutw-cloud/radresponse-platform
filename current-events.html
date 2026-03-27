@@ -1450,7 +1450,7 @@ function _renderInstrView(ev) {
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入儀器資料中…</div>';
   var instruments = _parseInstrStr(ev.instrumentStr);
   if (!instruments.length) {
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無出動儀器紀錄</div>';
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無攜帶儀器紀錄</div>';
     return;
   }
   if (_imCache) { _doRenderInstrView(body, instruments, _imCache.rows||[]); return; }
