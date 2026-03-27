@@ -87,16 +87,16 @@
   /* ────── TOP NAV 下拉選單（桌機版）────── */
   .top-drop {
     display: none; position: fixed;
-    min-width: 190px; background: var(--surface);
+    min-width: 180px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
+    box-shadow: var(--shadow-md); z-index: 10000; padding: 3px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
   .top-drop.active { display: block; }
   .top-drop-btn {
-    display: flex; align-items: center; width: 100%; padding: 9px 16px;
+    display: flex; align-items: center; width: 100%; padding: 6px 14px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 14px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
+    font-size: 13px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
     transition: background .12s, color .12s;
   }
   .top-drop-btn:hover { background: var(--hover); color: var(--accent); }
@@ -105,15 +105,15 @@
   /* L3 sub-dropdown（事件管理）*/
   .top-drop-l3 {
     display: none; position: fixed;
-    min-width: 175px; background: var(--surface);
+    min-width: 165px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow-md); z-index: 10001; padding: 4px 0;
+    box-shadow: var(--shadow-md); z-index: 10001; padding: 3px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
   .top-drop-l3.active { display: block; }
   .top-drop-l3-btn {
-    display: block; width: 100%; padding: 9px 16px; background: none; border: none;
-    cursor: pointer; font-family: var(--font); font-size: 14px; color: #3d5070;
+    display: block; width: 100%; padding: 6px 14px; background: none; border: none;
+    cursor: pointer; font-family: var(--font); font-size: 13px; color: #3d5070;
     text-align: left; white-space: nowrap; transition: background .12s, color .12s;
   }
   .top-drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
