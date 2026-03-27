@@ -1551,9 +1551,7 @@ function _renderPersonnelModal(ev) {
     if(name) curSelected[name]=true;
   });
 
-  var techId='tech-rdd';
-  if(ev.type==='放射性物料') techId='tech-material';
-  else if(ev.type==='放射性物質') techId='tech-substance';
+   var techId = _evTypeToTechId(ev.type);
 
   // 快取以 techId 為 key
   if (_pmCache[techId]) { _doRenderPersonnel(body, _pmCache[techId], curSelected); return; }
