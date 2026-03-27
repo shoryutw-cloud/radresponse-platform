@@ -62,7 +62,7 @@
   .tnav-btn {
     display: flex; align-items: center; gap: 5px;
     padding: 0 16px; background: none; border: none;
-    color: #b8cce0; font-family: var(--font); font-size: 14px; font-weight: 500;
+    color: #b8cce0; font-family: var(--font); font-size: 16px; font-weight: 500;
     cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
     border-bottom: 2px solid transparent;
   }
@@ -96,7 +96,7 @@
   .top-drop-btn {
     display: flex; align-items: center; width: 100%; padding: 9px 16px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 16px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
+    font-size: 15px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
     transition: background .12s, color .12s;
   }
   .top-drop-btn:hover { background: var(--hover); color: var(--accent); }
@@ -113,7 +113,7 @@
   .top-drop-l3.active { display: block; }
   .top-drop-l3-btn {
     display: block; width: 100%; padding: 9px 16px; background: none; border: none;
-    cursor: pointer; font-family: var(--font); font-size: 16px; color: #3d5070;
+    cursor: pointer; font-family: var(--font); font-size: 15px; color: #3d5070;
     text-align: left; white-space: nowrap; transition: background .12s, color .12s;
   }
   .top-drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
@@ -361,7 +361,7 @@
   <div class="drawer-section">
     <div class="drawer-section-title">事件儀表板</div>
     <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">🗺️ 目前事件</button>
-    <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">🧭 導航至現場</button>
+    <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">🧭 導航至量測點</button>
     <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">📋 歷史事件查詢</button>
   </div>
 
@@ -466,7 +466,7 @@
 <!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
 <div class="top-drop" id="drop-dashboard">
   <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">目前事件</button>
-  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">導航至現場</button>
+  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">導航至量測點</button>
   <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
 </div>
 <div class="top-drop" id="drop-report">
