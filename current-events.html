@@ -1256,18 +1256,19 @@ function renderCard(idx) {
   html += '<hr class="ev-divider">';
 
   // 出勤人員
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">出勤人員'
-        + '<span onclick="openPersonnelViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;margin-left:4px;font-weight:400">（查看）</span>'
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">';
+  html += '<span class="ev-lbl" style="display:flex;align-items:center;gap:4px">出勤人員'
+        + '<span onclick="openPersonnelViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400">（查看）</span>'
         + '</span>';
   html += '<span class="ev-val accent">' + techCount + ' 人</span>';
   html += '</div>';
 
   // 攜帶儀器種類
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">攜帶儀器種類'
-        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;margin-left:4px;font-weight:400">（查看）</span>'
-        + '</span>';
+  html += '<div style="padding:4px 0">';
+  html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">'
+        + '<span class="ev-lbl">攜帶儀器種類</span>'
+        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400">（查看）</span>'
+        + '</div>';
   if (detTypes.length) {
     html += '<div class="ev-tags">';
     detTypes.forEach(function(t) { html += '<span class="ev-tag">' + _esc(t) + '</span>'; });
