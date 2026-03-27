@@ -1568,76 +1568,44 @@ function _renderPersonnelView(ev) {
   var body = document.getElementById('personnelViewBody');
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員資料中…</div>';
 
-  // personnelStr 只取姓名
-  var names = [];
+  // 解析 personnelStr，同時保留隊別（新格式）或標記空字串（舊格式）
+  var personnel = [];
   (ev.personnelStr || '').split(',').forEach(function(item) {
     item = item.trim(); if (!item) return;
     var colon = item.indexOf(':');
-    var name = colon >= 0 ? item.slice(colon + 1).trim() : item;
-    if (name) names.push(name);
+    var squad = colon >= 0 ? item.slice(0, colon).trim() : '';
+    var name  = colon >= 0 ? item.slice(colon + 1).trim() : item;
+    if (name) personnel.push({ name: name, squad: squad });
   });
 
-  if (!names.length) {
+  if (!personnel.length) {
     body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無出勤人員紀錄</div>';
     return;
   }
 
-  // 永遠載入全部五組，快取用 'all'
-  if (_pmCache['all']) {
-    _doRenderPersonnelView(body, _pmCache['all'], names);
-    return;
-  }
-  var targets = [
-    { id: 'tech-rdd',       label: '技術組' },
-    { id: 'tech-material',  label: '技術組' },
-    { id: 'tech-substance', label: '技術組' },
-    { id: 'staff',          label: '參謀組' },
-    { id: 'press',          label: '新聞組' }
-  ];
-  var results = new Array(targets.length), done = 0;
-  targets.forEach(function(t, i) {
-    _jsonpGet(SHEETS_URL + '?action=group&id=' + t.id, function(d) {
-      results[i] = { id: t.id, members: (d && d.members) ? d.members : [] };
-      if (++done === targets.length) {
-        _pmCache['all'] = results;
-        _doRenderPersonnelView(body, results, names);
-      }
-    });
+  // 使用 _pmLoadAll 只載正確的三個群組（依事件類型）
+  _pmLoadAll(ev, function(techId) {
+    _doRenderPersonnelView(body, techId, personnel);
   });
 }
 
-function _doRenderPersonnelView(body, groups, names) {
-  // 建立 lookup 和 nameToSquad（從所有組的 API 資料反查）
-  var lookup = {}, nameToSquad = {};
-  groups.forEach(function(g) {
-    (g.members || []).forEach(function(m) {
-      if (!lookup[m.name]) lookup[m.name] = m; // 先到先得
-      if (!nameToSquad[m.name]) {
-        if (g.id === 'staff')      nameToSquad[m.name] = '參謀組';
-        else if (g.id === 'press') nameToSquad[m.name] = '新聞組';
-        else if (m.team)           nameToSquad[m.name] = m.team;
-        // 若 team 為空，先不設，等後面看有沒有別的組有記錄
-      }
-    });
-  });
-  // 二次掃：team 為空但在技術組的人，用第一個非空 team 或標記 '技術組'
-  groups.forEach(function(g) {
-    (g.members || []).forEach(function(m) {
-      if (!nameToSquad[m.name]) {
-        if (g.id !== 'staff' && g.id !== 'press') nameToSquad[m.name] = '技術組';
-      }
-    });
-  });
+function _doRenderPersonnelView(body, techId, personnel) {
+  // 用 _pmBuildLookup 建立 lookup 和 nameToSquad（只看正確的三個群組）
+  var maps = _pmBuildLookup(techId);
+  var lookup = maps.lookup, nameToSquad = maps.nameToSquad;
 
   // 依隊別分組
+  // 新格式（personnelStr 有隊別）優先用 p.squad；舊格式 fallback 到 nameToSquad
   var squads = {}, squadOrder = [];
-  names.forEach(function(name) {
-    var sq = nameToSquad[name] || '未分配';
+  personnel.forEach(function(p) {
+    var sq = (p.squad && p.squad !== '') ? p.squad : (nameToSquad[p.name] || '未分配');
     if (!squads[sq]) { squads[sq] = []; squadOrder.push(sq); }
-    squads[sq].push(name);
+    squads[sq].push(p);
   });
+  // 確保 lookup 可用複合 key 查到職稱
 
-  var total = names.length;
+
+  var total = personnel.length;
   var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
   html += _viewStatCard('出動總人數', total);
   squadOrder.forEach(function(s) {
@@ -1660,11 +1628,12 @@ function _doRenderPersonnelView(body, groups, names) {
           + _esc(squad)
           + ' <span style="font-size:11px;font-weight:400;color:#6b7a92;background:#e2e8f0;'
           + 'padding:1px 7px;border-radius:10px">' + squads[squad].length + ' 人</span></td></tr>';
-    squads[squad].forEach(function(name) {
-      var m = lookup[name] || {};
+    squads[squad].forEach(function(p) {
+      // 優先用「隊別:姓名」複合 key 查，取得正確職稱
+      var m = lookup[squad + ':' + p.name] || lookup[p.name] || {};
       html += '<tr style="border-bottom:1px solid #f0f4f8">';
       html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(m.title||'—') + '</td>';
-      html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(name) + '</td>';
+      html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(p.name) + '</td>';
       html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(m.mobile||'—') + '</td>';
       html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(m.phone||'—') + '</td>';
       html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(m.dept||'—') + '</td>';
@@ -1886,7 +1855,10 @@ function _renderPersonnelView(ev) {
 
     var squads = {}, squadOrder = [];
     personnel.forEach(function(p) {
-      var key = p.squad || '未分配';
+      // 若 personnelStr 是舊格式（無隊別），從 nameToSquad 反查
+      var key = (p.squad && p.squad !== '未分配') ? p.squad : (nameToSquad[p.name] || '未分配');
+      // 同步更新 p.squad，讓後續 lookup 能用複合 key
+      p.squad = key;
       if (!squads[key]) { squads[key] = []; squadOrder.push(key); }
       squads[key].push(p);
     });
