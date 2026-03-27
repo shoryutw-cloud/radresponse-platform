@@ -694,18 +694,6 @@ cursor: pointer; transition: background .15s;
       <label class="ev-edit-lbl">風向（0-359度，正北為0）</label>
       <input class="ev-edit-inp" id="editWindDir" type="number" min="0" max="359" placeholder="例：90（東風）">
     </div>
-    <div class="ev-edit-row">
-      <label class="ev-edit-lbl">目前劑量率</label>
-      <input class="ev-edit-inp" id="editDoseRate" placeholder="例：0.15 uSv/h">
-    </div>
-    <div class="ev-edit-row">
-      <label class="ev-edit-lbl">最大劑量率</label>
-      <input class="ev-edit-inp" id="editDoseMax" placeholder="例：2.3 uSv/h">
-    </div>
-    <div class="ev-edit-row">
-      <label class="ev-edit-lbl">預估影響範圍</label>
-      <input class="ev-edit-inp" id="editImpactRange" placeholder="例：半徑500公尺">
-    </div>
     <div class="ev-edit-btns">
       <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
       <button class="ev-edit-save" id="evEditSave" onclick="saveEdit()">💾 儲存</button>
@@ -1102,10 +1090,7 @@ function toggleEditPanel() {
   editBtn.style.color = isOpen ? 'var(--accent)' : '';
   if (isOpen && _events[_curIdx]) {
     var ev = _events[_curIdx];
-    document.getElementById('editWindDir').value    = ev.windDir     || '';
-    document.getElementById('editDoseRate').value   = ev.doseRate    || '';
-    document.getElementById('editDoseMax').value    = ev.doseMax     || '';
-    document.getElementById('editImpactRange').value= ev.impactRange || '';
+    document.getElementById('editWindDir').value = ev.windDir || '';
   }
 }
 
@@ -1118,12 +1103,9 @@ function saveEdit() {
 
   var windVal = document.getElementById('editWindDir').value.trim();
   var payload = {
-    action:      'updateEvent',
-    eventId:     ev.id,
-    windDir:     windVal,
-    doseRate:    document.getElementById('editDoseRate').value.trim(),
-    doseMax:     document.getElementById('editDoseMax').value.trim(),
-    impactRange: document.getElementById('editImpactRange').value.trim()
+    action:   'updateEvent',
+    eventId:  ev.id,
+    windDir:  windVal
   };
 
   // 用 no-cors 送出（與其他 POST 一致，無法讀回傳值但資料會寫入）
@@ -1135,10 +1117,7 @@ function saveEdit() {
   })
   .then(function() {
     // 更新本地快取
-    ev.windDir     = payload.windDir;
-    ev.doseRate    = payload.doseRate;
-    ev.doseMax     = payload.doseMax;
-    ev.impactRange = payload.impactRange;
+    ev.windDir = payload.windDir;
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     // 關閉面板，重新渲染卡片
@@ -1263,18 +1242,20 @@ function renderCard(idx) {
 
   html += '<hr class="ev-divider">';
 
-  // 目前劑量率（醒目顯示）
-  var doseRateVal = (ev.doseRate && ev.doseRate !== '') ? ev.doseRate : '—';
-  html += '<div class="ev-row ev-row-dose">';
-  html += '<span class="ev-lbl">目前劑量率</span>';
-  html += '<span class="ev-val ev-dose-val">' + _esc(doseRateVal) + '</span>';
-  html += '</div>';
-
-  // 最大劑量率
-  var doseMaxVal = (ev.doseMax && ev.doseMax !== '') ? ev.doseMax : '—';
+  // 最大劑量率（取 ev.doseMax 與量測數值中的最大值）
+  var _msrVals = (_msrCache[ev.id] || []).map(function(m){ return parseFloat(m.value); }).filter(function(v){ return !isNaN(v); });
+  var _msrMax  = _msrVals.length ? Math.max.apply(null, _msrVals) : null;
+  var _storedMax = parseFloat(ev.doseMax);
+  var _storedMax = isNaN(_storedMax) ? null : _storedMax;
+  var _finalMax;
+  if (_msrMax !== null && _storedMax !== null) _finalMax = Math.max(_msrMax, _storedMax);
+  else if (_msrMax !== null) _finalMax = _msrMax;
+  else if (_storedMax !== null) _finalMax = _storedMax;
+  else _finalMax = null;
+  var doseMaxDisplay = _finalMax !== null ? _fmtDoseStr(_finalMax) : '—';
   html += '<div class="ev-row ev-row-dose">';
   html += '<span class="ev-lbl">最大劑量率</span>';
-  html += '<span class="ev-val ev-dose-val ev-dose-max">' + _esc(doseMaxVal) + '</span>';
+  html += '<span class="ev-val ev-dose-val ev-dose-max">' + _esc(doseMaxDisplay) + '</span>';
   html += '</div>';
 
   // 風向
@@ -1283,13 +1264,6 @@ function renderCard(idx) {
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">風向</span>';
   html += '<span class="ev-val">' + _esc(windDisplay) + '</span>';
-  html += '</div>';
-
-  // 預估影響範圍
-  var impactVal = (ev.impactRange && ev.impactRange !== '') ? ev.impactRange : '—';
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">預估影響範圍</span>';
-  html += '<span class="ev-val">' + _esc(impactVal) + '</span>';
   html += '</div>';
 
   html += '<hr class="ev-divider">';
