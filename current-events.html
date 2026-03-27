@@ -1631,14 +1631,15 @@ function _renderPersonnelView(ev) {
     var maps = _pmBuildLookup();
     var lookup = maps.lookup, nameToSquad = maps.nameToSquad;
 
-    var squads = {};
+    var squads = {}, squadOrder = [];
     personnel.forEach(function(p) {
       var key = p.squad || '未分配';
-      if (!squads[key]) squads[key] = [];
+      if (!squads[key]) { squads[key] = []; squadOrder.push(key); }
       squads[key].push(p);
     });
 
-    var allGroups = _pmSquadOrder.concat(_PM_NON_TECH).concat(['未分配']);
+    // 依 squadOrder 排列，確保順序跟 personnelStr 一致
+    var allGroups = squadOrder;
     var total = personnel.length;
 
     var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
