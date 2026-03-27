@@ -1617,8 +1617,9 @@ function _renderPersonnelView(ev) {
   (ev.personnelStr || '').split(',').forEach(function(item) {
     item = item.trim(); if (!item) return;
     var colon = item.indexOf(':');
-    var name = colon >= 0 ? item.slice(colon + 1).trim() : item;
-    if (name) personnel.push({ name: name });
+    var squad = colon >= 0 ? item.slice(0, colon).trim() : '未分配';
+    var name  = colon >= 0 ? item.slice(colon + 1).trim() : item;
+    if (name) personnel.push({ name: name, squad: squad });
   });
 
   if (!personnel.length) {
@@ -1632,7 +1633,7 @@ function _renderPersonnelView(ev) {
 
     var squads = {};
     personnel.forEach(function(p) {
-      var key = nameToSquad[p.name] || '未分配';
+      var key = p.squad || '未分配';
       if (!squads[key]) squads[key] = [];
       squads[key].push(p);
     });
