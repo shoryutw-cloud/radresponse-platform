@@ -1416,10 +1416,10 @@ function _drawMsrTable(allRows) {
     var avg = vals.reduce(function(s,v){return s+v;},0)/vals.length;
     html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
     html += _mqStatCard('回報筆數', allRows.length, '');
-    html += _mqStatCard('最新數值', parseFloat(latestRow.value).toFixed(3)+' μSv/h', _mqValueLevel(latestRow.value));
-    html += _mqStatCard('最低值', min.toFixed(3)+' μSv/h', _mqValueLevel(min));
-    html += _mqStatCard('最高值', max.toFixed(3)+' μSv/h', _mqValueLevel(max));
-    html += _mqStatCard('平均值', avg.toFixed(3)+' μSv/h', _mqValueLevel(avg));
+    html += _mqStatCard('最新數值', _fmtDoseStr(latestRow.value), _mqValueLevel(latestRow.value));
+    html += _mqStatCard('最低值', _fmtDoseStr(min), _mqValueLevel(min));
+    html += _mqStatCard('最高值', _fmtDoseStr(max), _mqValueLevel(max));
+    html += _mqStatCard('平均值', _fmtDoseStr(avg), _mqValueLevel(avg));
     html += '</div>';
   }
 
@@ -1444,7 +1444,8 @@ function _drawMsrTable(allRows) {
   filtered.forEach(function(row, i) {
     var lvl = _mqValueLevel(row.value);
     var valNum = parseFloat(row.value);
-    var valTxt = isNaN(valNum) ? '—' : valNum.toFixed(3);
+    var valFmt = isNaN(valNum) ? { val:'—', unit:'' } : _fmtDose(valNum);
+    var valTxt = valFmt.val; var valUnit = valFmt.unit;
     var isLatest = row.id === latestId;
     var lat = parseFloat(row.lat), lng = parseFloat(row.lng);
     var gpsHtml = '<span style="color:#b0bec5;font-size:12px">—</span>';
@@ -2574,7 +2575,7 @@ function renderMsrMarkers(eventId) {
     mk.on('click', function() { setClusterMode('none'); });
     // tooltip 顯示所有點的值
     var tipHTML = grp.members.map(function(m) {
-      return parseFloat(m.value).toFixed(3) + ' μSv/h (' + (m.reporter||'?') + ')';
+      return _fmtDoseStr(m.value) + ' (' + (m.reporter||'?') + ')';
     }).join('<br>');
     mk.bindTooltip(tipHTML, { direction: 'top' });
     _msrMarkers.push(mk);
@@ -2799,8 +2800,8 @@ function renderMsrMarkers(eventId) {
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
             'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
             '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
-            val.toFixed(3) + '</span>' +
-            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
+            _fmtDose(val).val + '</span>' +
+            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>' +
             '</div>',
       iconAnchor: [LW/2, LH/2]
     });
@@ -2820,8 +2821,8 @@ function renderMsrMarkers(eventId) {
     } catch(e) {}
     label.bindPopup(
       '<div class="msr-popup">' +
-      '<span class="msr-popup-val" style="color:' + col + '">' + val.toFixed(3) + '</span>' +
-      '<span class="msr-popup-unit">&#x03BC;Sv/h</span>' +
+      '<span class="msr-popup-val" style="color:' + col + '">' + _fmtDose(val).val + '</span>' +
+      '<span class="msr-popup-unit">' + _fmtDose(val).unit + '</span>' +
       '<div class="msr-popup-info">' + (msr.reporter||'') + (dtStr ? ' · '+dtStr : '') + '</div>' +
       (msr.instrument ? '<div class="msr-popup-info">'+msr.instrument+'</div>' : '') +
       '</div>'
@@ -3059,8 +3060,8 @@ function renderEnvMarkers(stations) {
             'box-shadow:0 2px 8px rgba(0,0,0,.18);' +
             'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
             '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
-            val.toFixed(3) + '</span>' +
-            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">&#x03BC;Sv/h</span>' +
+            _fmtDose(val).val + '</span>' +
+            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>' +
             '</div>',
       iconAnchor: [LW/2, LH/2]
     });
@@ -3069,8 +3070,8 @@ function renderEnvMarkers(stations) {
       '<div style="font-family:var(--font);min-width:150px">' +
       '<div style="font-size:13px;font-weight:700;margin-bottom:3px">&#x25C6; ' + _esc(st.name) + '</div>' +
       '<div style="font-size:11px;color:#6b7a92;margin-bottom:6px">' + _esc(st.nameEn) + '</div>' +
-      '<div style="font-size:20px;font-weight:800;color:' + col + '">' + val.toFixed(3) +
-      ' <span style="font-size:11px;color:#6b7a92">&#x03BC;Sv/h</span></div>' +
+      '<div style="font-size:20px;font-weight:800;color:' + col + '">' + _fmtDose(val).val +
+      ' <span style="font-size:11px;color:#6b7a92">' + _fmtDose(val).unit + '</span></div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-top:4px">更新：' + _esc(st.time) + '</div>' +
       '<div style="font-size:10px;color:#cbd5e1;margin-top:2px">官方環境輻射監測站</div>' +
       '</div>'
@@ -4017,6 +4018,20 @@ function openMeasureModal() {
 
 function closeMeasureModal() {
   document.getElementById('measureModal').style.display = 'none';
+}
+
+// 劑量值顯示格式化：≥1000 μSv/h 自動換算為 mSv/h
+function _fmtDose(usvVal) {
+  var v = parseFloat(usvVal);
+  if (isNaN(v)) return { val: '—', unit: 'μSv/h' };
+  if (v >= 1000) {
+    return { val: (v / 1000).toFixed(3), unit: 'mSv/h' };
+  }
+  return { val: v.toFixed(3), unit: 'μSv/h' };
+}
+function _fmtDoseStr(usvVal) {
+  var d = _fmtDose(usvVal);
+  return d.val + ' ' + d.unit;
 }
 
 // 切換劑量單位
