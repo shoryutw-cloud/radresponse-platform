@@ -1985,8 +1985,12 @@ function _renderPersonnelModal(ev) {
   (ev.personnelStr||'').split(',').forEach(function(item){
     item=item.trim(); if(!item) return;
     var colon=item.indexOf(':');
+    var squad=colon>=0?item.slice(0,colon).trim():'';
     var name=colon>=0?item.slice(colon+1).trim():item;
-    if(name) curSelected[name]=true;
+    if(name) {
+      if(squad) curSelected[squad+':'+name]=true;
+      else curSelected[name]=true;
+    }
   });
 
   _pmLoadAll(ev, function(techId) {
@@ -2029,7 +2033,12 @@ function _pmSquadBlock(title, members, curSelected) {
     +'<span class="ce-squad-title">'+_esc(title)+'</span>'
     +'</div><div class="ce-squad-bd" id="pmbd'+sid+'"><div class="ce-member-list">';
   members.forEach(function(m,i){
-    var mid=sid+'_'+i, isChk=!!curSelected[m.name];
+    var mid=sid+'_'+i;
+    // 優先用「隊別:姓名」精確比對，避免同名不同隊都被勾選
+    var compKey = title + ':' + m.name;
+    var isChk = !!curSelected[compKey] ||
+      // 若 curSelected 裡完全沒有任何含此姓名的複合 key，才用純姓名 fallback
+      (!Object.keys(curSelected).some(function(k){ return k.indexOf(':'+m.name) > -1; }) && !!curSelected[m.name]);
     h+='<label class="ce-mbr'+(isChk?' checked':'')+'" id="pmlbl'+mid+'" data-mid="'+mid+'" data-sid="'+sid+'" onclick="_pmTglMbr(this)">'
       +'<input type="checkbox" id="pmcb'+mid+'" data-name="'+_esc(m.name)+'" data-squad="'+_esc(title)+'"'+(isChk?' checked':'')+'>'
       +(m.title?'<span class="ce-mbr-title">'+_esc(m.title)+'</span>':'')
