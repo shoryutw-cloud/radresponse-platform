@@ -1174,5 +1174,29 @@ function sendMapEditMsg() {
   </div>
 </div>
 
+<script>
+// 開啟回報數值查詢（通知 current-events iframe 開 Modal）
+function openMsrQueryInIframe() {
+  closeAllMenus(); closeSidebar();
+  var frame = document.getElementById('contentFrame');
+  var layer = document.getElementById('iframeLayer');
+  if (!frame || !layer) return;
+  var src = frame.src || '';
+  if (src.indexOf('current-events.html') === -1) {
+    showIframe('current-events.html');
+    setTimeout(function() {
+      try { document.getElementById('contentFrame').contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
+    }, 1500);
+  } else {
+    if (layer.style.display === 'none' || !layer.style.display) {
+      layer.style.display = 'block';
+      ['.map-badge','.map-controls','.map-compass','.content-panel'].forEach(function(sel){
+        var el = document.querySelector(sel); if (el) el.style.visibility = 'hidden';
+      });
+    }
+    try { frame.contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
+  }
+}
+</script>
 </body>
 </html>
