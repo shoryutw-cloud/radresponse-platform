@@ -1851,19 +1851,20 @@ function _pmLoadAll(ev, cb) {
   });
 }
 
-function _pmBuildLookup() {
+function _pmBuildLookup(techId) {
   var lookup = {}, nameToSquad = {};
-  Object.keys(_pmGroupCache).forEach(function(gid) {
+  // 只掃這次事件對應的群組，不掃其他技術組的快取
+  var relevantGids = [techId || 'tech-rdd', 'staff', 'press'];
+  relevantGids.forEach(function(gid) {
     var grp = _pmGroupCache[gid];
+    if (!grp) return;
     Object.keys(grp).forEach(function(name) {
       var squad = '';
       if (gid === 'staff')        squad = '參謀組';
       else if (gid === 'press')   squad = '新聞組';
       else if (grp[name].team)    squad = grp[name].team;
-      // 複合 key：隊別:姓名，確保同名不同隊各自獨立
       var compKey = squad ? (squad + ':' + name) : name;
       lookup[compKey] = grp[name];
-      // 姓名 key 保留作備用
       if (!lookup[name]) lookup[name] = grp[name];
       if (squad) nameToSquad[name] = squad;
     });
@@ -1901,8 +1902,8 @@ function _renderPersonnelView(ev) {
     return;
   }
 
-  _pmLoadAll(ev, function() {
-    var maps = _pmBuildLookup();
+  _pmLoadAll(ev, function(techId) {
+    var maps = _pmBuildLookup(techId);
     var lookup = maps.lookup, nameToSquad = maps.nameToSquad;
 
     var squads = {}, squadOrder = [];
