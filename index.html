@@ -87,16 +87,16 @@
   /* ────── TOP NAV 下拉選單（桌機版）────── */
   .top-drop {
     display: none; position: fixed;
-    min-width: 0; background: var(--surface);
+    min-width: 180px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10000; padding: 3px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
   .top-drop.active { display: block; }
   .top-drop-btn {
-    display: flex; align-items: center; width: 100%; padding: 9px 16px;
+    display: flex; align-items: center; width: 100%; padding: 6px 14px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 14px; color: #3d5070; text-align: left; gap: 4px; white-space: nowrap;
+    font-size: 13px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
     transition: background .12s, color .12s;
   }
   .top-drop-btn:hover { background: var(--hover); color: var(--accent); }
@@ -105,7 +105,7 @@
   /* L3 sub-dropdown（事件管理）*/
   .top-drop-l3 {
     display: none; position: fixed;
-    min-width: 0; background: var(--surface);
+    min-width: 165px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10001; padding: 3px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
@@ -391,8 +391,6 @@
     <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">📜 事件異動紀錄</button>
     <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">🗒️ 各帳號異動紀錄</button>
     <button class="drawer-item" onclick="openPanel('各帳號登入紀錄');closeDrawer()">🔐 各帳號登入紀錄</button>
-    <button class="drawer-item" onclick="openPanel('出勤人員異動');closeDrawer()">👤 出勤人員異動</button>
-    <button class="drawer-item" onclick="openPanel('出動儀器異動');closeDrawer()">🔩 出動儀器異動</button>
   </div>
 
   <button class="drawer-logout" onclick="closeDrawer()">← 登出</button>
@@ -494,8 +492,6 @@
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">編輯事件</button>
   <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">任務派送</button>
-  <button class="top-drop-l3-btn" onclick="openPanel('出勤人員異動');closeAllMenus()">出勤人員異動</button>
-  <button class="top-drop-l3-btn" onclick="openPanel('出動儀器異動');closeAllMenus()">出動儀器異動</button>
 </div>
 
 <script>
@@ -534,8 +530,6 @@ var PANELS = {
   '使用說明':         ['使用說明','請參閱操作手冊或聯絡系統管理員。'],
   '建立事件':         ['建立事件','填寫新事件資訊以開設應變事件。'],
   '任務派送':         ['任務派送','派送任務至出勤人員。'],
-  '出勤人員異動':     ['出勤人員異動','新增或移除出勤人員。'],
-  '出動儀器異動':     ['出動儀器異動','管理出動儀器清單。'],
   '編組管理':         ['編組管理','管理應變編組及人員配置。'],
   '儀器管理':         ['儀器管理','維護儀器清單及校正紀錄。'],
   '新增地圖Icon圖示': ['新增地圖 Icon 圖示','在地圖上新增標記或圖示。'],
