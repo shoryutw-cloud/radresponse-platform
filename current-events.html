@@ -2380,7 +2380,44 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
+    // ── 編號1：1km 橫切面 × 中線交點（藍色）跟隨 1km 橫切面開關 ──
+    var pt1 = destPoint(la, lo, wd, 1000);
+    var icon1 = L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;' +
+            'background:#3b82f6;border:2px solid white;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'font-size:11px;font-weight:700;color:white;' +
+            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
+            'font-family:ui-monospace,monospace">1</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+    var mk1 = L.marker(pt1, { icon: icon1 }).addTo(gMap);
+    mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
+    _evLayers[idx].ptMk1 = mk1;
 
+    // ── 橫切面 20 等分點（編號 A01~A20，綠色小點）跟隨 1km 橫切面開關 ──
+    var crossMks = [];
+    for (var ci = 0; ci < 20; ci++) {
+      var t  = ci / 19;
+      var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
+      var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
+      var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
+      var cIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:18px;height:18px;border-radius:50%;' +
+              'background:#16a34a;border:2px solid white;' +
+              'display:flex;align-items:center;justify-content:center;' +
+              'font-size:8px;font-weight:700;color:white;' +
+              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
+              'font-family:ui-monospace,monospace">' + (ci+1) + '</div>',
+        iconSize: [18, 18], iconAnchor: [9, 9]
+      });
+      var cMk = L.marker([cLat, cLng], { icon: cIcon }).addTo(gMap);
+      cMk.bindTooltip(cLabel + '：橫切面', { permanent: false, direction: 'top' });
+      crossMks.push(cMk);
+    }
+    _evLayers[idx].crossMks = crossMks;
   }
 
   // (3) 5km 扇形（需有風向才顯示）
@@ -2409,47 +2446,7 @@ function buildEventLayers(idx) {
     var arc4 = [];
     for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
     _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
-    // ── 編號1：1km 橫切面 × 中線交點（藍色）──
-    var pt1 = destPoint(la, lo, wd, 1000);
-    var icon1 = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#3b82f6;border:2px solid white;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'font-size:11px;font-weight:700;color:white;' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-            'font-family:ui-monospace,monospace">1</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
-    var mk1 = L.marker(pt1, { icon: icon1 }).addTo(gMap);
-    mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk1 = mk1;
-
-    // ── 橫切面 20 等分點（編號 A01~A20，綠色小點）──
-    var crossMks = [];
-    for (var ci = 0; ci < 20; ci++) {
-      // 從 perpB（-500m）到 perpA（+500m）均勻分 19 份，共 20 個點
-      var t  = ci / 19;
-      var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
-      var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
-      var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
-      var cIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#16a34a;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:8px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + (ci+1) + '</div>',
-        iconSize: [18, 18], iconAnchor: [9, 9]
-      });
-      var cMk = L.marker([cLat, cLng], { icon: cIcon }).addTo(gMap);
-      cMk.bindTooltip(cLabel + '：橫切面', { permanent: false, direction: 'top' });
-      crossMks.push(cMk);
-    }
-    _evLayers[idx].crossMks = crossMks;
-
-    // ── 編號2：500m 中線點（橘色，只顯示點）──
+    // ── 編號2：500m 中線點（橘色，跟隨 5km 扇形）──
     var pt2 = destPoint(la, lo, wd, 500);
     var icon2 = L.divIcon({
       className: '',
@@ -3328,12 +3325,21 @@ function _animateWind() {
 
     // 超出邊界或壽命到 → 重新生成
     if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20 || p.age > p.maxAge) {
-      // 從邊緣入場
-      var side = Math.floor(Math.random() * 4);
-      if (side === 0) { p.x = Math.random() * W; p.y = -10; }
-      else if (side === 1) { p.x = W + 10; p.y = Math.random() * H; }
-      else if (side === 2) { p.x = Math.random() * W; p.y = H + 10; }
-      else { p.x = -10; p.y = Math.random() * H; }
+      // 從上風邊入場（風從哪邊來就從哪邊生成，確保粒子能橫越整個畫面）
+      // vx>0 代表粒子往右移，所以要從左邊(x=-10)生成；vy>0 往下移，從上邊(y=-10)生成
+      // 依風向權重決定從哪個邊入場
+      var absVx = Math.abs(p.vx), absVy = Math.abs(p.vy);
+      var totalV = absVx + absVy;
+      var r = Math.random() * totalV;
+      if (r < absVx) {
+        // 從左右邊入場
+        p.x = p.vx > 0 ? -10 : W + 10;
+        p.y = Math.random() * H;
+      } else {
+        // 從上下邊入場
+        p.x = Math.random() * W;
+        p.y = p.vy > 0 ? -10 : H + 10;
+      }
       p.age = 0;
       p.maxAge = 80 + Math.random() * 80;
       var spd = 2.5 + (Math.random() - 0.5) * 0.8;
