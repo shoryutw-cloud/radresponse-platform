@@ -452,6 +452,21 @@ transition: background .1s;
 .map-ctx-item .ctx-icon { font-size: 16px; flex-shrink: 0; }
 .map-ctx-sep { border: none; border-top: 1px solid var(--border); margin: 3px 0; }
 
+
+/* ── 指南針 ── */
+.compass-wrap {
+  position: fixed; right: 16px; bottom: 80px; z-index: 1000;
+  width: 40px; height: 40px;
+  background: white; border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+}
+.compass-arrow {
+  font-size: 22px; line-height: 1;
+  transition: transform .3s;
+  user-select: none;
+}
 /* ── 量測點分派 Modal ── */
 .modal-overlay {
 position: fixed; inset: 0; z-index: 7000;
@@ -691,8 +706,40 @@ cursor: pointer; transition: background .15s;
   <!-- 編輯面板 -->
   <div class="ev-edit-panel" id="evEditPanel">
     <div class="ev-edit-row">
+      <label class="ev-edit-lbl">事件名稱</label>
+      <input class="ev-edit-inp" id="editName" type="text" placeholder="輸入事件名稱">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">事件類型</label>
+      <select class="ev-edit-inp" id="editType" style="appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer">
+        <option value="輻射彈事件">輻射彈事件</option>
+        <option value="放射性物質事件">放射性物質事件</option>
+        <option value="放射性物料事件">放射性物料事件</option>
+      </select>
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">日期與時間</label>
+      <div style="display:flex;gap:6px">
+        <input class="ev-edit-inp" id="editDate" type="date" style="flex:1">
+        <input class="ev-edit-inp" id="editTime" type="time" style="flex:0 0 90px">
+      </div>
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl">事件地點</label>
+      <input class="ev-edit-inp" id="editAddress" type="text" placeholder="輸入事件地點">
+    </div>
+    <div class="ev-edit-row">
       <label class="ev-edit-lbl">風向（0-359度，正北為0）</label>
       <input class="ev-edit-inp" id="editWindDir" type="number" min="0" max="359" placeholder="例：90（東風）">
+    </div>
+    <div class="ev-edit-row">
+      <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
+        <span>旋轉角度（1km橫切面 / 5km扇形）</span>
+        <span id="angleDisplay" style="font-family:var(--font-mono);color:var(--accent)">—</span>
+      </label>
+      <input type="range" id="editAngle" min="0" max="359" step="1"
+        style="width:100%;accent-color:var(--accent);cursor:pointer;margin-top:4px"
+        oninput="onAngleInput(this.value)">
     </div>
     <div class="ev-edit-btns">
       <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
@@ -701,11 +748,16 @@ cursor: pointer; transition: background .15s;
     <!-- 出勤/儀器異動快捷按鈕（編輯模式專用，有儲存功能）-->
     <div class="ev-edit-change-btns">
       <button class="ev-edit-change-btn" onclick="openPersonnelModal()">👥 出勤人員異動</button>
-      <button class="ev-edit-change-btn" onclick="openInstrModal()">🔧 出動儀器異動</button>
+      <button class="ev-edit-change-btn" onclick="openInstrModal()">🔧 攜帶儀器異動</button>
     </div>
   </div>
 </div>
 
+
+<!-- 指南針 -->
+<div class="compass-wrap" id="compassWrap" title="地圖方位">
+  <div class="compass-arrow" id="compassArrow">🧭</div>
+</div>
 <!-- 右下角圖釘（回到定位/飛到事件）-->
 <button class="locate-btn" id="locateBtn" title="回到事件位置" onclick="onLocateBtnClick()">📍</button>
 
@@ -949,6 +1001,14 @@ cursor: pointer; transition: background .15s;
           font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
       </div>
+      <!-- 備註 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📝 備註（選填）</div>
+        <input id="msrNote" type="text" placeholder="例：上風向量測"
+          style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          outline:none;box-sizing:border-box;">
+      </div>
     </div>
     <!-- 底部按鈕 -->
     <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e2e8f0">
@@ -1090,22 +1150,63 @@ function toggleEditPanel() {
   editBtn.style.color = isOpen ? 'var(--accent)' : '';
   if (isOpen && _events[_curIdx]) {
     var ev = _events[_curIdx];
-    document.getElementById('editWindDir').value = ev.windDir || '';
+    document.getElementById('editName').value    = ev.name    || '';
+    document.getElementById('editType').value    = ev.type    || '輻射彈事件';
+    // 日期時間：格式 "YYYY年MM月DD日 HH時MM分" → date/time input
+    var _dtRaw = (ev.date || '') + ' ' + (ev.time || '');
+    var _dtM = _dtRaw.match(/(\d{4}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{2})/);
+    if (_dtM) {
+      document.getElementById('editDate').value = _dtM[1] + '-' + _dtM[2].padStart(2,'0') + '-' + _dtM[3].padStart(2,'0');
+      document.getElementById('editTime').value = _dtM[4].padStart(2,'0') + ':' + _dtM[5];
+    }
+    document.getElementById('editAddress').value = ev.address || '';
+    document.getElementById('editWindDir').value  = ev.windDir || '';
+    var _curAngle = ev.windDir ? parseInt(ev.windDir) : 0;
+    document.getElementById('editAngle').value = _curAngle;
+    document.getElementById('angleDisplay').textContent = _curAngle + '°';
   }
 }
 
 // ── 儲存編輯 ──
+
+// 旋轉角度滑桿即時預覽
+function onAngleInput(val) {
+  document.getElementById('angleDisplay').textContent = val + '°';
+  document.getElementById('editWindDir').value = val;
+  // 即時更新地圖圖層
+  var ev = _events[_curIdx];
+  if (ev) {
+    var prev = ev.windDir;
+    ev.windDir = val;
+    buildEventLayers(_curIdx);
+    _refreshWindIfOn();
+    ev.windDir = prev; // 先不改 ev，等儲存
+    // 但圖層已更新，讓使用者預覽
+    ev.windDir = val;
+  }
+}
+
 function saveEdit() {
   var ev  = _events[_curIdx];
   if (!ev) return;
   var btn = document.getElementById('evEditSave');
   btn.disabled = true; btn.textContent = '儲存中…';
 
-  var windVal = document.getElementById('editWindDir').value.trim();
+  var windVal   = document.getElementById('editWindDir').value.trim();
+  var nameVal   = document.getElementById('editName').value.trim();
+  var typeVal   = document.getElementById('editType').value;
+  var dateVal   = document.getElementById('editDate').value;   // YYYY-MM-DD
+  var timeVal   = document.getElementById('editTime').value;   // HH:MM
+  var addrVal   = document.getElementById('editAddress').value.trim();
   var payload = {
     action:   'updateEvent',
     eventId:  ev.id,
-    windDir:  windVal
+    windDir:  windVal,
+    name:     nameVal,
+    type:     typeVal,
+    date:     dateVal,
+    time:     timeVal,
+    address:  addrVal
   };
 
   // 用 no-cors 送出（與其他 POST 一致，無法讀回傳值但資料會寫入）
@@ -1117,7 +1218,12 @@ function saveEdit() {
   })
   .then(function() {
     // 更新本地快取
-    ev.windDir = payload.windDir;
+    ev.windDir  = payload.windDir;
+    if (payload.name)    ev.name    = payload.name;
+    if (payload.type)    ev.type    = payload.type;
+    if (payload.date)    ev.date    = payload.date;
+    if (payload.time)    ev.time    = payload.time;
+    if (payload.address) ev.address = payload.address;
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
@@ -1256,7 +1362,8 @@ function renderCard(idx) {
   var doseMaxDisplay = _finalMax !== null ? _fmtDoseStr(_finalMax) : '—';
   html += '<div class="ev-row ev-row-dose">';
   html += '<span class="ev-lbl">最大劑量率</span>';
-  html += '<span class="ev-val ev-dose-val ev-dose-max">' + _esc(doseMaxDisplay) + '</span>';
+  var _doseColor = _finalMax === null ? '#6b7a92' : _finalMax >= 100 ? '#dc2626' : _finalMax >= 0.5 ? '#d97706' : '#16a34a';
+  html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
   html += '</div>';
 
   // 風向
@@ -2193,7 +2300,12 @@ function flyToEvent(idx) {
   if (!gMap || !ev) return;
   var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
   if (isNaN(lat) || isNaN(lng)) return;
-  gMap.flyTo([lat, lng], 14, { duration: 0.8 });
+  // 智慧縮放：依開啟的圖層決定合適的縮放
+  var zoom = 16; // 預設只有 100m 範圍
+  var hasWind = ev.windDir && ev.windDir !== '';
+  if (hasWind && isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
+  else if (hasWind && isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
+  gMap.flyTo([lat, lng], zoom, { duration: 0.8 });
   // 套用事件的風向（若有值）
   if (ev.windDir && ev.windDir !== '') {
     _windDeg = (parseFloat(ev.windDir) + 180) % 360;
@@ -2268,6 +2380,35 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
+
+  }
+
+  // (3) 5km 扇形（需有風向才顯示）
+  if (showSector && hasWind) {
+    var pts = [[la, lo]];
+    for (var i = 0; i <= 40; i++) {
+      pts.push(destPoint(la, lo, (wd - 22.5) + 45 * i / 40, 5000));
+    }
+    pts.push([la, lo]);
+    _evLayers[idx].sector = L.polygon(pts, {
+      color: '#8b5cf6', fillColor: '#8b5cf6',
+      fillOpacity: 0.12, weight: 2, opacity: 0.7
+    }).addTo(gMap);
+
+    // ── 2km 弧線 ──
+    var arc2 = [];
+    for (var a2 = 0; a2 <= 24; a2++) arc2.push(destPoint(la, lo, (wd - 22.5) + 45 * a2 / 24, 2000));
+    _evLayers[idx].arc2 = L.polyline(arc2, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
+
+    // ── 3km 弧線 ──
+    var arc3 = [];
+    for (var a3 = 0; a3 <= 24; a3++) arc3.push(destPoint(la, lo, (wd - 22.5) + 45 * a3 / 24, 3000));
+    _evLayers[idx].arc3 = L.polyline(arc3, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
+
+    // ── 4km 弧線 ──
+    var arc4 = [];
+    for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
+    _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
     // ── 編號1：1km 橫切面 × 中線交點（藍色）──
     var pt1 = destPoint(la, lo, wd, 1000);
     var icon1 = L.divIcon({
@@ -2323,34 +2464,6 @@ function buildEventLayers(idx) {
     var mk2 = L.marker(pt2, { icon: icon2 }).addTo(gMap);
     mk2.bindTooltip('2：500m × 中線', { permanent: false, direction: 'top' });
     _evLayers[idx].ptMk2 = mk2;
-  }
-
-  // (3) 5km 扇形（需有風向才顯示）
-  if (showSector && hasWind) {
-    var pts = [[la, lo]];
-    for (var i = 0; i <= 40; i++) {
-      pts.push(destPoint(la, lo, (wd - 22.5) + 45 * i / 40, 5000));
-    }
-    pts.push([la, lo]);
-    _evLayers[idx].sector = L.polygon(pts, {
-      color: '#8b5cf6', fillColor: '#8b5cf6',
-      fillOpacity: 0.12, weight: 2, opacity: 0.7
-    }).addTo(gMap);
-
-    // ── 2km 弧線 ──
-    var arc2 = [];
-    for (var a2 = 0; a2 <= 24; a2++) arc2.push(destPoint(la, lo, (wd - 22.5) + 45 * a2 / 24, 2000));
-    _evLayers[idx].arc2 = L.polyline(arc2, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
-
-    // ── 3km 弧線 ──
-    var arc3 = [];
-    for (var a3 = 0; a3 <= 24; a3++) arc3.push(destPoint(la, lo, (wd - 22.5) + 45 * a3 / 24, 3000));
-    _evLayers[idx].arc3 = L.polyline(arc3, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
-
-    // ── 4km 弧線 ──
-    var arc4 = [];
-    for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
-    _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
 
     // ── 8 個編號交叉點（3~10）──
     // 越內圈編號越小
@@ -2419,11 +2532,22 @@ var _LAYER_DEFAULTS = { circle: true, line: false, sector: false, msr: true };
 function getLayerPref(eventId, type) {
   if (!_layerPrefs[eventId]) {
     var def = _LAYER_DEFAULTS[type];
+    // 10. 若事件有風向，預設開啟 1km 橫切面
+    if (type === 'line' && def === false) {
+      var ev = _events.filter ? _events.filter(function(e){return e.id===eventId;})[0] :
+        (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return _events[ii]; })();
+      if (ev && ev.windDir && ev.windDir !== '') def = true;
+    }
     return (def !== undefined) ? def : false;
   }
   var val = _layerPrefs[eventId][type];
   if (val === undefined) {
     var def = _LAYER_DEFAULTS[type];
+    if (type === 'line' && def === false) {
+      var ev2 = _events.filter ? _events.filter(function(e){return e.id===eventId;})[0] :
+        (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return _events[ii]; })();
+      if (ev2 && ev2.windDir && ev2.windDir !== '') def = true;
+    }
     return (def !== undefined) ? def : false;
   }
   return val;
@@ -2550,6 +2674,10 @@ function clusterMsrPoints(valid, mode) {
 function renderMsrMarkers(eventId) {
   _msrMarkers.forEach(function(m) { m.remove(); });
   _msrMarkers = [];
+  // 圖層關閉時不渲染
+  var evIdx = _events.findIndex ? _events.findIndex(function(e){return e.id===eventId;}) :
+    (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return ii; return -1; })();
+  if (evIdx >= 0 && !isLayerOn(evIdx, 'msr')) return;
 
   var list = _msrCache[eventId] || [];
   var valid = list.filter(function(msr) {
@@ -3100,6 +3228,13 @@ var _WIND_COUNT   = 200;  // 粒子數量
 function onWindChk(checked) {
   _windLayerOn = checked;
   if (checked) {
+    var ev = _events[_curIdx];
+    if (!ev || !ev.windDir || ev.windDir === '') {
+      showToast('⚠️ 請先設定風向');
+      document.getElementById('lyr_wind').checked = false;
+      _windLayerOn = false;
+      return;
+    }
     _startWindLayer();
   } else {
     _stopWindLayer();
@@ -3111,7 +3246,8 @@ function _startWindLayer() {
   var mapEl = document.getElementById('map');
   if (!_windCanvas) {
     _windCanvas = document.createElement('canvas');
-    _windCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500';
+    _windCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:500';
+    mapEl.style.position = 'relative';
     mapEl.appendChild(_windCanvas);
     _windCtx = _windCanvas.getContext('2d');
   }
@@ -3139,8 +3275,11 @@ function _onMapMoveWind() {
 function _resizeWindCanvas() {
   if (!_windCanvas) return;
   var mapEl = document.getElementById('map');
-  _windCanvas.width  = mapEl.offsetWidth;
-  _windCanvas.height = mapEl.offsetHeight;
+  var w = mapEl.offsetWidth, h = mapEl.offsetHeight;
+  _windCanvas.width  = w;
+  _windCanvas.height = h;
+  _windCanvas.style.width  = w + 'px';
+  _windCanvas.style.height = h + 'px';
 }
 
 function _initWindParticles() {
@@ -3208,7 +3347,7 @@ function _animateWind() {
     var lifeRatio = p.age / p.maxAge;
     var alpha = lifeRatio < 0.1 ? lifeRatio * 10 :
                 lifeRatio > 0.8 ? (1 - lifeRatio) * 5 : 1;
-    alpha = Math.min(1, Math.max(0, alpha)) * 0.65;
+    alpha = Math.min(1, Math.max(0, alpha)) * 0.35;
 
     // 繪製帶箭頭的線段
     var tx = p.x - Math.cos(rad) * p.len;
@@ -4202,6 +4341,7 @@ function openMeasureModal() {
   // 重置欄位
   document.getElementById('msrValue').value      = '';
   document.getElementById('msrInstrument').value = '';
+  if (document.getElementById('msrNote')) document.getElementById('msrNote').value = '';
   document.getElementById('msrSubmitBtn').textContent = '送出回報';
   document.getElementById('msrSubmitBtn').disabled    = false;
   document.getElementById('msrCoordVal').textContent  = '取得中…';
@@ -4285,6 +4425,7 @@ function submitMeasure() {
   var reporter = document.getElementById('msrReporter').value.trim();
   var value    = document.getElementById('msrValue').value.trim();
   var instr    = document.getElementById('msrInstrument').value.trim();
+  var note     = document.getElementById('msrNote') ? document.getElementById('msrNote').value.trim() : '';
 
   if (!reporter) { showToast('⚠️ 請選擇回報人員'); return; }
   if (!value || isNaN(parseFloat(value))) { showToast('⚠️ 請輸入有效的劑量值'); return; }
@@ -4305,7 +4446,7 @@ function submitMeasure() {
     eventId:    ev ? ev.id : '',
     reporter:   reporter,
     value:      numVal.toString(),
-    instrument: instr,
+    instrument: instr + (note ? ' [' + note + ']' : ''),
     lat:        _msrLat ? _msrLat.toString() : '',
     lng:        _msrLng ? _msrLng.toString() : ''
   };
@@ -4634,6 +4775,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (_envLayerOn && _envMarkers.length) loadEnvMonitor();
     });
 
+    // 比例尺（左下角）
+    L.control.scale({ position: 'bottomleft', imperial: false, metric: true }).addTo(gMap);
     loadEvents();
     initDrawTools();
     loadDrawings();
