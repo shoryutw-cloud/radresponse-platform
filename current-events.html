@@ -1120,6 +1120,7 @@ function saveEdit() {
     ev.windDir = payload.windDir;
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
+    _refreshWindIfOn(); // 重新初始化風向粒子
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
@@ -2864,6 +2865,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
@@ -3085,6 +3087,165 @@ function renderEnvMarkers(stations) {
   });
 }
 
+// ════════════════════════════════════════════
+// 風向粒子動畫（Canvas overlay）
+// ════════════════════════════════════════════
+var _windLayerOn  = false;
+var _windCanvas   = null;
+var _windCtx      = null;
+var _windAnimId   = null;
+var _windParticles = [];
+var _WIND_COUNT   = 200;  // 粒子數量
+
+function onWindChk(checked) {
+  _windLayerOn = checked;
+  if (checked) {
+    _startWindLayer();
+  } else {
+    _stopWindLayer();
+  }
+}
+
+function _startWindLayer() {
+  if (!gMap) return;
+  var mapEl = document.getElementById('map');
+  if (!_windCanvas) {
+    _windCanvas = document.createElement('canvas');
+    _windCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500';
+    mapEl.appendChild(_windCanvas);
+    _windCtx = _windCanvas.getContext('2d');
+  }
+  _resizeWindCanvas();
+  _initWindParticles();
+  _animateWind();
+
+  // 地圖移動/縮放時重新初始化粒子位置
+  gMap.on('moveend zoomend', _onMapMoveWind);
+}
+
+function _stopWindLayer() {
+  if (_windAnimId) { cancelAnimationFrame(_windAnimId); _windAnimId = null; }
+  if (_windCtx && _windCanvas) _windCtx.clearRect(0, 0, _windCanvas.width, _windCanvas.height);
+  if (_windCanvas) { _windCanvas.remove(); _windCanvas = null; _windCtx = null; }
+  gMap.off('moveend zoomend', _onMapMoveWind);
+}
+
+function _onMapMoveWind() {
+  if (!_windLayerOn) return;
+  _resizeWindCanvas();
+  _initWindParticles();
+}
+
+function _resizeWindCanvas() {
+  if (!_windCanvas) return;
+  var mapEl = document.getElementById('map');
+  _windCanvas.width  = mapEl.offsetWidth;
+  _windCanvas.height = mapEl.offsetHeight;
+}
+
+function _initWindParticles() {
+  if (!_windCanvas) return;
+  var W = _windCanvas.width, H = _windCanvas.height;
+  _windParticles = [];
+  for (var i = 0; i < _WIND_COUNT; i++) {
+    _windParticles.push(_makeWindParticle(W, H, true));
+  }
+}
+
+function _makeWindParticle(W, H, random) {
+  var ev = _events[_curIdx];
+  // 風向：輸入值為來向（0=北風），顯示流動方向為去向 +180
+  var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+  var rad = (windDir - 90) * Math.PI / 180; // 轉為螢幕座標系角度
+  // 預設風速 5 m/s，換算為像素速度（5 m/s 約對應 2.5 px/frame）
+  var baseSpeed = 2.5; // 之後可改為 ev.windSpeed * 0.5
+  var speed = baseSpeed + (Math.random() - 0.5) * 0.8; // ±0.4 的小幅變化
+  return {
+    x: random ? Math.random() * W : (Math.random() < 0.5 ? Math.random() * W : (rad > 0 ? 0 : W)),
+    y: random ? Math.random() * H : (Math.random() < 0.5 ? Math.random() * H : (rad > Math.PI/2 ? 0 : H)),
+    vx: Math.cos(rad) * speed,
+    vy: Math.sin(rad) * speed,
+    age: Math.random() * 120,
+    maxAge: 80 + Math.random() * 80,
+    len: 6 + Math.random() * 10,
+    width: 0.8 + Math.random() * 0.8
+  };
+}
+
+function _animateWind() {
+  if (!_windLayerOn || !_windCtx || !_windCanvas) return;
+  var W = _windCanvas.width, H = _windCanvas.height;
+  var ev = _events[_curIdx];
+  var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+  var rad = (windDir - 90) * Math.PI / 180;
+
+  // 半透明擦除（拖尾效果）
+  _windCtx.fillStyle = 'rgba(255,255,255,0.12)';
+  _windCtx.fillRect(0, 0, W, H);
+
+  _windParticles.forEach(function(p, idx) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.age++;
+
+    // 超出邊界或壽命到 → 重新生成
+    if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20 || p.age > p.maxAge) {
+      // 從邊緣入場
+      var side = Math.floor(Math.random() * 4);
+      if (side === 0) { p.x = Math.random() * W; p.y = -10; }
+      else if (side === 1) { p.x = W + 10; p.y = Math.random() * H; }
+      else if (side === 2) { p.x = Math.random() * W; p.y = H + 10; }
+      else { p.x = -10; p.y = Math.random() * H; }
+      p.age = 0;
+      p.maxAge = 80 + Math.random() * 80;
+      var spd = 2.5 + (Math.random() - 0.5) * 0.8;
+      p.vx = Math.cos(rad) * spd;
+      p.vy = Math.sin(rad) * spd;
+      p.len = 6 + Math.random() * 10;
+    }
+
+    // 生命週期透明度（淡入淡出）
+    var lifeRatio = p.age / p.maxAge;
+    var alpha = lifeRatio < 0.1 ? lifeRatio * 10 :
+                lifeRatio > 0.8 ? (1 - lifeRatio) * 5 : 1;
+    alpha = Math.min(1, Math.max(0, alpha)) * 0.65;
+
+    // 繪製帶箭頭的線段
+    var tx = p.x - Math.cos(rad) * p.len;
+    var ty = p.y - Math.sin(rad) * p.len;
+    _windCtx.beginPath();
+    _windCtx.moveTo(tx, ty);
+    _windCtx.lineTo(p.x, p.y);
+    _windCtx.strokeStyle = 'rgba(14,165,233,' + alpha + ')';
+    _windCtx.lineWidth = p.width;
+    _windCtx.lineCap = 'round';
+    _windCtx.stroke();
+
+    // 箭頭頭部
+    var arrowLen = 4;
+    var arrowAngle = 0.4;
+    _windCtx.beginPath();
+    _windCtx.moveTo(p.x, p.y);
+    _windCtx.lineTo(p.x - Math.cos(rad - arrowAngle) * arrowLen,
+                    p.y - Math.sin(rad - arrowAngle) * arrowLen);
+    _windCtx.moveTo(p.x, p.y);
+    _windCtx.lineTo(p.x - Math.cos(rad + arrowAngle) * arrowLen,
+                    p.y - Math.sin(rad + arrowAngle) * arrowLen);
+    _windCtx.strokeStyle = 'rgba(14,165,233,' + alpha + ')';
+    _windCtx.lineWidth = p.width;
+    _windCtx.stroke();
+  });
+
+  _windAnimId = requestAnimationFrame(_animateWind);
+}
+
+// 事件切換或風向更新時重新初始化粒子
+function _refreshWindIfOn() {
+  if (_windLayerOn && _windCanvas) {
+    _initWindParticles();
+  }
+}
+
 // ── 圖層面板收合 ──
 function toggleMsrLayer(idx) {
   var cb = document.getElementById('lyr_' + idx + '_msr');
@@ -3299,7 +3460,7 @@ function loadEvents() {
     updateLayers();              // 建立所有事件圖層
     // 用 setTimeout 確保地圖完全初始化後再 fly
     if (_events.length) {
-      setTimeout(function() { flyToEvent(_curIdx); }, 100);
+      setTimeout(function() { flyToEvent(_curIdx); }, 800);
     }
     // 載入所有進行中事件的量測點任務
     _loadTaskMarkers();
@@ -3321,7 +3482,7 @@ function _loadTaskMarkers() {
         var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
         if (isNaN(lat) || isNaN(lng)) return;
         var latlng = { lat: lat, lng: lng };
-        placeTempMeasureMarker(latlng, task.target || '');
+        placeTempMeasureMarker(latlng, task.target || '', false);
       });
     });
   });
@@ -3909,7 +4070,7 @@ function submitAssignment() {
 
 // ── 地圖上放置正式量測任務標記（紫色，有編號） ──
 var _taskMarkers = [];  // [{ mk, latlng, squad, num }]
-function placeTempMeasureMarker(latlng, squadName) {
+function placeTempMeasureMarker(latlng, squadName, autoOpen) {
   var num = _taskMarkers.length + 1;
   var label = 'T' + (num < 10 ? '0' + num : num);
   var icon = L.divIcon({
@@ -3933,7 +4094,8 @@ function placeTempMeasureMarker(latlng, squadName) {
     '<div style="font-size:12px;color:#7c3aed;font-weight:600">' + _esc(squadName) + '</div>' +
     '<div style="font-size:11px;color:#94a3b8;margin-top:4px">待量測</div>' +
     '</div>'
-  ).openPopup();
+  );
+  if (autoOpen !== false) mk.openPopup();
   _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label });
   // 導航點位更新
   _refreshNavPoints();
