@@ -455,12 +455,12 @@ transition: background .1s;
 
 /* ── 指南針 ── */
 .compass-wrap {
-  position: fixed; right: 16px; bottom: 80px; z-index: 1000;
-  width: 40px; height: 40px;
-  background: white; border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  position: fixed; right: 24px; bottom: 116px; z-index: 1000;
+  width: 38px; height: 38px;
+  background: white; border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.14);
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border);
+  border: 1px solid #d0d8e4;
 }
 .compass-arrow {
   font-size: 22px; line-height: 1;
@@ -3318,9 +3318,8 @@ function _animateWind() {
   var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
   var rad = (windDir - 90) * Math.PI / 180;
 
-  // 半透明擦除（拖尾效果）
-  _windCtx.fillStyle = 'rgba(255,255,255,0.12)';
-  _windCtx.fillRect(0, 0, W, H);
+  // 半透明擦除（拖尾效果）—— 用 clearRect 而非填白，避免遮住地圖
+  _windCtx.clearRect(0, 0, W, H);
 
   _windParticles.forEach(function(p, idx) {
     p.x += p.vx;
