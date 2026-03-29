@@ -1243,14 +1243,26 @@ function fetchCwaWind(autoIdx) {
     ev.windSpeed     = String(data.windSpeed || '');
     ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
 
+    // 判斷是否為有效風向（排除特殊異常值）
+    var _wdNormal = ev.windDir && ev.windDir !== ''
+                    && ev.windDir !== 'X' && ev.windDir !== '-99' && ev.windDir !== '990';
+
     // 若是目前顯示的事件，更新卡片和圖層
     if (idx === _curIdx) {
       renderCard(idx);
       buildEventLayers(idx);
-      _refreshWindIfOn();
-      // 若有風向且風向圖層已開，確保動畫在跑
-      if (ev.windDir && ev.windDir !== '' && _windLayerOn) {
+      // ★ 依風向是否正常自動開關風向圖層
+      var _cbWind = document.getElementById('lyr_wind');
+      if (_wdNormal && !_windLayerOn) {
+        _windLayerOn = true;
+        if (_cbWind) _cbWind.checked = true;
         _startWindLayer();
+      } else if (!_wdNormal && _windLayerOn) {
+        _windLayerOn = false;
+        if (_cbWind) _cbWind.checked = false;
+        _stopWindLayer();
+      } else if (_wdNormal && _windLayerOn) {
+        _refreshWindIfOn(); // 風速/風向更新，重啟粒子
       }
     }
 
