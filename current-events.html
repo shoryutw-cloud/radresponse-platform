@@ -858,7 +858,7 @@ cursor: pointer; transition: background .15s;
      出勤人員 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="personnelViewModal">
-  <div class="chg-modal" style="width:min(1280px,97vw);max-height:93vh">
+  <div class="chg-modal" style="width:min(1440px,98vw);max-height:93vh;overflow-x:auto">
     <div class="chg-modal-hd">
       <span>👥 事件出勤人員</span>
       <button class="chg-modal-close" onclick="closePersonnelViewModal()">✕</button>
@@ -1646,7 +1646,6 @@ function _drawMsrTable(allRows) {
     html += _mqStatCard('最新數值', _fmtDoseStr(latestRow.value), _mqValueLevel(latestRow.value));
     html += _mqStatCard('最低值', _fmtDoseStr(min), _mqValueLevel(min));
     html += _mqStatCard('最高值', _fmtDoseStr(max), _mqValueLevel(max));
-    html += _mqStatCard('平均值', _fmtDoseStr(avg), _mqValueLevel(avg));
     html += '</div>';
   }
 
@@ -1661,7 +1660,7 @@ function _drawMsrTable(allRows) {
   var bdMap    = { green:'#bbf7d0', orange:'#fed7aa', red:'#fecaca', unknown:'#e2e8f0' };
 
   html += '<div style="font-size:13px;color:var(--text-muted);padding:6px 0 10px">顯示 '+filtered.length+' 筆'+(filtered.length<allRows.length?'（共 '+allRows.length+' 筆）':'')+' </div>';
-  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['#','時間','回報人員','數值','使用儀器','定位'].forEach(function(h){
     html += '<th style="font-size:13px;color:#6b7a92;font-weight:600;padding:10px 14px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">'+_esc(h)+'</th>';
@@ -1694,7 +1693,7 @@ function _drawMsrTable(allRows) {
           + (isLatest ? '<span style="font-size:11px;background:#dbeafe;color:#1a56db;padding:2px 7px;border-radius:3px;font-weight:700;margin-left:5px">最新</span>' : '')
           + '</td>';
     var _dispUnit = valFmt.unit || 'μSv/h';
-    html += '<td style="padding:10px 14px"><span style="font-family:monospace;font-size:16px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:3px 12px;border-radius:5px">'+_esc(valTxt)+' '+_esc(_dispUnit)+'</span></td>';
+    html += '<td style="padding:10px 14px;white-space:nowrap"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:3px 12px;border-radius:5px;white-space:nowrap;display:inline-block">'+_esc(valTxt)+' '+_esc(_dispUnit)+'</span></td>';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;white-space:nowrap">'+_esc(row.instrument||'—')+'</td>';
     html += '<td style="padding:10px 14px;white-space:nowrap">'+gpsHtml+'</td>';
     html += '</tr>';
@@ -1878,7 +1877,7 @@ function _doRenderPersonnelView(body, techId, personnel) {
   if (squads['未分配'] && squads['未分配'].length) html += _viewStatCard('未分配', squads['未分配'].length);
   html += '</div>';
 
-  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['職稱','姓名','手機','電話','所屬組室'].forEach(function(h) {
     html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;'
@@ -1973,7 +1972,7 @@ function _doRenderInstrView(body, instruments, instrList) {
     return null;
   });
 
-  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['項次','儀器種類','儀器名稱','存放地點','使用者'].forEach(function(h){
     html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;'
@@ -2139,7 +2138,7 @@ function _renderPersonnelView(ev) {
     if (squads['未分配'] && squads['未分配'].length) html += _viewStatCard('未分配', squads['未分配'].length);
     html += '</div>';
 
-    html += '<table style="width:100%;border-collapse:collapse">';
+    html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
     html += '<thead><tr style="background:#f1f5f9">';
     ['職稱','姓名','手機','電話','所屬組室'].forEach(function(h) {
       html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
