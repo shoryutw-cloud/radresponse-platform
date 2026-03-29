@@ -1216,6 +1216,8 @@ function fetchCwaWind(autoIdx) {
     if (!isAuto) showToast('⚠️ 事件缺少座標，無法查詢');
     return;
   }
+  // ★ 自動輪詢時，若使用者已手動儲存風向，不覆蓋（手動優先於氣象署）
+  if (isAuto && ev.windManual) return;
 
   if (!isAuto) {
     var btn = document.getElementById('cwaFetchBtn');
@@ -1251,6 +1253,8 @@ function fetchCwaWind(autoIdx) {
     ev.windDir       = String(data.windDir   || '');
     ev.windSpeed     = String(data.windSpeed || '');
     ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
+    // 手動按「從氣象局抓取」→ 清除手動旗標，之後自動輪詢可正常更新
+    if (!isAuto) ev.windManual = false;
 
     // 判斷是否為有效風向（排除特殊異常值）
     var _wdNormal = ev.windDir && ev.windDir !== ''
@@ -1341,8 +1345,10 @@ function saveEdit() {
   })
   .then(function() {
     // 更新本地快取
-    ev.windDir   = payload.windDir;
-    ev.windSpeed = payload.windSpeed;
+    ev.windDir    = payload.windDir;
+    ev.windSpeed  = payload.windSpeed;
+    // ★ 只要使用者有手動輸入風向/風速就標記 windManual，CWA 自動輪詢不覆蓋
+    ev.windManual = true;
     if (payload.name)    ev.name    = payload.name;
     if (payload.type)    ev.type    = payload.type;
     if (payload.date)    ev.date    = payload.date;
