@@ -461,7 +461,7 @@
       <div class="drawer-section-title">後台功能</div>
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
-      <button class="drawer-item" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
+      <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
       <button class="drawer-item" onclick="openTaskDispatchModal();closeDrawer()">📨 任務派送</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
@@ -572,7 +572,7 @@
 </div>
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
-  <button class="top-drop-l3-btn" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
+  <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
   <button class="top-drop-l3-btn" onclick="openTaskDispatchModal();closeAllMenus()">任務派送</button>
 </div>
 
@@ -1631,20 +1631,27 @@ function onLogoClick(e) {
   return true; // 未登入：正常跳頁
 }
 
-// ── item2：編輯事件頁 + 開啟地圖編輯模式 ──
-// ── item2：編輯事件 → 確保在地圖頁 + 開啟 mapEditMode，不換頁 ──
+// ── 編輯事件 → 確保在地圖頁 + 開啟 mapEditMode，不換頁 ──
 function openEditEventPage() {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
   if (src.indexOf('current-events.html') === -1) {
-    // 尚未在地圖頁，先跳過去，iframeReady 後由 message 監聽器送 mapEditMode
     _mapEditOn = true;
+    _updateEditEventBtn();
     showIframe('current-events.html');
     return;
   }
-  // 已在地圖頁：直接開啟編輯模式（toggle：若已開啟則關閉）
   _mapEditOn = !_mapEditOn;
+  _updateEditEventBtn();
   sendMapEditMsg();
+}
+
+// ── 更新「編輯事件」按鈕文字（桌機 L3 + 手機抽屜）──
+function _updateEditEventBtn() {
+  var btnDesktop = document.getElementById('btnEditEvent');
+  if (btnDesktop) btnDesktop.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
+  var btnDrawer = document.getElementById('drawerEditEventBtn');
+  if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '✏️ 編輯事件（開啟中）' : '✏️ 編輯事件';
 }
 
 // ── item3：登入密碼顯示切換 ──
