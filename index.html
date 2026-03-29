@@ -1032,11 +1032,13 @@ function askNavThenReport() {
 function navAskNo() {}
 function navAskYes() {}
 
-// ── 導航點位選擇 Modal ──
+// ── 導航點位選擇 Modal（兩步驟流程）──
 var _navSelectedLabel = null;
 var _navPointsCache   = null;
 var _pendingNavModal  = false;
+var _navSelCategory   = null;  // 已選類型
 
+// 步驟1：開啟類型選擇
 function openNavSelectModal() {
   var frame = document.getElementById('contentFrame');
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
@@ -1047,18 +1049,81 @@ function openNavSelectModal() {
   }
   _navSelectedLabel = null;
   _navPointsCache   = null;
-  document.getElementById('navSelectModal').style.display = 'flex';
-  // 向 iframe 請求點位清單
+  _navSelCategory   = null;
+  // 先向 iframe 請求點位（在背景準備，讓使用者選類型時快一點）
   if (frame && frame.contentWindow) {
     frame.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
   }
-  document.getElementById('navPointGrid').innerHTML =
-    '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:8px">⏳ 計算點位中…</div>';
+  // 顯示類型選擇頁
+  document.getElementById('navTypeStep').style.display  = 'flex';
+  document.getElementById('navPointStep').style.display = 'none';
+  document.getElementById('navSelectModal').style.display = 'flex';
 }
 
 function closeNavSelectModal() {
   document.getElementById('navSelectModal').style.display = 'none';
   _navSelectedLabel = null;
+  _navSelCategory   = null;
+}
+
+// 步驟2：選了類型後顯示該類型的點位
+function navChooseCategory(cat) {
+  _navSelCategory = cat;
+  _navSelectedLabel = null;
+  document.getElementById('navTypeStep').style.display  = 'none';
+  document.getElementById('navPointStep').style.display = 'flex';
+
+  // 標題
+  var titles = {
+    manual: '🔴 人工設定量測點',
+    cross:  '🟢 1km橫切面量測點',
+    area:   '🟣 附近場域量測點',
+    sector: '🔵 5km扇形量測點'
+  };
+  document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
+  document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
+
+  _navRenderPoints();
+}
+
+// 返回類型選擇
+function navBackToType() {
+  _navSelCategory   = null;
+  _navSelectedLabel = null;
+  document.getElementById('navTypeStep').style.display  = 'flex';
+  document.getElementById('navPointStep').style.display = 'none';
+}
+
+// 渲染點位格子
+function _navRenderPoints() {
+  var grid = document.getElementById('navPointGrid');
+  if (!_navPointsCache) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:16px">⏳ 計算點位中…</div>';
+    return;
+  }
+  var filtered = _navPointsCache.filter(function(p){ return p.category === _navSelCategory; });
+  if (!filtered.length) {
+    var emptyMsg = {
+      manual: '⚠️ 目前尚無人工設定的量測點',
+      cross:  '⚠️ 請先設定風向以產生橫切面量測點',
+      area:   '⚠️ 附近場域量測點尚未設定',
+      sector: '⚠️ 請先設定風向以產生扇形量測點'
+    };
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
+    return;
+  }
+  // 顏色對應
+  var colorMap = { manual:'#dc2626', cross:'#16a34a', area:'#8b5cf6', sector:'#1a56db' };
+  var c = colorMap[_navSelCategory] || '#8b5cf6';
+  grid.innerHTML = filtered.map(function(p) {
+    return '<button onclick="selectNavPoint(\u0027' + p.label + '\u0027)" id="navpt_' + p.label + '" style="' +
+      'padding:10px 4px;border:2px solid #e2e8f0;border-radius:8px;background:white;' +
+      'font-family:inherit;font-size:13px;font-weight:600;color:#1e2a3a;cursor:pointer;' +
+      'transition:all .15s;text-align:center;line-height:1.3">' +
+      '<div style="font-size:16px;font-weight:800;color:' + c + '">' + p.label + '</div>' +
+      '<div style="font-size:10px;color:#94a3b8;margin-top:2px">' + p.shortTip + '</div>' +
+      '</button>';
+  }).join('');
 }
 
 function startNavWithSelected() {
@@ -1083,8 +1148,10 @@ function selectNavPoint(label) {
   _navSelectedLabel = label;
   document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
     var sel = btn.id === 'navpt_' + label;
-    btn.style.borderColor = sel ? '#8b5cf6' : '#e2e8f0';
-    btn.style.background  = sel ? '#ede9fe' : 'white';
+    var colorMap = { manual:'#dc2626', cross:'#16a34a', area:'#8b5cf6', sector:'#1a56db' };
+    var c = colorMap[_navSelCategory] || '#8b5cf6';
+    btn.style.borderColor = sel ? c : '#e2e8f0';
+    btn.style.background  = sel ? (c + '18') : 'white';
   });
   document.getElementById('navStartBtn').style.background = '#8b5cf6';
 }
@@ -1142,32 +1209,107 @@ function sendMapEditMsg() {
 
 </script>
 
-<!-- 導航點位選擇 Modal -->
+<!-- 導航點位選擇 Modal（兩步流程）-->
 <div id="navSelectModal" style="
   display:none; position:fixed; inset:0; z-index:99999;
   background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
   <div style="
-    background:white; border-radius:14px; padding:24px 24px 20px;
-    max-width:400px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.25);
+    background:white; border-radius:14px; padding:0;
+    max-width:440px; width:92%; box-shadow:0 8px 32px rgba(0,0,0,.25);
     font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
-    display:flex; flex-direction:column; gap:14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:16px;font-weight:700;color:#1e2a3a">🧭 選擇導航目的地</div>
-      <button onclick="closeNavSelectModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8">✕</button>
+    display:flex; flex-direction:column; overflow:hidden;">
+
+    <!-- 共用標頭 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+      <div style="font-size:16px;font-weight:700;color:#1e2a3a">🧭 導航至量測點</div>
+      <button onclick="closeNavSelectModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
     </div>
-    <div id="navPointGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
-    <div style="display:flex;gap:8px;margin-top:4px">
+
+    <!-- 步驟1：選類型 -->
+    <div id="navTypeStep" style="display:flex;flex-direction:column;gap:0;padding:16px 20px 20px">
+      <div style="font-size:13px;color:#6b7a92;margin-bottom:14px">請選擇量測點類型：</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="navChooseCategory('manual')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#dc2626';this.style.background='#fff5f5'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="font-size:24px">🔴</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">人工設定量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">右鍵地圖手動新增的 T01、T02… 等點位</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button onclick="navChooseCategory('cross')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#16a34a';this.style.background='#f0fdf4'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="font-size:24px">🟢</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">1km橫切面量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">A01～A20，需設定風向才可使用</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button onclick="navChooseCategory('area')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#f5f3ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="font-size:24px">🟣</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">附近場域量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">附近特定場域的預設量測點位</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button onclick="navChooseCategory('sector')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#1a56db';this.style.background='#eff6ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="font-size:24px">🔵</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">5km扇形量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">編號 1～10，需設定風向才可使用</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+      </div>
       <button onclick="closeNavSelectModal()" style="
-        flex:1;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
-        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer;">
+        margin-top:14px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
+        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
         取消
       </button>
-      <button onclick="startNavWithSelected()" id="navStartBtn" style="
-        flex:1;padding:9px;border:none;border-radius:8px;
-        background:#8b5cf6;color:white;font-family:inherit;
-        font-size:14px;font-weight:700;cursor:pointer;">
-        開始導航
-      </button>
+    </div>
+
+    <!-- 步驟2：選點位 -->
+    <div id="navPointStep" style="display:none;flex-direction:column;gap:0;padding:16px 20px 20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <button onclick="navBackToType()" style="background:none;border:none;cursor:pointer;color:#1a56db;font-size:13px;padding:0;font-family:inherit">‹ 返回</button>
+        <span id="navPointStepTitle" style="font-size:14px;font-weight:700;color:#1e2a3a"></span>
+      </div>
+      <div id="navPointGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:280px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="closeNavSelectModal()" style="
+          flex:1;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
+          background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
+          取消
+        </button>
+        <button onclick="startNavWithSelected()" id="navStartBtn" style="
+          flex:2;padding:9px;border:none;border-radius:8px;
+          background:#d1d5db;color:white;font-family:inherit;
+          font-size:14px;font-weight:700;cursor:pointer">
+          開始導航
+        </button>
+      </div>
     </div>
   </div>
 </div>
