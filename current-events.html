@@ -3624,6 +3624,12 @@ var _pendingEventId = null;
 window.addEventListener('message', function(e) {
   if (!e.data) return;
 
+  // ── 接收登入者姓名（由 index.html iframeReady 後傳入）──
+  if (e.data.type === 'setLoginUser') {
+    _loginUserName = String(e.data.name || '').trim();
+    return;
+  }
+
   // ── 編輯地圖模式開關 ──
   if (e.data.type === 'mapEditMode') {
     var on = !!e.data.on;
@@ -4180,6 +4186,7 @@ function isMobile() { return window.innerWidth <= 600; }
 // 地圖右鍵選單
 // ════════════════════════════════════════════
 var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
+var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入，用於回報自動預選）
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -4522,16 +4529,9 @@ function openMeasureModal() {
   document.getElementById('msrCoordVal').textContent  = '取得中…';
 
   // ── 填充人員清單（格式：隊別:姓名，下拉顯示「隊別:姓名」）──
-  // item1：從 localStorage 取登入者帳號，比對後自動預選
+  // 使用 _loginUserName（由 index.html postMessage 傳入）自動預選
   var sel = document.getElementById('msrReporter');
   sel.innerHTML = '<option value="">— 選擇人員 —</option>';
-
-  // 取登入者姓名（index.html 存在 localStorage.radAuth.name）
-  var _loginName = '';
-  try {
-    var _ls = localStorage.getItem('radAuth');
-    if (_ls) _loginName = (JSON.parse(_ls).name || '').trim();
-  } catch(e) {}
 
   var _defaultVal = '';
   if (ev.personnelStr) {
@@ -4548,7 +4548,7 @@ function openMeasureModal() {
       opt.textContent = displayVal;
       sel.appendChild(opt);
       // 若此人員姓名與登入者相符，記下來
-      if (_loginName && name === _loginName && !_defaultVal) {
+      if (_loginUserName && name === _loginUserName && !_defaultVal) {
         _defaultVal = displayVal;
       }
     });
