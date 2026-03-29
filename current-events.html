@@ -2306,6 +2306,18 @@ function flyToEvent(idx) {
   if (hasWind && isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
   else if (hasWind && isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
   gMap.flyTo([lat, lng], zoom, { duration: 0.8 });
+  // 有風向時自動開啟風向圖層（若尚未開啟）
+  if (hasWind && !_windLayerOn) {
+    _windLayerOn = true;
+    var cb = document.getElementById('lyr_wind');
+    if (cb) cb.checked = true;
+    _startWindLayer();
+  } else if (!hasWind && _windLayerOn) {
+    _windLayerOn = false;
+    var cb2 = document.getElementById('lyr_wind');
+    if (cb2) cb2.checked = false;
+    _stopWindLayer();
+  }
   // 套用事件的風向（若有值）
   if (ev.windDir && ev.windDir !== '') {
     _windDeg = (parseFloat(ev.windDir) + 180) % 360;
@@ -3215,7 +3227,7 @@ function renderEnvMarkers(stations) {
 // ════════════════════════════════════════════
 // 風向粒子動畫（Canvas overlay）
 // ════════════════════════════════════════════
-var _windLayerOn  = false;
+var _windLayerOn  = false;  // 初始值，載入事件後若有風向會自動開啟
 var _windCanvas   = null;
 var _windCtx      = null;
 var _windAnimId   = null;
@@ -3302,7 +3314,7 @@ function _makeWindParticle(W, H, random) {
     vx: Math.cos(rad) * speed,
     vy: Math.sin(rad) * speed,
     age: Math.random() * 120,
-    maxAge: 80 + Math.random() * 80,
+    maxAge: 120 + Math.random() * 100,
     len: 6 + Math.random() * 10,
     width: 0.8 + Math.random() * 0.8
   };
@@ -3325,23 +3337,26 @@ function _animateWind() {
 
     // 超出邊界或壽命到 → 重新生成
     if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20 || p.age > p.maxAge) {
-      // 從上風邊入場（風從哪邊來就從哪邊生成，確保粒子能橫越整個畫面）
-      // vx>0 代表粒子往右移，所以要從左邊(x=-10)生成；vy>0 往下移，從上邊(y=-10)生成
-      // 依風向權重決定從哪個邊入場
-      var absVx = Math.abs(p.vx), absVy = Math.abs(p.vy);
-      var totalV = absVx + absVy;
-      var r = Math.random() * totalV;
-      if (r < absVx) {
-        // 從左右邊入場
-        p.x = p.vx > 0 ? -10 : W + 10;
+      // 70% 從上風邊入場，30% 從畫面隨機位置補充（確保下風區不斷有粒子）
+      if (Math.random() < 0.3) {
+        // 隨機補充：分散在整個畫面
+        p.x = Math.random() * W;
         p.y = Math.random() * H;
       } else {
-        // 從上下邊入場
-        p.x = Math.random() * W;
-        p.y = p.vy > 0 ? -10 : H + 10;
+        // 從上風邊入場
+        var absVx = Math.abs(p.vx), absVy = Math.abs(p.vy);
+        var totalV = absVx + absVy;
+        var r = Math.random() * totalV;
+        if (r < absVx) {
+          p.x = p.vx > 0 ? -10 : W + 10;
+          p.y = Math.random() * H;
+        } else {
+          p.x = Math.random() * W;
+          p.y = p.vy > 0 ? -10 : H + 10;
+        }
       }
       p.age = 0;
-      p.maxAge = 80 + Math.random() * 80;
+      p.maxAge = 120 + Math.random() * 100;
       var spd = 2.5 + (Math.random() - 0.5) * 0.8;
       p.vx = Math.cos(rad) * spd;
       p.vy = Math.sin(rad) * spd;
