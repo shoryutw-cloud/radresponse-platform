@@ -1469,6 +1469,12 @@ function toggleCollapse() {
 
 // ── 切換事件 ──
 function navEvent(dir) {
+  // 若編輯面板開著，先強制取消關閉，避免覆蓋其他事件資料
+  var panel = document.getElementById('evEditPanel');
+  if (panel && panel.classList.contains('show')) {
+    toggleEditPanel(); // 等同按「取消」，還原風向並關面板
+  }
+
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
   if (_navFollowing) stopNavMode();
   renderCard(_curIdx);
