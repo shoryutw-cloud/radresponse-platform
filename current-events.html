@@ -846,7 +846,7 @@ cursor: pointer; transition: background .15s;
 <div class="chg-modal-overlay" id="instrModal">
   <div class="chg-modal">
     <div class="chg-modal-hd">
-      <span>🔧 出動儀器異動</span>
+      <span>🔧 攜帶儀器異動</span>
       <button class="chg-modal-close" onclick="closeInstrModal()">✕</button>
     </div>
     <div class="chg-modal-bd" id="instrModalBody">
@@ -1642,8 +1642,8 @@ function renderCard(idx) {
 
   // 攜帶儀器種類
   html += '<div class="ev-row" style="align-items:flex-start">';
-  html += '<span class="ev-lbl" style="flex-shrink:0">攜帶儀器種類'
-        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400;display:block">（查看）</span>'
+  html += '<span class="ev-lbl" style="flex-shrink:0">攜帶儀器'
+        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400;display:block">（查詢）</span>'
         + '</span>';
   if (detTypes.length) {
     html += '<div class="ev-tags">';
