@@ -724,8 +724,16 @@ cursor: pointer; transition: background .15s;
       </div>
     </div>
     <div class="ev-edit-row">
-      <label class="ev-edit-lbl">事件地點</label>
+      <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
+        <span>事件地點</span>
+        <button id="editLocPickBtn" onclick="toggleLocPickMode()" style="
+          font-size:11px;padding:2px 8px;border:1px solid #f97316;border-radius:5px;
+          background:#fff7ed;color:#c2410c;cursor:pointer;font-family:var(--font)">
+          📍 地圖點選
+        </button>
+      </label>
       <input class="ev-edit-inp" id="editAddress" type="text" placeholder="輸入事件地點">
+      <div id="editLocCoord" style="font-size:11px;color:#6b7a92;margin-top:3px;display:none"></div>
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
@@ -1155,7 +1163,7 @@ function toggleEditPanel() {
   body.style.display = isOpen ? 'none' : '';
   editBtn.style.borderColor = isOpen ? 'var(--accent)' : '';
   editBtn.style.color = isOpen ? 'var(--accent)' : '';
-  // ★ 關閉編輯面板（取消）→ 還原預覽時暫改的 windDir
+  // ★ 關閉編輯面板（取消）→ 還原預覽時暫改的 windDir，並清除 locPick
   if (!isOpen) {
     var evCancel = _events[_curIdx];
     if (evCancel && _editOrigWindDir !== undefined) {
@@ -1163,6 +1171,12 @@ function toggleEditPanel() {
       buildEventLayers(_curIdx);
       _refreshWindIfOn();
     }
+    // 清除地點點選模式與暫時標記
+    if (_editLocPickOn) toggleLocPickMode();
+    if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
+    _editNewLat = null; _editNewLng = null;
+    var coordEl = document.getElementById('editLocCoord');
+    if (coordEl) { coordEl.style.display = 'none'; coordEl.textContent = ''; }
   }
   if (isOpen && _events[_curIdx]) {
     var ev = _events[_curIdx];
@@ -1207,6 +1221,66 @@ function onAngleInput(val) {
 // autoIdx: 若為數字，代表自動輪詢呼叫（不更新 UI 按鈕），否則為手動點擊
 var _cwaTimer = null;       // 自動輪詢計時器
 var _editOrigWindDir = ''; // 編輯面板開啟前的原始風向（取消時還原）
+var _editNewLat = null;   // 編輯面板中地圖點選的新緯度
+var _editNewLng = null;   // 編輯面板中地圖點選的新經度
+var _editLocPickOn = false; // 是否正在點選地點模式
+var _editLocMarker = null;  // 暫時點選標記
+
+// ── 切換地圖點選地點模式 ──
+function toggleLocPickMode() {
+  _editLocPickOn = !_editLocPickOn;
+  var btn = document.getElementById('editLocPickBtn');
+  if (_editLocPickOn) {
+    btn.style.background = '#f97316';
+    btn.style.color = 'white';
+    btn.textContent = '📍 點擊地圖選點（取消）';
+    gMap.getContainer().style.cursor = 'crosshair';
+    showToast('📍 請點擊地圖選擇新事件地點');
+  } else {
+    btn.style.background = '#fff7ed';
+    btn.style.color = '#c2410c';
+    btn.textContent = '📍 地圖點選';
+    gMap.getContainer().style.cursor = '';
+  }
+}
+
+// ── 地圖點擊處理（編輯地點模式下）──
+function _onMapClickForLocPick(e) {
+  if (!_editLocPickOn) return;
+  var lat = e.latlng.lat, lng = e.latlng.lng;
+  _editNewLat = lat;
+  _editNewLng = lng;
+
+  // 更新暫時標記
+  if (_editLocMarker) gMap.removeLayer(_editLocMarker);
+  _editLocMarker = L.marker([lat, lng], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:16px;height:16px;border-radius:50%;background:#f97316;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+      iconSize: [16, 16], iconAnchor: [8, 8]
+    })
+  }).addTo(gMap);
+
+  // 顯示座標提示
+  var coordEl = document.getElementById('editLocCoord');
+  if (coordEl) {
+    coordEl.style.display = 'block';
+    coordEl.textContent = '✅ 已選：' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    coordEl.style.color = '#16a34a';
+  }
+
+  // 用 Nominatim 反查地址
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=zh')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data && data.display_name) {
+        document.getElementById('editAddress').value = data.display_name;
+      }
+    }).catch(function(){});
+
+  // 關閉點選模式
+  toggleLocPickMode();
+}
 
 function fetchCwaWind(autoIdx) {
   var isAuto = (typeof autoIdx === 'number');
@@ -1336,6 +1410,12 @@ function saveEdit() {
     address:  addrVal
   };
 
+  // 若有地圖點選新座標，一併更新
+  if (_editNewLat !== null && _editNewLng !== null) {
+    payload.lat = _editNewLat;
+    payload.lng = _editNewLng;
+  }
+
   // 用 no-cors 送出（與其他 POST 一致，無法讀回傳值但資料會寫入）
   fetch(SHEETS_URL, {
     method: 'POST',
@@ -1347,13 +1427,17 @@ function saveEdit() {
     // 更新本地快取
     ev.windDir    = payload.windDir;
     ev.windSpeed  = payload.windSpeed;
-    // ★ 只要使用者有手動輸入風向/風速就標記 windManual，CWA 自動輪詢不覆蓋
     ev.windManual = true;
     if (payload.name)    ev.name    = payload.name;
     if (payload.type)    ev.type    = payload.type;
     if (payload.date)    ev.date    = payload.date;
     if (payload.time)    ev.time    = payload.time;
     if (payload.address) ev.address = payload.address;
+    // 更新座標（若有地圖點選）
+    if (payload.lat !== undefined) { ev.lat = String(payload.lat); ev.lng = String(payload.lng); }
+    // 清除地點點選暫時標記
+    if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
+    _editNewLat = null; _editNewLng = null;
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
@@ -4950,7 +5034,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 點擊地圖其他地方 → 關閉選單並取消圖釘
-    gMap.on('click', function() { hideCtxMenu(); });
+    gMap.on('click', function(e) {
+      hideCtxMenu();
+      _onMapClickForLocPick(e); // 若在地點點選模式中，處理選點
+    });
 
     // 縮放或拖動 → 視為取消量測點建議，移除圖釘
     gMap.on('zoomstart', function() { hideCtxMenu(); });
