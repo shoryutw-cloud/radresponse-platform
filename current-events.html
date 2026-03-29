@@ -1251,7 +1251,7 @@ function _onMapClickForLocPick(e) {
   _editNewLat = lat;
   _editNewLng = lng;
 
-  // 更新暫時標記
+  // 更新暫時標記（移除舊的再放新的）
   if (_editLocMarker) gMap.removeLayer(_editLocMarker);
   _editLocMarker = L.marker([lat, lng], {
     icon: L.divIcon({
@@ -1265,11 +1265,11 @@ function _onMapClickForLocPick(e) {
   var coordEl = document.getElementById('editLocCoord');
   if (coordEl) {
     coordEl.style.display = 'block';
-    coordEl.textContent = '✅ 已選：' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    coordEl.textContent = '✅ 已選：' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '　（可繼續點選更新）';
     coordEl.style.color = '#16a34a';
   }
 
-  // 用 Nominatim 反查地址
+  // 用 Nominatim 反查地址並填入欄位
   fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=zh')
     .then(function(r){ return r.json(); })
     .then(function(data) {
@@ -1278,8 +1278,7 @@ function _onMapClickForLocPick(e) {
       }
     }).catch(function(){});
 
-  // 關閉點選模式
-  toggleLocPickMode();
+  // ★ 不關閉點選模式，讓使用者可繼續點選更新
 }
 
 function fetchCwaWind(autoIdx) {
@@ -1433,8 +1432,15 @@ function saveEdit() {
     if (payload.date)    ev.date    = payload.date;
     if (payload.time)    ev.time    = payload.time;
     if (payload.address) ev.address = payload.address;
-    // 更新座標（若有地圖點選）
-    if (payload.lat !== undefined) { ev.lat = String(payload.lat); ev.lng = String(payload.lng); }
+    // 更新座標（若有地圖點選）並飛到新位置
+    if (payload.lat !== undefined) {
+      ev.lat = String(payload.lat);
+      ev.lng = String(payload.lng);
+      // 重新放置所有事件標記（中心點更新到新座標）
+      placeMarkers();
+      // 飛到新座標
+      gMap.setView([payload.lat, payload.lng], gMap.getZoom());
+    }
     // 清除地點點選暫時標記
     if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
     _editNewLat = null; _editNewLng = null;
