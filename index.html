@@ -1215,9 +1215,9 @@ function navChooseCategory(cat) {
   // 標題
   var titles = {
     manual: '🔴 人工設定量測點',
-    cross:  '🟢 1km橫切面量測點',
-    area:   '🟣 附近場域量測點',
-    sector: '🔵 5km扇形量測點'
+    cross:  '🔵 1km橫切面量測點',
+    area:   '🟢 附近場域量測點',
+    sector: '🟣 5km扇形量測點'
   };
   document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
   document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
@@ -1252,7 +1252,7 @@ function _navRenderPoints() {
     return;
   }
   // 顏色對應
-  var colorMap = { manual:'#dc2626', cross:'#16a34a', area:'#8b5cf6', sector:'#1a56db' };
+  var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6' };
   var c = colorMap[_navSelCategory] || '#8b5cf6';
   grid.innerHTML = filtered.map(function(p) {
     return '<button onclick="selectNavPoint(\u0027' + p.label + '\u0027)" id="navpt_' + p.label + '" style="' +
@@ -1287,7 +1287,7 @@ function selectNavPoint(label) {
   _navSelectedLabel = label;
   document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
     var sel = btn.id === 'navpt_' + label;
-    var colorMap = { manual:'#dc2626', cross:'#16a34a', area:'#8b5cf6', sector:'#1a56db' };
+    var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6' };
     var c = colorMap[_navSelCategory] || '#8b5cf6';
     btn.style.borderColor = sel ? c : '#e2e8f0';
     btn.style.background  = sel ? (c + '18') : 'white';
@@ -1362,7 +1362,7 @@ function sendMapEditMsg() {
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
           onmouseover="this.style.borderColor='#dc2626';this.style.background='#fff5f5'"
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="font-size:24px">🔴</span>
+          <span style="width:24px;height:24px;border-radius:50%;background:#dc2626;display:inline-block;flex-shrink:0"></span>
           <div>
             <div style="font-size:15px;font-weight:700;color:#1e2a3a">人工設定量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">右鍵地圖手動新增的 T01、T02… 等點位</div>
@@ -1373,9 +1373,9 @@ function sendMapEditMsg() {
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
-          onmouseover="this.style.borderColor='#16a34a';this.style.background='#f0fdf4'"
+          onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'"
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="font-size:24px">🟢</span>
+          <span style="width:24px;height:24px;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0"></span>
           <div>
             <div style="font-size:15px;font-weight:700;color:#1e2a3a">1km橫切面量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">A01～A20，需設定風向才可使用</div>
@@ -1386,9 +1386,9 @@ function sendMapEditMsg() {
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
-          onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#f5f3ff'"
+          onmouseover="this.style.borderColor='#059669';this.style.background='#f0fdf4'"
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="font-size:24px">🟣</span>
+          <span style="width:24px;height:24px;border-radius:50%;background:#059669;display:inline-block;flex-shrink:0"></span>
           <div>
             <div style="font-size:15px;font-weight:700;color:#1e2a3a">附近場域量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">附近特定場域的預設量測點位</div>
@@ -1399,9 +1399,9 @@ function sendMapEditMsg() {
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
-          onmouseover="this.style.borderColor='#1a56db';this.style.background='#eff6ff'"
+          onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#f5f3ff'"
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="font-size:24px">🔵</span>
+          <span style="width:24px;height:24px;border-radius:50%;background:#8b5cf6;display:inline-block;flex-shrink:0"></span>
           <div>
             <div style="font-size:15px;font-weight:700;color:#1e2a3a">5km扇形量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">編號 1～10，需設定風向才可使用</div>
