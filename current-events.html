@@ -3641,7 +3641,8 @@ window.addEventListener('message', function(e) {
     if (hasWind) {
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
       var wd = (parseFloat(ev.windDir) + 180) % 360;
-      pts = pts.concat([
+      // 5km 扇形量測點（編號 1~10）
+      [
         { label:'1',  shortTip:'1km中線',   pt: destPoint(la, lo, wd,        1000) },
         { label:'2',  shortTip:'500m中線',  pt: destPoint(la, lo, wd,         500) },
         { label:'3',  shortTip:'2km中線',   pt: destPoint(la, lo, wd,        2000) },
@@ -3652,8 +3653,9 @@ window.addEventListener('message', function(e) {
         { label:'8',  shortTip:'5km上緣',   pt: destPoint(la, lo, wd - 22.5, 5000) },
         { label:'9',  shortTip:'5km中線',   pt: destPoint(la, lo, wd,        5000) },
         { label:'10', shortTip:'5km下緣',   pt: destPoint(la, lo, wd + 22.5, 5000) }
-      ]);
-      // 橫切面 20 等分點（A01~A20）
+      ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.shortTip, pt:p.pt, category:'sector' }); });
+
+      // 1km 橫切面量測點（A01~A20）
       var lineCenter2 = destPoint(la, lo, wd, 1000);
       var perpA2 = destPoint(lineCenter2[0], lineCenter2[1], (wd + 90) % 360, 500);
       var perpB2 = destPoint(lineCenter2[0], lineCenter2[1], (wd - 90 + 360) % 360, 500);
@@ -3662,13 +3664,14 @@ window.addEventListener('message', function(e) {
         var nLat = perpB2[0] + (perpA2[0] - perpB2[0]) * nt;
         var nLng = perpB2[1] + (perpA2[1] - perpB2[1]) * nt;
         var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
-        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng] });
+        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng], category: 'cross' });
       }
     }
-    // 手動設置的量測點（T01, T02...）不需要風向，永遠加入
+    // 人工設定的量測點（T01, T02...）永遠加入
     _taskMarkers.forEach(function(t) {
-      pts.push({ label: t.label, shortTip: t.squad + '量測點', pt: [t.latlng.lat, t.latlng.lng] });
+      pts.push({ label: t.label, shortTip: t.squad + '量測點', pt: [t.latlng.lat, t.latlng.lng], category: 'manual' });
     });
+    // 附近場域量測點（預留，category:'area'，目前空）
     try { parent.postMessage({ type: 'navPoints', points: pts }, '*'); } catch(err) {}
     return;
   }
