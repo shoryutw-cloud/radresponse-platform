@@ -383,7 +383,7 @@
 <!-- TOP BAR -->
 <div class="topbar">
   <!-- Logo（靠左）-->
-  <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁">
+  <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁" onclick="return onLogoClick(event)">
     <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
       <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
     </div>
@@ -452,7 +452,7 @@
 
     <div class="drawer-section">
       <div class="drawer-section-title">設定</div>
-      <button class="drawer-item" onclick="openPanel('個人資料維護');closeDrawer()">🪺 個人資料維護</button>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">🪺 個人資料維護</button>
       <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">ℹ️ 使用說明</button>
     </div>
 
@@ -461,8 +461,8 @@
       <div class="drawer-section-title">後台功能</div>
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
-      <button class="drawer-item" onclick="showIframe('edit-event.html');closeDrawer()">✏️ 編輯事件</button>
-      <button class="drawer-item" onclick="showIframe('task-dispatch.html');closeDrawer()">📨 任務派送</button>
+      <button class="drawer-item" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
+      <button class="drawer-item" onclick="openTaskDispatchModal();closeDrawer()">📨 任務派送</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
@@ -558,7 +558,7 @@
   <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
 </div>
 <div class="top-drop" id="drop-settings">
-  <button class="top-drop-btn" onclick="openPanel('個人資料維護');closeAllMenus()">個人資料維護</button>
+  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
   <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">使用說明</button>
 </div>
 <div class="top-drop" id="drop-admin">
@@ -572,8 +572,8 @@
 </div>
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
-  <button class="top-drop-l3-btn" onclick="showIframe('edit-event.html');closeAllMenus()">編輯事件</button>
-  <button class="top-drop-l3-btn" onclick="showIframe('task-dispatch.html');closeAllMenus()">任務派送</button>
+  <button class="top-drop-l3-btn" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
+  <button class="top-drop-l3-btn" onclick="openTaskDispatchModal();closeAllMenus()">任務派送</button>
 </div>
 
 <script>
@@ -832,14 +832,38 @@ function closePanel() {
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
 
-  // ── ① 先檢查 sessionStorage 的登入狀態 ──
-  // 若未登入：清除 hash、鎖住畫面（loginOverlay 預設顯示）
-  // 若已登入：套用 UI、還原 hash 路由
+  // ── ① 先檢查 localStorage 的登入狀態（12小時無活動才過期）──
+  var TWELVE_HR = 12 * 60 * 60 * 1000;
   var _authUser = null;
   try {
-    var _stored = sessionStorage.getItem('radAuth');
-    if (_stored) _authUser = JSON.parse(_stored);
+    var _stored = localStorage.getItem('radAuth');
+    if (_stored) {
+      var _parsed = JSON.parse(_stored);
+      // 有 lastActivity 且未超過 12 小時
+      if (_parsed.lastActivity && (Date.now() - _parsed.lastActivity) < TWELVE_HR) {
+        _authUser = _parsed;
+        // 更新活動時間
+        _parsed.lastActivity = Date.now();
+        localStorage.setItem('radAuth', JSON.stringify(_parsed));
+      } else {
+        localStorage.removeItem('radAuth'); // 已過期，清掉
+      }
+    }
   } catch(e) {}
+
+  // ── 活動偵測：每次使用者操作都更新 lastActivity ──
+  ['click','keydown','touchstart'].forEach(function(evt) {
+    document.addEventListener(evt, function() {
+      try {
+        var s = localStorage.getItem('radAuth');
+        if (s) {
+          var u = JSON.parse(s);
+          u.lastActivity = Date.now();
+          localStorage.setItem('radAuth', JSON.stringify(u));
+        }
+      } catch(e2) {}
+    }, { passive: true });
+  });
 
   if (_authUser) {
     // 已登入：套用 UI 後繼續正常初始化
@@ -847,11 +871,9 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     // 未登入：清除 hash（防止直接跳頁）、顯示登入遮罩
     if (window.location.hash) history.replaceState('', document.title, window.location.pathname);
-    // loginOverlay 預設就顯示，不需額外操作
-    // 阻止後續路由執行（return 之前先綁好所有 UI 事件）
   }
 
-  // ── 載入儀表板統計（只有登入後才有意義，但可延遲）──
+  // ── 載入儀表板統計（只有登入後才有意義）──
   if (_authUser) loadDashStats();
 
   // ── Hash 路由（只有登入後才執行）──
@@ -952,36 +974,31 @@ document.addEventListener('DOMContentLoaded', function() {
     var drop    = document.getElementById(NAV_MAP[navId]);
     if (!navItem || !drop) return;
 
-    // ── 後台功能：點擊 toggle（同時開關編輯地圖）──
+    // ── 後台功能：改為 hover 彈出（同其他選單），不再 click-toggle mapEditMode ──
     if (navId === 'tnav-admin') {
-      // ★ mouseenter 時關閉其他 hover 選單（設定、儀表板等）
       navItem.addEventListener('mouseenter', function() {
         clearTimeout(leaveTimer);
-        // 只關閉非後台功能的其他選單，不自動開啟後台功能
-        Object.keys(NAV_MAP).forEach(function(nid) {
-          if (nid === 'tnav-admin') return;
-          var d = document.getElementById(NAV_MAP[nid]);
-          var ni = document.getElementById(nid);
-          if (d) d.classList.remove('active');
-          if (ni) ni.classList.remove('open');
-        });
-        closeL3();
+        closeDrops(drop);
+        drop.classList.add('active');
+        positionDrop(drop, navItem);
+        navItem.classList.add('open');
       });
-
-      navItem.querySelector('.tnav-btn').addEventListener('click', function(e) {
-        var isOpen = drop.classList.contains('active');
-        if (isOpen) {
+      navItem.addEventListener('mouseleave', function() {
+        leaveTimer = setTimeout(function() {
+          if (!isInMenuSystem()) {
+            drop.classList.remove('active');
+            navItem.classList.remove('open');
+            closeL3();
+          }
+        }, 80);
+      });
+      drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+      drop.addEventListener('mouseleave', function() {
+        leaveTimer = setTimeout(function() {
           drop.classList.remove('active');
-          navItem.classList.remove('open', 'admin-on');
+          navItem.classList.remove('open');
           closeL3();
-          if (_mapEditOn) toggleMapEdit();
-        } else {
-          closeDrops(drop);
-          drop.classList.add('active');
-          positionDrop(drop, navItem);
-          navItem.classList.add('open', 'admin-on');
-          if (!_mapEditOn) toggleMapEdit();
-        }
+        }, 80);
       });
       return;
     }
@@ -1042,12 +1059,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── 點選選單外關閉 ──
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) {
-      // 若後台功能開啟中，關閉時同時關閉編輯地圖
-      var adminItem = document.getElementById('tnav-admin');
-      if (adminItem && adminItem.classList.contains('admin-on')) {
-        adminItem.classList.remove('open', 'admin-on');
-        if (_mapEditOn) toggleMapEdit();
-      }
       closeAllMenus();
     }
   });
@@ -1105,8 +1116,12 @@ var _reportFabsVisible = false;
 
 function toggleReportFabs() {
   _reportFabsVisible = !_reportFabsVisible;
+  // 桌機版下拉按鈕
   var btn = document.getElementById('btnReportActive');
   if (btn) btn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
+  // 手機版抽屜按鈕
+  var drawerBtn = document.getElementById('drawerReportActive');
+  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '📡 我要回報（開啟中）' : '📡 我要回報';
 
   var frame = document.getElementById('contentFrame');
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
@@ -1276,26 +1291,13 @@ var _mapEditOn = false;
 function toggleMapEdit() {
   _mapEditOn = !_mapEditOn;
 
-  // ★ 更新後台功能按鈕文字
-  var adminBtn = document.querySelector('#tnav-admin .tnav-btn');
-  if (adminBtn) {
-    adminBtn.innerHTML = _mapEditOn
-      ? '後台功能<span style="font-size:10px;color:#93c5fd;margin-left:3px">（開啟中）</span> <span class="tnav-arrow">&#9664;</span>'
-      : '後台功能 <span class="tnav-arrow">&#9664;</span>';
-  }
-
   // 確保目前顯示 current-events.html
   var frame = document.getElementById('contentFrame');
-  var layer = document.getElementById('iframeLayer');
   var src = frame ? (frame.src || '') : '';
   if (src.indexOf('current-events.html') === -1) {
-    // 尚未顯示地圖頁，先導過去，等 iframeReady 後再送訊息
     showIframe('current-events.html');
-    // iframeReady 後的 postMessage 由下方 message 監聽器處理
     return;
   }
-
-  // 直接送訊息給 iframe
   sendMapEditMsg();
 }
 
@@ -1454,9 +1456,17 @@ function openMsrQueryInIframe() {
     <input class="login-field" id="loginAcc" type="text"
       placeholder="帳號" autocomplete="username"
       onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
-    <input class="login-field" id="loginPwd" type="password"
-      placeholder="密碼" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')submitLogin()">
+    <!-- 密碼欄 + 眼睛按鈕 -->
+    <div style="width:100%;position:relative">
+      <input class="login-field" id="loginPwd" type="password"
+        placeholder="密碼" autocomplete="current-password"
+        style="padding-right:44px"
+        onkeydown="if(event.key==='Enter')submitLogin()">
+      <button id="loginPwdEye" onclick="toggleLoginPwd()" type="button"
+        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+        background:none;border:none;cursor:pointer;font-size:18px;color:#4a6080;
+        line-height:1;padding:0">👁</button>
+    </div>
 
     <div class="login-err" id="loginErr"></div>
 
@@ -1485,13 +1495,6 @@ function openMsrQueryInIframe() {
 // 登入 / 登出 功能
 // ════════════════════════════════════════════════════════════
 
-// ── 點擊測試帳密方塊，自動填入帳號密碼 ──
-function fillTest(acc, pwd) {
-  document.getElementById('loginAcc').value = acc;
-  document.getElementById('loginPwd').value = pwd;
-  document.getElementById('loginErr').classList.remove('show');
-}
-
 // ── 開啟登入 Modal（行動版漢堡選單用）──
 function openLoginModal() {
   document.getElementById('loginOverlay').classList.remove('hide');
@@ -1509,12 +1512,10 @@ function submitLogin() {
     return;
   }
 
-  // 顯示 loading 狀態
   btn.disabled = true;
   btn.textContent = '驗證中…';
   errEl.classList.remove('show');
 
-  // 透過 JSONP 呼叫 GAS（GET 讀取），比對帳密
   _jsonpGet(SHEETS_URL + '?action=login&acc=' + encodeURIComponent(acc) + '&pwd=' + encodeURIComponent(pwd), function(data) {
     btn.disabled = false;
     btn.textContent = '登入';
@@ -1524,20 +1525,23 @@ function submitLogin() {
       return;
     }
 
-    // ── 登入成功 ──
-    var user = { name: data.name, isAdmin: !!data.isAdmin };
-    try { sessionStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
+    // ── 登入成功：存入 localStorage，帶 lastActivity ──
+    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, lastActivity: Date.now() };
+    try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
 
-    // 套用 UI
     _applyAuthUI(user);
-
-    // 隱藏遮罩
     document.getElementById('loginOverlay').classList.add('hide');
-
-    // 載入儀表板統計，並跳至目前事件
     loadDashStats();
     showIframe('current-events.html');
   });
+}
+
+// ── item7：點測試帳密方塊，自動填入並直接登入 ──
+function fillTest(acc, pwd) {
+  document.getElementById('loginAcc').value = acc;
+  document.getElementById('loginPwd').value = pwd;
+  document.getElementById('loginErr').classList.remove('show');
+  submitLogin(); // 直接送出，不需再按登入
 }
 
 // ── 顯示登入錯誤 ──
@@ -1595,17 +1599,82 @@ function _applyAuthUI(user) {
 
 // ── 登出 ──
 function doLogout() {
-  try { sessionStorage.removeItem('radAuth'); } catch(e) {}
-  // 清除 hash 再重整，防止直接回到功能頁
+  try { localStorage.removeItem('radAuth'); } catch(e) {}
   history.replaceState('', document.title, window.location.pathname);
   window.location.reload();
 }
 
-// ── Enter 鍵支援（全域，防止其他地方攔截）──
+// ── item4：Logo 點擊，登入後到目前事件 ──
+function onLogoClick(e) {
+  try {
+    var s = localStorage.getItem('radAuth');
+    if (s) {
+      e.preventDefault();
+      showIframe('current-events.html');
+      return false;
+    }
+  } catch(err) {}
+  return true; // 未登入：正常跳頁
+}
+
+// ── item2：編輯事件頁 + 開啟地圖編輯模式 ──
+function openEditEventPage() {
+  if (!_mapEditOn) { _mapEditOn = true; }
+  showIframe('edit-event.html');
+  // iframeReady 後 sendMapEditMsg 由 message 監聽器負責
+}
+
+// ── item8：任務派送 Modal（iframe 包 task-dispatch.html）──
+function openTaskDispatchModal() {
+  var modal = document.getElementById('taskDispatchModal');
+  if (!modal) return;
+  var frame = document.getElementById('taskDispatchFrame');
+  if (frame && !frame.src) {
+    frame.src = 'task-dispatch.html?_t=' + Date.now();
+  }
+  modal.style.display = 'flex';
+}
+function closeTaskDispatchModal() {
+  var modal = document.getElementById('taskDispatchModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ── item3：登入密碼顯示切換 ──
+function toggleLoginPwd() {
+  var f = document.getElementById('loginPwd');
+  var b = document.getElementById('loginPwdEye');
+  if (!f || !b) return;
+  if (f.type === 'password') { f.type = 'text'; b.textContent = '🙈'; }
+  else { f.type = 'password'; b.textContent = '👁'; }
+}
+
+// ── Enter 鍵支援 ──
 document.getElementById('loginOverlay').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') submitLogin();
 }, true);
 </script>
+
+<!-- ════════════════════════════════════════════
+     item8：任務派送 Modal（iframe 包裝）
+     ════════════════════════════════════════════ -->
+<div id="taskDispatchModal" style="
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.55); align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:14px; overflow:hidden;
+    width:min(860px,96vw); height:min(640px,90vh);
+    display:flex; flex-direction:column;
+    box-shadow:0 8px 40px rgba(0,0,0,.35);">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:14px 20px;background:#1e2a3a;flex-shrink:0">
+      <span style="font-size:16px;font-weight:700;color:#e8f0fa">📨 任務派送</span>
+      <button onclick="closeTaskDispatchModal()" style="
+        background:none;border:none;color:#8da0b8;font-size:22px;
+        cursor:pointer;line-height:1;padding:0 4px">✕</button>
+    </div>
+    <iframe id="taskDispatchFrame" src="" style="flex:1;border:none;width:100%"></iframe>
+  </div>
+</div>
 
 </body>
 </html>

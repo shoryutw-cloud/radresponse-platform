@@ -2539,10 +2539,10 @@ function buildEventLayers(idx) {
     var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
     var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
     _evLayers[idx].line = L.polyline([perpA, perpB], {
-      color: '#16a34a', weight: 3, opacity: 0.85, dashArray: '8 4'
+      color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
-    // ── 橫切面 20 等分點（編號 A01~A20，綠色小點）跟隨 1km 橫切面開關 ──
+    // ── 橫切面 20 等分點（編號 A01~A20，藍色小點）跟隨 1km 橫切面開關 ──
     var crossMks = [];
     for (var ci = 0; ci < 20; ci++) {
       var t  = ci / 19;
@@ -2552,7 +2552,7 @@ function buildEventLayers(idx) {
       var cIcon = L.divIcon({
         className: '',
         html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#16a34a;border:2px solid white;' +
+              'background:#3b82f6;border:2px solid white;' +
               'display:flex;align-items:center;justify-content:center;' +
               'font-size:8px;font-weight:700;color:white;' +
               'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
@@ -4488,7 +4488,7 @@ function showReportFabs() {
     'background:#1a56db;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(26,86,219,.5);cursor:pointer;';
   btn2.onclick = function() {
-    try { parent.postMessage({ type: 'navigate', src: 'task-dispatch.html', idx: _curIdx }, '*'); } catch(e) {}
+    showToast('ℹ️ 回報任務功能即將開放');
   };
 
   el.appendChild(btn1);
@@ -4521,21 +4521,40 @@ function openMeasureModal() {
   document.getElementById('msrSubmitBtn').disabled    = false;
   document.getElementById('msrCoordVal').textContent  = '取得中…';
 
-  // 填充人員清單（從事件的 personnelStr）
+  // ── 填充人員清單（格式：隊別:姓名，下拉顯示「隊別:姓名」）──
+  // item1：從 localStorage 取登入者帳號，比對後自動預選
   var sel = document.getElementById('msrReporter');
   sel.innerHTML = '<option value="">— 選擇人員 —</option>';
+
+  // 取登入者姓名（index.html 存在 localStorage.radAuth.name）
+  var _loginName = '';
+  try {
+    var _ls = localStorage.getItem('radAuth');
+    if (_ls) _loginName = (JSON.parse(_ls).name || '').trim();
+  } catch(e) {}
+
+  var _defaultVal = '';
   if (ev.personnelStr) {
     ev.personnelStr.split(',').forEach(function(item) {
       var s = item.trim();
+      if (!s) return;
       var colonIdx = s.lastIndexOf(':');
-      var name = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
-      if (name) {
-        var opt = document.createElement('option');
-        opt.value = name; opt.textContent = name;
-        sel.appendChild(opt);
+      var squad = colonIdx >= 0 ? s.slice(0, colonIdx).trim() : '';
+      var name  = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
+      if (!name) return;
+      var displayVal = squad ? squad + ':' + name : name;
+      var opt = document.createElement('option');
+      opt.value = displayVal;
+      opt.textContent = displayVal;
+      sel.appendChild(opt);
+      // 若此人員姓名與登入者相符，記下來
+      if (_loginName && name === _loginName && !_defaultVal) {
+        _defaultVal = displayVal;
       }
     });
   }
+  // 自動預選登入者
+  if (_defaultVal) sel.value = _defaultVal;
 
   // 取目前使用者位置
   _msrLat = null; _msrLng = null;
