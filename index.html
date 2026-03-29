@@ -462,7 +462,7 @@
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
-      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskDispatchModal,100)">📨 任務派送</button>
+      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">📨 任務派送</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
@@ -573,7 +573,7 @@
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
-  <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskDispatchModal,50)">任務派送</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">任務派送</button>
 </div>
 
 <script>
@@ -690,6 +690,12 @@ window.addEventListener('message', function(e) {
     // 若回報 FAB 開啟中，補回浮動按鈕
     if (_reportFabsVisible) { setTimeout(function(){ sendReportFabMsg(true); }, 300); }
     if (_pendingReportFab) { _pendingReportFab = false; setTimeout(sendReportFabMsg, 400); }
+    if (_pendingTaskDispatch) {
+      _pendingTaskDispatch = false;
+      setTimeout(function() {
+        try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
+      }, 400);
+    }
   }
 
   // iframe 要求導覽到另一個頁面（帶 idx）
@@ -1654,7 +1660,20 @@ function _updateEditEventBtn() {
   if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '✏️ 編輯事件（開啟中）' : '✏️ 編輯事件';
 }
 
-// ── item3：登入密碼顯示切換 ──
+// ── 任務派送：確保在地圖頁，再通知 iframe 開啟 Modal ──
+var _pendingTaskDispatch = false;
+function openTaskDispatchViaIframe() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    _pendingTaskDispatch = true;
+    showIframe('current-events.html');
+    return;
+  }
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
+  }, 50);
+}
 function toggleLoginPwd() {
   var f = document.getElementById('loginPwd');
   var b = document.getElementById('loginPwdEye');
@@ -1669,268 +1688,6 @@ document.getElementById('loginOverlay').addEventListener('keydown', function(e) 
 }, true);
 </script>
 
-<!-- ════════════════════════════════════════════
-     任務派送 Modal（完整內嵌 UI）
-     ════════════════════════════════════════════ -->
-<div id="taskDispatchModal" style="
-  display:none; position:fixed; inset:0; z-index:9999;
-  background:rgba(0,0,0,.55); align-items:center; justify-content:center;">
-  <div style="
-    background:#f0f2f5; border-radius:14px; overflow:hidden;
-    width:min(640px,96vw); max-height:90vh;
-    display:flex; flex-direction:column;
-    box-shadow:0 8px 40px rgba(0,0,0,.35);">
-
-    <!-- 標頭 -->
-    <div style="display:flex;align-items:center;justify-content:space-between;
-      padding:14px 20px;background:#1e2a3a;flex-shrink:0">
-      <span style="font-size:16px;font-weight:700;color:#e8f0fa">📨 任務派送</span>
-      <button onclick="closeTaskDispatchModal()" style="
-        background:none;border:none;color:#8da0b8;font-size:22px;
-        cursor:pointer;line-height:1;padding:0 4px">✕</button>
-    </div>
-
-    <!-- 內容（可捲動）-->
-    <div style="overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px">
-
-      <!-- 選擇事件 -->
-      <div style="background:white;border-radius:10px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:#6b7a92;margin-bottom:10px;letter-spacing:.05em">🚨 選擇事件</div>
-        <select id="tdEventSel" onchange="onTdEventChange()" style="
-          width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;outline:none">
-          <option value="">— 載入中… —</option>
-        </select>
-      </div>
-
-      <!-- 派送對象 -->
-      <div style="background:white;border-radius:10px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:#6b7a92;margin-bottom:10px;letter-spacing:.05em">👤 派送對象</div>
-        <select id="tdTargetSel" style="
-          width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;outline:none">
-          <option value="">— 請先選擇事件 —</option>
-        </select>
-      </div>
-
-      <!-- 任務標題 -->
-      <div style="background:white;border-radius:10px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:#6b7a92;margin-bottom:10px;letter-spacing:.05em">📋 任務標題</div>
-        <input id="tdTitle" type="text" placeholder="請輸入任務標題" style="
-          width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;outline:none;
-          transition:border-color .15s" onfocus="this.style.borderColor='#1a56db'"
-          onblur="this.style.borderColor='#e2e8f0'">
-      </div>
-
-      <!-- 任務內容 -->
-      <div style="background:white;border-radius:10px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:#6b7a92;margin-bottom:10px;letter-spacing:.05em">📝 任務內容</div>
-        <textarea id="tdContent" rows="4" placeholder="請描述任務內容" style="
-          width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;outline:none;resize:vertical;
-          transition:border-color .15s" onfocus="this.style.borderColor='#1a56db'"
-          onblur="this.style.borderColor='#e2e8f0'"></textarea>
-      </div>
-
-      <!-- 優先順序 -->
-      <div style="background:white;border-radius:10px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:#6b7a92;margin-bottom:10px;letter-spacing:.05em">⚡ 優先順序</div>
-        <div style="display:flex;gap:8px">
-          <button onclick="setTdPriority('high',this)" id="tdPriHigh" style="
-            flex:1;padding:9px;border:2px solid #fecaca;border-radius:8px;background:#fef2f2;
-            font-family:inherit;font-size:13px;font-weight:700;color:#dc2626;cursor:pointer">
-            🔴 高
-          </button>
-          <button onclick="setTdPriority('mid',this)" id="tdPriMid" style="
-            flex:1;padding:9px;border:2px solid #fed7aa;border-radius:8px;background:#fff7ed;
-            font-family:inherit;font-size:13px;font-weight:700;color:#d97706;cursor:pointer">
-            🟡 中
-          </button>
-          <button onclick="setTdPriority('low',this)" id="tdPriLow" style="
-            flex:1;padding:9px;border:2px solid #bbf7d0;border-radius:8px;background:#f0fdf4;
-            font-family:inherit;font-size:13px;font-weight:700;color:#16a34a;cursor:pointer">
-            🟢 低
-          </button>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- 底部按鈕 -->
-    <div style="padding:14px 20px;background:white;border-top:1px solid #e2e8f0;
-      display:flex;gap:10px;flex-shrink:0">
-      <button onclick="closeTaskDispatchModal()" style="
-        flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:8px;
-        background:white;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
-        取消
-      </button>
-      <button onclick="submitTaskDispatch()" id="tdSubmitBtn" style="
-        flex:2;padding:11px;border:none;border-radius:8px;
-        background:#1a56db;color:white;font-family:inherit;
-        font-size:14px;font-weight:700;cursor:pointer">
-        📨 派送任務
-      </button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ════════════════════════════════════════════
-// 任務派送 Modal JS
-// ════════════════════════════════════════════
-var _tdPriority = 'mid'; // 預設中
-var _tdEvents   = [];    // 事件清單快取
-
-// ── 開啟 Modal，載入事件清單 ──
-function openTaskDispatchModal() {
-  var modal = document.getElementById('taskDispatchModal');
-  if (!modal) return;
-  modal.style.display = 'flex';
-
-  // 重置欄位
-  document.getElementById('tdTitle').value   = '';
-  document.getElementById('tdContent').value = '';
-  setTdPriority('mid', document.getElementById('tdPriMid'));
-
-  // 載入進行中事件
-  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
-    var sel = document.getElementById('tdEventSel');
-    _tdEvents = (data && data.events) ? data.events : [];
-    sel.innerHTML = '<option value="">— 選擇事件 —</option>';
-    _tdEvents.forEach(function(ev) {
-      var opt = document.createElement('option');
-      opt.value = ev.id;
-      opt.textContent = ev.name + '（' + ev.date + '）';
-      sel.appendChild(opt);
-    });
-    // 若只有一個事件，自動選取
-    if (_tdEvents.length === 1) {
-      sel.value = _tdEvents[0].id;
-      onTdEventChange();
-    }
-  });
-}
-
-// ── 選擇事件後，填入派送對象（出勤人員）──
-function onTdEventChange() {
-  var evId = document.getElementById('tdEventSel').value;
-  var targetSel = document.getElementById('tdTargetSel');
-  targetSel.innerHTML = '<option value="">— 選擇對象 —</option>';
-  if (!evId) return;
-
-  var ev = null;
-  for (var i = 0; i < _tdEvents.length; i++) {
-    if (_tdEvents[i].id === evId) { ev = _tdEvents[i]; break; }
-  }
-  if (!ev || !ev.personnelStr) {
-    targetSel.innerHTML = '<option value="">（此事件無出勤人員）</option>';
-    return;
-  }
-
-  // 加「全體人員」選項
-  var optAll = document.createElement('option');
-  optAll.value = '全體人員'; optAll.textContent = '👥 全體人員';
-  targetSel.appendChild(optAll);
-
-  // 依隊別分組
-  var squads = {};
-  ev.personnelStr.split(',').forEach(function(item) {
-    var s = item.trim();
-    if (!s) return;
-    var ci = s.lastIndexOf(':');
-    var squad = ci >= 0 ? s.slice(0, ci).trim() : '未分隊';
-    var name  = ci >= 0 ? s.slice(ci + 1).trim() : s;
-    if (!squads[squad]) squads[squad] = [];
-    squads[squad].push(name);
-  });
-
-  // 各隊別選項
-  Object.keys(squads).forEach(function(sq) {
-    // 隊別整體
-    var optSq = document.createElement('option');
-    optSq.value = sq; optSq.textContent = '🏷 ' + sq + '（全隊）';
-    targetSel.appendChild(optSq);
-    // 個人
-    squads[sq].forEach(function(name) {
-      var opt = document.createElement('option');
-      opt.value = sq + ':' + name;
-      opt.textContent = '  └ ' + name;
-      targetSel.appendChild(opt);
-    });
-  });
-}
-
-// ── 設定優先順序 ──
-function setTdPriority(val, clickedBtn) {
-  _tdPriority = val;
-  var btnMap = { high:'tdPriHigh', mid:'tdPriMid', low:'tdPriLow' };
-  var styleMap = {
-    high: { border:'#fca5a5', bg:'#dc2626', color:'white' },
-    mid:  { border:'#fcd34d', bg:'#d97706', color:'white' },
-    low:  { border:'#6ee7b7', bg:'#16a34a', color:'white' }
-  };
-  var resetMap = {
-    high: { border:'#fecaca', bg:'#fef2f2', color:'#dc2626' },
-    mid:  { border:'#fed7aa', bg:'#fff7ed', color:'#d97706' },
-    low:  { border:'#bbf7d0', bg:'#f0fdf4', color:'#16a34a' }
-  };
-  Object.keys(btnMap).forEach(function(k) {
-    var btn = document.getElementById(btnMap[k]);
-    if (!btn) return;
-    var s = (k === val) ? styleMap[k] : resetMap[k];
-    btn.style.borderColor = s.border;
-    btn.style.background  = s.bg;
-    btn.style.color       = s.color;
-  });
-}
-
-// ── 送出任務 ──
-function submitTaskDispatch() {
-  var evId    = document.getElementById('tdEventSel').value.trim();
-  var target  = document.getElementById('tdTargetSel').value.trim();
-  var title   = document.getElementById('tdTitle').value.trim();
-  var content = document.getElementById('tdContent').value.trim();
-
-  if (!evId)    { alert('請選擇事件');    return; }
-  if (!target)  { alert('請選擇派送對象'); return; }
-  if (!title)   { alert('請輸入任務標題'); return; }
-  if (!content) { alert('請輸入任務內容'); return; }
-
-  var btn = document.getElementById('tdSubmitBtn');
-  btn.disabled = true; btn.textContent = '派送中…';
-
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({
-      action:   'addTask',
-      eventId:  evId,
-      target:   target,
-      title:    title,
-      content:  content,
-      priority: _tdPriority
-    })
-  }).then(function() {
-    btn.disabled = false; btn.textContent = '📨 派送任務';
-    closeTaskDispatchModal();
-    // 通知地圖頁刷新任務標記
-    try {
-      var frame = document.getElementById('contentFrame');
-      if (frame && frame.contentWindow) {
-        frame.contentWindow.postMessage({ type: 'refreshTasks' }, '*');
-      }
-    } catch(e) {}
-  }).catch(function(err) {
-    btn.disabled = false; btn.textContent = '📨 派送任務';
-    alert('派送失敗：' + err.message);
-  });
-}
-
-function closeTaskDispatchModal() {
-  var modal = document.getElementById('taskDispatchModal');
-  if (modal) modal.style.display = 'none';
-}
-</script>
 
 </body>
 </html>

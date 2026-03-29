@@ -3484,6 +3484,16 @@ function onWindChk(checked) {
 
 function _startWindLayer() {
   if (!gMap) return;
+  var ev = _events[_curIdx];
+  var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
+  // 風速為 0 或無效時不啟動動畫
+  if (isNaN(ws) || ws <= 0) {
+    showToast('ℹ️ 目前風速為 0，無風向動畫');
+    _windLayerOn = false;
+    var cb = document.getElementById('lyr_wind');
+    if (cb) cb.checked = false;
+    return;
+  }
   var mapEl = document.getElementById('map');
   if (!_windCanvas) {
     _windCanvas = document.createElement('canvas');
@@ -3640,9 +3650,18 @@ function _animateWind() {
 
 // 事件切換或風向更新時重新初始化粒子
 function _refreshWindIfOn() {
-  if (_windLayerOn && _windCanvas) {
-    _initWindParticles();
+  if (!_windLayerOn) return;
+  var ev = _events[_curIdx];
+  var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
+  if (isNaN(ws) || ws <= 0) {
+    // 風速降為 0，自動停止動畫並取消勾選
+    _stopWindLayer();
+    _windLayerOn = false;
+    var cb = document.getElementById('lyr_wind');
+    if (cb) cb.checked = false;
+    return;
   }
+  if (_windCanvas) _initWindParticles();
 }
 
 // ── 圖層面板收合 ──
@@ -3818,6 +3837,7 @@ window.addEventListener('message', function(e) {
   }
   // 新式 eventId（從建立事件頁跳過來）
   if (e.data && e.data.type === 'openMsrQuery') { openMsrQueryModal(); return; }
+  if (e.data && e.data.type === 'openTaskDispatch') { openTdModal(); return; }
   if (e.data.type === 'setEventId' && e.data.id) {
     if (_events.length > 0) {
       var found = -1;
@@ -5213,6 +5233,483 @@ function updateUserDirCone() {
   }
 }
 
+</script>
+
+<!-- ════════════════════════════════════════════════════════
+     任務派送 Modal（嵌入 current-events.html）
+     ════════════════════════════════════════════════════════ -->
+<style>
+/* ── 任務派送 Modal 樣式（前綴 td- 避免衝突）── */
+#tdModal {
+  display: none; position: fixed; inset: 0; z-index: 8000;
+  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+}
+#tdModal.open { display: flex; }
+#tdBox {
+  background: var(--surface); border-radius: 14px; overflow: hidden;
+  width: min(720px, 96vw); height: min(680px, 92vh);
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,.35);
+}
+/* 標頭 */
+#tdHeader {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 20px; background: #1e2a3a; height: 48px; flex-shrink: 0;
+}
+#tdHeader .td-title { font-size: 15px; font-weight: 700; color: #e8f0fa; flex: 1; }
+#tdHeader button {
+  background: none; border: none; color: #8da0b8; font-size: 22px;
+  cursor: pointer; line-height: 1; padding: 0 4px;
+}
+/* 步驟指示 */
+#tdSteps {
+  display: flex; align-items: center; padding: 10px 20px;
+  background: white; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; gap: 0;
+}
+.td-step { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #6b7a92; }
+.td-step-num {
+  width: 22px; height: 22px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; background: #e2e8f0; color: #6b7a92; transition: all .2s;
+}
+.td-step.active .td-step-num { background: #1a56db; color: white; }
+.td-step.active .td-step-label { color: #1a56db; font-weight: 600; }
+.td-step.done .td-step-num { background: #16a34a; color: white; }
+.td-step.done .td-step-label { color: #16a34a; }
+.td-step-sep { flex: 1; height: 1px; background: #e2e8f0; margin: 0 10px; max-width: 60px; }
+/* 主體 */
+#tdBody { flex: 1; overflow-y: auto; min-height: 0; }
+#tdBody::-webkit-scrollbar { width: 4px; }
+#tdBody::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+.td-panel { display: none; padding: 20px; max-width: 680px; margin: 0 auto; }
+.td-panel.active { display: block; }
+.td-panel-wide { max-width: 100% !important; }
+/* 表單 */
+.td-form-group { margin-bottom: 18px; }
+.td-form-lbl {
+  display: block; font-size: 12px; font-weight: 600; color: #6b7a92;
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
+}
+.td-form-lbl .req { color: #dc2626; margin-left: 2px; }
+.td-inp, .td-ta {
+  width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0;
+  border-radius: 8px; font-family: var(--font); font-size: 14px;
+  color: #1e2a3a; background: white; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.td-inp:focus, .td-ta:focus {
+  border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+}
+.td-ta { resize: vertical; min-height: 90px; line-height: 1.6; }
+/* 優先等級 */
+.td-priority-pills { display: flex; gap: 8px; }
+.td-priority-pill {
+  flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #e2e8f0;
+  cursor: pointer; text-align: center; font-size: 14px; font-weight: 600;
+  transition: all .15s; user-select: none; background: white;
+}
+.td-priority-pill.sel-high   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+.td-priority-pill.sel-medium { border-color: #d97706; background: #fffbeb; color: #d97706; }
+.td-priority-pill.sel-low    { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
+/* 事件卡片 */
+.td-event-list { display: flex; flex-direction: column; gap: 8px; }
+.td-event-card {
+  padding: 14px 16px; background: white; border: 2px solid #e2e8f0;
+  border-radius: 8px; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; gap: 12px;
+}
+.td-event-card:hover { border-color: #1a56db; background: #f1f5ff; }
+.td-event-card.selected { border-color: #1a56db; background: #eff6ff; }
+.td-event-name { font-size: 15px; font-weight: 700; color: #1e2a3a; }
+.td-event-meta { font-size: 12px; color: #6b7a92; margin-top: 3px; }
+.td-badge {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+.td-badge-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.td-badge-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+.td-badge-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
+/* 兩欄版 */
+.td-two-col { display: flex; gap: 20px; align-items: flex-start; }
+.td-info-col {
+  width: 200px; flex-shrink: 0; background: white; border: 1px solid #e2e8f0;
+  border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.td-info-col-title {
+  padding: 8px 12px; font-size: 12px; font-weight: 700; color: #6b7a92;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+}
+.td-info-col-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.td-sel-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #eff6ff; border: 1px solid #bfdbfe; }
+.td-sel-lbl { font-size: 12px; font-weight: 600; color: #6b7a92; white-space: nowrap; min-width: 52px; }
+.td-sel-val { font-size: 13px; font-weight: 600; color: #1a56db; }
+.td-main-col { flex: 1; min-width: 0; }
+/* 組別格子 */
+.td-squad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.td-squad-btn {
+  padding: 11px 8px; background: white; border: 2px solid #e2e8f0;
+  border-radius: 8px; cursor: pointer; text-align: center;
+  font-family: var(--font); font-size: 13px; font-weight: 600; color: #1e2a3a;
+  transition: all .15s; user-select: none;
+}
+.td-squad-btn:hover { border-color: #1a56db; background: #f1f5ff; }
+.td-squad-btn.selected { border-color: #1a56db; background: #eff6ff; color: #1a56db; }
+/* 成功畫面 */
+#tdSuccessBox {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; padding: 50px 20px; gap: 12px; text-align: center;
+}
+#tdSuccessBox.show { display: flex; }
+/* 頁尾 */
+#tdFooter {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; border-top: 1px solid #e2e8f0;
+  background: white; flex-shrink: 0; gap: 10px;
+}
+#tdFooterStatus { font-size: 13px; color: #6b7a92; flex: 1; }
+#tdFooterStatus.ok { color: #16a34a; }
+.td-footer-btns { display: flex; gap: 8px; }
+.td-btn {
+  padding: 9px 18px; border-radius: 6px; font-family: var(--font);
+  font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; white-space: nowrap;
+}
+.td-btn-g { background: none; border: 1px solid #e2e8f0; color: #6b7a92; }
+.td-btn-g:hover { border-color: #94a3b8; color: #1e2a3a; }
+.td-btn-p { background: #1a56db; color: white; }
+.td-btn-p:hover { background: #1648c0; }
+.td-btn-p:disabled { background: #94a3b8; cursor: not-allowed; }
+.td-spin {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+  border-radius: 50%; animation: tdSpin .7s linear infinite;
+}
+@keyframes tdSpin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+  #tdBox { height: 100vh; width: 100vw; border-radius: 0; }
+  .td-squad-grid { grid-template-columns: repeat(2,1fr); }
+  .td-step-label { display: none; }
+  .td-two-col { flex-direction: column; }
+  .td-info-col { width: 100%; }
+}
+</style>
+
+<!-- 任務派送 Modal HTML -->
+<div id="tdModal">
+  <div id="tdBox">
+    <!-- 標頭 -->
+    <div id="tdHeader">
+      <span class="td-title">📋 任務派送</span>
+      <button onclick="closeTdModal()">✕</button>
+    </div>
+    <!-- 步驟指示 -->
+    <div id="tdSteps">
+      <div class="td-step active" id="tdStep1">
+        <div class="td-step-num">1</div>
+        <span class="td-step-label">選擇事件</span>
+      </div>
+      <div class="td-step-sep"></div>
+      <div class="td-step" id="tdStep2">
+        <div class="td-step-num">2</div>
+        <span class="td-step-label">選擇組別</span>
+      </div>
+      <div class="td-step-sep"></div>
+      <div class="td-step" id="tdStep3">
+        <div class="td-step-num">3</div>
+        <span class="td-step-label">任務內容</span>
+      </div>
+    </div>
+    <!-- 主體 -->
+    <div id="tdBody">
+      <!-- 第一步 -->
+      <div class="td-panel active" id="tdPanel1">
+        <div id="tdEvLoading" style="text-align:center;padding:40px;color:#6b7a92">⏳ 載入事件中…</div>
+        <div class="td-event-list" id="tdEvList"></div>
+      </div>
+      <!-- 第二步 -->
+      <div class="td-panel td-panel-wide" id="tdPanel2">
+        <div class="td-two-col">
+          <div class="td-info-col">
+            <div class="td-info-col-title">已選事件</div>
+            <div id="tdStep2Info" class="td-info-col-body"></div>
+          </div>
+          <div class="td-main-col">
+            <div class="td-form-group">
+              <label class="td-form-lbl">派送對象 <span class="req">*</span>
+                <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選</span>
+              </label>
+              <div class="td-squad-grid" id="tdSquadGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 第三步 -->
+      <div class="td-panel td-panel-wide" id="tdPanel3">
+        <div class="td-two-col">
+          <div class="td-info-col">
+            <div class="td-info-col-title">派送資訊</div>
+            <div id="tdStep3Info" class="td-info-col-body"></div>
+          </div>
+          <div class="td-main-col">
+            <div class="td-form-group">
+              <label class="td-form-lbl">任務標題 <span class="req">*</span></label>
+              <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateStep3()">
+            </div>
+            <div class="td-form-group">
+              <label class="td-form-lbl">任務說明 <span class="req">*</span></label>
+              <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateStep3()"></textarea>
+            </div>
+            <div class="td-form-group">
+              <label class="td-form-lbl">優先等級</label>
+              <div class="td-priority-pills">
+                <div class="td-priority-pill" data-val="高" onclick="tdSelectPriority(this)">🔴 高</div>
+                <div class="td-priority-pill" data-val="中" onclick="tdSelectPriority(this)">🟡 中</div>
+                <div class="td-priority-pill" data-val="低" onclick="tdSelectPriority(this)">🟢 低</div>
+              </div>
+              <input type="hidden" id="tdTaskPriority">
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 成功畫面 -->
+      <div id="tdSuccessBox">
+        <div style="font-size:56px">✅</div>
+        <div style="font-size:20px;font-weight:700;color:#1e2a3a">任務已派送！</div>
+        <div style="font-size:14px;color:#6b7a92" id="tdSuccessSub"></div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="td-btn td-btn-g" onclick="tdResetForm()">➕ 再派一個任務</button>
+          <button class="td-btn td-btn-p" onclick="closeTdModal()">關閉</button>
+        </div>
+      </div>
+    </div>
+    <!-- 頁尾 -->
+    <div id="tdFooter">
+      <div class="td-footer-btns" id="tdFooterStatus" style="font-size:13px;color:#6b7a92;flex:1">請先選擇事件</div>
+      <div class="td-footer-btns">
+        <div id="tdBtnGroup1" style="display:flex;gap:8px">
+          <button class="td-btn td-btn-p" id="tdBtnNext1" onclick="tdGoStep2()" disabled>下一步 ➡</button>
+        </div>
+        <div id="tdBtnGroup2" style="display:none;gap:8px">
+          <button class="td-btn td-btn-g" onclick="tdGoStep1()">← 上一步</button>
+          <button class="td-btn td-btn-p" id="tdBtnNext2" onclick="tdGoStep3()" disabled>下一步 ➡</button>
+        </div>
+        <div id="tdBtnGroup3" style="display:none;gap:8px">
+          <button class="td-btn td-btn-g" onclick="tdGoStep2()">← 上一步</button>
+          <button class="td-btn td-btn-p" id="tdBtnSubmit" onclick="tdSubmitTask()" disabled>📤 派送任務</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// 任務派送 Modal JS
+// ════════════════════════════════════════════
+var _tdEvents = [], _tdSelectedEvent = null, _tdSelectedSquads = [];
+var _tdSquadsList = null;
+
+// ── 開啟 Modal ──
+function openTdModal() {
+  document.getElementById('tdModal').classList.add('open');
+  tdResetForm();
+}
+
+// ── 關閉 Modal ──
+function closeTdModal() {
+  document.getElementById('tdModal').classList.remove('open');
+}
+
+// ── 步驟切換 ──
+function tdSetStep(n) {
+  [1,2,3].forEach(function(i) {
+    var el = document.getElementById('tdStep' + i);
+    var panel = document.getElementById('tdPanel' + i);
+    el.classList.remove('active','done');
+    if (panel) panel.classList.remove('active');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  });
+  document.getElementById('tdPanel' + n).classList.add('active');
+  ['tdBtnGroup1','tdBtnGroup2','tdBtnGroup3'].forEach(function(id, idx) {
+    document.getElementById(id).style.display = (idx + 1 === n) ? 'flex' : 'none';
+  });
+  document.getElementById('tdSuccessBox').classList.remove('show');
+}
+
+function tdSetStatus(msg, ok) {
+  var el = document.getElementById('tdFooterStatus');
+  el.textContent = msg;
+  el.style.color = ok ? '#16a34a' : '#6b7a92';
+}
+
+// ── 載入隊別清單 ──
+function tdLoadSquads(cb) {
+  if (_tdSquadsList) { cb(_tdSquadsList); return; }
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    var squads = (data && data.squads && data.squads.length) ? data.squads
+      : ['北部應變區-先遣小組','北部應變區-支援小組','南部應變區-先遣小組','南部應變區-支援小組'];
+    _tdSquadsList = squads.concat(['參謀組','新聞組']);
+    cb(_tdSquadsList);
+  });
+}
+
+// ── 第一步：載入事件 ──
+function tdLoadEvents() {
+  document.getElementById('tdEvLoading').style.display = '';
+  document.getElementById('tdEvList').innerHTML = '';
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    _tdEvents = (data && data.events) ? data.events : [];
+    document.getElementById('tdEvLoading').style.display = 'none';
+    var list = document.getElementById('tdEvList');
+    if (!_tdEvents.length) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7a92">📭 目前無進行中事件</div>';
+      return;
+    }
+    list.innerHTML = _tdEvents.map(function(ev, i) {
+      var cls = (ev.type||'').indexOf('輻射彈') !== -1 ? 'td-badge-rdd'
+              : (ev.type||'').indexOf('物質') !== -1  ? 'td-badge-substance' : 'td-badge-material';
+      var addr = (ev.address || '').split(',')[0];
+      return '<div class="td-event-card" id="tdEvc' + i + '" onclick="tdSelectEvent(' + i + ')">' +
+        '<div style="flex:1">' +
+        '<div class="td-event-name">' + _tdEsc(ev.name) + '</div>' +
+        '<div class="td-event-meta">' + _tdEsc(ev.date||'') + ' ' + _tdEsc(ev.time||'') + ' ｜ ' + _tdEsc(addr) + '</div>' +
+        '</div>' +
+        '<span class="td-badge ' + cls + '">' + _tdEsc(ev.type||'') + '</span>' +
+        '<span id="tdEvChk' + i + '" style="font-size:18px;color:#1a56db;display:none">✔</span>' +
+        '</div>';
+    }).join('');
+  });
+}
+
+function _tdEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function tdSelectEvent(i) {
+  _tdSelectedEvent = _tdEvents[i];
+  document.querySelectorAll('.td-event-card').forEach(function(c){ c.classList.remove('selected'); });
+  document.querySelectorAll('[id^="tdEvChk"]').forEach(function(c){ c.style.display='none'; });
+  document.getElementById('tdEvc' + i).classList.add('selected');
+  document.getElementById('tdEvChk' + i).style.display = '';
+  document.getElementById('tdBtnNext1').disabled = false;
+  tdSetStatus('已選：' + _tdSelectedEvent.name, true);
+}
+
+// ── 第二步：組別 ──
+function tdGoStep2() {
+  if (!_tdSelectedEvent) return;
+  tdSetStep(2);
+  tdLoadSquads(function(squads) {
+    var grid = document.getElementById('tdSquadGrid');
+    grid.innerHTML = squads.map(function(sq) {
+      return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
+    }).join('');
+    _tdSelectedSquads = [];
+    document.getElementById('tdBtnNext2').disabled = true;
+  });
+  var ev = _tdSelectedEvent;
+  document.getElementById('tdStep2Info').innerHTML =
+    '<div class="td-sel-row"><span class="td-sel-lbl">名稱</span><span class="td-sel-val">' + _tdEsc(ev.name) + '</span></div>' +
+    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev.type||'') + '</span></div>';
+  tdSetStatus('請選擇派送組別', false);
+}
+
+function tdSelectSquad(btn) {
+  var sq = btn.getAttribute('data-sq');
+  var idx = _tdSelectedSquads.indexOf(sq);
+  if (idx === -1) { _tdSelectedSquads.push(sq); btn.classList.add('selected'); }
+  else { _tdSelectedSquads.splice(idx,1); btn.classList.remove('selected'); }
+  var ok = _tdSelectedSquads.length > 0;
+  document.getElementById('tdBtnNext2').disabled = !ok;
+  tdSetStatus(ok ? '已選：' + _tdSelectedSquads.join('、') : '請選擇派送組別', ok);
+}
+
+// ── 第三步：任務內容 ──
+function tdGoStep3() {
+  if (!_tdSelectedSquads.length) return;
+  tdSetStep(3);
+  var squadTags = _tdSelectedSquads.map(function(s) {
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:#f3f0ff;color:#7c3aed;font-size:12px;margin:2px 2px 0 0">' + _tdEsc(s) + '</span>';
+  }).join('');
+  var ev = _tdSelectedEvent;
+  document.getElementById('tdStep3Info').innerHTML =
+    '<div class="td-sel-row"><span class="td-sel-lbl">名稱</span><span class="td-sel-val">' + _tdEsc(ev.name) + '</span></div>' +
+    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev.type||'') + '</span></div>' +
+    '<div class="td-sel-row"><span class="td-sel-lbl">對象</span><span class="td-sel-val" style="line-height:1.8">' + squadTags + '</span></div>';
+  tdSetStatus('請填寫任務內容', false);
+  tdValidateStep3();
+}
+
+function tdGoStep1() {
+  tdSetStep(1);
+  tdSetStatus(_tdSelectedEvent ? '已選：' + _tdSelectedEvent.name : '請先選擇事件', !!_tdSelectedEvent);
+}
+
+function tdSelectPriority(el) {
+  document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
+  var val = el.getAttribute('data-val');
+  el.classList.add(val==='高'?'sel-high':val==='中'?'sel-medium':'sel-low');
+  document.getElementById('tdTaskPriority').value = val;
+  tdValidateStep3();
+}
+
+function tdValidateStep3() {
+  var ok = document.getElementById('tdTaskTitle').value.trim() &&
+           document.getElementById('tdTaskContent').value.trim();
+  document.getElementById('tdBtnSubmit').disabled = !ok;
+  tdSetStatus(ok ? '所有欄位已填寫完成 ✔' : '尚未填寫必填欄位', ok);
+}
+
+// ── 送出任務 ──
+function tdSubmitTask() {
+  var btn = document.getElementById('tdBtnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="td-spin"></span> 派送中…';
+
+  var title    = document.getElementById('tdTaskTitle').value.trim();
+  var content  = document.getElementById('tdTaskContent').value.trim();
+  var priority = document.getElementById('tdTaskPriority').value;
+
+  // 對每個組別各送一筆（no-cors 模式）
+  var count = 0;
+  _tdSelectedSquads.forEach(function(sq) {
+    fetch(SHEETS_URL, {
+      method: 'POST', mode: 'no-cors',
+      body: JSON.stringify({
+        action: 'addTask', eventId: _tdSelectedEvent.id,
+        target: sq, title: title, content: content, priority: priority
+      })
+    });
+    count++;
+  });
+
+  // no-cors 無法讀回傳值，稍等後顯示成功
+  setTimeout(function() {
+    btn.disabled = false; btn.innerHTML = '📤 派送任務';
+    document.getElementById('tdPanel3').classList.remove('active');
+    document.getElementById('tdFooter').style.display = 'none';
+    document.getElementById('tdSuccessSub').textContent =
+      '事件：' + _tdSelectedEvent.name + '｜對象：' + _tdSelectedSquads.join('、') +
+      (priority ? '｜優先：' + priority : '');
+    document.getElementById('tdSuccessBox').classList.add('show');
+    // 通知地圖刷新任務標記
+    try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
+  }, 800);
+}
+
+// ── 重置 ──
+function tdResetForm() {
+  _tdSelectedEvent = null; _tdSelectedSquads = [];
+  document.getElementById('tdTaskTitle').value = '';
+  document.getElementById('tdTaskContent').value = '';
+  document.getElementById('tdTaskPriority').value = '';
+  document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
+  document.getElementById('tdFooter').style.display = '';
+  document.getElementById('tdBtnNext1').disabled = true;
+  tdSetStep(1);
+  tdSetStatus('請先選擇事件', false);
+  tdLoadEvents();
+  tdLoadSquads(function(){}); // 預載隊別
+}
 </script>
 
 </body>
