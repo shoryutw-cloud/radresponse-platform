@@ -1461,6 +1461,22 @@ function openMsrQueryInIframe() {
     <div class="login-err" id="loginErr"></div>
 
     <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
+
+    <!-- 測試帳密提示 -->
+    <div style="width:100%;border-top:1px solid #2d3f55;padding-top:14px;display:flex;flex-direction:column;gap:7px">
+      <div style="font-size:11px;color:#4a6080;text-align:center;letter-spacing:.05em">— 測試帳號 —</div>
+      <div style="display:flex;gap:8px">
+        <div onclick="fillTest('1234','1234')" style="flex:1;padding:8px 10px;background:#0f1820;border:1px solid #2d3f55;border-radius:7px;cursor:pointer;transition:border-color .15s"
+          onmouseover="this.style.borderColor='#1a56db'" onmouseout="this.style.borderColor='#2d3f55'">
+          <div style="font-size:10px;color:#4a6080;margin-bottom:3px">一般使用者</div>
+          <div style="font-size:12px;color:#7aa3cc;font-family:monospace">帳號／密碼：1234</div>
+        </div>
+        <div onclick="fillTest('5555','5555')" style="flex:1;padding:8px 10px;background:#0f1820;border:1px solid #2d3f55;border-radius:7px;cursor:pointer;transition:border-color .15s"
+          onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='#2d3f55'">
+          <div style="font-size:10px;color:#4a6080;margin-bottom:3px">管理者</div>
+          <div style="font-size:12px;color:#fbbf24;font-family:monospace">帳號／密碼：5555</div>
+        </div>
+      </div>
   </div>
 </div>
 
@@ -1468,6 +1484,13 @@ function openMsrQueryInIframe() {
 // ════════════════════════════════════════════════════════════
 // 登入 / 登出 功能
 // ════════════════════════════════════════════════════════════
+
+// ── 點擊測試帳密方塊，自動填入帳號密碼 ──
+function fillTest(acc, pwd) {
+  document.getElementById('loginAcc').value = acc;
+  document.getElementById('loginPwd').value = pwd;
+  document.getElementById('loginErr').classList.remove('show');
+}
 
 // ── 開啟登入 Modal（行動版漢堡選單用）──
 function openLoginModal() {
