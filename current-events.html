@@ -420,8 +420,8 @@ transition: all .15s;
 
 /* ── 右下角圖釘（回到定位）── */
 .locate-btn {
-position: fixed; bottom: 70px; right: 24px; z-index: 1000;
-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+position: fixed; bottom: 105px; right: 24px; z-index: 1000;
+bottom: calc(105px + env(safe-area-inset-bottom, 0px));
 width: 38px; height: 38px; border-radius: 10px;
 background: white; border: 1px solid #d0d8e4;
 cursor: pointer; display: flex; align-items: center;
@@ -454,14 +454,13 @@ transition: background .1s;
 
 
 /* ── 指南針 ── */
-.compass-wrap {
-  position: fixed; right: 24px; bottom: 116px; z-index: 1000;
-  width: 38px; height: 38px;
-  background: white; border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.14);
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid #d0d8e4;
+/* compass removed */
+/* 比例尺右下角定位 */
+.leaflet-bottom.leaflet-right .leaflet-control-scale {
+  margin-bottom: 8px;
+  margin-right: 8px;
 }
+
 .compass-arrow {
   font-size: 22px; line-height: 1;
   transition: transform .3s;
@@ -765,10 +764,7 @@ cursor: pointer; transition: background .15s;
 </div>
 
 
-<!-- 指南針 -->
-<div class="compass-wrap" id="compassWrap" title="地圖方位">
-  <div class="compass-arrow" id="compassArrow">🧭</div>
-</div>
+
 <!-- 右下角圖釘（回到定位/飛到事件）-->
 <button class="locate-btn" id="locateBtn" title="回到事件位置" onclick="onLocateBtnClick()">📍</button>
 
@@ -1200,37 +1196,94 @@ function onAngleInput(val) {
 
 
 // ── 從氣象局抓取最近站風向/風速，透過 GAS 代理（避免 CORS）──
-function fetchCwaWind() {
-  var ev = _events[_curIdx];
-  if (!ev || !ev.lat || !ev.lng) { showToast('⚠️ 事件缺少座標，無法查詢'); return; }
-  var btn = document.getElementById('cwaFetchBtn');
-  var sts = document.getElementById('cwaFetchStatus');
-  btn.disabled = true; btn.textContent = '⏳ 查詢中…';
-  sts.textContent = '正在呼叫氣象署 API…';
-  sts.style.display = 'block';
+// autoIdx: 若為數字，代表自動輪詢呼叫（不更新 UI 按鈕），否則為手動點擊
+var _cwaTimer = null; // 自動輪詢計時器
 
-  var url = SHEETS_URL + '?action=fetchCwaWind&lat=' + encodeURIComponent(ev.lat)
-          + '&lng=' + encodeURIComponent(ev.lng);
+function fetchCwaWind(autoIdx) {
+  var isAuto = (typeof autoIdx === 'number');
+  var idx = isAuto ? autoIdx : _curIdx;
+  var ev  = _events[idx];
+  if (!ev || !ev.lat || !ev.lng) {
+    if (!isAuto) showToast('⚠️ 事件缺少座標，無法查詢');
+    return;
+  }
+
+  if (!isAuto) {
+    var btn = document.getElementById('cwaFetchBtn');
+    var sts = document.getElementById('cwaFetchStatus');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 查詢中…'; }
+    if (sts) { sts.textContent = '正在呼叫氣象署 API…'; sts.style.display = 'block'; sts.style.color = '#6b7a92'; }
+  }
+
+  var url = SHEETS_URL + '?action=fetchCwaWind&eventId=' + encodeURIComponent(ev.id)
+          + '&lat=' + encodeURIComponent(ev.lat) + '&lng=' + encodeURIComponent(ev.lng);
+
   _jsonpGet(url, function(data) {
-    btn.disabled = false; btn.textContent = '🌐 從氣象局抓取';
-    if (!data || data.error) {
-      sts.textContent = '❌ ' + (data && data.error ? data.error : '連線失敗');
-      sts.style.color = '#dc2626';
-      return;
+    if (!isAuto) {
+      var btn2 = document.getElementById('cwaFetchBtn');
+      var sts2 = document.getElementById('cwaFetchStatus');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '🌐 從氣象局抓取'; }
+      if (data && data.error) {
+        if (sts2) { sts2.textContent = '❌ ' + data.error; sts2.style.color = '#dc2626'; }
+        return;
+      }
+    } else {
+      if (!data || data.error) return; // 自動模式靜默失敗
     }
-    // 填入欄位
-    document.getElementById('editWindDir').value   = data.windDir   || '';
-    document.getElementById('editWindSpeed').value = data.windSpeed || '';
-    // 同步滑桿
-    var d = parseInt(data.windDir) || 0;
-    var sldr = document.getElementById('editAngle');
-    if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
-    // 即時預覽圖層
-    if (ev && data.windDir) { ev.windDir = String(d); buildEventLayers(_curIdx); _refreshWindIfOn(); }
-    sts.style.color = '#16a34a';
-    sts.textContent = '✅ ' + data.stationName + '（距離 ' + data.dist + ' km）'
-                    + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
+
+    if (!data) return;
+
+    // 取得抓取時間
+    var now = new Date();
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    var fetchTime = pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    // 更新事件快取
+    ev.windDir       = String(data.windDir   || '');
+    ev.windSpeed     = String(data.windSpeed || '');
+    ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
+
+    // 若是目前顯示的事件，更新卡片和圖層
+    if (idx === _curIdx) {
+      renderCard(idx);
+      buildEventLayers(idx);
+      _refreshWindIfOn();
+      // 若有風向且風向圖層已開，確保動畫在跑
+      if (ev.windDir && ev.windDir !== '' && _windLayerOn) {
+        _startWindLayer();
+      }
+    }
+
+    // 手動模式：更新編輯面板欄位（如果面板是開的）
+    if (!isAuto) {
+      var edi = document.getElementById('editWindDir');
+      var ews = document.getElementById('editWindSpeed');
+      var sts3 = document.getElementById('cwaFetchStatus');
+      if (edi) edi.value = data.windDir   || '';
+      if (ews) ews.value = data.windSpeed || '';
+      var d = parseInt(data.windDir) || 0;
+      var sldr = document.getElementById('editAngle');
+      if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
+      if (sts3) {
+        sts3.style.color = '#16a34a';
+        sts3.textContent = '✅ ' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
+                         + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
+      }
+    }
   });
+}
+
+// ── 啟動自動輪詢（載入後立即抓一次，之後每 5 分鐘） ──
+function startCwaAutoFetch() {
+  if (_cwaTimer) clearInterval(_cwaTimer);
+  // 對所有進行中事件各抓一次
+  function fetchAll() {
+    _events.forEach(function(ev, i) {
+      if (ev.lat && ev.lng) fetchCwaWind(i);
+    });
+  }
+  fetchAll(); // 立即執行一次
+  _cwaTimer = setInterval(fetchAll, 5 * 60 * 1000); // 之後每 5 分鐘
 }
 
 function saveEdit() {
@@ -1416,9 +1469,10 @@ function renderCard(idx) {
   html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
   html += '</div>';
 
-  // 風向；風速（合併一行）
-  var _wdRaw = ev.windDir   || '';
-  var _wsRaw = ev.windSpeed || '';
+  // 風向 + 風速 + 抓取時間（三欄分開顯示）
+  var _wdRaw = ev.windDir      || '';
+  var _wsRaw = ev.windSpeed    || '';
+  var _wtRaw = ev.windFetchTime|| '';  // 抓取時間（前端暫存，不存 Sheet）
   function _fmtWind(raw) {
     if (!raw || raw === '') return '—';
     var s = String(raw).trim();
@@ -1431,10 +1485,12 @@ function renderCard(idx) {
   var _wsFmt = _fmtWind(_wsRaw);
   var _wdDisplay = _wdFmt ? _wdFmt : (_wdRaw ? _wdRaw + '°（正北為0度）' : '—');
   var _wsDisplay = _wsFmt ? _wsFmt : (_wsRaw ? _wsRaw + ' m/s' : '—');
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">風向；風速</span>';
-  html += '<span class="ev-val">' + _esc(_wdDisplay) + '；' + _esc(_wsDisplay) + '</span>';
-  html += '</div>';
+  html += '<div class="ev-row"><span class="ev-lbl">風向</span>';
+  html += '<span class="ev-val">' + _esc(_wdDisplay) + '</span></div>';
+  html += '<div class="ev-row"><span class="ev-lbl">風速</span>';
+  html += '<span class="ev-val">' + _esc(_wsDisplay);
+  if (_wtRaw) html += ' <span style="font-size:11px;color:#94a3b8;font-weight:400">（' + _esc(_wtRaw) + '）</span>';
+  html += '</span></div>';
 
   html += '<hr class="ev-divider">';
 
@@ -2368,13 +2424,8 @@ function flyToEvent(idx) {
   if (hasWind && isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
   else if (hasWind && isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
   gMap.flyTo([lat, lng], zoom, { duration: 0.8 });
-  // 有風向時自動開啟風向圖層（若尚未開啟）
-  if (hasWind && !_windLayerOn) {
-    _windLayerOn = true;
-    var cb = document.getElementById('lyr_wind');
-    if (cb) cb.checked = true;
-    _startWindLayer();
-  } else if (!hasWind && _windLayerOn) {
+  // 無風向時停止動畫；有風向且圖層已開就繼續（不自動開關，由使用者手動控制）
+  if (!hasWind && _windLayerOn) {
     _windLayerOn = false;
     var cb2 = document.getElementById('lyr_wind');
     if (cb2) cb2.checked = false;
@@ -2451,7 +2502,7 @@ function buildEventLayers(idx) {
     var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
     var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
     _evLayers[idx].line = L.polyline([perpA, perpB], {
-      color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
+      color: '#16a34a', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
     // ── 橫切面 20 等分點（編號 A01~A20，綠色小點）跟隨 1km 橫切面開關 ──
@@ -2599,29 +2650,14 @@ var _layerPrefs = {};
 
 // 取得指定事件+圖層的記憶狀態
 // 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
+// 預設：只開 100m 範圍 + 量測數值，其他全關
 var _LAYER_DEFAULTS = { circle: true, line: false, sector: false, msr: true };
 function getLayerPref(eventId, type) {
   if (!_layerPrefs[eventId]) {
-    var def = _LAYER_DEFAULTS[type];
-    // 10. 若事件有風向，預設開啟 1km 橫切面
-    if (type === 'line' && def === false) {
-      var ev = _events.filter ? _events.filter(function(e){return e.id===eventId;})[0] :
-        (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return _events[ii]; })();
-      if (ev && ev.windDir && ev.windDir !== '') def = true;
-    }
-    return (def !== undefined) ? def : false;
+    return (_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false;
   }
   var val = _layerPrefs[eventId][type];
-  if (val === undefined) {
-    var def = _LAYER_DEFAULTS[type];
-    if (type === 'line' && def === false) {
-      var ev2 = _events.filter ? _events.filter(function(e){return e.id===eventId;})[0] :
-        (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return _events[ii]; })();
-      if (ev2 && ev2.windDir && ev2.windDir !== '') def = true;
-    }
-    return (def !== undefined) ? def : false;
-  }
-  return val;
+  return (val !== undefined) ? val : ((_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false);
 }
 
 // 儲存使用者勾選狀態
@@ -3393,6 +3429,12 @@ function _makeWindParticle(W, H, random) {
 
 function _animateWind() {
   if (!_windLayerOn || !_windCtx || !_windCanvas) return;
+  // 無風向資料時清除畫布並停止
+  var _curEv = _events[_curIdx];
+  if (!_curEv || !_curEv.windDir || _curEv.windDir === '') {
+    _windCtx.clearRect(0, 0, _windCanvas.width, _windCanvas.height);
+    return;
+  }
   var W = _windCanvas.width, H = _windCanvas.height;
   var ev = _events[_curIdx];
   var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
@@ -3695,6 +3737,8 @@ function loadEvents() {
     // 載入所有進行中事件的量測點任務
     _loadTaskMarkers();
     notifyReady();
+    // 啟動 CWA 自動輪詢（立即抓一次，之後每 5 分鐘）
+    startCwaAutoFetch();
   });
 }
 
@@ -4867,7 +4911,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 比例尺（左下角）
-    L.control.scale({ position: 'bottomleft', imperial: false, metric: true }).addTo(gMap);
+    L.control.scale({ position: 'bottomright', imperial: false, metric: true }).addTo(gMap);
+    // 比例尺移右下，透過 CSS 覆寫位置讓它在圖釘下方
+    gMap.on('load', function() {
+      var scaleEl = document.querySelector('.leaflet-control-scale');
+      if (scaleEl) { scaleEl.style.marginBottom = '0'; scaleEl.style.marginRight = '0'; }
+    });
     loadEvents();
     initDrawTools();
     loadDrawings();
