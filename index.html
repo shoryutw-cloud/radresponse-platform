@@ -1925,7 +1925,12 @@ function submitTaskDispatch() {
     alert('派送失敗：' + err.message);
   });
 }
+
+function closeTaskDispatchModal() {
+  var modal = document.getElementById('taskDispatchModal');
+  if (modal) modal.style.display = 'none';
+}
 </script>
--e 
+
 </body>
 </html>
