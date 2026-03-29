@@ -866,7 +866,7 @@ cursor: pointer; transition: background .15s;
      出勤人員 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="personnelViewModal">
-  <div class="chg-modal" style="width:min(860px,96vw);max-height:90vh;overflow-x:auto">
+  <div class="chg-modal" style="width:min(640px,96vw);max-height:90vh">
     <div class="chg-modal-hd">
       <span>👥 事件出勤人員</span>
       <button class="chg-modal-close" onclick="closePersonnelViewModal()">✕</button>
@@ -2243,10 +2243,10 @@ function _renderPersonnelView(ev) {
     if (squads['未分配'] && squads['未分配'].length) html += _viewStatCard('未分配', squads['未分配'].length);
     html += '</div>';
 
-    html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
+    html += '<table style="width:100%;border-collapse:collapse">';
     html += '<thead><tr style="background:#f1f5f9">';
     ['職稱','姓名','手機','電話','所屬組室'].forEach(function(h) {
-      html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
+      html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
     });
     html += '</tr></thead><tbody>';
 
@@ -2258,11 +2258,11 @@ function _renderPersonnelView(ev) {
       squads[sname].forEach(function(p) {
         var info = lookup[(p.squad ? p.squad + ':' + p.name : p.name)] || lookup[p.name] || {};
         html += '<tr style="border-bottom:1px solid #f0f4f8">';
-        html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(info.title||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(p.name) + '</td>';
-        html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.mobile||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.phone||'—') + '</td>';
-        html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(info.dept||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(info.title||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(p.name) + '</td>';
+        html += '<td style="padding:9px 12px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.mobile||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.phone||'—') + '</td>';
+        html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(info.dept||'—') + '</td>';
         html += '</tr>';
       });
     });
@@ -5409,67 +5409,50 @@ function updateUserDirCone() {
 <!-- 任務派送 Modal HTML -->
 <div id="tdModal">
   <div id="tdBox">
-    <!-- 標頭 -->
-    <div id="tdHeader">
-      <span class="td-title">📋 任務派送</span>
-      <button onclick="closeTdModal()">✕</button>
+    <!-- 標頭（與其他 modal 一致：白底、下邊框）-->
+    <div id="tdHeader" style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700;color:#1e2a3a;flex:1">📋 任務派送</span>
+      <button onclick="closeTdModal()" style="width:28px;height:28px;border-radius:5px;border:1px solid #e2e8f0;background:none;cursor:pointer;font-size:13px;color:#6b7a92;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <!-- 步驟指示 -->
+    <!-- 步驟指示（2步）-->
     <div id="tdSteps">
       <div class="td-step active" id="tdStep1">
         <div class="td-step-num">1</div>
-        <span class="td-step-label">選擇事件</span>
+        <span class="td-step-label">選擇組別</span>
       </div>
       <div class="td-step-sep"></div>
       <div class="td-step" id="tdStep2">
         <div class="td-step-num">2</div>
-        <span class="td-step-label">選擇組別</span>
-      </div>
-      <div class="td-step-sep"></div>
-      <div class="td-step" id="tdStep3">
-        <div class="td-step-num">3</div>
         <span class="td-step-label">任務內容</span>
       </div>
     </div>
     <!-- 主體 -->
     <div id="tdBody">
-      <!-- 第一步 -->
+      <!-- 第一步：選擇組別 -->
       <div class="td-panel active" id="tdPanel1">
-        <div id="tdEvLoading" style="text-align:center;padding:40px;color:#6b7a92">⏳ 載入事件中…</div>
-        <div class="td-event-list" id="tdEvList"></div>
+        <div class="td-form-group">
+          <label class="td-form-lbl">派送對象 <span class="req">*</span>
+            <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選</span>
+          </label>
+          <div id="tdEvInfo" style="padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:12px;font-size:13px;color:#1e2a3a"></div>
+          <div class="td-squad-grid" id="tdSquadGrid"></div>
+        </div>
       </div>
-      <!-- 第二步 -->
+      <!-- 第二步：任務內容 -->
       <div class="td-panel td-panel-wide" id="tdPanel2">
         <div class="td-two-col">
           <div class="td-info-col">
-            <div class="td-info-col-title">已選事件</div>
+            <div class="td-info-col-title">派送資訊</div>
             <div id="tdStep2Info" class="td-info-col-body"></div>
           </div>
           <div class="td-main-col">
             <div class="td-form-group">
-              <label class="td-form-lbl">派送對象 <span class="req">*</span>
-                <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選</span>
-              </label>
-              <div class="td-squad-grid" id="tdSquadGrid"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- 第三步 -->
-      <div class="td-panel td-panel-wide" id="tdPanel3">
-        <div class="td-two-col">
-          <div class="td-info-col">
-            <div class="td-info-col-title">派送資訊</div>
-            <div id="tdStep3Info" class="td-info-col-body"></div>
-          </div>
-          <div class="td-main-col">
-            <div class="td-form-group">
               <label class="td-form-lbl">任務標題 <span class="req">*</span></label>
-              <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateStep3()">
+              <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateStep2()">
             </div>
             <div class="td-form-group">
               <label class="td-form-lbl">任務說明 <span class="req">*</span></label>
-              <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateStep3()"></textarea>
+              <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateStep2()"></textarea>
             </div>
             <div class="td-form-group">
               <label class="td-form-lbl">優先等級</label>
@@ -5496,17 +5479,13 @@ function updateUserDirCone() {
     </div>
     <!-- 頁尾 -->
     <div id="tdFooter">
-      <div class="td-footer-btns" id="tdFooterStatus" style="font-size:13px;color:#6b7a92;flex:1">請先選擇事件</div>
+      <div id="tdFooterStatus" style="font-size:13px;color:#6b7a92;flex:1">請選擇派送組別</div>
       <div class="td-footer-btns">
         <div id="tdBtnGroup1" style="display:flex;gap:8px">
           <button class="td-btn td-btn-p" id="tdBtnNext1" onclick="tdGoStep2()" disabled>下一步 ➡</button>
         </div>
         <div id="tdBtnGroup2" style="display:none;gap:8px">
           <button class="td-btn td-btn-g" onclick="tdGoStep1()">← 上一步</button>
-          <button class="td-btn td-btn-p" id="tdBtnNext2" onclick="tdGoStep3()" disabled>下一步 ➡</button>
-        </div>
-        <div id="tdBtnGroup3" style="display:none;gap:8px">
-          <button class="td-btn td-btn-g" onclick="tdGoStep2()">← 上一步</button>
           <button class="td-btn td-btn-p" id="tdBtnSubmit" onclick="tdSubmitTask()" disabled>📤 派送任務</button>
         </div>
       </div>
@@ -5516,25 +5495,23 @@ function updateUserDirCone() {
 
 <script>
 // ════════════════════════════════════════════
-// 任務派送 Modal JS
+// 任務派送 Modal JS（2步：選組別 → 填內容）
 // ════════════════════════════════════════════
-var _tdEvents = [], _tdSelectedEvent = null, _tdSelectedSquads = [];
-var _tdSquadsList = null;
+var _tdSelectedSquads = [];
 
-// ── 開啟 Modal ──
 function openTdModal() {
+  var ev = _events[_curIdx];
+  if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
   document.getElementById('tdModal').classList.add('open');
   tdResetForm();
 }
 
-// ── 關閉 Modal ──
 function closeTdModal() {
   document.getElementById('tdModal').classList.remove('open');
 }
 
-// ── 步驟切換 ──
 function tdSetStep(n) {
-  [1,2,3].forEach(function(i) {
+  [1,2].forEach(function(i) {
     var el = document.getElementById('tdStep' + i);
     var panel = document.getElementById('tdPanel' + i);
     el.classList.remove('active','done');
@@ -5543,9 +5520,8 @@ function tdSetStep(n) {
     else if (i === n) el.classList.add('active');
   });
   document.getElementById('tdPanel' + n).classList.add('active');
-  ['tdBtnGroup1','tdBtnGroup2','tdBtnGroup3'].forEach(function(id, idx) {
-    document.getElementById(id).style.display = (idx + 1 === n) ? 'flex' : 'none';
-  });
+  document.getElementById('tdBtnGroup1').style.display = (n === 1) ? 'flex' : 'none';
+  document.getElementById('tdBtnGroup2').style.display = (n === 2) ? 'flex' : 'none';
   document.getElementById('tdSuccessBox').classList.remove('show');
 }
 
@@ -5555,107 +5531,59 @@ function tdSetStatus(msg, ok) {
   el.style.color = ok ? '#16a34a' : '#6b7a92';
 }
 
-// ── 載入隊別清單 ──
-function tdLoadSquads(cb) {
-  if (_tdSquadsList) { cb(_tdSquadsList); return; }
-  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
-    var squads = (data && data.squads && data.squads.length) ? data.squads
-      : ['北部應變區-先遣小組','北部應變區-支援小組','南部應變區-先遣小組','南部應變區-支援小組'];
-    _tdSquadsList = squads.concat(['參謀組','新聞組']);
-    cb(_tdSquadsList);
+// 從當前事件的 personnelStr 取出所有隊別
+function tdRenderSquads() {
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var infoEl = document.getElementById('tdEvInfo');
+  if (infoEl) infoEl.textContent = '事件：' + (ev.name || '—') + '\u3000類型：' + (ev.type || '—');
+  var squads = [], squadSeen = {};
+  (ev.personnelStr || '').split(',').forEach(function(item) {
+    item = item.trim(); if (!item) return;
+    var ci = item.lastIndexOf(':');
+    var squad = ci >= 0 ? item.slice(0, ci).trim() : '';
+    if (squad && !squadSeen[squad]) { squads.push(squad); squadSeen[squad] = true; }
   });
-}
-
-// ── 第一步：載入事件 ──
-function tdLoadEvents() {
-  document.getElementById('tdEvLoading').style.display = '';
-  document.getElementById('tdEvList').innerHTML = '';
-  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
-    _tdEvents = (data && data.events) ? data.events : [];
-    document.getElementById('tdEvLoading').style.display = 'none';
-    var list = document.getElementById('tdEvList');
-    if (!_tdEvents.length) {
-      list.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7a92">📭 目前無進行中事件</div>';
-      return;
-    }
-    list.innerHTML = _tdEvents.map(function(ev, i) {
-      var cls = (ev.type||'').indexOf('輻射彈') !== -1 ? 'td-badge-rdd'
-              : (ev.type||'').indexOf('物質') !== -1  ? 'td-badge-substance' : 'td-badge-material';
-      var addr = (ev.address || '').split(',')[0];
-      return '<div class="td-event-card" id="tdEvc' + i + '" onclick="tdSelectEvent(' + i + ')">' +
-        '<div style="flex:1">' +
-        '<div class="td-event-name">' + _tdEsc(ev.name) + '</div>' +
-        '<div class="td-event-meta">' + _tdEsc(ev.date||'') + ' ' + _tdEsc(ev.time||'') + ' ｜ ' + _tdEsc(addr) + '</div>' +
-        '</div>' +
-        '<span class="td-badge ' + cls + '">' + _tdEsc(ev.type||'') + '</span>' +
-        '<span id="tdEvChk' + i + '" style="font-size:18px;color:#1a56db;display:none">✔</span>' +
-        '</div>';
-    }).join('');
-  });
-}
-
-function _tdEsc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function tdSelectEvent(i) {
-  _tdSelectedEvent = _tdEvents[i];
-  document.querySelectorAll('.td-event-card').forEach(function(c){ c.classList.remove('selected'); });
-  document.querySelectorAll('[id^="tdEvChk"]').forEach(function(c){ c.style.display='none'; });
-  document.getElementById('tdEvc' + i).classList.add('selected');
-  document.getElementById('tdEvChk' + i).style.display = '';
-  document.getElementById('tdBtnNext1').disabled = false;
-  tdSetStatus('已選：' + _tdSelectedEvent.name, true);
-}
-
-// ── 第二步：組別 ──
-function tdGoStep2() {
-  if (!_tdSelectedEvent) return;
-  tdSetStep(2);
-  tdLoadSquads(function(squads) {
-    var grid = document.getElementById('tdSquadGrid');
-    grid.innerHTML = squads.map(function(sq) {
-      return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
-    }).join('');
-    _tdSelectedSquads = [];
-    document.getElementById('tdBtnNext2').disabled = true;
-  });
-  var ev = _tdSelectedEvent;
-  document.getElementById('tdStep2Info').innerHTML =
-    '<div class="td-sel-row"><span class="td-sel-lbl">名稱</span><span class="td-sel-val">' + _tdEsc(ev.name) + '</span></div>' +
-    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev.type||'') + '</span></div>';
-  tdSetStatus('請選擇派送組別', false);
+  var grid = document.getElementById('tdSquadGrid');
+  if (!squads.length) {
+    grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">此事件無出勤組別資料</div>';
+    return;
+  }
+  grid.innerHTML = squads.map(function(sq) {
+    return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
+  }).join('');
+  _tdSelectedSquads = [];
+  document.getElementById('tdBtnNext1').disabled = true;
 }
 
 function tdSelectSquad(btn) {
   var sq = btn.getAttribute('data-sq');
   var idx = _tdSelectedSquads.indexOf(sq);
   if (idx === -1) { _tdSelectedSquads.push(sq); btn.classList.add('selected'); }
-  else { _tdSelectedSquads.splice(idx,1); btn.classList.remove('selected'); }
+  else { _tdSelectedSquads.splice(idx, 1); btn.classList.remove('selected'); }
   var ok = _tdSelectedSquads.length > 0;
-  document.getElementById('tdBtnNext2').disabled = !ok;
+  document.getElementById('tdBtnNext1').disabled = !ok;
   tdSetStatus(ok ? '已選：' + _tdSelectedSquads.join('、') : '請選擇派送組別', ok);
 }
 
-// ── 第三步：任務內容 ──
-function tdGoStep3() {
+function tdGoStep2() {
   if (!_tdSelectedSquads.length) return;
-  tdSetStep(3);
+  tdSetStep(2);
+  var ev = _events[_curIdx];
   var squadTags = _tdSelectedSquads.map(function(s) {
     return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:#f3f0ff;color:#7c3aed;font-size:12px;margin:2px 2px 0 0">' + _tdEsc(s) + '</span>';
   }).join('');
-  var ev = _tdSelectedEvent;
-  document.getElementById('tdStep3Info').innerHTML =
-    '<div class="td-sel-row"><span class="td-sel-lbl">名稱</span><span class="td-sel-val">' + _tdEsc(ev.name) + '</span></div>' +
-    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev.type||'') + '</span></div>' +
+  document.getElementById('tdStep2Info').innerHTML =
+    '<div class="td-sel-row"><span class="td-sel-lbl">事件</span><span class="td-sel-val">' + _tdEsc(ev ? ev.name : '—') + '</span></div>' +
+    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev ? ev.type||'' : '') + '</span></div>' +
     '<div class="td-sel-row"><span class="td-sel-lbl">對象</span><span class="td-sel-val" style="line-height:1.8">' + squadTags + '</span></div>';
   tdSetStatus('請填寫任務內容', false);
-  tdValidateStep3();
+  tdValidateStep2();
 }
 
 function tdGoStep1() {
   tdSetStep(1);
-  tdSetStatus(_tdSelectedEvent ? '已選：' + _tdSelectedEvent.name : '請先選擇事件', !!_tdSelectedEvent);
+  tdSetStatus(_tdSelectedSquads.length ? '已選：' + _tdSelectedSquads.join('、') : '請選擇派送組別', _tdSelectedSquads.length > 0);
 }
 
 function tdSelectPriority(el) {
@@ -5663,66 +5591,56 @@ function tdSelectPriority(el) {
   var val = el.getAttribute('data-val');
   el.classList.add(val==='高'?'sel-high':val==='中'?'sel-medium':'sel-low');
   document.getElementById('tdTaskPriority').value = val;
-  tdValidateStep3();
+  tdValidateStep2();
 }
 
-function tdValidateStep3() {
+function tdValidateStep2() {
   var ok = document.getElementById('tdTaskTitle').value.trim() &&
            document.getElementById('tdTaskContent').value.trim();
   document.getElementById('tdBtnSubmit').disabled = !ok;
   tdSetStatus(ok ? '所有欄位已填寫完成 ✔' : '尚未填寫必填欄位', ok);
 }
 
-// ── 送出任務 ──
 function tdSubmitTask() {
+  var ev = _events[_curIdx];
+  if (!ev) { showToast('⚠️ 無法取得事件資料'); return; }
   var btn = document.getElementById('tdBtnSubmit');
   btn.disabled = true;
   btn.innerHTML = '<span class="td-spin"></span> 派送中…';
-
   var title    = document.getElementById('tdTaskTitle').value.trim();
   var content  = document.getElementById('tdTaskContent').value.trim();
   var priority = document.getElementById('tdTaskPriority').value;
-
-  // 對每個組別各送一筆（no-cors 模式）
-  var count = 0;
   _tdSelectedSquads.forEach(function(sq) {
     fetch(SHEETS_URL, {
       method: 'POST', mode: 'no-cors',
-      body: JSON.stringify({
-        action: 'addTask', eventId: _tdSelectedEvent.id,
-        target: sq, title: title, content: content, priority: priority
-      })
+      body: JSON.stringify({ action:'addTask', eventId:ev.id, target:sq, title:title, content:content, priority:priority })
     });
-    count++;
   });
-
-  // no-cors 無法讀回傳值，稍等後顯示成功
   setTimeout(function() {
     btn.disabled = false; btn.innerHTML = '📤 派送任務';
-    document.getElementById('tdPanel3').classList.remove('active');
+    document.getElementById('tdPanel2').classList.remove('active');
     document.getElementById('tdFooter').style.display = 'none';
     document.getElementById('tdSuccessSub').textContent =
-      '事件：' + _tdSelectedEvent.name + '｜對象：' + _tdSelectedSquads.join('、') +
-      (priority ? '｜優先：' + priority : '');
+      '事件：' + ev.name + '\uff5c對象：' + _tdSelectedSquads.join('、') + (priority ? '\uff5c優先：' + priority : '');
     document.getElementById('tdSuccessBox').classList.add('show');
-    // 通知地圖刷新任務標記
     try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
   }, 800);
 }
 
-// ── 重置 ──
 function tdResetForm() {
-  _tdSelectedEvent = null; _tdSelectedSquads = [];
+  _tdSelectedSquads = [];
   document.getElementById('tdTaskTitle').value = '';
   document.getElementById('tdTaskContent').value = '';
   document.getElementById('tdTaskPriority').value = '';
   document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
   document.getElementById('tdFooter').style.display = '';
-  document.getElementById('tdBtnNext1').disabled = true;
   tdSetStep(1);
-  tdSetStatus('請先選擇事件', false);
-  tdLoadEvents();
-  tdLoadSquads(function(){}); // 預載隊別
+  tdSetStatus('請選擇派送組別', false);
+  tdRenderSquads();
+}
+
+function _tdEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 </script>
 
