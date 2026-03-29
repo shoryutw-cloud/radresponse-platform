@@ -1436,10 +1436,10 @@ function saveEdit() {
     if (payload.lat !== undefined) {
       ev.lat = String(payload.lat);
       ev.lng = String(payload.lng);
-      // 重新放置所有事件標記（中心點更新到新座標）
       placeMarkers();
-      // 飛到新座標
       gMap.setView([payload.lat, payload.lng], gMap.getZoom());
+      // 座標更新後自動重抓最近觀測站風向風速
+      setTimeout(function() { fetchCwaWind(); }, 300);
     }
     // 清除地點點選暫時標記
     if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
