@@ -1155,6 +1155,15 @@ function toggleEditPanel() {
   body.style.display = isOpen ? 'none' : '';
   editBtn.style.borderColor = isOpen ? 'var(--accent)' : '';
   editBtn.style.color = isOpen ? 'var(--accent)' : '';
+  // ★ 關閉編輯面板（取消）→ 還原預覽時暫改的 windDir
+  if (!isOpen) {
+    var evCancel = _events[_curIdx];
+    if (evCancel && _editOrigWindDir !== undefined) {
+      evCancel.windDir = _editOrigWindDir;
+      buildEventLayers(_curIdx);
+      _refreshWindIfOn();
+    }
+  }
   if (isOpen && _events[_curIdx]) {
     var ev = _events[_curIdx];
     document.getElementById('editName').value    = ev.name    || '';
@@ -1172,32 +1181,32 @@ function toggleEditPanel() {
     var _curAngle = ev.windDir ? parseInt(ev.windDir) : 0;
     document.getElementById('editAngle').value = _curAngle;
     document.getElementById('angleDisplay').textContent = _curAngle + '°';
+    // ★ 記錄開啟編輯前的原始風向，取消時用來還原
+    _editOrigWindDir = ev.windDir || '';
   }
 }
 
 // ── 儲存編輯 ──
 
-// 旋轉角度滑桿即時預覽
+// 旋轉角度滑桿即時預覽（只預覽，不寫入 ev，取消後可還原）
 function onAngleInput(val) {
   document.getElementById('angleDisplay').textContent = val + '°';
   document.getElementById('editWindDir').value = val;
-  // 即時更新地圖圖層
+  // 暫時修改 ev.windDir 讓圖層預覽，但標記為「預覽狀態」
   var ev = _events[_curIdx];
   if (ev) {
-    var prev = ev.windDir;
-    ev.windDir = val;
+    ev.windDir = val;  // 暫時覆蓋供預覽
     buildEventLayers(_curIdx);
     _refreshWindIfOn();
-    ev.windDir = prev; // 先不改 ev，等儲存
-    // 但圖層已更新，讓使用者預覽
-    ev.windDir = val;
+    // 不在此還原 → 取消時由 toggleEditPanel 還原
   }
 }
 
 
 // ── 從氣象局抓取最近站風向/風速，透過 GAS 代理（避免 CORS）──
 // autoIdx: 若為數字，代表自動輪詢呼叫（不更新 UI 按鈕），否則為手動點擊
-var _cwaTimer = null; // 自動輪詢計時器
+var _cwaTimer = null;       // 自動輪詢計時器
+var _editOrigWindDir = ''; // 編輯面板開啟前的原始風向（取消時還原）
 
 function fetchCwaWind(autoIdx) {
   var isAuto = (typeof autoIdx === 'number');
