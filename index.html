@@ -120,7 +120,7 @@
 
   /* ────── 登出按鈕（右側）────── */
   .topbar-logout {
-    margin-left: 8px; flex-shrink: 0;
+    margin-left: 0; flex-shrink: 0;
     padding: 6px 14px; background: none;
     border: 1px solid rgba(255,255,255,0.18); border-radius: var(--radius);
     color: #8da0b8; font-family: var(--font); font-size: 13px; cursor: pointer;
@@ -305,24 +305,24 @@
     display: flex; flex-direction: column; align-items: center; gap: 18px;
   }
   .login-logo { font-size: 48px; line-height: 1; }
-  .login-title { font-size: 18px; font-weight: 700; color: #e8f0fa; text-align: center; line-height: 1.4; }
-  .login-subtitle { font-size: 12px; color: #4a6080; margin-top: -10px; }
+  .login-title { font-size: 20px; font-weight: 700; color: #e8f0fa; text-align: center; line-height: 1.4; }
+  .login-subtitle { font-size: 14px; color: #4a6080; margin-top: -10px; }
   .login-field {
-    width: 100%; padding: 10px 14px; border-radius: 8px;
+    width: 100%; padding: 11px 14px; border-radius: 8px;
     border: 1px solid #2d3f55; background: #0f1820; color: #e8f0fa;
-    font-size: 15px; font-family: var(--font); outline: none;
+    font-size: 16px; font-family: var(--font); outline: none;
     transition: border-color .15s;
   }
   .login-field:focus { border-color: #1a56db; }
   .login-btn {
-    width: 100%; padding: 11px; border-radius: 8px; border: none;
-    background: #1a56db; color: white; font-size: 15px; font-weight: 700;
+    width: 100%; padding: 12px; border-radius: 8px; border: none;
+    background: #1a56db; color: white; font-size: 16px; font-weight: 700;
     font-family: var(--font); cursor: pointer; transition: background .15s;
   }
   .login-btn:hover { background: #1648b8; }
   .login-btn:disabled { background: #2d3f55; cursor: default; }
   .login-err {
-    color: #fca5a5; font-size: 13px; text-align: center;
+    color: #fca5a5; font-size: 14px; text-align: center;
     min-height: 18px; display: none;
   }
   .login-err.show { display: block; }
@@ -344,7 +344,7 @@
   #topbarWelcome {
     display: none; /* 登入後由 JS 改為 flex */
     align-items: center;
-    margin-left: auto; margin-right: 8px;
+    margin-left: 12px; margin-right: 8px;
     color: #7aa3cc; font-size: 13px; white-space: nowrap; flex-shrink: 0;
   }
   #topbarWelcome strong { color: #e8f0fa; margin-right: 2px; }
