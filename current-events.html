@@ -884,9 +884,9 @@ cursor: pointer; transition: background .15s;
      出動儀器 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="instrViewModal">
-  <div class="chg-modal" style="width:min(1100px,96vw);max-height:90vh">
+  <div class="chg-modal" style="width:min(820px,96vw);max-height:90vh">
     <div class="chg-modal-hd">
-      <span>🔧 事件出動儀器</span>
+      <span>🔧 攜帶儀器種類</span>
       <button class="chg-modal-close" onclick="closeInstrViewModal()">✕</button>
     </div>
     <div class="chg-modal-bd" id="instrViewBody">
@@ -2077,21 +2077,21 @@ function _doRenderInstrView(body, instruments, instrList) {
     return null;
   });
 
-  html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
+  html += '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['項次','儀器種類','儀器名稱','存放地點','使用者'].forEach(function(h){
-    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 14px;'
+    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;'
           + 'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
   });
   html += '</tr></thead><tbody>';
   instruments.forEach(function(instr, i) {
     var info = matched[i];
     html += '<tr style="border-bottom:1px solid #f0f4f8">';
-    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;font-family:monospace">' + (info?_esc(info.seq):'—') + '</td>';
-    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + _esc(instr.kind||'—') + '</td>';
-    html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(instr.name) + '</td>';
-    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92">' + (info?_esc(info.location):'—') + '</td>';
-    html += '<td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1a56db">' + _esc(instr.user||'—') + '</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92;font-family:monospace">' + (info?_esc(info.seq):'—') + '</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(instr.kind||'—') + '</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(instr.name) + '</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + (info?_esc(info.location):'—') + '</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1a56db">' + _esc(instr.user||'—') + '</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
