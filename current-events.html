@@ -729,8 +729,19 @@ cursor: pointer; transition: background .15s;
       <input class="ev-edit-inp" id="editAddress" type="text" placeholder="輸入事件地點">
     </div>
     <div class="ev-edit-row">
-      <label class="ev-edit-lbl">風向（0-359度，正北為0）</label>
-      <input class="ev-edit-inp" id="editWindDir" type="number" min="0" max="359" placeholder="例：90（東風）">
+      <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
+        <span>風向；風速</span>
+        <button onclick="fetchCwaWind()" id="cwaFetchBtn"
+          style="font-size:11px;padding:2px 8px;border:1px solid #38bdf8;border-radius:5px;
+          background:#f0f9ff;color:#0369a1;cursor:pointer;font-family:var(--font)">
+          🌐 從氣象局抓取
+        </button>
+      </label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="ev-edit-inp" id="editWindDir" type="text" placeholder="風向（0-359）" style="flex:1">
+        <input class="ev-edit-inp" id="editWindSpeed" type="text" placeholder="風速（m/s）" style="flex:1">
+      </div>
+      <div id="cwaFetchStatus" style="font-size:11px;color:#6b7a92;margin-top:3px;display:none"></div>
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
@@ -1160,7 +1171,8 @@ function toggleEditPanel() {
       document.getElementById('editTime').value = _dtM[4].padStart(2,'0') + ':' + _dtM[5];
     }
     document.getElementById('editAddress').value = ev.address || '';
-    document.getElementById('editWindDir').value  = ev.windDir || '';
+    document.getElementById('editWindDir').value   = ev.windDir   || '';
+    document.getElementById('editWindSpeed').value  = ev.windSpeed || '';
     var _curAngle = ev.windDir ? parseInt(ev.windDir) : 0;
     document.getElementById('editAngle').value = _curAngle;
     document.getElementById('angleDisplay').textContent = _curAngle + '°';
@@ -1186,6 +1198,41 @@ function onAngleInput(val) {
   }
 }
 
+
+// ── 從氣象局抓取最近站風向/風速，透過 GAS 代理（避免 CORS）──
+function fetchCwaWind() {
+  var ev = _events[_curIdx];
+  if (!ev || !ev.lat || !ev.lng) { showToast('⚠️ 事件缺少座標，無法查詢'); return; }
+  var btn = document.getElementById('cwaFetchBtn');
+  var sts = document.getElementById('cwaFetchStatus');
+  btn.disabled = true; btn.textContent = '⏳ 查詢中…';
+  sts.textContent = '正在呼叫氣象署 API…';
+  sts.style.display = 'block';
+
+  var url = SHEETS_URL + '?action=fetchCwaWind&lat=' + encodeURIComponent(ev.lat)
+          + '&lng=' + encodeURIComponent(ev.lng);
+  _jsonpGet(url, function(data) {
+    btn.disabled = false; btn.textContent = '🌐 從氣象局抓取';
+    if (!data || data.error) {
+      sts.textContent = '❌ ' + (data && data.error ? data.error : '連線失敗');
+      sts.style.color = '#dc2626';
+      return;
+    }
+    // 填入欄位
+    document.getElementById('editWindDir').value   = data.windDir   || '';
+    document.getElementById('editWindSpeed').value = data.windSpeed || '';
+    // 同步滑桿
+    var d = parseInt(data.windDir) || 0;
+    var sldr = document.getElementById('editAngle');
+    if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
+    // 即時預覽圖層
+    if (ev && data.windDir) { ev.windDir = String(d); buildEventLayers(_curIdx); _refreshWindIfOn(); }
+    sts.style.color = '#16a34a';
+    sts.textContent = '✅ ' + data.stationName + '（距離 ' + data.dist + ' km）'
+                    + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
+  });
+}
+
 function saveEdit() {
   var ev  = _events[_curIdx];
   if (!ev) return;
@@ -1193,6 +1240,7 @@ function saveEdit() {
   btn.disabled = true; btn.textContent = '儲存中…';
 
   var windVal   = document.getElementById('editWindDir').value.trim();
+  var windSpVal = document.getElementById('editWindSpeed').value.trim();
   var nameVal   = document.getElementById('editName').value.trim();
   var typeVal   = document.getElementById('editType').value;
   var dateVal   = document.getElementById('editDate').value;   // YYYY-MM-DD
@@ -1201,8 +1249,9 @@ function saveEdit() {
   var payload = {
     action:   'updateEvent',
     eventId:  ev.id,
-    windDir:  windVal,
-    name:     nameVal,
+    windDir:   windVal,
+    windSpeed: windSpVal,
+    name:      nameVal,
     type:     typeVal,
     date:     dateVal,
     time:     timeVal,
@@ -1218,7 +1267,8 @@ function saveEdit() {
   })
   .then(function() {
     // 更新本地快取
-    ev.windDir  = payload.windDir;
+    ev.windDir   = payload.windDir;
+    ev.windSpeed = payload.windSpeed;
     if (payload.name)    ev.name    = payload.name;
     if (payload.type)    ev.type    = payload.type;
     if (payload.date)    ev.date    = payload.date;
@@ -1366,12 +1416,24 @@ function renderCard(idx) {
   html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
   html += '</div>';
 
-  // 風向
-  var windVal = (ev.windDir && ev.windDir !== '') ? ev.windDir : '';
-  var windDisplay = windVal ? windVal + '°（正北為0度）' : '—';
+  // 風向；風速（合併一行）
+  var _wdRaw = ev.windDir   || '';
+  var _wsRaw = ev.windSpeed || '';
+  function _fmtWind(raw) {
+    if (!raw || raw === '') return '—';
+    var s = String(raw).trim();
+    if (s === 'X')   return '儀器故障';
+    if (s === '-99') return '缺值或資料異常';
+    if (s === '990') return '風向不定';
+    return null; // 正常值
+  }
+  var _wdFmt = _fmtWind(_wdRaw);
+  var _wsFmt = _fmtWind(_wsRaw);
+  var _wdDisplay = _wdFmt ? _wdFmt : (_wdRaw ? _wdRaw + '°（正北為0度）' : '—');
+  var _wsDisplay = _wsFmt ? _wsFmt : (_wsRaw ? _wsRaw + ' m/s' : '—');
   html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">風向</span>';
-  html += '<span class="ev-val">' + _esc(windDisplay) + '</span>';
+  html += '<span class="ev-lbl">風向；風速</span>';
+  html += '<span class="ev-val">' + _esc(_wdDisplay) + '；' + _esc(_wsDisplay) + '</span>';
   html += '</div>';
 
   html += '<hr class="ev-divider">';
@@ -3313,7 +3375,9 @@ function _makeWindParticle(W, H, random) {
   var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
   var rad = (windDir - 90) * Math.PI / 180; // 轉為螢幕座標系角度
   // 預設風速 5 m/s，換算為像素速度（5 m/s 約對應 2.5 px/frame）
-  var baseSpeed = 2.5; // 之後可改為 ev.windSpeed * 0.5
+  // 風速換算：氣象局單位 m/s，1 m/s ≈ 0.5 px/frame（螢幕相對速度）
+  var _ws = ev && ev.windSpeed && !isNaN(parseFloat(ev.windSpeed)) ? parseFloat(ev.windSpeed) : 5;
+  var baseSpeed = Math.max(1, Math.min(8, _ws * 0.5)); // 限制在 1~8 px/frame
   var speed = baseSpeed + (Math.random() - 0.5) * 0.8; // ±0.4 的小幅變化
   return {
     x: random ? Math.random() * W : (Math.random() < 0.5 ? Math.random() * W : (rad > 0 ? 0 : W)),
