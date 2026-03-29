@@ -1470,10 +1470,25 @@ function toggleCollapse() {
 // ── 切換事件 ──
 function navEvent(dir) {
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
-  // 切換事件時自動停止導航
   if (_navFollowing) stopNavMode();
   renderCard(_curIdx);
   flyToEvent(_curIdx);
+
+  // ★ 依新事件風速決定是否自動開啟風向圖層
+  var newEv = _events[_curIdx];
+  var newWs = newEv && newEv.windSpeed ? parseFloat(newEv.windSpeed) : 0;
+  var hasWind = !isNaN(newWs) && newWs > 0 && newEv && newEv.windDir && newEv.windDir !== '';
+  if (hasWind) {
+    if (!_windLayerOn) {
+      _windLayerOn = true;
+      _startWindLayer();
+    } else {
+      _refreshWindIfOn();
+    }
+  } else {
+    if (_windLayerOn) { _stopWindLayer(); _windLayerOn = false; }
+  }
+
   renderLayerPanel();
 }
 
@@ -3486,9 +3501,8 @@ function _startWindLayer() {
   if (!gMap) return;
   var ev = _events[_curIdx];
   var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
-  // 風速為 0 或無效時不啟動動畫
+  // 風速為 0 或無效時靜默不啟動（不彈提示、不取消勾選）
   if (isNaN(ws) || ws <= 0) {
-    showToast('ℹ️ 目前風速為 0，無風向動畫');
     _windLayerOn = false;
     var cb = document.getElementById('lyr_wind');
     if (cb) cb.checked = false;
