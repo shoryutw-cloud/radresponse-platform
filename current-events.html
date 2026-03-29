@@ -3624,9 +3624,10 @@ var _pendingEventId = null;
 window.addEventListener('message', function(e) {
   if (!e.data) return;
 
-  // ── 接收登入者姓名（由 index.html iframeReady 後傳入）──
+  // ── 接收登入者姓名與隊別（由 index.html iframeReady 後傳入）──
   if (e.data.type === 'setLoginUser') {
     _loginUserName = String(e.data.name || '').trim();
+    _loginUserTeam = String(e.data.team || '').trim();
     return;
   }
 
@@ -4186,7 +4187,8 @@ function isMobile() { return window.innerWidth <= 600; }
 // 地圖右鍵選單
 // ════════════════════════════════════════════
 var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
-var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入，用於回報自動預選）
+var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
+var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -4528,8 +4530,7 @@ function openMeasureModal() {
   document.getElementById('msrSubmitBtn').disabled    = false;
   document.getElementById('msrCoordVal').textContent  = '取得中…';
 
-  // ── 填充人員清單（格式：隊別:姓名，下拉顯示「隊別:姓名」）──
-  // 使用 _loginUserName（由 index.html postMessage 傳入）自動預選
+  // ── 填充人員清單（格式：隊別:姓名）──
   var sel = document.getElementById('msrReporter');
   sel.innerHTML = '<option value="">— 選擇人員 —</option>';
 
@@ -4547,13 +4548,22 @@ function openMeasureModal() {
       opt.value = displayVal;
       opt.textContent = displayVal;
       sel.appendChild(opt);
-      // 若此人員姓名與登入者相符，記下來
       if (_loginUserName && name === _loginUserName && !_defaultVal) {
         _defaultVal = displayVal;
       }
     });
   }
-  // 自動預選登入者
+
+  // 若登入者不在出勤名單，仍補上一個選項供選取
+  if (_loginUserName && !_defaultVal) {
+    var selfVal = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
+    var selfOpt = document.createElement('option');
+    selfOpt.value = selfVal;
+    selfOpt.textContent = selfVal + '（本人）';
+    sel.insertBefore(selfOpt, sel.options[1] || null);
+    _defaultVal = selfVal;
+  }
+
   if (_defaultVal) sel.value = _defaultVal;
 
   // 取目前使用者位置
