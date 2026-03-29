@@ -462,7 +462,7 @@
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
-      <button class="drawer-item" onclick="openTaskDispatchModal();closeDrawer()">📨 任務派送</button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskDispatchModal,100)">📨 任務派送</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
@@ -573,7 +573,7 @@
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
-  <button class="top-drop-l3-btn" onclick="openTaskDispatchModal();closeAllMenus()">任務派送</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskDispatchModal,50)">任務派送</button>
 </div>
 
 <script>
