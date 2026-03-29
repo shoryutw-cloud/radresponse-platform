@@ -674,7 +674,11 @@ window.addEventListener('message', function(e) {
       var _lsAuth = localStorage.getItem('radAuth');
       if (_lsAuth) {
         var _lsUser = JSON.parse(_lsAuth);
-        frame.contentWindow.postMessage({ type: 'setLoginUser', name: _lsUser.name || '' }, '*');
+        frame.contentWindow.postMessage({
+          type: 'setLoginUser',
+          name: _lsUser.name || '',
+          team: _lsUser.team || ''
+        }, '*');
       }
     } catch(e2) {}
     // 若編輯地圖模式開啟中，通知新載入的 iframe
@@ -683,6 +687,8 @@ window.addEventListener('message', function(e) {
     if (_pendingNav) sendNavMsg();
     // 若有等待中的導航點位 Modal
     if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
+    // 若回報 FAB 開啟中，補回浮動按鈕
+    if (_reportFabsVisible) { setTimeout(function(){ sendReportFabMsg(true); }, 300); }
     if (_pendingReportFab) { _pendingReportFab = false; setTimeout(sendReportFabMsg, 400); }
   }
 
@@ -1534,7 +1540,7 @@ function submitLogin() {
     }
 
     // ── 登入成功：存入 localStorage，帶 lastActivity ──
-    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, lastActivity: Date.now() };
+    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', lastActivity: Date.now() };
     try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
 
     _applyAuthUI(user);
@@ -1639,21 +1645,6 @@ function openEditEventPage() {
   // 已在地圖頁：直接開啟編輯模式（toggle：若已開啟則關閉）
   _mapEditOn = !_mapEditOn;
   sendMapEditMsg();
-}
-
-// ── item8：任務派送 Modal（iframe 包 task-dispatch.html）──
-function openTaskDispatchModal() {
-  var modal = document.getElementById('taskDispatchModal');
-  if (!modal) return;
-  var frame = document.getElementById('taskDispatchFrame');
-  if (frame && !frame.src) {
-    frame.src = 'task-dispatch.html?_t=' + Date.now();
-  }
-  modal.style.display = 'flex';
-}
-function closeTaskDispatchModal() {
-  var modal = document.getElementById('taskDispatchModal');
-  if (modal) modal.style.display = 'none';
 }
 
 // ── item3：登入密碼顯示切換 ──
