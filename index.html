@@ -390,9 +390,6 @@
           pointer-events:none;z-index:1">0</span>📡 回報 <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
-    <div class="tnav-item" id="tnav-settings">
-      <button class="tnav-btn">⚙️ 設定 <span class="tnav-arrow">&#9664;</span></button>
-    </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-admin">
       <button class="tnav-btn">🔑 後台功能 <span class="tnav-arrow">&#9664;</span></button>
@@ -401,7 +398,10 @@
 
   <!-- 姓名下拉選單（登入後顯示，hover 展開）-->
   <div class="tnav-item auth-hidden" id="tnav-user" style="margin-left:8px">
-    <button class="tnav-btn" style="color:#e8f0fa;font-weight:600">
+    <button class="tnav-btn" style="
+      color:#e8f0fa;font-weight:600;
+      border:1px solid rgba(255,255,255,0.18);border-radius:6px;
+      padding:0 14px;margin:8px 0;height:36px;">
       <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
     </button>
   </div>
