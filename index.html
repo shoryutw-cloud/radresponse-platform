@@ -340,21 +340,6 @@
   }
   #topbarLoginBtn:hover { background: #1648b8; }
 
-  /* ────── 歡迎文字（topbar，登入後顯示）────── */
-  #topbarWelcome {
-    display: none; /* 登入後由 JS 改為 flex */
-    align-items: center;
-    margin-left: 12px; margin-right: 8px;
-    color: #7aa3cc; font-size: 13px; white-space: nowrap; flex-shrink: 0;
-  }
-  #topbarWelcome strong { color: #e8f0fa; margin-right: 2px; }
-
-  /* 手機版：歡迎文字在漢堡左邊縮短顯示 */
-  @media (max-width: 600px) {
-    #topbarWelcome { font-size: 12px; margin-right: 6px; }
-    #topbarLoginBtn { margin-left: auto; }
-  }
-
   /* ────── 導航 Banner（iframe 透過 postMessage 觸發）────── */
   #navBannerBar {
     display: none;
@@ -396,12 +381,14 @@
       <button class="tnav-btn">📋 事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn" style="position:relative">📡 回報 <span class="tnav-arrow">&#9664;</span><span id="taskBadge" style="
-        display:none;position:absolute;top:8px;right:6px;
-        background:#dc2626;color:white;border-radius:10px;
-        font-size:11px;font-weight:700;line-height:1;
-        padding:2px 5px;min-width:16px;text-align:center;
-        pointer-events:none;z-index:1">0</span></button>
+      <button class="tnav-btn" style="position:relative">
+        <span id="taskBadge" style="
+          display:none;position:absolute;top:8px;left:2px;
+          background:#dc2626;color:white;border-radius:10px;
+          font-size:11px;font-weight:700;line-height:1;
+          padding:2px 5px;min-width:16px;text-align:center;
+          pointer-events:none;z-index:1">0</span>📡 回報 <span class="tnav-arrow">&#9664;</span>
+      </button>
     </div>
     <div class="tnav-item" id="tnav-settings">
       <button class="tnav-btn">⚙️ 設定 <span class="tnav-arrow">&#9664;</span></button>
@@ -412,15 +399,17 @@
     </div>
   </nav>
 
-  <!-- 歡迎文字（登入後顯示，在導覽列左邊）-->
-  <span id="topbarWelcome"><strong id="topbarName"></strong>，歡迎</span>
+  <!-- 姓名下拉選單（登入後顯示，hover 展開）-->
+  <div class="tnav-item auth-hidden" id="tnav-user" style="margin-left:8px">
+    <button class="tnav-btn" style="color:#e8f0fa;font-weight:600">
+      <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
+    </button>
+  </div>
 
   <!-- 登入按鈕（未登入才顯示）-->
   <button id="topbarLoginBtn" onclick="openLoginModal()">&#x2192; 登入</button>
 
-  <!-- 登出按鈕（桌機；未登入時隱藏）-->
-  <button class="topbar-logout auth-hidden" id="topbarLogoutBtn" onclick="doLogout()">&#x2190; 登出</button>
-  <!-- 漢堡按鈕（手機）-->
+  <!-- 手機漢堡按鈕 -->
   <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單">
     <span></span><span></span><span></span>
   </button>
@@ -562,9 +551,12 @@
   <button class="top-drop-btn" onclick="openMsrQueryInIframe();closeAllMenus()">回報數值查詢</button>
   <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
 </div>
-<div class="top-drop" id="drop-settings">
-  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
-  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">使用說明</button>
+<div class="top-drop" id="drop-settings" style="display:none"></div>
+<div class="top-drop" id="drop-user">
+  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">🪺 個人資料維護</button>
+  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">ℹ️ 使用說明</button>
+  <div style="height:1px;background:#e2e8f0;margin:4px 0"></div>
+  <button class="top-drop-btn" onclick="doLogout()" style="color:#dc2626">← 登出</button>
 </div>
 <div class="top-drop" id="drop-admin">
   <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
@@ -923,7 +915,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'tnav-dashboard': 'drop-dashboard',
     'tnav-report':    'drop-report',
     'tnav-settings':  'drop-settings',
-    'tnav-admin':     'drop-admin'
+    'tnav-admin':     'drop-admin',
+    'tnav-user':      'drop-user'
   };
 
   // ── 定位下拉選單於 trigger 正下方 ──
@@ -1601,21 +1594,14 @@ function _applyAuthUI(user) {
     if (adminSec) adminSec.style.display = 'none';
   }
 
-  // 顯示歡迎文字（topbar）
-  var welcome = document.getElementById('topbarWelcome');
-  var nameEl  = document.getElementById('topbarName');
-  if (welcome && nameEl) {
-    nameEl.textContent = user.name;
-    welcome.style.display = 'flex';
-  }
+  // 顯示姓名（topbar 姓名下拉）
+  var nameEl = document.getElementById('topbarName');
+  if (nameEl) nameEl.textContent = user.name;
 
-  // 顯示歡迎文字（dashboard）
+  // 隱藏 dashboard 歡迎文字（若還存在）
   var dashW = document.getElementById('dashWelcome');
   var dashN = document.getElementById('dashWelcomeName');
-  if (dashW && dashN) {
-    dashN.textContent = user.name;
-    dashW.style.display = 'block';
-  }
+  if (dashW && dashN) { dashN.textContent = user.name; dashW.style.display = 'block'; }
 
   // 隱藏抽屜中的「登入」區塊
   var drawerLogin = document.getElementById('drawerLoginSection');
