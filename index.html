@@ -1803,18 +1803,37 @@ var _tvEvents   = [];
 
 function openTaskViewModal() {
   document.getElementById('taskViewModal').style.display = 'flex';
-  // 載入事件清單
-  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
-    _tvEvents = (data && data.events) ? data.events : [];
+  document.getElementById('tvBody').innerHTML =
+    '<div style="text-align:center;padding:40px;color:#94a3b8">⏳ 載入中…</div>';
+
+  // 同時抓 allEvents + tasks
+  var evDone = false, taskDone = false;
+  var evMap = {};
+
+  function tryRender() {
+    if (!evDone || !taskDone) return;
+    // 填事件篩選下拉
     var sel = document.getElementById('tvEventSel');
+    var curVal = sel.value;
     sel.innerHTML = '<option value="">全部事件</option>';
     _tvEvents.forEach(function(ev) {
       var opt = document.createElement('option');
-      opt.value = ev.id;
-      opt.textContent = ev.name;
+      opt.value = ev.id; opt.textContent = ev.name;
       sel.appendChild(opt);
     });
-    loadTaskView();
+    sel.value = curVal;
+    renderTaskView();
+  }
+
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    _tvEvents = (data && data.events) ? data.events : [];
+    _tvEvents.forEach(function(ev){ evMap[ev.id] = ev.name; });
+    evDone = true; tryRender();
+  });
+
+  _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
+    _tvAllTasks = (data && data.tasks) ? data.tasks : [];
+    taskDone = true; tryRender();
   });
 }
 
@@ -1860,7 +1879,9 @@ function renderTaskView() {
   tasks.forEach(function(t) {
     // 找事件名稱
     var evName = t.eventId;
-    _tvEvents.forEach(function(ev) { if (ev.id === t.eventId) evName = ev.name; });
+    for (var ei = 0; ei < _tvEvents.length; ei++) {
+      if (_tvEvents[ei].id === t.eventId) { evName = _tvEvents[ei].name; break; }
+    }
 
     // 建立時間格式化
     var timeStr = t.createdAt || '—';
