@@ -3886,6 +3886,7 @@ window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'openMsrQuery') { openMsrQueryModal(); return; }
   if (e.data && e.data.type === 'openTaskDispatch') { openTdModal(); return; }
   if (e.data && e.data.type === 'openTaskView') { openTaskViewModal(); return; }
+  if (e.data && e.data.type === 'openMyTask') { openMyTaskModal(e.data.team || ''); return; }
   if (e.data.type === 'setEventId' && e.data.id) {
     if (_events.length > 0) {
       var found = -1;
@@ -5837,6 +5838,136 @@ function tvRender() {
   });
   html += '</tbody></table>';
   document.getElementById('tvBody').innerHTML = html;
+}
+</script>
+
+<!-- ════════════════════════════════════════════
+     我的任務 Modal
+     ════════════════════════════════════════════ -->
+<style>
+#myTaskModal {
+  display: none; position: fixed; inset: 0; z-index: 8200;
+  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+}
+#myTaskModal.open { display: flex; }
+</style>
+<div id="myTaskModal">
+  <div style="background:white;border-radius:14px;overflow:hidden;
+    width:min(780px,96vw);max-height:90vh;
+    display:flex;flex-direction:column;
+    box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:14px 20px;background:#1e2a3a;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700;color:#e8f0fa">📋 我的任務</span>
+      <button onclick="closeMyTaskModal()" style="background:none;border:none;color:#8da0b8;font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+    </div>
+    <div style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;
+      display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
+      <span id="myTaskTeamLabel" style="font-size:13px;font-weight:600;color:#1a56db"></span>
+      <select id="myTaskStatusSel" onchange="myTaskRender()" style="
+        padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;
+        font-family:inherit;font-size:13px;color:#1e2a3a;background:white;outline:none">
+        <option value="">全部狀態</option>
+        <option value="pending">待執行</option>
+        <option value="done">已完成</option>
+      </select>
+      <span id="myTaskCount" style="font-size:13px;color:#6b7a92"></span>
+      <button onclick="myTaskLoad()" style="
+        margin-left:auto;padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;
+        background:white;font-family:inherit;font-size:13px;color:#6b7a92;cursor:pointer">
+        🔄 重新整理
+      </button>
+    </div>
+    <div id="myTaskBody" style="flex:1;overflow-y:auto"></div>
+    <div style="padding:12px 20px;background:white;border-top:1px solid #e2e8f0;
+      display:flex;justify-content:flex-end;flex-shrink:0">
+      <button onclick="closeMyTaskModal()" style="
+        padding:9px 20px;border:1px solid #e2e8f0;border-radius:8px;
+        background:white;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
+        關閉
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+var _myTaskTeam = '';
+var _myTaskAll  = [];
+var _myTaskEvMap = {};
+
+function openMyTaskModal(team) {
+  _myTaskTeam = team || '';
+  document.getElementById('myTaskModal').classList.add('open');
+  document.getElementById('myTaskTeamLabel').textContent =
+    _myTaskTeam ? '隊別：' + _myTaskTeam : '（無隊別資料）';
+  myTaskLoad();
+}
+function closeMyTaskModal() {
+  document.getElementById('myTaskModal').classList.remove('open');
+}
+function myTaskLoad() {
+  document.getElementById('myTaskBody').innerHTML =
+    '<div style="text-align:center;padding:40px;color:#94a3b8">⏳ 載入中…</div>';
+  _myTaskEvMap = {};
+  (_events || []).forEach(function(ev) { _myTaskEvMap[ev.id] = ev.name; });
+  _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
+    var all = (data && data.tasks) ? data.tasks : [];
+    // 過濾：target === 隊別 或 target 以「隊別:」開頭（個人派送）
+    _myTaskAll = all.filter(function(t) {
+      if (!_myTaskTeam) return false;
+      var tgt = (t.target || '').trim();
+      return tgt === _myTaskTeam || tgt.indexOf(_myTaskTeam + ':') === 0;
+    });
+    myTaskRender();
+  });
+}
+function myTaskRender() {
+  var filter = document.getElementById('myTaskStatusSel').value;
+  var list = _myTaskAll.filter(function(t) { return !filter || t.status === filter; });
+  document.getElementById('myTaskCount').textContent = '共 ' + list.length + ' 筆';
+
+  if (!_myTaskTeam) {
+    document.getElementById('myTaskBody').innerHTML =
+      '<div style="text-align:center;padding:40px;color:#94a3b8">⚠️ 您的帳號無隊別設定，無法查詢我的任務</div>';
+    return;
+  }
+  if (!list.length) {
+    document.getElementById('myTaskBody').innerHTML =
+      '<div style="text-align:center;padding:40px;color:#94a3b8">📭 目前無任務紀錄</div>';
+    return;
+  }
+  var pc = { '高':'#dc2626','中':'#d97706','低':'#16a34a','high':'#dc2626','mid':'#d97706','low':'#16a34a' };
+  var html = '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:#f1f5f9">';
+  ['事件','任務標題','任務說明','優先','時間','狀態'].forEach(function(h){
+    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
+            'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  list.forEach(function(t) {
+    var evName = _myTaskEvMap[t.eventId] || t.eventId;
+    var ts = '—';
+    try {
+      var d = new Date(t.createdAt);
+      if (!isNaN(d.getTime())) ts = (d.getMonth()+1)+'/'+d.getDate()+' '+
+        String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    } catch(e) {}
+    var isDone = t.status === 'done';
+    var stBadge = isDone
+      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">✅ 已完成</span>'
+      : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
+    var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
+    html += '<tr style="border-bottom:1px solid #f0f4f8'+(isDone?';opacity:.65':'')+'">';
+    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:12px;color:#6b7a92;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(t.content)+'">'+_esc(t.content)+'</td>';
+    html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
+    html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
+    html += '<td style="padding:9px 12px">'+stBadge+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('myTaskBody').innerHTML = html;
 }
 </script>
 
