@@ -378,7 +378,7 @@
   <!-- 桌機橫向導覽列（靠右；未登入時隱藏）-->
   <nav class="top-nav auth-hidden" id="topNav">
     <div class="tnav-item" id="tnav-dashboard">
-      <button class="tnav-btn">📋 事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
+      <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
       <button class="tnav-btn" style="position:relative">
@@ -387,12 +387,12 @@
           background:#dc2626;color:white;border-radius:10px;
           font-size:11px;font-weight:700;line-height:1;
           padding:2px 5px;min-width:16px;text-align:center;
-          pointer-events:none;z-index:1">0</span>📡 回報 <span class="tnav-arrow">&#9664;</span>
+          pointer-events:none;z-index:1">0</span>回報 <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-admin">
-      <button class="tnav-btn">🔑 後台功能 <span class="tnav-arrow">&#9664;</span></button>
+      <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9664;</span></button>
     </div>
   </nav>
 
@@ -439,7 +439,7 @@
 
     <div class="drawer-section">
       <div class="drawer-section-title">回報 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
-      <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">📡 我要回報</button>
+      <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
       <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">🔍 回報數值查詢</button>
       <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
     </div>
@@ -1147,7 +1147,7 @@ function toggleReportFabs() {
   if (btn) btn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
   // 手機版抽屜按鈕
   var drawerBtn = document.getElementById('drawerReportActive');
-  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '📡 我要回報（開啟中）' : '📡 我要回報';
+  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '📡 我要回報';
 
   var frame = document.getElementById('contentFrame');
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
@@ -1595,10 +1595,13 @@ function _applyAuthUI(user) {
   });
 
   // 若非管理員，再次隱藏後台功能
-  if (!user.isAdmin) {
-    var adminNav = document.getElementById('tnav-admin');
+  var adminNav = document.getElementById('tnav-admin');
+  var adminSec = document.getElementById('drawerAdminSection');
+  if (user.isAdmin === true) {
+    if (adminNav) adminNav.style.display = '';
+    if (adminSec) adminSec.style.display = '';
+  } else {
     if (adminNav) adminNav.style.display = 'none';
-    var adminSec = document.getElementById('drawerAdminSection');
     if (adminSec) adminSec.style.display = 'none';
   }
 
