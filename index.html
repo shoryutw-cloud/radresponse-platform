@@ -1638,7 +1638,7 @@ var _taskBadgeTimer = null;
 function _startTaskBadgePolling() {
   _fetchTaskBadge();
   clearInterval(_taskBadgeTimer);
-  _taskBadgeTimer = setInterval(_fetchTaskBadge, 60000); // 每 60 秒更新
+  _taskBadgeTimer = setInterval(_fetchTaskBadge, 30000); // 每 30 秒更新
 }
 
 function _fetchTaskBadge() {
@@ -1647,13 +1647,17 @@ function _fetchTaskBadge() {
     var s = localStorage.getItem('radAuth');
     if (s) team = JSON.parse(s).team || '';
   } catch(e) {}
-  if (!team) return; // 沒有隊別（管理者或參謀組）不顯示
 
+  // team 空白時仍查詢（可能是管理員想看全部，或 team 尚未設定）
+  // 只有確認 team 不空才做隊別過濾
   _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
     if (!data || !data.tasks) return;
+    if (!team) return; // 無隊別不顯示角標
     var count = 0;
     data.tasks.forEach(function(t) {
-      if (t.target === team && t.status === 'pending') count++;
+      // target 可能是「隊別名稱」或「隊別:姓名」格式，都比對
+      var targetTeam = t.target.indexOf(':') >= 0 ? t.target.split(':')[0].trim() : t.target.trim();
+      if (targetTeam === team && t.status === 'pending') count++;
     });
     _updateTaskBadge(count);
   });
