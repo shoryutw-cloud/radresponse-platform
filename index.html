@@ -396,7 +396,12 @@
       <button class="tnav-btn">📋 事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
     </div>
     <div class="tnav-item" id="tnav-report">
-      <button class="tnav-btn">📡 回報 <span class="tnav-arrow">&#9664;</span></button>
+      <button class="tnav-btn" style="position:relative">📡 回報 <span class="tnav-arrow">&#9664;</span><span id="taskBadge" style="
+        display:none;position:absolute;top:8px;right:6px;
+        background:#dc2626;color:white;border-radius:10px;
+        font-size:11px;font-weight:700;line-height:1;
+        padding:2px 5px;min-width:16px;text-align:center;
+        pointer-events:none;z-index:1">0</span></button>
     </div>
     <div class="tnav-item" id="tnav-settings">
       <button class="tnav-btn">⚙️ 設定 <span class="tnav-arrow">&#9664;</span></button>
@@ -444,7 +449,7 @@
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">回報</div>
+      <div class="drawer-section-title">回報 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
       <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">📡 我要回報</button>
       <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">🔍 回報數值查詢</button>
       <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
@@ -1615,6 +1620,9 @@ function _applyAuthUI(user) {
   // 隱藏抽屜中的「登入」區塊
   var drawerLogin = document.getElementById('drawerLoginSection');
   if (drawerLogin) drawerLogin.style.display = 'none';
+
+  // 啟動任務角標輪詢（非管理員才需要）
+  _startTaskBadgePolling();
 }
 
 // ── 登出 ──
@@ -1624,7 +1632,55 @@ function doLogout() {
   window.location.reload();
 }
 
-// ── item4：Logo 點擊，登入後到目前事件 ──
+// ── 任務角標：輪詢該隊的 pending 任務數 ──
+var _taskBadgeTimer = null;
+
+function _startTaskBadgePolling() {
+  _fetchTaskBadge();
+  clearInterval(_taskBadgeTimer);
+  _taskBadgeTimer = setInterval(_fetchTaskBadge, 60000); // 每 60 秒更新
+}
+
+function _fetchTaskBadge() {
+  var team = '';
+  try {
+    var s = localStorage.getItem('radAuth');
+    if (s) team = JSON.parse(s).team || '';
+  } catch(e) {}
+  if (!team) return; // 沒有隊別（管理者或參謀組）不顯示
+
+  _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
+    if (!data || !data.tasks) return;
+    var count = 0;
+    data.tasks.forEach(function(t) {
+      if (t.target === team && t.status === 'pending') count++;
+    });
+    _updateTaskBadge(count);
+  });
+}
+
+function _updateTaskBadge(count) {
+  // 桌機版
+  var badge = document.getElementById('taskBadge');
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  // 手機版
+  var badgeMobile = document.getElementById('taskBadgeMobile');
+  if (badgeMobile) {
+    if (count > 0) {
+      badgeMobile.textContent = count;
+      badgeMobile.style.display = 'inline';
+    } else {
+      badgeMobile.style.display = 'none';
+    }
+  }
+}
 function onLogoClick(e) {
   try {
     var s = localStorage.getItem('radAuth');
