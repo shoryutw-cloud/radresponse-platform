@@ -87,8 +87,8 @@
   /* ────── TOP NAV 下拉選單（桌機版）────── */
   .top-drop {
     display: none; position: fixed;
-    min-width: 0; background: var(--surface);
-    border: 1px solid var(--border); border-radius: var(--radius);
+    min-width: 0; background: #1e2a3a;
+    border: 1px solid #2d3f54; border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
@@ -96,27 +96,27 @@
   .top-drop-btn {
     display: flex; align-items: center; width: 100%; padding: 9px 16px;
     background: none; border: none; cursor: pointer; font-family: var(--font);
-    font-size: 15px; color: #3d5070; text-align: left; gap: 6px; white-space: nowrap;
+    font-size: 15px; color: #b8cce0; text-align: left; gap: 6px; white-space: nowrap;
     transition: background .12s, color .12s;
   }
-  .top-drop-btn:hover { background: var(--hover); color: var(--accent); }
-  .top-drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #b0bec5; }
+  .top-drop-btn:hover { background: rgba(255,255,255,0.08); color: #e8f0fa; }
+  .top-drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #4a6a8a; }
 
   /* L3 sub-dropdown（事件管理）*/
   .top-drop-l3 {
     display: none; position: fixed;
-    min-width: 0; background: var(--surface);
-    border: 1px solid var(--border); border-radius: var(--radius);
+    min-width: 0; background: #1e2a3a;
+    border: 1px solid #2d3f54; border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10001; padding: 4px 0;
     max-height: calc(100vh - 60px); overflow-y: auto;
   }
   .top-drop-l3.active { display: block; }
   .top-drop-l3-btn {
     display: block; width: 100%; padding: 9px 16px; background: none; border: none;
-    cursor: pointer; font-family: var(--font); font-size: 15px; color: #3d5070;
+    cursor: pointer; font-family: var(--font); font-size: 15px; color: #b8cce0;
     text-align: left; white-space: nowrap; transition: background .12s, color .12s;
   }
-  .top-drop-l3-btn:hover { background: var(--hover); color: var(--accent); }
+  .top-drop-l3-btn:hover { background: rgba(255,255,255,0.08); color: #e8f0fa; }
 
   /* ────── 登出按鈕（右側）────── */
   .topbar-logout {
@@ -391,6 +391,10 @@
       </button>
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
+    <div class="tnav-item auth-hidden" id="tnav-taskview">
+      <button class="tnav-btn">事件查看 <span class="tnav-arrow">&#9664;</span></button>
+    </div>
+    <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-admin">
       <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9664;</span></button>
     </div>
@@ -553,11 +557,15 @@
   <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
 </div>
 <div class="top-drop" id="drop-settings" style="display:none"></div>
+<div class="top-drop" id="drop-taskview">
+  <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">我的任務</button>
+  <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">所有任務</button>
+</div>
 <div class="top-drop" id="drop-user">
-  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">🪺 個人資料維護</button>
-  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">ℹ️ 使用說明</button>
-  <div style="height:1px;background:#e2e8f0;margin:4px 0"></div>
-  <button class="top-drop-btn" onclick="doLogout()" style="color:#dc2626">← 登出</button>
+  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
+  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">使用說明</button>
+  <div style="height:1px;background:#2d3f54;margin:4px 0"></div>
+  <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
 </div>
 <div class="top-drop" id="drop-admin">
   <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
@@ -699,6 +707,14 @@ window.addEventListener('message', function(e) {
       _pendingTaskView = false;
       setTimeout(function() {
         try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
+      }, 400);
+    }
+    if (_pendingMyTask) {
+      _pendingMyTask = false;
+      var team2 = '';
+      try { var s2 = localStorage.getItem('radAuth'); if (s2) team2 = JSON.parse(s2).team || ''; } catch(e) {}
+      setTimeout(function() {
+        try { frame.contentWindow.postMessage({ type: 'openMyTask', team: team2 }, '*'); } catch(e) {}
       }, 400);
     }
   }
@@ -923,6 +939,7 @@ document.addEventListener('DOMContentLoaded', function() {
     'tnav-dashboard': 'drop-dashboard',
     'tnav-report':    'drop-report',
     'tnav-settings':  'drop-settings',
+    'tnav-taskview':  'drop-taskview',
     'tnav-admin':     'drop-admin',
     'tnav-user':      'drop-user'
   };
@@ -1729,6 +1746,36 @@ function openTaskDispatchViaIframe() {
   }
   setTimeout(function() {
     try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
+  }, 50);
+}
+
+var _pendingTaskView = false;
+function openTaskViewModal() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    _pendingTaskView = true;
+    showIframe('current-events.html');
+    return;
+  }
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
+  }, 50);
+}
+
+var _pendingMyTask = false;
+function openMyTaskModal() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    _pendingMyTask = true;
+    showIframe('current-events.html');
+    return;
+  }
+  var team = '';
+  try { var s = localStorage.getItem('radAuth'); if (s) team = JSON.parse(s).team || ''; } catch(e2) {}
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: team }, '*'); } catch(e) {}
   }, 50);
 }
 function toggleLoginPwd() {
