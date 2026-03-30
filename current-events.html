@@ -1032,7 +1032,7 @@ cursor: pointer; transition: background .15s;
         background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer;">
         取消
       </button>
-      <button id="msrSubmitBtn" onclick="submitMeasure()" style="
+      <button id="msrSubmitBtn" onclick="openMsrConfirm()" style="
         flex:1;padding:9px;border-radius:8px;border:none;
         background:#f97316;color:white;font-family:inherit;font-size:14px;
         font-weight:700;cursor:pointer;">
@@ -1042,7 +1042,34 @@ cursor: pointer; transition: background .15s;
   </div>
 </div>
 
-<!-- 圖層控制面板 -->
+<!-- 回報劑量確認 Modal -->
+<div id="msrConfirmModal" style="
+  display:none;position:fixed;inset:0;z-index:8000;
+  background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="
+    background:white;border-radius:14px;overflow:hidden;
+    width:min(400px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.3);
+    font-family:var(--font);display:flex;flex-direction:column;">
+    <div style="padding:14px 18px;background:#f97316;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:15px;font-weight:700;color:white">📋 確認回報資料</span>
+      <button onclick="closeMsrConfirm()" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="msrConfirmBody" style="padding:18px;display:flex;flex-direction:column;gap:10px"></div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px">
+      <button onclick="closeMsrConfirm()" style="
+        flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;
+        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
+        返回修改
+      </button>
+      <button id="msrConfirmSubmitBtn" onclick="submitMeasure()" style="
+        flex:2;padding:10px;border:none;border-radius:8px;
+        background:#f97316;color:white;font-family:inherit;
+        font-size:14px;font-weight:700;cursor:pointer">
+        ✅ 確認送出
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- 手機版：圖層開關浮動按鈕（右上角）-->
 <button class="mob-layer-btn" id="mobLayerBtn" onclick="toggleMobLayer()"
@@ -1643,7 +1670,7 @@ function renderCard(idx) {
   // 攜帶儀器
   html += '<div class="ev-row" style="align-items:flex-start">';
   html += '<span class="ev-lbl" style="flex-shrink:0">攜帶儀器'
-        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400;margin-left:3px">（查詢）</span>'
+        + '<span onclick="openInstrViewModal()" style="cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:400;margin-left:3px">（查看）</span>'
         + '</span>';
   if (detTypes.length) {
     html += '<div class="ev-tags">';
@@ -4754,7 +4781,8 @@ function setMsrUnit(unit) {
   }
 }
 
-function submitMeasure() {
+// ── 開啟回報確認 Modal ──
+function openMsrConfirm() {
   var ev       = _events[_curIdx];
   var reporter = document.getElementById('msrReporter').value.trim();
   var value    = document.getElementById('msrValue').value.trim();
@@ -4764,15 +4792,63 @@ function submitMeasure() {
   if (!reporter) { showToast('⚠️ 請選擇回報人員'); return; }
   if (!value || isNaN(parseFloat(value))) { showToast('⚠️ 請輸入有效的劑量值'); return; }
 
-  var btn = document.getElementById('msrSubmitBtn');
-  btn.disabled    = true;
-  btn.textContent = '送出中…';
+  // 判斷單位
+  var unitBtn = document.getElementById('unitMsvBtn');
+  var isMsv = unitBtn && unitBtn.style.background === 'rgb(26, 86, 219)';
+  var unitLabel = isMsv ? 'mSv/h' : 'μSv/h';
 
-  // 若選 mSv/h 則轉換為 μSv/h 後儲存（統一單位）
+  // GPS
+  var gps = (_msrLat && _msrLng)
+    ? _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6)
+    : '（無法取得）';
+
+  // 現在時間
+  var now = new Date();
+  var timeStr = now.getFullYear() + '/' +
+    String(now.getMonth()+1).padStart(2,'0') + '/' +
+    String(now.getDate()).padStart(2,'0') + ' ' +
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0');
+
+  var rows = [
+    ['事件名稱', ev ? ev.name : '—'],
+    ['回報人員', reporter],
+    ['回報時間', timeStr],
+    ['回報劑量', value + ' ' + unitLabel],
+    ['使用儀器', instr || '—'],
+    ['備註',     note  || '—'],
+    ['GPS座標',  gps]
+  ];
+
+  var body = document.getElementById('msrConfirmBody');
+  body.innerHTML = rows.map(function(r) {
+    return '<div style="display:flex;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px">' +
+      '<span style="font-size:12px;font-weight:600;color:#6b7a92;width:70px;flex-shrink:0">' + r[0] + '</span>' +
+      '<span style="font-size:14px;font-weight:500;color:#1e2a3a;word-break:break-all">' + r[1] + '</span>' +
+      '</div>';
+  }).join('');
+
+  document.getElementById('msrConfirmModal').style.display = 'flex';
+}
+
+function closeMsrConfirm() {
+  document.getElementById('msrConfirmModal').style.display = 'none';
+}
+
+function submitMeasure() {
+  var ev       = _events[_curIdx];
+  var reporter = document.getElementById('msrReporter').value.trim();
+  var value    = document.getElementById('msrValue').value.trim();
+  var instr    = document.getElementById('msrInstrument').value.trim();
+  var note     = document.getElementById('msrNote') ? document.getElementById('msrNote').value.trim() : '';
+
+  var btn = document.getElementById('msrConfirmSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '送出中…'; }
+
   var numVal = parseFloat(value);
   var unitBtn = document.getElementById('unitMsvBtn');
   if (unitBtn && unitBtn.style.background === 'rgb(26, 86, 219)') {
-    numVal = numVal * 1000; // mSv → μSv
+    numVal = numVal * 1000;
   }
 
   var payload = {
@@ -4792,14 +4868,13 @@ function submitMeasure() {
     body:    JSON.stringify(payload)
   })
   .then(function() {
+    closeMsrConfirm();
     closeMeasureModal();
     showToast('✅ 劑量回報已送出');
-    // 強制重載量測標記
     if (ev) { _msrCache[ev.id] = null; loadMeasurements(_curIdx, true); }
   })
   .catch(function() {
-    btn.disabled    = false;
-    btn.textContent = '送出回報';
+    if (btn) { btn.disabled = false; btn.textContent = '✅ 確認送出'; }
     showToast('⚠️ 送出失敗，請確認網路連線');
   });
 }
@@ -5420,57 +5495,51 @@ function updateUserDirCone() {
       <span style="font-size:15px;font-weight:700;color:#1e2a3a;flex:1">📋 任務派送</span>
       <button onclick="closeTdModal()" style="width:28px;height:28px;border-radius:5px;border:1px solid #e2e8f0;background:none;cursor:pointer;font-size:13px;color:#6b7a92;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <!-- 步驟指示（2步）-->
-    <div id="tdSteps">
-      <div class="td-step active" id="tdStep1">
-        <div class="td-step-num">1</div>
-        <span class="td-step-label">選擇組別</span>
-      </div>
-      <div class="td-step-sep"></div>
-      <div class="td-step" id="tdStep2">
-        <div class="td-step-num">2</div>
-        <span class="td-step-label">任務內容</span>
-      </div>
+    <!-- 步驟指示（簡化為提示列）-->
+    <div id="tdSteps" style="padding:10px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;color:#6b7a92;flex-shrink:0">
+      <span id="tdStep1" style="display:none"></span>
+      <span id="tdStep2" style="display:none"></span>
+      請選擇組別並填寫任務內容，可任意順序填寫，送出時兩者都需完成。
     </div>
-    <!-- 主體 -->
+    <!-- 主體：單一畫面 -->
     <div id="tdBody">
-      <!-- 第一步：選擇組別 -->
       <div class="td-panel active" id="tdPanel1">
+        <!-- 事件資訊 -->
+        <div id="tdEvInfo" style="padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:16px;font-size:13px;color:#1e2a3a"></div>
+
+        <!-- 組別選擇 -->
         <div class="td-form-group">
           <label class="td-form-lbl">派送對象 <span class="req">*</span>
-            <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選</span>
+            <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選，可先跳過</span>
           </label>
-          <div id="tdEvInfo" style="padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:12px;font-size:13px;color:#1e2a3a"></div>
           <div class="td-squad-grid" id="tdSquadGrid"></div>
         </div>
-      </div>
-      <!-- 第二步：任務內容 -->
-      <div class="td-panel td-panel-wide" id="tdPanel2">
-        <div class="td-two-col">
-          <div class="td-info-col">
-            <div class="td-info-col-title">派送資訊</div>
-            <div id="tdStep2Info" class="td-info-col-body"></div>
-          </div>
-          <div class="td-main-col">
-            <div class="td-form-group">
-              <label class="td-form-lbl">任務標題 <span class="req">*</span></label>
-              <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateStep2()">
-            </div>
-            <div class="td-form-group">
-              <label class="td-form-lbl">任務說明 <span class="req">*</span></label>
-              <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateStep2()"></textarea>
-            </div>
-            <div class="td-form-group">
-              <label class="td-form-lbl">優先等級</label>
-              <div class="td-priority-pills">
-                <div class="td-priority-pill" data-val="高" onclick="tdSelectPriority(this)">🔴 高</div>
-                <div class="td-priority-pill" data-val="中" onclick="tdSelectPriority(this)">🟡 中</div>
-                <div class="td-priority-pill" data-val="低" onclick="tdSelectPriority(this)">🟢 低</div>
-              </div>
-              <input type="hidden" id="tdTaskPriority">
-            </div>
-          </div>
+
+        <!-- 任務標題 -->
+        <div class="td-form-group">
+          <label class="td-form-lbl">任務標題 <span class="req">*</span></label>
+          <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateAll()">
         </div>
+
+        <!-- 任務說明 -->
+        <div class="td-form-group">
+          <label class="td-form-lbl">任務說明 <span class="req">*</span></label>
+          <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateAll()"></textarea>
+        </div>
+
+        <!-- 優先等級 -->
+        <div class="td-form-group">
+          <label class="td-form-lbl">優先等級</label>
+          <div class="td-priority-pills">
+            <div class="td-priority-pill" data-val="高" onclick="tdSelectPriority(this)">🔴 高</div>
+            <div class="td-priority-pill" data-val="中" onclick="tdSelectPriority(this)">🟡 中</div>
+            <div class="td-priority-pill" data-val="低" onclick="tdSelectPriority(this)">🟢 低</div>
+          </div>
+          <input type="hidden" id="tdTaskPriority">
+        </div>
+
+        <!-- 隱藏的第二步資訊（保留 id 供 JS 相容）-->
+        <div id="tdStep2Info" style="display:none"></div>
       </div>
       <!-- 成功畫面 -->
       <div id="tdSuccessBox">
@@ -5488,12 +5557,9 @@ function updateUserDirCone() {
       <div id="tdFooterStatus" style="font-size:13px;color:#6b7a92;flex:1">請選擇派送組別</div>
       <div class="td-footer-btns">
         <div id="tdBtnGroup1" style="display:flex;gap:8px">
-          <button class="td-btn td-btn-p" id="tdBtnNext1" onclick="tdGoStep2()" disabled>下一步 ➡</button>
-        </div>
-        <div id="tdBtnGroup2" style="display:none;gap:8px">
-          <button class="td-btn td-btn-g" onclick="tdGoStep1()">← 上一步</button>
           <button class="td-btn td-btn-p" id="tdBtnSubmit" onclick="tdSubmitTask()" disabled>📤 派送任務</button>
         </div>
+        <div id="tdBtnGroup2" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -5501,7 +5567,7 @@ function updateUserDirCone() {
 
 <script>
 // ════════════════════════════════════════════
-// 任務派送 Modal JS（2步：選組別 → 填內容）
+// 任務派送 Modal JS（單頁：組別+內容同時填）
 // ════════════════════════════════════════════
 var _tdSelectedSquads = [];
 
@@ -5567,45 +5633,44 @@ function tdSelectSquad(btn) {
   var idx = _tdSelectedSquads.indexOf(sq);
   if (idx === -1) { _tdSelectedSquads.push(sq); btn.classList.add('selected'); }
   else { _tdSelectedSquads.splice(idx, 1); btn.classList.remove('selected'); }
-  var ok = _tdSelectedSquads.length > 0;
-  document.getElementById('tdBtnNext1').disabled = !ok;
-  tdSetStatus(ok ? '已選：' + _tdSelectedSquads.join('、') : '請選擇派送組別', ok);
+  tdValidateAll();
 }
 
-function tdGoStep2() {
-  if (!_tdSelectedSquads.length) return;
-  tdSetStep(2);
-  var ev = _events[_curIdx];
-  var squadTags = _tdSelectedSquads.map(function(s) {
-    return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:#f3f0ff;color:#7c3aed;font-size:12px;margin:2px 2px 0 0">' + _tdEsc(s) + '</span>';
-  }).join('');
-  document.getElementById('tdStep2Info').innerHTML =
-    '<div class="td-sel-row"><span class="td-sel-lbl">事件</span><span class="td-sel-val">' + _tdEsc(ev ? ev.name : '—') + '</span></div>' +
-    '<div class="td-sel-row"><span class="td-sel-lbl">類型</span><span class="td-sel-val">' + _tdEsc(ev ? ev.type||'' : '') + '</span></div>' +
-    '<div class="td-sel-row"><span class="td-sel-lbl">對象</span><span class="td-sel-val" style="line-height:1.8">' + squadTags + '</span></div>';
-  tdSetStatus('請填寫任務內容', false);
-  tdValidateStep2();
-}
-
-function tdGoStep1() {
-  tdSetStep(1);
-  tdSetStatus(_tdSelectedSquads.length ? '已選：' + _tdSelectedSquads.join('、') : '請選擇派送組別', _tdSelectedSquads.length > 0);
-}
+// tdGoStep2 / tdGoStep1 保留為空函式（HTML 中可能有殘留 onclick）
+function tdGoStep2() {}
+function tdGoStep1() {}
 
 function tdSelectPriority(el) {
   document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
   var val = el.getAttribute('data-val');
   el.classList.add(val==='高'?'sel-high':val==='中'?'sel-medium':'sel-low');
   document.getElementById('tdTaskPriority').value = val;
-  tdValidateStep2();
+  tdValidateAll();
 }
 
-function tdValidateStep2() {
-  var ok = document.getElementById('tdTaskTitle').value.trim() &&
-           document.getElementById('tdTaskContent').value.trim();
+// 組別和任務內容都填才能送出
+function tdValidateAll() {
+  var hasSquad   = _tdSelectedSquads.length > 0;
+  var hasTitle   = document.getElementById('tdTaskTitle').value.trim() !== '';
+  var hasContent = document.getElementById('tdTaskContent').value.trim() !== '';
+  var ok = hasSquad && hasTitle && hasContent;
   document.getElementById('tdBtnSubmit').disabled = !ok;
-  tdSetStatus(ok ? '所有欄位已填寫完成 ✔' : '尚未填寫必填欄位', ok);
+
+  var msgs = [];
+  if (!hasSquad)   msgs.push('派送對象');
+  if (!hasTitle)   msgs.push('任務標題');
+  if (!hasContent) msgs.push('任務說明');
+  if (ok) {
+    tdSetStatus('已選：' + _tdSelectedSquads.join('、') + '　✔ 可送出', true);
+  } else if (_tdSelectedSquads.length) {
+    tdSetStatus('已選：' + _tdSelectedSquads.join('、') + '　尚缺：' + msgs.join('、'), false);
+  } else {
+    tdSetStatus('尚缺：' + msgs.join('、'), false);
+  }
 }
+
+// 舊的 tdValidateStep2 別名
+function tdValidateStep2() { tdValidateAll(); }
 
 function tdSubmitTask() {
   var ev = _events[_curIdx];
@@ -5641,7 +5706,7 @@ function tdResetForm() {
   document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
   document.getElementById('tdFooter').style.display = '';
   tdSetStep(1);
-  tdSetStatus('請選擇派送組別', false);
+  tdValidateAll();
   tdRenderSquads();
 }
 
