@@ -4829,6 +4829,9 @@ function openMsrConfirm() {
   }).join('');
 
   document.getElementById('msrConfirmModal').style.display = 'flex';
+  // 重設確認按鈕（避免上次送出後殘留 disabled 狀態）
+  var confirmBtn = document.getElementById('msrConfirmSubmitBtn');
+  if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ 確認送出'; }
 }
 
 function closeMsrConfirm() {
