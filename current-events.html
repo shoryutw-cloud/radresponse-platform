@@ -1478,6 +1478,8 @@ function saveEdit() {
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
+    // 先更新原始風向記錄，避免 toggleEditPanel 還原成舊值
+    _editOrigWindDir = ev.windDir;
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
@@ -4381,8 +4383,10 @@ window.addEventListener('message', function(e) {
         ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(100m扇形)', pt:p.pt, category:'sector' }); });
       }
     }
-    // 人工設定的量測點（T01, T02...）永遠加入
+    // 人工設定的量測點（T01, T02...）只取當前事件的
+    var curEvId = ev ? ev.id : '';
     _taskMarkers.forEach(function(t) {
+      if (t.eventId && t.eventId !== curEvId) return; // 跳過其他事件的點
       pts.push({ label: t.label, shortTip: t.squad + '量測點', pt: [t.latlng.lat, t.latlng.lng], category: 'manual' });
     });
     // 附近場域量測點（預留，category:'area'，目前空）
@@ -5078,9 +5082,11 @@ function submitAssignment() {
 }
 
 // ── 地圖上放置正式量測任務標記（紫色，有編號） ──
-var _taskMarkers = [];  // [{ mk, latlng, squad, num }]
+var _taskMarkers = [];  // [{ mk, latlng, squad, num, label, eventId }]
 function placeTempMeasureMarker(latlng, squadName, autoOpen) {
-  var num = _taskMarkers.length + 1;
+  var evId = _events[_curIdx] ? _events[_curIdx].id : '';
+  // 只計算當前事件的點數（避免跨事件編號錯誤）
+  var num = _taskMarkers.filter(function(t){ return t.eventId === evId; }).length + 1;
   var label = 'T' + (num < 10 ? '0' + num : num);
   var icon = L.divIcon({
     className: '',
@@ -5105,7 +5111,7 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
     '</div>'
   );
   if (autoOpen !== false) mk.openPopup();
-  _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label });
+  _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label, eventId: evId });
   // 導航點位更新
   _refreshNavPoints();
 }
