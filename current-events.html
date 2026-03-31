@@ -1404,10 +1404,8 @@ function startCwaAutoFetch() {
   function fetchAll() {
     _events.forEach(function(ev, i) {
       if (!ev.lat || !ev.lng) return;
-      // 已有有效風向值（從 Sheet 載入或手動設定）→ 不自動覆蓋
-      var wd = String(ev.windDir || '').trim();
-      var hasValidWind = wd !== '' && wd !== 'X' && wd !== '-99' && wd !== '990';
-      if (hasValidWind || ev.windManual) return;
+      // 只要曾手動儲存過風向，就不自動抓，直到使用者手動按「從氣象局抓取」
+      if (ev.windManual) return;
       fetchCwaWind(i);
     });
   }
