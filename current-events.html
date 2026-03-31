@@ -3534,7 +3534,6 @@ function _startWindLayer() {
   if (!gMap) return;
   var ev = _events[_curIdx];
   var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
-  // 風速為 0 或無效時靜默不啟動（不彈提示、不取消勾選）
   if (isNaN(ws) || ws <= 0) {
     _windLayerOn = false;
     var cb = document.getElementById('lyr_wind');
@@ -3550,11 +3549,98 @@ function _startWindLayer() {
     _windCtx = _windCanvas.getContext('2d');
   }
   _resizeWindCanvas();
+  // 先用單站資料立即啟動，再抓風場多站資料
+  _windFieldStations = null;
   _initWindParticles();
   _animateWind();
-
-  // 地圖移動/縮放時重新初始化粒子位置
   gMap.on('moveend zoomend', _onMapMoveWind);
+  // 抓多站風場資料
+  _fetchWindField();
+}
+
+// ── 風場：多站資料 & IDW 插值 ──
+var _windFieldStations = null; // [{lat,lng,wd,ws}]
+var _windFieldGrid = null;     // 插值後的格點陣列
+var _windFieldGridW = 0;
+var _windFieldGridH = 0;
+var _WIND_GRID_STEP = 40;      // 格點間距（像素）
+
+function _fetchWindField() {
+  var ev = _events[_curIdx];
+  if (!ev || !ev.lat || !ev.lng) return;
+  var url = SHEETS_URL + '?action=fetchWindField&lat=' + ev.lat + '&lng=' + ev.lng + '&n=30';
+  _jsonpGet(url, function(data) {
+    if (!data || !data.stations || !data.stations.length) return;
+    _windFieldStations = data.stations;
+    _rebuildWindFieldGrid();
+  });
+}
+
+function _rebuildWindFieldGrid() {
+  if (!_windCanvas || !_windFieldStations || !_windFieldStations.length) return;
+  var W = _windCanvas.width, H = _windCanvas.height;
+  var step = _WIND_GRID_STEP;
+  var cols = Math.ceil(W / step) + 1;
+  var rows = Math.ceil(H / step) + 1;
+  _windFieldGridW = cols;
+  _windFieldGridH = rows;
+  _windFieldGrid = new Array(cols * rows);
+
+  for (var gy = 0; gy < rows; gy++) {
+    for (var gx = 0; gx < cols; gx++) {
+      var px = gx * step, py = gy * step;
+      // 像素座標轉地理座標
+      var ll = gMap.containerPointToLatLng([px, py]);
+      // IDW 插值
+      var sumW = 0, sumVx = 0, sumVy = 0;
+      _windFieldStations.forEach(function(s) {
+        var dLat = s.lat - ll.lat, dLng = s.lng - ll.lng;
+        var dist2 = dLat*dLat + dLng*dLng;
+        if (dist2 < 1e-10) dist2 = 1e-10;
+        var w = 1 / (dist2 * dist2); // IDW power=2
+        // 去向 = 來向+180
+        var goDir = ((s.wd + 180) % 360);
+        var rad = (goDir - 90) * Math.PI / 180;
+        var spd = Math.max(0.5, Math.min(8, s.ws * 0.5));
+        sumVx += Math.cos(rad) * spd * w;
+        sumVy += Math.sin(rad) * spd * w;
+        sumW  += w;
+      });
+      _windFieldGrid[gy * cols + gx] = {
+        vx: sumVx / sumW,
+        vy: sumVy / sumW
+      };
+    }
+  }
+}
+
+// 查詢某像素點的風速向量（雙線性插值）
+function _getWindVec(px, py) {
+  if (!_windFieldGrid || !_windFieldGridW) {
+    // fallback：用單站資料
+    var ev = _events[_curIdx];
+    var wd = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+    var rad = (wd - 90) * Math.PI / 180;
+    var spd = ev && ev.windSpeed ? Math.max(1, Math.min(8, parseFloat(ev.windSpeed) * 0.5)) : 2.5;
+    return { vx: Math.cos(rad) * spd, vy: Math.sin(rad) * spd };
+  }
+  var step = _WIND_GRID_STEP;
+  var gx = px / step, gy = py / step;
+  var x0 = Math.floor(gx), y0 = Math.floor(gy);
+  var x1 = Math.min(x0 + 1, _windFieldGridW - 1);
+  var y1 = Math.min(y0 + 1, _windFieldGridH - 1);
+  x0 = Math.max(0, Math.min(x0, _windFieldGridW - 1));
+  y0 = Math.max(0, Math.min(y0, _windFieldGridH - 1));
+  var tx = gx - Math.floor(gx), ty = gy - Math.floor(gy);
+  var cols = _windFieldGridW;
+  var v00 = _windFieldGrid[y0*cols+x0] || { vx:0, vy:0 };
+  var v10 = _windFieldGrid[y0*cols+x1] || { vx:0, vy:0 };
+  var v01 = _windFieldGrid[y1*cols+x0] || { vx:0, vy:0 };
+  var v11 = _windFieldGrid[y1*cols+x1] || { vx:0, vy:0 };
+  return {
+    vx: v00.vx*(1-tx)*(1-ty) + v10.vx*tx*(1-ty) + v01.vx*(1-tx)*ty + v11.vx*tx*ty,
+    vy: v00.vy*(1-tx)*(1-ty) + v10.vy*tx*(1-ty) + v01.vy*(1-tx)*ty + v11.vy*tx*ty
+  };
 }
 
 function _stopWindLayer() {
@@ -3567,6 +3653,7 @@ function _stopWindLayer() {
 function _onMapMoveWind() {
   if (!_windLayerOn) return;
   _resizeWindCanvas();
+  _rebuildWindFieldGrid(); // 地圖移動/縮放後重新計算格點
   _initWindParticles();
 }
 
@@ -3590,85 +3677,72 @@ function _initWindParticles() {
 }
 
 function _makeWindParticle(W, H, random) {
-  var ev = _events[_curIdx];
-  // 風向：輸入值為來向（0=北風），顯示流動方向為去向 +180
-  var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
-  var rad = (windDir - 90) * Math.PI / 180; // 轉為螢幕座標系角度
-  // 預設風速 5 m/s，換算為像素速度（5 m/s 約對應 2.5 px/frame）
-  // 風速換算：氣象局單位 m/s，1 m/s ≈ 0.5 px/frame（螢幕相對速度）
-  var _ws = ev && ev.windSpeed && !isNaN(parseFloat(ev.windSpeed)) ? parseFloat(ev.windSpeed) : 5;
-  var baseSpeed = Math.max(1, Math.min(8, _ws * 0.5)); // 限制在 1~8 px/frame
-  var speed = baseSpeed + (Math.random() - 0.5) * 0.8; // ±0.4 的小幅變化
+  var x = random ? Math.random() * W : Math.random() * W;
+  var y = random ? Math.random() * H : Math.random() * H;
+  var vec = _getWindVec(x, y);
+  var speed = Math.sqrt(vec.vx*vec.vx + vec.vy*vec.vy);
+  speed = Math.max(1, speed) + (Math.random() - 0.5) * 0.4;
+  var angle = Math.atan2(vec.vy, vec.vx);
   return {
-    x: random ? Math.random() * W : (Math.random() < 0.5 ? Math.random() * W : (rad > 0 ? 0 : W)),
-    y: random ? Math.random() * H : (Math.random() < 0.5 ? Math.random() * H : (rad > Math.PI/2 ? 0 : H)),
-    vx: Math.cos(rad) * speed,
-    vy: Math.sin(rad) * speed,
+    x: x, y: y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
     age: Math.random() * 120,
-    maxAge: 120 + Math.random() * 100,
-    len: 6 + Math.random() * 10,
-    width: 0.8 + Math.random() * 0.8
+    maxAge: 100 + Math.random() * 80,
+    len: 5 + Math.random() * 8,
+    width: 0.8 + Math.random() * 0.7
   };
 }
 
 function _animateWind() {
   if (!_windLayerOn || !_windCtx || !_windCanvas) return;
-  // 無風向資料時清除畫布並停止
   var _curEv = _events[_curIdx];
   if (!_curEv || !_curEv.windDir || _curEv.windDir === '') {
     _windCtx.clearRect(0, 0, _windCanvas.width, _windCanvas.height);
     return;
   }
   var W = _windCanvas.width, H = _windCanvas.height;
-  var ev = _events[_curIdx];
-  var windDir = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
-  var rad = (windDir - 90) * Math.PI / 180;
 
-  // 半透明擦除（拖尾效果）—— 用 clearRect 而非填白，避免遮住地圖
   _windCtx.clearRect(0, 0, W, H);
 
-  _windParticles.forEach(function(p, idx) {
+  _windParticles.forEach(function(p) {
+    // 每幀根據位置重新查風場向量（讓流線跟著真實風場彎曲）
+    var vec = _getWindVec(p.x, p.y);
+    var speed = Math.sqrt(vec.vx*vec.vx + vec.vy*vec.vy);
+    if (speed > 0.1) {
+      var angle = Math.atan2(vec.vy, vec.vx);
+      var curSpeed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+      // 平滑轉向（lerp 0.08），不突然跳轉
+      p.vx = p.vx * 0.92 + Math.cos(angle) * curSpeed * 0.08;
+      p.vy = p.vy * 0.92 + Math.sin(angle) * curSpeed * 0.08;
+    }
+
     p.x += p.vx;
     p.y += p.vy;
     p.age++;
 
-    // 超出邊界或壽命到 → 重新生成
-    if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20 || p.age > p.maxAge) {
-      // 70% 從上風邊入場，30% 從畫面隨機位置補充（確保下風區不斷有粒子）
-      if (Math.random() < 0.3) {
-        // 隨機補充：分散在整個畫面
-        p.x = Math.random() * W;
-        p.y = Math.random() * H;
-      } else {
-        // 從上風邊入場
-        var absVx = Math.abs(p.vx), absVy = Math.abs(p.vy);
-        var totalV = absVx + absVy;
-        var r = Math.random() * totalV;
-        if (r < absVx) {
-          p.x = p.vx > 0 ? -10 : W + 10;
-          p.y = Math.random() * H;
-        } else {
-          p.x = Math.random() * W;
-          p.y = p.vy > 0 ? -10 : H + 10;
-        }
-      }
+    if (p.x < -20 || p.x > W+20 || p.y < -20 || p.y > H+20 || p.age > p.maxAge) {
+      p.x = Math.random() * W;
+      p.y = Math.random() * H;
       p.age = 0;
-      p.maxAge = 120 + Math.random() * 100;
-      var spd = 2.5 + (Math.random() - 0.5) * 0.8;
-      p.vx = Math.cos(rad) * spd;
-      p.vy = Math.sin(rad) * spd;
-      p.len = 6 + Math.random() * 10;
+      p.maxAge = 100 + Math.random() * 80;
+      var v2 = _getWindVec(p.x, p.y);
+      var sp2 = Math.sqrt(v2.vx*v2.vx+v2.vy*v2.vy) || 2;
+      var a2 = Math.atan2(v2.vy, v2.vx);
+      var ns = Math.max(1, sp2) + (Math.random()-0.5)*0.4;
+      p.vx = Math.cos(a2)*ns; p.vy = Math.sin(a2)*ns;
+      p.len = 5 + Math.random() * 8;
     }
 
-    // 生命週期透明度（淡入淡出）
     var lifeRatio = p.age / p.maxAge;
     var alpha = lifeRatio < 0.1 ? lifeRatio * 10 :
                 lifeRatio > 0.8 ? (1 - lifeRatio) * 5 : 1;
-    alpha = Math.min(1, Math.max(0, alpha)) * 0.35;
+    alpha = Math.min(1, Math.max(0, alpha)) * 0.38;
 
-    // 繪製帶箭頭的線段
-    var tx = p.x - Math.cos(rad) * p.len;
-    var ty = p.y - Math.sin(rad) * p.len;
+    // 繪製流線
+    var angle2 = Math.atan2(p.vy, p.vx);
+    var tx = p.x - Math.cos(angle2) * p.len;
+    var ty = p.y - Math.sin(angle2) * p.len;
     _windCtx.beginPath();
     _windCtx.moveTo(tx, ty);
     _windCtx.lineTo(p.x, p.y);
@@ -3677,16 +3751,13 @@ function _animateWind() {
     _windCtx.lineCap = 'round';
     _windCtx.stroke();
 
-    // 箭頭頭部
-    var arrowLen = 4;
-    var arrowAngle = 0.4;
+    // 箭頭
+    var arrowLen = 4, arrowAngle = 0.4;
     _windCtx.beginPath();
     _windCtx.moveTo(p.x, p.y);
-    _windCtx.lineTo(p.x - Math.cos(rad - arrowAngle) * arrowLen,
-                    p.y - Math.sin(rad - arrowAngle) * arrowLen);
+    _windCtx.lineTo(p.x - Math.cos(angle2-arrowAngle)*arrowLen, p.y - Math.sin(angle2-arrowAngle)*arrowLen);
     _windCtx.moveTo(p.x, p.y);
-    _windCtx.lineTo(p.x - Math.cos(rad + arrowAngle) * arrowLen,
-                    p.y - Math.sin(rad + arrowAngle) * arrowLen);
+    _windCtx.lineTo(p.x - Math.cos(angle2+arrowAngle)*arrowLen, p.y - Math.sin(angle2+arrowAngle)*arrowLen);
     _windCtx.strokeStyle = 'rgba(14,165,233,' + alpha + ')';
     _windCtx.lineWidth = p.width;
     _windCtx.stroke();
