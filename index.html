@@ -380,26 +380,16 @@
     <div class="tnav-item" id="tnav-dashboard">
       <button class="tnav-btn" onclick="showIframe('current-events.html')">事件儀表板</button>
     </div>
-    <div class="tnav-item" id="tnav-report">
+    <div class="tnav-item auth-hidden" id="tnav-taskview">
       <button class="tnav-btn" style="position:relative">
+        回報 / 任務 <span class="tnav-arrow">&#9664;</span>
         <span id="taskBadge" style="
           display:none;position:absolute;top:8px;left:2px;
           background:#dc2626;color:white;border-radius:10px;
           font-size:11px;font-weight:700;line-height:1;
           padding:2px 5px;min-width:16px;text-align:center;
-          pointer-events:none;z-index:1">0</span>回報 <span class="tnav-arrow">&#9664;</span>
-      </button>
-    </div>
-    <!-- 後台功能：僅管理員登入後顯示 -->
-    <div class="tnav-item auth-hidden" id="tnav-taskview">
-      <button class="tnav-btn" style="position:relative">
-        任務查看 <span class="tnav-arrow">&#9664;</span>
-        <span id="taskViewBadge" style="
-          display:none;position:absolute;top:8px;left:2px;
-          background:#dc2626;color:white;border-radius:10px;
-          font-size:11px;font-weight:700;line-height:1;
-          padding:2px 5px;min-width:16px;text-align:center;
           pointer-events:none;z-index:1">0</span>
+        <span id="taskViewBadge" style="display:none"></span>
       </button>
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
@@ -571,13 +561,13 @@
   <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">導航至量測點</button>
   <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
 </div>
-<div class="top-drop" id="drop-report">
+<div class="top-drop" id="drop-report" style="display:none"></div>
+<div class="top-drop" id="drop-settings" style="display:none"></div>
+<div class="top-drop" id="drop-taskview">
   <button class="top-drop-btn" id="btnReportActive" onclick="toggleReportFabs();closeAllMenus()">我要回報</button>
   <button class="top-drop-btn" onclick="openMsrQueryInIframe();closeAllMenus()">回報數值查詢</button>
   <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
-</div>
-<div class="top-drop" id="drop-settings" style="display:none"></div>
-<div class="top-drop" id="drop-taskview">
+  <div style="height:1px;background:#2d3f54;margin:4px 0"></div>
   <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">
     隊別任務 <span id="dropMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
   </button>
@@ -967,7 +957,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // tnav-item id → 對應 drop id
   var NAV_MAP = {
     'tnav-dashboard': 'drop-dashboard',
-    'tnav-report':    'drop-report',
     'tnav-settings':  'drop-settings',
     'tnav-taskview':  'drop-taskview',
     'tnav-admin':     'drop-admin',
@@ -1820,11 +1809,17 @@ function openTaskDispatchViaIframe() {
   }, 50);
 }
 
-var _pendingTaskView = false;
 function openTaskViewModal() {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
-  if (src.indexOf('current-events.html') === -1) {
+  // 只要 iframe 有載入（src 不是空的），就直接送 postMessage
+  // 如果還沒進地圖頁，先跳過去
+  if (!src || src === '' || src === window.location.href) {
+    _pendingTaskView = true;
+    showIframe('current-events.html');
+    return;
+  }
+  if (src.indexOf('current-events') === -1) {
     _pendingTaskView = true;
     showIframe('current-events.html');
     return;
@@ -1842,7 +1837,7 @@ function _getMyTeam() {
 function openMyTaskModal(team) {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
-  if (src.indexOf('current-events.html') === -1) {
+  if (!src || src === '' || src.indexOf('current-events') === -1) {
     _pendingMyTask = true;
     showIframe('current-events.html');
     return;
