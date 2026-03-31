@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>應變資訊平台</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☢️</text></svg>">
 <style>
   /* ────── CSS 變數 ────── */
   :root {
@@ -423,7 +423,7 @@
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-header">
-    <span class="drawer-title">🛡️ 應變平台</span>
+    <span class="drawer-title">☢️ 應變平台</span>
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
 
@@ -449,15 +449,15 @@
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">設定</div>
-      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
-      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">使用說明</button>
-    </div>
-
-    <div class="drawer-section">
       <div class="drawer-section-title">事件查看</div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">設定</div>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
+      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">使用說明</button>
     </div>
 
     <!-- 後台功能：僅管理員可見 -->
@@ -490,7 +490,7 @@
     <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:flex;align-items:center;justify-content:center">
       <div id="dashboard" style="max-width:640px;width:100%;padding:0 32px 24px;display:flex;flex-direction:column;gap:16px">
         <div style="text-align:center;padding-top:8px">
-          <div style="font-size:48px;line-height:1">🛡️</div>
+          <div style="font-size:48px;line-height:1">☢️</div>
           <!-- 歡迎文字：登入後顯示 -->
           <div id="dashWelcome" style="display:none;font-size:15px;font-weight:600;color:#1e2a3a;margin-top:8px">
             <span id="dashWelcomeName" style="color:#1a56db"></span>，歡迎使用應變資訊平台
@@ -1498,7 +1498,7 @@ function openMsrQueryInIframe() {
      ════════════════════════════════════════════ -->
 <div id="loginOverlay">
   <div class="login-card">
-    <div class="login-logo">🛡️</div>
+    <div class="login-logo">☢️</div>
     <div class="login-title">輻射事件應變資訊平台</div>
     <div class="login-subtitle">請使用您的帳號密碼登入</div>
 
