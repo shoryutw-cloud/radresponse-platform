@@ -450,8 +450,14 @@
 
     <div class="drawer-section">
       <div class="drawer-section-title">設定</div>
-      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">🪺 個人資料維護</button>
-      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">ℹ️ 使用說明</button>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
+      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">使用說明</button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">事件查看</div>
+      <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
     </div>
 
     <!-- 後台功能：僅管理員可見 -->
@@ -1764,7 +1770,11 @@ function openTaskViewModal() {
 }
 
 var _pendingMyTask = false;
-function openMyTaskModal() {
+function _getMyTeam() {
+  try { var s = localStorage.getItem('radAuth'); if (s) return JSON.parse(s).team || ''; } catch(e) {}
+  return '';
+}
+function openMyTaskModal(team) {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
   if (src.indexOf('current-events.html') === -1) {
@@ -1772,10 +1782,9 @@ function openMyTaskModal() {
     showIframe('current-events.html');
     return;
   }
-  var team = '';
-  try { var s = localStorage.getItem('radAuth'); if (s) team = JSON.parse(s).team || ''; } catch(e2) {}
+  var t = (team !== undefined && team !== null) ? team : _getMyTeam();
   setTimeout(function() {
-    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: team }, '*'); } catch(e) {}
+    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: t }, '*'); } catch(e) {}
   }, 50);
 }
 function toggleLoginPwd() {
