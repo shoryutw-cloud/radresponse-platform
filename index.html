@@ -422,8 +422,14 @@
   <button id="topbarLoginBtn" onclick="openLoginModal()">&#x2192; 登入</button>
 
   <!-- 手機漢堡按鈕 -->
-  <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單">
+  <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單" style="position:relative">
     <span></span><span></span><span></span>
+    <span id="hamburgerBadge" style="
+      display:none;position:absolute;top:4px;right:4px;
+      background:#dc2626;color:white;border-radius:10px;
+      font-size:10px;font-weight:700;line-height:1;
+      padding:2px 5px;min-width:15px;text-align:center;
+      pointer-events:none;z-index:1">0</span>
   </button>
 </div>
 
@@ -576,7 +582,7 @@
     隊別任務 <span id="dropMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
   </button>
   <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">
-    所有任務 <span id="dropAllTaskBadge" style="display:none;background:#f97316;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
+    所有任務 <span id="dropAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
   </button>
 </div>
 <div class="top-drop" id="drop-user">
@@ -1711,6 +1717,13 @@ function _fetchTaskBadge() {
     if (tvBadge) {
       if (team && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
       else { tvBadge.style.display = 'none'; }
+    }
+
+    // 漢堡角標（手機，隊別任務數）
+    var hBadge = document.getElementById('hamburgerBadge');
+    if (hBadge) {
+      if (team && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'inline-block'; }
+      else { hBadge.style.display = 'none'; }
     }
 
     // 下拉選項：隊別任務 badge
