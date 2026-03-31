@@ -5187,15 +5187,6 @@ function showReportFabs() {
     'background:#1a56db;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(26,86,219,.5);cursor:pointer;';
   btn2.onclick = function() {
-    // 通知 parent 開啟隊別任務 Modal
-    var team = '';
-    try {
-      var s = sessionStorage.getItem('loginUser') || localStorage.getItem('loginUser') || '';
-      if (!s) {
-        // 從 parent 取 team
-        try { parent.postMessage({ type: 'getMyTeam' }, '*'); } catch(e2) {}
-      }
-    } catch(e) {}
     try { parent.postMessage({ type: 'openMyTaskFromFab' }, '*'); } catch(e) {}
   };
 
@@ -6442,16 +6433,16 @@ function myTaskDone(taskId) {
     method: 'POST', mode: 'no-cors',
     body: JSON.stringify({ action: 'updateTaskStatus', taskId: taskId, status: 'done' })
   });
-  // 樂觀更新本地資料，不等回傳
   _myTaskAll.forEach(function(t) {
     if (t.taskId === taskId) t.status = 'done';
   });
   myTaskRender();
-  // 30秒後重整 badge
   setTimeout(function() {
     try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
   }, 1000);
 }
+
+function openMyTaskModal(team) {
   _myTaskTeam = team || '';
   document.getElementById('myTaskModal').classList.add('open');
   document.getElementById('myTaskTeamLabel').textContent =
