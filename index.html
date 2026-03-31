@@ -392,7 +392,15 @@
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-taskview">
-      <button class="tnav-btn">事件查看 <span class="tnav-arrow">&#9664;</span></button>
+      <button class="tnav-btn" style="position:relative">
+        任務查看 <span class="tnav-arrow">&#9664;</span>
+        <span id="taskViewBadge" style="
+          display:none;position:absolute;top:8px;left:2px;
+          background:#dc2626;color:white;border-radius:10px;
+          font-size:11px;font-weight:700;line-height:1;
+          padding:2px 5px;min-width:16px;text-align:center;
+          pointer-events:none;z-index:1">0</span>
+      </button>
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-admin">
@@ -449,7 +457,7 @@
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">事件查看</div>
+      <div class="drawer-section-title">任務查看</div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
     </div>
@@ -564,8 +572,12 @@
 </div>
 <div class="top-drop" id="drop-settings" style="display:none"></div>
 <div class="top-drop" id="drop-taskview">
-  <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">我的任務</button>
-  <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">所有任務</button>
+  <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">
+    隊別任務 <span id="dropMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
+  </button>
+  <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">
+    所有任務 <span id="dropAllTaskBadge" style="display:none;background:#f97316;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
+  </button>
 </div>
 <div class="top-drop" id="drop-user">
   <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
@@ -1676,18 +1688,44 @@ function _fetchTaskBadge() {
     if (s) team = JSON.parse(s).team || '';
   } catch(e) {}
 
-  // team 空白時仍查詢（可能是管理員想看全部，或 team 尚未設定）
-  // 只有確認 team 不空才做隊別過濾
   _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
     if (!data || !data.tasks) return;
-    if (!team) return; // 無隊別不顯示角標
-    var count = 0;
+
+    var myCount  = 0; // 隊別未結案（含隊別任務 + 任務查看 badge 一致）
+    var allCount = 0; // 所有未結案
+
     data.tasks.forEach(function(t) {
-      // target 可能是「隊別名稱」或「隊別:姓名」格式，都比對
-      var targetTeam = t.target.indexOf(':') >= 0 ? t.target.split(':')[0].trim() : t.target.trim();
-      if (targetTeam === team && t.status === 'pending') count++;
+      if (t.status !== 'pending') return;
+      allCount++;
+      if (team) {
+        var tgt = (t.target || '').trim();
+        if (tgt === team || tgt.indexOf(team + ':') === 0) myCount++;
+      }
     });
-    _updateTaskBadge(count);
+
+    // 回報角標（隊別任務數，只有有隊別才顯示）
+    _updateTaskBadge(team ? myCount : 0);
+
+    // 任務查看 nav 角標（隊別任務數）
+    var tvBadge = document.getElementById('taskViewBadge');
+    if (tvBadge) {
+      if (team && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
+      else { tvBadge.style.display = 'none'; }
+    }
+
+    // 下拉選項：隊別任務 badge
+    var myBadge = document.getElementById('dropMyTaskBadge');
+    if (myBadge) {
+      if (team && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
+      else { myBadge.style.display = 'none'; }
+    }
+
+    // 下拉選項：所有任務 badge（橘色）
+    var allBadge = document.getElementById('dropAllTaskBadge');
+    if (allBadge) {
+      if (allCount > 0) { allBadge.textContent = allCount; allBadge.style.display = 'inline'; }
+      else { allBadge.style.display = 'none'; }
+    }
   });
 }
 

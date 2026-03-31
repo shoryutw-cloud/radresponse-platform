@@ -1233,13 +1233,13 @@ function toggleEditPanel() {
 function onAngleInput(val) {
   document.getElementById('angleDisplay').textContent = val + '°';
   document.getElementById('editWindDir').value = val;
-  // 暫時修改 ev.windDir 讓圖層預覽，但標記為「預覽狀態」
   var ev = _events[_curIdx];
   if (ev) {
-    ev.windDir = val;  // 暫時覆蓋供預覽
+    ev.windDir = val;
+    // 清除插值格點，讓風場立即用新方向（不等多站資料）
+    _windFieldGrid = null;
     buildEventLayers(_curIdx);
     _refreshWindIfOn();
-    // 不在此還原 → 取消時由 toggleEditPanel 還原
   }
 }
 
