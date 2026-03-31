@@ -5187,7 +5187,16 @@ function showReportFabs() {
     'background:#1a56db;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(26,86,219,.5);cursor:pointer;';
   btn2.onclick = function() {
-    showToast('ℹ️ 回報任務功能即將開放');
+    // 通知 parent 開啟隊別任務 Modal
+    var team = '';
+    try {
+      var s = sessionStorage.getItem('loginUser') || localStorage.getItem('loginUser') || '';
+      if (!s) {
+        // 從 parent 取 team
+        try { parent.postMessage({ type: 'getMyTeam' }, '*'); } catch(e2) {}
+      }
+    } catch(e) {}
+    try { parent.postMessage({ type: 'openMyTaskFromFab' }, '*'); } catch(e) {}
   };
 
   el.appendChild(btn1);
@@ -6343,12 +6352,12 @@ function tvRender() {
   var pc = { '高':'#dc2626','中':'#d97706','低':'#16a34a','high':'#dc2626','mid':'#d97706','low':'#16a34a' };
   var html = '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
-  ['事件','派送對象','任務標題','任務說明','優先','時間','狀態'].forEach(function(h){
+  ['#','事件','派送對象','任務標題','任務說明','優先','時間','狀態'].forEach(function(h){
     html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
-  list.forEach(function(t) {
+  list.forEach(function(t, idx) {
     var evName = _tvEvMap[t.eventId] || t.eventId;
     var ts = '—';
     try { var d=new Date(t.createdAt); if(!isNaN(d.getTime())) ts=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); } catch(e){}
@@ -6358,6 +6367,7 @@ function tvRender() {
       : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
     var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
     html += '<tr style="border-bottom:1px solid #f0f4f8'+(isDone?';opacity:.65':'')+'">';
+    html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;color:#3d5070;white-space:nowrap">'+_esc(t.target)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
@@ -6426,7 +6436,22 @@ var _myTaskTeam = '';
 var _myTaskAll  = [];
 var _myTaskEvMap = {};
 
-function openMyTaskModal(team) {
+function myTaskDone(taskId) {
+  if (!taskId) return;
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: JSON.stringify({ action: 'updateTaskStatus', taskId: taskId, status: 'done' })
+  });
+  // 樂觀更新本地資料，不等回傳
+  _myTaskAll.forEach(function(t) {
+    if (t.taskId === taskId) t.status = 'done';
+  });
+  myTaskRender();
+  // 30秒後重整 badge
+  setTimeout(function() {
+    try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
+  }, 1000);
+}
   _myTaskTeam = team || '';
   document.getElementById('myTaskModal').classList.add('open');
   document.getElementById('myTaskTeamLabel').textContent =
@@ -6470,12 +6495,12 @@ function myTaskRender() {
   var pc = { '高':'#dc2626','中':'#d97706','低':'#16a34a','high':'#dc2626','mid':'#d97706','low':'#16a34a' };
   var html = '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
-  ['事件','任務標題','任務說明','優先','時間','狀態'].forEach(function(h){
+  ['#','事件','任務標題','任務說明','優先','時間','狀態','回報'].forEach(function(h){
     html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
-  list.forEach(function(t) {
+  list.forEach(function(t, idx) {
     var evName = _myTaskEvMap[t.eventId] || t.eventId;
     var ts = '—';
     try {
@@ -6489,18 +6514,25 @@ function myTaskRender() {
       : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
     var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
     html += '<tr style="border-bottom:1px solid #f0f4f8'+(isDone?';opacity:.65':'')+'">';
+    html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#6b7a92;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(t.content)+'">'+_esc(t.content)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
     html += '<td style="padding:9px 12px">'+stBadge+'</td>';
+    // 回報欄：待執行才顯示「完成」按鈕
+    if (!isDone) {
+      html += '<td style="padding:9px 10px;white-space:nowrap">' +
+        '<button onclick="myTaskDone(\'' + _esc(t.taskId) + '\')" style="' +
+        'padding:4px 12px;border:none;border-radius:16px;background:#16a34a;' +
+        'color:white;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">' +
+        '✔ 完成</button></td>';
+    } else {
+      html += '<td style="padding:9px 10px"></td>';
+    }
     html += '</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('myTaskBody').innerHTML = html;
 }
-</script>
-
-</body>
-</html>

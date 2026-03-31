@@ -743,6 +743,12 @@ window.addEventListener('message', function(e) {
     }
   }
 
+  // iframe FAB 的「回報任務」按鈕 → 開啟隊別任務 Modal
+  if (e.data && e.data.type === 'openMyTaskFromFab') {
+    openMyTaskModal(_getMyTeam());
+    return;
+  }
+
   // iframe 要求導覽到另一個頁面（帶 idx）
   if (e.data && e.data.type === 'navigate') {
     showIframe(e.data.src + '?idx=' + e.data.idx);
