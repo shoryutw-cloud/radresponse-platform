@@ -378,7 +378,7 @@
   <!-- 桌機橫向導覽列（靠右；未登入時隱藏）-->
   <nav class="top-nav auth-hidden" id="topNav">
     <div class="tnav-item" id="tnav-dashboard">
-      <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
+      <button class="tnav-btn" onclick="showIframe('current-events.html')">事件儀表板</button>
     </div>
     <div class="tnav-item" id="tnav-report">
       <button class="tnav-btn" style="position:relative">
@@ -933,7 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('popstate', function() {
     if (!_authUser) { history.replaceState('', document.title, window.location.pathname); return; }
     var hash = window.location.hash.replace('#', '');
-    if (hash && hash !== '') showIframe(hash + '.html'); else showMap();
+    if (hash && hash !== '') showIframe(hash + '.html'); else showIframe('current-events.html');
   });
 
   // ════════════════════════════════════════════
@@ -1521,22 +1521,30 @@ function openMsrQueryInIframe() {
 
     <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
 
-    <!-- 測試帳密提示 -->
+    <!-- 測試快速登入按鈕 -->
     <div style="width:100%;border-top:1px solid #2d3f55;padding-top:14px;display:flex;flex-direction:column;gap:7px">
-      <div style="font-size:13px;color:#4a6080;text-align:center;letter-spacing:.05em">— 測試帳號 —</div>
+      <div style="font-size:12px;color:#4a6080;text-align:center;letter-spacing:.05em">— 快速登入 —</div>
       <div style="display:flex;gap:8px">
-        <div onclick="fillTest('1234','1234')" style="flex:1;padding:10px 12px;background:#0f1820;border:1px solid #2d3f55;border-radius:7px;cursor:pointer;transition:border-color .15s"
-          onmouseover="this.style.borderColor='#1a56db'" onmouseout="this.style.borderColor='#2d3f55'">
-          <div style="font-size:12px;color:#4a6080;margin-bottom:4px">一般使用者</div>
-          <div style="font-size:14px;color:#7aa3cc;font-family:monospace">帳號／密碼：1234</div>
-        </div>
-        <div onclick="fillTest('5555','5555')" style="flex:1;padding:10px 12px;background:#0f1820;border:1px solid #2d3f55;border-radius:7px;cursor:pointer;transition:border-color .15s"
-          onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='#2d3f55'">
-          <div style="font-size:12px;color:#4a6080;margin-bottom:4px">管理者</div>
-          <div style="font-size:14px;color:#fbbf24;font-family:monospace">帳號／密碼：5555</div>
-        </div>
+        <button onclick="fillTest('1234','1234')" style="
+          flex:1;padding:10px 12px;background:#0f1820;
+          border:1px solid #2d3f55;border-radius:7px;cursor:pointer;
+          font-family:inherit;font-size:14px;color:#7aa3cc;
+          transition:all .15s;text-align:center"
+          onmouseover="this.style.borderColor='#1a56db';this.style.color='#93c5fd'"
+          onmouseout="this.style.borderColor='#2d3f55';this.style.color='#7aa3cc'">
+          一般使用者
+        </button>
+        <button onclick="fillTest('5555','5555')" style="
+          flex:1;padding:10px 12px;background:#0f1820;
+          border:1px solid #2d3f55;border-radius:7px;cursor:pointer;
+          font-family:inherit;font-size:14px;color:#fbbf24;
+          transition:all .15s;text-align:center"
+          onmouseover="this.style.borderColor='#f59e0b';this.style.color='#fcd34d'"
+          onmouseout="this.style.borderColor='#2d3f55';this.style.color='#fbbf24'">
+          管理者
+        </button>
       </div>
-  </div>
+    </div>
 </div>
 
 <script>

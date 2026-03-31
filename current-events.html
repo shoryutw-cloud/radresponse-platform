@@ -1401,14 +1401,18 @@ function fetchCwaWind(autoIdx) {
 // ── 啟動自動輪詢（載入後立即抓一次，之後每 5 分鐘） ──
 function startCwaAutoFetch() {
   if (_cwaTimer) clearInterval(_cwaTimer);
-  // 對所有進行中事件各抓一次
   function fetchAll() {
     _events.forEach(function(ev, i) {
-      if (ev.lat && ev.lng) fetchCwaWind(i);
+      if (!ev.lat || !ev.lng) return;
+      // 已有有效風向值（從 Sheet 載入或手動設定）→ 不自動覆蓋
+      var wd = String(ev.windDir || '').trim();
+      var hasValidWind = wd !== '' && wd !== 'X' && wd !== '-99' && wd !== '990';
+      if (hasValidWind || ev.windManual) return;
+      fetchCwaWind(i);
     });
   }
-  fetchAll(); // 立即執行一次
-  _cwaTimer = setInterval(fetchAll, 5 * 60 * 1000); // 之後每 5 分鐘
+  fetchAll();
+  _cwaTimer = setInterval(fetchAll, 5 * 60 * 1000);
 }
 
 function saveEdit() {
@@ -1465,8 +1469,8 @@ function saveEdit() {
       ev.lng = String(payload.lng);
       placeMarkers();
       gMap.setView([payload.lat, payload.lng], gMap.getZoom());
-      // 座標更新後自動重抓最近觀測站風向風速
-      setTimeout(function() { fetchCwaWind(); }, 300);
+      // 座標更新後自動重抓最近觀測站風向風速（用 auto 模式，不覆蓋手動設定）
+      setTimeout(function() { fetchCwaWind(_curIdx); }, 300);
     }
     // 清除地點點選暫時標記
     if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
@@ -2658,9 +2662,12 @@ function buildEventLayers(idx) {
   if (!_evLayers[idx]) _evLayers[idx] = {};
 
   // checkbox 狀態
-  var showCircle = isLayerOn(idx, 'circle');
-  var showLine   = isLayerOn(idx, 'line');
-  var showSector = isLayerOn(idx, 'sector');
+  var showCircle     = isLayerOn(idx, 'circle');
+  var showLine       = isLayerOn(idx, 'line');
+  var showSector     = isLayerOn(idx, 'sector');
+  var showMiniCircle = isLayerOn(idx, 'mini_circle');
+  var showMiniLine   = isLayerOn(idx, 'mini_line');
+  var showMiniSector = isLayerOn(idx, 'mini_sector');
 
   // (1) 100m 圓
   if (showCircle) {
@@ -2796,6 +2803,106 @@ function buildEventLayers(idx) {
     });
     _evLayers[idx].sectorMks = sectorMks;
   }
+
+  // ══════════════════════════════════════════════
+  // 縮小版圖層（等比例縮小50倍，供室內模擬演練）
+  // ══════════════════════════════════════════════
+
+  // (4) 2m 範圍圓（模擬 100m，縮小50倍）
+  if (showMiniCircle) {
+    _evLayers[idx].miniCircle = L.circle([la, lo], {
+      radius: 2, color: '#f97316', fillColor: '#f97316',
+      fillOpacity: 0.15, weight: 2, dashArray: '4 3', opacity: 0.8
+    }).addTo(gMap);
+  }
+
+  // (5) 20m 橫切面（模擬 1km，縮小50倍）+ 5個量測點
+  if (showMiniLine && hasWind) {
+    var mlCenter = destPoint(la, lo, wd, 20);  // 20m = 1000m/50
+    var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 10);  // 10m = 500m/50
+    var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 10);
+    _evLayers[idx].miniLine = L.polyline([mlPerpA, mlPerpB], {
+      color: '#3b82f6', weight: 2, opacity: 0.85, dashArray: '5 3'
+    }).addTo(gMap);
+
+    // 5 個量測點（B01~B05）
+    var miniLineMks = [];
+    for (var mli = 0; mli < 5; mli++) {
+      var mlt = mli / 4;
+      var mlLat = mlPerpB[0] + (mlPerpA[0] - mlPerpB[0]) * mlt;
+      var mlLng = mlPerpB[1] + (mlPerpA[1] - mlPerpB[1]) * mlt;
+      var mlLabel = 'B0' + (mli + 1);
+      var mlIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:16px;height:16px;border-radius:50%;' +
+              'background:#3b82f6;border:2px solid white;' +
+              'display:flex;align-items:center;justify-content:center;' +
+              'font-size:7px;font-weight:700;color:white;' +
+              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
+              'font-family:ui-monospace,monospace">' + (mli+1) + '</div>',
+        iconSize: [16, 16], iconAnchor: [8, 8]
+      });
+      var mlMk = L.marker([mlLat, mlLng], { icon: mlIcon }).addTo(gMap);
+      mlMk.bindTooltip(mlLabel + '：20m橫切面', { permanent: false, direction: 'top' });
+      miniLineMks.push(mlMk);
+    }
+    _evLayers[idx].miniLineMks = miniLineMks;
+  }
+
+  // (6) 100m 扇形（模擬 5km，縮小50倍）+ 10個量測點
+  if (showMiniSector && hasWind) {
+    var msPts = [[la, lo]];
+    for (var msi = 0; msi <= 40; msi++) {
+      msPts.push(destPoint(la, lo, (wd - 22.5) + 45 * msi / 40, 100)); // 100m = 5000m/50
+    }
+    msPts.push([la, lo]);
+    _evLayers[idx].miniSector = L.polygon(msPts, {
+      color: '#8b5cf6', fillColor: '#8b5cf6',
+      fillOpacity: 0.12, weight: 2, opacity: 0.7, dashArray: '4 3'
+    }).addTo(gMap);
+
+    // 弧線（40m = 2km/50、60m = 3km/50、80m = 4km/50）
+    var msArc2 = [], msArc3 = [], msArc4 = [];
+    for (var ma = 0; ma <= 24; ma++) {
+      msArc2.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 40));
+      msArc3.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 60));
+      msArc4.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 80));
+    }
+    _evLayers[idx].msArc2 = L.polyline(msArc2, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
+    _evLayers[idx].msArc3 = L.polyline(msArc3, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
+    _evLayers[idx].msArc4 = L.polyline(msArc4, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
+
+    // 10個量測點（同 5km 扇形邏輯，縮小50倍）
+    var miniSectorDefs = [
+      { label:'S1',  pt: destPoint(la, lo, wd,        20),  tip: '20m × 中線' },
+      { label:'S2',  pt: destPoint(la, lo, wd,        10),  tip: '10m × 中線' },
+      { label:'S3',  pt: destPoint(la, lo, wd,        40),  tip: '40m × 中線' },
+      { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 60),  tip: '60m × 扇形上緣' },
+      { label:'S5',  pt: destPoint(la, lo, wd,        60),  tip: '60m × 中線' },
+      { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 60),  tip: '60m × 扇形下緣' },
+      { label:'S7',  pt: destPoint(la, lo, wd,        80),  tip: '80m × 中線' },
+      { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 100), tip: '100m × 扇形上緣' },
+      { label:'S9',  pt: destPoint(la, lo, wd,        100), tip: '100m × 中線' },
+      { label:'S10', pt: destPoint(la, lo, wd + 22.5, 100), tip: '100m × 扇形下緣' },
+    ];
+    var miniSectorMks = [];
+    miniSectorDefs.forEach(function(def) {
+      var icon = L.divIcon({
+        className: '',
+        html: '<div style="width:18px;height:18px;border-radius:50%;' +
+              'background:#8b5cf6;border:2px solid white;' +
+              'display:flex;align-items:center;justify-content:center;' +
+              'font-size:7px;font-weight:700;color:white;' +
+              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
+              'font-family:ui-monospace,monospace">' + def.label.replace('S','') + '</div>',
+        iconSize: [18, 18], iconAnchor: [9, 9]
+      });
+      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
+      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
+      miniSectorMks.push(mk);
+    });
+    _evLayers[idx].miniSectorMks = miniSectorMks;
+  }
 }
 
 function removeEventLayers(idx) {
@@ -2816,6 +2923,21 @@ function removeEventLayers(idx) {
   if (lyr.crossMks) {
     lyr.crossMks.forEach(function(m) { m.remove(); });
     lyr.crossMks = null;
+  }
+  // 縮小版圖層清除
+  if (lyr.miniCircle)  { lyr.miniCircle.remove();  lyr.miniCircle  = null; }
+  if (lyr.miniLine)    { lyr.miniLine.remove();    lyr.miniLine    = null; }
+  if (lyr.miniLineMks) {
+    lyr.miniLineMks.forEach(function(m) { m.remove(); });
+    lyr.miniLineMks = null;
+  }
+  if (lyr.miniSector)  { lyr.miniSector.remove();  lyr.miniSector  = null; }
+  if (lyr.msArc2)      { lyr.msArc2.remove();      lyr.msArc2      = null; }
+  if (lyr.msArc3)      { lyr.msArc3.remove();      lyr.msArc3      = null; }
+  if (lyr.msArc4)      { lyr.msArc4.remove();      lyr.msArc4      = null; }
+  if (lyr.miniSectorMks) {
+    lyr.miniSectorMks.forEach(function(m) { m.remove(); });
+    lyr.miniSectorMks = null;
   }
 }
 
@@ -3269,7 +3391,10 @@ function renderLayerPanel() {
     circle: getLayerPref(ev.id, 'circle'),
     line:   getLayerPref(ev.id, 'line'),
     sector: getLayerPref(ev.id, 'sector'),
-    msr:    getLayerPref(ev.id, 'msr')
+    msr:    getLayerPref(ev.id, 'msr'),
+    mini_circle: getLayerPref(ev.id, 'mini_circle'),
+    mini_line:   getLayerPref(ev.id, 'mini_line'),
+    mini_sector: getLayerPref(ev.id, 'mini_sector')
   };
 
   function c(type) { return chk[type] ? 'checked' : ''; }
@@ -3283,6 +3408,10 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
+      '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
+      '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>2m 範圍（模擬100m）</label>' +
+      '<label class="layer-row" title="模擬 1km 橫切面（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_line" '  +c('mini_line')  +' onchange="onLayerChk('+i+',\'mini_line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px dashed #3b82f6"></span>20m 橫切面（模擬1km）</label>' +
+      '<label class="layer-row" title="模擬 5km 扇形（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_sector" '+c('mini_sector')+' onchange="onLayerChk('+i+',\'mini_sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px dashed #8b5cf6"></span>100m 扇形（模擬5km）</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
@@ -4221,6 +4350,35 @@ window.addEventListener('message', function(e) {
         var nLng = perpB2[1] + (perpA2[1] - perpB2[1]) * nt;
         var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
         pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng], category: 'cross' });
+      }
+
+      // 20m 橫切面量測點（B01~B05，模擬 1km 橫切面縮小50倍）
+      if (isLayerOn(_curIdx, 'mini_line')) {
+        var mlc2 = destPoint(la, lo, wd, 20);
+        var mlpa2 = destPoint(mlc2[0], mlc2[1], (wd + 90) % 360, 10);
+        var mlpb2 = destPoint(mlc2[0], mlc2[1], (wd - 90 + 360) % 360, 10);
+        for (var bi = 0; bi < 5; bi++) {
+          var bt = bi / 4;
+          var bLat = mlpb2[0] + (mlpa2[0] - mlpb2[0]) * bt;
+          var bLng = mlpb2[1] + (mlpa2[1] - mlpb2[1]) * bt;
+          pts.push({ label: 'B0' + (bi + 1), shortTip: '20m橫切面' + (bi+1), pt: [bLat, bLng], category: 'cross' });
+        }
+      }
+
+      // 100m 扇形量測點（S1~S10，模擬 5km 扇形縮小50倍）
+      if (isLayerOn(_curIdx, 'mini_sector')) {
+        [
+          { label:'S1',  pt: destPoint(la, lo, wd,        20)  },
+          { label:'S2',  pt: destPoint(la, lo, wd,        10)  },
+          { label:'S3',  pt: destPoint(la, lo, wd,        40)  },
+          { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 60)  },
+          { label:'S5',  pt: destPoint(la, lo, wd,        60)  },
+          { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 60)  },
+          { label:'S7',  pt: destPoint(la, lo, wd,        80)  },
+          { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 100) },
+          { label:'S9',  pt: destPoint(la, lo, wd,        100) },
+          { label:'S10', pt: destPoint(la, lo, wd + 22.5, 100) }
+        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(100m扇形)', pt:p.pt, category:'sector' }); });
       }
     }
     // 人工設定的量測點（T01, T02...）永遠加入
