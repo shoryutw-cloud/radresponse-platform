@@ -6028,7 +6028,7 @@ function updateUserDirCone() {
   <div id="tdBox">
     <!-- 標頭（與其他 modal 一致：白底、下邊框）-->
     <div id="tdHeader" style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0">
-      <span style="font-size:15px;font-weight:700;color:#1e2a3a;flex:1">📋 任務派送</span>
+      <span style="font-size:15px;font-weight:700;color:#1e2a3a;flex:1">📋 派送任務</span>
       <button onclick="closeTdModal()" style="width:28px;height:28px;border-radius:5px;border:1px solid #e2e8f0;background:none;cursor:pointer;font-size:13px;color:#6b7a92;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <!-- 步驟指示（簡化為提示列）-->
@@ -6042,6 +6042,15 @@ function updateUserDirCone() {
         <!-- 事件資訊 -->
         <div id="tdEvInfo" style="padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:16px;font-size:13px;color:#1e2a3a"></div>
 
+        <!-- 任務類型 -->
+        <div class="td-form-group">
+          <label class="td-form-lbl">任務類型</label>
+          <div style="display:flex;gap:10px">
+            <button id="tdTypeMsr" class="td-squad-btn" onclick="tdSetType('msr')" style="flex:1;background:#eff6ff;border-color:#1a56db;color:#1a56db">量測任務</button>
+            <button id="tdTypeOther" class="td-squad-btn" onclick="tdSetType('other')" style="flex:1">其他任務</button>
+          </div>
+        </div>
+
         <!-- 組別選擇 -->
         <div class="td-form-group">
           <label class="td-form-lbl">派送對象 <span class="req">*</span>
@@ -6052,14 +6061,22 @@ function updateUserDirCone() {
 
         <!-- 任務標題 -->
         <div class="td-form-group">
-          <label class="td-form-lbl">任務標題 <span class="req">*</span></label>
+          <label class="td-form-lbl" id="tdTitleLbl">任務標題 <span class="req">*</span></label>
           <input class="td-inp" id="tdTaskTitle" placeholder="輸入任務標題" oninput="tdValidateAll()">
         </div>
 
         <!-- 任務說明 -->
         <div class="td-form-group">
-          <label class="td-form-lbl">任務說明 <span class="req">*</span></label>
+          <label class="td-form-lbl" id="tdContentLbl">任務說明 <span class="req" id="tdContentReq">*</span></label>
           <textarea class="td-ta" id="tdTaskContent" placeholder="輸入任務詳細說明…" oninput="tdValidateAll()"></textarea>
+        </div>
+
+        <!-- 量測點選擇（量測任務時顯示）-->
+        <div class="td-form-group" id="tdMsrPtsGroup" style="display:none">
+          <label class="td-form-lbl">指定量測點位
+            <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選，非必填</span>
+          </label>
+          <div id="tdMsrPtsGrid" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
 
         <!-- 優先等級 -->
@@ -6106,6 +6123,9 @@ function updateUserDirCone() {
 // 任務派送 Modal JS（單頁：組別+內容同時填）
 // ════════════════════════════════════════════
 var _tdSelectedSquads = [];
+var _tdTaskType = 'other';       // 'msr' | 'other'
+var _tdMsrPts   = [];            // 快照：量測點 [{label,tip}]，一旦抓到就不刪除
+var _tdSelectedPts = [];         // 已勾選的點位 label 陣列
 
 function openTdModal() {
   var ev = _events[_curIdx];
@@ -6116,6 +6136,88 @@ function openTdModal() {
 
 function closeTdModal() {
   document.getElementById('tdModal').classList.remove('open');
+}
+
+// ── 任務類型切換 ──
+function tdSetType(type) {
+  _tdTaskType = type;
+  var btnMsr   = document.getElementById('tdTypeMsr');
+  var btnOther = document.getElementById('tdTypeOther');
+  var reqStar  = document.getElementById('tdContentReq');
+  var ptsGroup = document.getElementById('tdMsrPtsGroup');
+
+  if (type === 'msr') {
+    btnMsr.style.cssText   = 'flex:1;background:#eff6ff;border-color:#1a56db;color:#1a56db;font-weight:700';
+    btnOther.style.cssText = 'flex:1';
+    // 標題預設
+    var titleEl = document.getElementById('tdTaskTitle');
+    if (!titleEl.value.trim() || titleEl.value === '量測任務') titleEl.value = '量測任務';
+    // 說明改非必填
+    reqStar.style.display = 'none';
+    // 量測點區塊顯示（用快照，確保不因風向消失而清空）
+    ptsGroup.style.display = '';
+    tdSnapshotMsrPts();  // 抓快照（已有快照則不覆蓋）
+    tdRenderMsrPts();
+  } else {
+    btnMsr.style.cssText   = 'flex:1';
+    btnOther.style.cssText = 'flex:1;background:#eff6ff;border-color:#1a56db;color:#1a56db;font-weight:700';
+    reqStar.style.display  = '';
+    ptsGroup.style.display = 'none';
+  }
+  tdValidateAll();
+}
+
+// ── 量測點快照（一旦取到就不再覆蓋，避免風向消失後點位消失）──
+function tdSnapshotMsrPts() {
+  if (_tdMsrPts.length > 0) return; // 已有快照，不覆蓋
+  var ev = _events[_curIdx];
+  if (!ev || !ev.windDir || ev.windDir === '') return;
+  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+  var wd = (parseFloat(ev.windDir) + 180) % 360;
+  var pts = [];
+  // 5km 扇形 10 個點
+  [
+    { label:'1',  tip:'1km中線'  },
+    { label:'2',  tip:'500m中線' },
+    { label:'3',  tip:'2km中線'  },
+    { label:'4',  tip:'3km上緣'  },
+    { label:'5',  tip:'3km中線'  },
+    { label:'6',  tip:'3km下緣'  },
+    { label:'7',  tip:'4km中線'  },
+    { label:'8',  tip:'5km上緣'  },
+    { label:'9',  tip:'5km中線'  },
+    { label:'10', tip:'5km下緣'  }
+  ].forEach(function(p){ pts.push({ label:p.label, tip:'5km扇形 '+p.tip }); });
+  // 1km 橫切面 A01~A20
+  for (var i = 1; i <= 20; i++) {
+    pts.push({ label:'A' + (i < 10 ? '0'+i : ''+i), tip:'1km橫切面 第'+i+'點' });
+  }
+  _tdMsrPts = pts;
+}
+
+// ── 渲染量測點格子 ──
+function tdRenderMsrPts() {
+  var grid = document.getElementById('tdMsrPtsGrid');
+  if (!_tdMsrPts.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0">目前事件無風向資料，無法計算點位</div>';
+    return;
+  }
+  grid.innerHTML = _tdMsrPts.map(function(p) {
+    var sel = _tdSelectedPts.indexOf(p.label) !== -1;
+    return '<button onclick="tdTogglePt(\'' + p.label + '\')" title="' + p.tip + '" style="' +
+      'padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;' +
+      'font-family:inherit;transition:all .12s;' +
+      (sel ? 'background:#1a56db;color:white;border:1.5px solid #1a56db;'
+           : 'background:white;color:#3d5070;border:1.5px solid #e2e8f0;') +
+      '">' + p.label + '</button>';
+  }).join('');
+}
+
+function tdTogglePt(label) {
+  var idx = _tdSelectedPts.indexOf(label);
+  if (idx === -1) _tdSelectedPts.push(label);
+  else _tdSelectedPts.splice(idx, 1);
+  tdRenderMsrPts();
 }
 
 function tdSetStep(n) {
@@ -6161,7 +6263,6 @@ function tdRenderSquads() {
     return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
   }).join('');
   _tdSelectedSquads = [];
-  document.getElementById('tdBtnNext1').disabled = true;
 }
 
 function tdSelectSquad(btn) {
@@ -6172,7 +6273,6 @@ function tdSelectSquad(btn) {
   tdValidateAll();
 }
 
-// tdGoStep2 / tdGoStep1 保留為空函式（HTML 中可能有殘留 onclick）
 function tdGoStep2() {}
 function tdGoStep1() {}
 
@@ -6184,28 +6284,25 @@ function tdSelectPriority(el) {
   tdValidateAll();
 }
 
-// 組別和任務內容都填才能送出
 function tdValidateAll() {
   var hasSquad   = _tdSelectedSquads.length > 0;
   var hasTitle   = document.getElementById('tdTaskTitle').value.trim() !== '';
   var hasContent = document.getElementById('tdTaskContent').value.trim() !== '';
-  var ok = hasSquad && hasTitle && hasContent;
+  // 量測任務時說明非必填
+  var contentOk  = (_tdTaskType === 'msr') ? true : hasContent;
+  var ok = hasSquad && hasTitle && contentOk;
   document.getElementById('tdBtnSubmit').disabled = !ok;
-
   var msgs = [];
-  if (!hasSquad)   msgs.push('派送對象');
-  if (!hasTitle)   msgs.push('任務標題');
-  if (!hasContent) msgs.push('任務說明');
+  if (!hasSquad)               msgs.push('派送對象');
+  if (!hasTitle)               msgs.push('任務標題');
+  if (!contentOk)              msgs.push('任務說明');
   if (ok) {
     tdSetStatus('已選：' + _tdSelectedSquads.join('、') + '　✔ 可送出', true);
-  } else if (_tdSelectedSquads.length) {
-    tdSetStatus('已選：' + _tdSelectedSquads.join('、') + '　尚缺：' + msgs.join('、'), false);
   } else {
     tdSetStatus('尚缺：' + msgs.join('、'), false);
   }
 }
 
-// 舊的 tdValidateStep2 別名
 function tdValidateStep2() { tdValidateAll(); }
 
 function tdSubmitTask() {
@@ -6217,11 +6314,15 @@ function tdSubmitTask() {
   var title    = document.getElementById('tdTaskTitle').value.trim();
   var content  = document.getElementById('tdTaskContent').value.trim();
   var priority = document.getElementById('tdTaskPriority').value;
-  // 依序送出（前一筆完成才送下一筆，避免並行遺漏）
+
+  // 量測任務：把選中的點位加到說明
+  if (_tdTaskType === 'msr' && _tdSelectedPts.length > 0) {
+    content = (content ? content + '\n' : '') + '指定點位：' + _tdSelectedPts.join('、');
+  }
+
   var squads = _tdSelectedSquads.slice();
   function sendNext(i) {
     if (i >= squads.length) {
-      // 全部送完
       setTimeout(function() {
         btn.disabled = false; btn.innerHTML = '📤 派送任務';
         document.getElementById('tdPanel1').classList.remove('active');
@@ -6237,7 +6338,7 @@ function tdSubmitTask() {
       method: 'POST', mode: 'no-cors',
       body: JSON.stringify({ action:'addTask', eventId:ev.id, target:squads[i], title:title, content:content, priority:priority })
     }).finally(function() {
-      setTimeout(function() { sendNext(i + 1); }, 300); // 每筆間隔 300ms
+      setTimeout(function() { sendNext(i + 1); }, 300);
     });
   }
   sendNext(0);
@@ -6245,11 +6346,19 @@ function tdSubmitTask() {
 
 function tdResetForm() {
   _tdSelectedSquads = [];
+  _tdSelectedPts    = [];
+  _tdMsrPts         = [];   // 每次開 modal 清空快照，讓它重新抓最新風向
+  _tdTaskType       = 'other';
   document.getElementById('tdTaskTitle').value = '';
   document.getElementById('tdTaskContent').value = '';
   document.getElementById('tdTaskPriority').value = '';
   document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
   document.getElementById('tdFooter').style.display = '';
+  document.getElementById('tdMsrPtsGroup').style.display = 'none';
+  document.getElementById('tdContentReq').style.display = '';
+  // 還原任務類型按鈕樣式
+  document.getElementById('tdTypeMsr').style.cssText = 'flex:1';
+  document.getElementById('tdTypeOther').style.cssText = 'flex:1';
   tdSetStep(1);
   tdValidateAll();
   tdRenderSquads();
@@ -6258,6 +6367,7 @@ function tdResetForm() {
 function _tdEsc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
 </script>
 
 <!-- ════════════════════════════════════════════
@@ -6278,7 +6388,7 @@ function _tdEsc(s) {
     box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
     <div style="display:flex;align-items:center;justify-content:space-between;
       padding:14px 20px;background:#1e2a3a;flex-shrink:0">
-      <span style="font-size:15px;font-weight:700;color:#e8f0fa">📋 任務查看</span>
+      <span style="font-size:15px;font-weight:700;color:#e8f0fa">📋 查看任務</span>
       <button onclick="closeTaskViewModal()" style="background:none;border:none;color:#8da0b8;font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
     </div>
     <div style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;
