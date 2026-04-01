@@ -1743,16 +1743,7 @@ function _fetchTaskBadge() {
 }
 
 function _updateTaskBadge(count) {
-  // 桌機版
-  var badge = document.getElementById('taskBadge');
-  if (badge) {
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
+  // taskBadge（回報按鈕）不顯示數字，已整合到任務查看
   // 手機版
   var badgeMobile = document.getElementById('taskBadgeMobile');
   if (badgeMobile) {
