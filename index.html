@@ -457,7 +457,7 @@
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">任務查看</div>
+      <div class="drawer-section-title">查看任務</div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
     </div>
@@ -474,8 +474,8 @@
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
-      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">📨 任務派送</button>
-      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">📋 任務查看</button>
+      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">📨 派送任務</button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">📋 查看任務</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
@@ -597,8 +597,8 @@
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
   <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
-  <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">任務派送</button>
-  <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">任務查看</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">派送任務</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">查看任務</button>
 </div>
 
 <script>
@@ -635,7 +635,7 @@ var PANELS = {
   '個人資料維護':     ['個人資料維護','管理您的帳號資料、聯絡方式及所屬編組。'],
   '使用說明':         ['使用說明','請參閱操作手冊或聯絡系統管理員。'],
   '建立事件':         ['建立事件','填寫新事件資訊以開設應變事件。'],
-  '任務派送':         ['任務派送','派送任務至出勤人員。'],
+  '派送任務':         ['派送任務','派送任務至出勤人員。'],
   '編組管理':         ['編組管理','管理應變編組及人員配置。'],
   '儀器管理':         ['儀器管理','維護儀器清單及校正紀錄。'],
   '新增地圖Icon圖示': ['新增地圖 Icon 圖示','在地圖上新增標記或圖示。'],
