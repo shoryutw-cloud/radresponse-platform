@@ -6076,7 +6076,16 @@ function updateUserDirCone() {
           <label class="td-form-lbl">指定量測點位
             <span style="font-size:11px;font-weight:400;color:#6b7a92;margin-left:6px;text-transform:none;letter-spacing:0">可多選，非必填</span>
           </label>
-          <div id="tdMsrPtsGrid" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          <!-- 10點偵測（1~10）-->
+          <div style="margin-bottom:8px">
+            <div style="font-size:11px;font-weight:600;color:#8b5cf6;margin-bottom:5px;letter-spacing:.03em">▪ 十點偵測（5km扇形）</div>
+            <div id="tdMsrPtsSector" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <!-- 1km 橫切面（A01~A20）-->
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#3b82f6;margin-bottom:5px;letter-spacing:.03em">▪ 1km 橫切面</div>
+            <div id="tdMsrPtsCross" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
         </div>
 
         <!-- 優先等級 -->
@@ -6169,48 +6178,50 @@ function tdSetType(type) {
 
 // ── 量測點快照（一旦取到就不再覆蓋，避免風向消失後點位消失）──
 function tdSnapshotMsrPts() {
-  if (_tdMsrPts.length > 0) return; // 已有快照，不覆蓋
+  if (_tdMsrPts.length > 0) return;
   var ev = _events[_curIdx];
   if (!ev || !ev.windDir || ev.windDir === '') return;
-  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
   var pts = [];
-  // 5km 扇形 10 個點
   [
-    { label:'1',  tip:'1km中線'  },
-    { label:'2',  tip:'500m中線' },
-    { label:'3',  tip:'2km中線'  },
-    { label:'4',  tip:'3km上緣'  },
-    { label:'5',  tip:'3km中線'  },
-    { label:'6',  tip:'3km下緣'  },
-    { label:'7',  tip:'4km中線'  },
-    { label:'8',  tip:'5km上緣'  },
-    { label:'9',  tip:'5km中線'  },
-    { label:'10', tip:'5km下緣'  }
-  ].forEach(function(p){ pts.push({ label:p.label, tip:'5km扇形 '+p.tip }); });
-  // 1km 橫切面 A01~A20
+    { label:'1',  tip:'1km中線',   group:'sector' },
+    { label:'2',  tip:'500m中線',  group:'sector' },
+    { label:'3',  tip:'2km中線',   group:'sector' },
+    { label:'4',  tip:'3km上緣',   group:'sector' },
+    { label:'5',  tip:'3km中線',   group:'sector' },
+    { label:'6',  tip:'3km下緣',   group:'sector' },
+    { label:'7',  tip:'4km中線',   group:'sector' },
+    { label:'8',  tip:'5km上緣',   group:'sector' },
+    { label:'9',  tip:'5km中線',   group:'sector' },
+    { label:'10', tip:'5km下緣',   group:'sector' }
+  ].forEach(function(p){ pts.push(p); });
   for (var i = 1; i <= 20; i++) {
-    pts.push({ label:'A' + (i < 10 ? '0'+i : ''+i), tip:'1km橫切面 第'+i+'點' });
+    pts.push({ label:'A' + (i < 10 ? '0'+i : ''+i), tip:'橫切面第'+i+'點', group:'cross' });
   }
   _tdMsrPts = pts;
 }
 
-// ── 渲染量測點格子 ──
 function tdRenderMsrPts() {
-  var grid = document.getElementById('tdMsrPtsGrid');
-  if (!_tdMsrPts.length) {
-    grid.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0">目前事件無風向資料，無法計算點位</div>';
-    return;
-  }
-  grid.innerHTML = _tdMsrPts.map(function(p) {
+  var sectorEl = document.getElementById('tdMsrPtsSector');
+  var crossEl  = document.getElementById('tdMsrPtsCross');
+  function makeBtn(p) {
     var sel = _tdSelectedPts.indexOf(p.label) !== -1;
+    var color = p.group === 'sector' ? '#8b5cf6' : '#3b82f6';
     return '<button onclick="tdTogglePt(\'' + p.label + '\')" title="' + p.tip + '" style="' +
       'padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;' +
       'font-family:inherit;transition:all .12s;' +
-      (sel ? 'background:#1a56db;color:white;border:1.5px solid #1a56db;'
+      (sel ? 'background:'+color+';color:white;border:1.5px solid '+color+';'
            : 'background:white;color:#3d5070;border:1.5px solid #e2e8f0;') +
       '">' + p.label + '</button>';
-  }).join('');
+  }
+  if (!_tdMsrPts.length) {
+    if (sectorEl) sectorEl.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0">目前事件無風向資料，無法計算點位</div>';
+    if (crossEl)  crossEl.innerHTML  = '';
+    return;
+  }
+  var sectorPts = _tdMsrPts.filter(function(p){ return p.group === 'sector'; });
+  var crossPts  = _tdMsrPts.filter(function(p){ return p.group === 'cross'; });
+  if (sectorEl) sectorEl.innerHTML = sectorPts.map(makeBtn).join('');
+  if (crossEl)  crossEl.innerHTML  = crossPts.map(makeBtn).join('');
 }
 
 function tdTogglePt(label) {
@@ -6553,7 +6564,15 @@ function myTaskDone(taskId) {
 }
 
 function openMyTaskModal(team) {
-  _myTaskTeam = team || '';
+  // 優先用傳入的 team，沒有的話自己讀 localStorage
+  var t = team || '';
+  if (!t) {
+    try {
+      var s = localStorage.getItem('radAuth');
+      if (s) t = JSON.parse(s).team || '';
+    } catch(e) {}
+  }
+  _myTaskTeam = t;
   document.getElementById('myTaskModal').classList.add('open');
   document.getElementById('myTaskTeamLabel').textContent =
     _myTaskTeam ? '隊別：' + _myTaskTeam : '（無隊別資料）';
