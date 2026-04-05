@@ -6263,45 +6263,38 @@ function tdSetStatus(msg, ok) {
   el.style.color = ok ? '#16a34a' : '#6b7a92';
 }
 
-// 派送對象：優先從 personnelStr 取，若為空則顯示所有已知隊別
+// 派送對象：直接從 GAS 抓技術組所有隊別 + 參謀組 + 新聞組
 function tdRenderSquads() {
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var infoEl = document.getElementById('tdEvInfo');
-  if (infoEl) infoEl.textContent = '事件：' + (ev.name || '—') + '\u3000類型：' + (ev.type || '—');
-  var squads = [], squadSeen = {};
-
-  // 先從 personnelStr 取
-  (ev.personnelStr || '').split(',').forEach(function(item) {
-    item = item.trim(); if (!item) return;
-    var ci = item.lastIndexOf(':');
-    var squad = ci >= 0 ? item.slice(0, ci).trim() : '';
-    if (squad && !squadSeen[squad]) { squads.push(squad); squadSeen[squad] = true; }
-  });
-
-  // 若 personnelStr 無隊別，用所有已知隊別（技術組 squads + 參謀組 + 新聞組）
-  if (!squads.length) {
-    // 技術組各隊（已含「技術組-」前綴）
-    (_pmSquadOrder || []).forEach(function(sq) {
-      if (sq && !squadSeen[sq]) { squads.push(sq); squadSeen[sq] = true; }
-    });
-    // 非技術組
-    ['參謀組', '新聞組'].forEach(function(sq) {
-      if (!squadSeen[sq]) { squads.push(sq); squadSeen[sq] = true; }
-    });
-  }
-
   var grid = document.getElementById('tdSquadGrid');
-  if (!squads.length) {
-    // 隊別資料還沒載入，嘗試先載入再渲染
-    _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
-      _pmSquadOrder = (data && data.squads) ? data.squads : [];
-      tdRenderSquads();
-    });
-    grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⏳ 載入隊別資料中…</div>';
+  if (!grid) return;
+
+  // 若已有快取，直接渲染
+  if (_pmSquadOrder && _pmSquadOrder.length) {
+    _tdBuildSquadGrid(grid);
     return;
   }
-  grid.innerHTML = squads.map(function(sq) {
+
+  // 否則先載入 getSquads
+  grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⏳ 載入隊別資料中…</div>';
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    _pmSquadOrder = (data && data.squads) ? data.squads : [];
+    _tdBuildSquadGrid(grid);
+  });
+}
+
+function _tdBuildSquadGrid(grid) {
+  // 技術組各隊 + 參謀組 + 新聞組
+  var allSquads = (_pmSquadOrder || []).slice();
+  ['參謀組', '新聞組'].forEach(function(s) {
+    if (allSquads.indexOf(s) === -1) allSquads.push(s);
+  });
+
+  if (!allSquads.length) {
+    grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⚠️ 無法取得隊別資料，請重試</div>';
+    return;
+  }
+
+  grid.innerHTML = allSquads.map(function(sq) {
     return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
   }).join('');
   _tdSelectedSquads = [];
