@@ -6140,30 +6140,28 @@ var _tdTaskType = 'other';
 var _tdMsrPts   = [];
 var _tdSelectedPts = [];
 
-// 所有已知隊別（技術組 + 參謀組 + 新聞組），在頁面載入後立即快取
+// 本事件出動的隊別（從 personnelStr 解析，每次開 modal 重新計算）
 var _tdAllSquads = [];
-function _tdLoadSquads(cb) {
-  if (_tdAllSquads.length) { cb(); return; }
-  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
-    var techSquads = (data && data.squads) ? data.squads : [];
-    _tdAllSquads = techSquads.slice();
-    ['參謀組', '新聞組'].forEach(function(s) {
-      if (_tdAllSquads.indexOf(s) === -1) _tdAllSquads.push(s);
-    });
-    cb();
-  });
-}
 
 function openTdModal() {
   _checkModalConflict('td', function() {
     var ev = _events[_curIdx];
     if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
-    // 先確保隊別資料已載入，再開 modal
-    _tdLoadSquads(function() {
-      document.getElementById('tdModal').classList.add('open');
-      _setActiveModal('td');
-      tdResetForm();
+
+    // 從本事件 personnelStr 解析出勤隊別（格式：技術組-北一小隊:姓名,參謀組:姓名,...）
+    var seen = {};
+    _tdAllSquads = [];
+    (ev.personnelStr || '').split(',').forEach(function(item) {
+      item = item.trim();
+      if (!item) return;
+      var ci = item.lastIndexOf(':');
+      var squad = ci >= 0 ? item.slice(0, ci).trim() : item.trim();
+      if (squad && !seen[squad]) { seen[squad] = true; _tdAllSquads.push(squad); }
     });
+
+    document.getElementById('tdModal').classList.add('open');
+    _setActiveModal('td');
+    tdResetForm();
   });
 }
 
