@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>應變資訊平台</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☢️</text></svg>">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="應變平台">
+<meta name="theme-color" content="#1e2a3a">
 <style>
   /* ────── CSS 變數 ────── */
   :root {
@@ -201,7 +206,8 @@
     .topbar-logout { display: none !important; }
     /* 顯示漢堡 */
     .hamburger-btn { display: flex; }
-    .logo-text { font-size: 17px; }
+    /* 手機版只顯示 logo 圖示，隱藏文字 */
+    .logo-text { display: none !important; }
     .topbar { padding: 0 14px; overflow: visible; }
   }
 
@@ -431,7 +437,7 @@
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-header">
-    <span class="drawer-title">☢️ 應變平台</span>
+    <span class="drawer-title">☢️ 輻射事件應變資訊平台</span>
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
 
@@ -450,14 +456,14 @@
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">回報 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
+      <div class="drawer-section-title">回報</div>
       <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
       <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">🔍 回報數值查詢</button>
       <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
     </div>
 
     <div class="drawer-section">
-      <div class="drawer-section-title">查看任務</div>
+      <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
     </div>
