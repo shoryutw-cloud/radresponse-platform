@@ -4415,7 +4415,7 @@ window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'openMsrQuery') { openMsrQueryModal(); return; }
   if (e.data && e.data.type === 'openTaskDispatch') { openTdModal(); return; }
   if (e.data && e.data.type === 'openTaskView') { openTaskViewModal(); return; }
-  if (e.data && e.data.type === 'openMyTask') { openMyTaskModal(e.data.team || ''); return; }
+  if (e.data && e.data.type === 'openMyTask') { openMyTaskModal(e.data.team || '', e.data.label || ''); return; }
   if (e.data.type === 'setEventId' && e.data.id) {
     if (_events.length > 0) {
       var found = -1;
@@ -6154,23 +6154,26 @@ function tdSetType(type) {
   var btnOther = document.getElementById('tdTypeOther');
   var reqStar  = document.getElementById('tdContentReq');
   var ptsGroup = document.getElementById('tdMsrPtsGroup');
+  var titleEl  = document.getElementById('tdTaskTitle');
 
   if (type === 'msr') {
     btnMsr.style.cssText   = 'flex:1;background:#eff6ff;border-color:#1a56db;color:#1a56db;font-weight:700';
     btnOther.style.cssText = 'flex:1';
-    // 標題預設
-    var titleEl = document.getElementById('tdTaskTitle');
-    if (!titleEl.value.trim() || titleEl.value === '量測任務') titleEl.value = '量測任務';
+    // 標題預設「量測任務」（若目前是空的或是「量測任務」就填入）
+    if (!titleEl.value.trim() || titleEl.value.trim() === '量測任務') titleEl.value = '量測任務';
     // 說明改非必填
     reqStar.style.display = 'none';
-    // 量測點區塊顯示（用快照，確保不因風向消失而清空）
+    // 量測點區塊
     ptsGroup.style.display = '';
-    tdSnapshotMsrPts();  // 抓快照（已有快照則不覆蓋）
+    tdSnapshotMsrPts();
     tdRenderMsrPts();
   } else {
     btnMsr.style.cssText   = 'flex:1';
     btnOther.style.cssText = 'flex:1;background:#eff6ff;border-color:#1a56db;color:#1a56db;font-weight:700';
-    reqStar.style.display  = '';
+    // 清空預設標題
+    if (titleEl.value.trim() === '量測任務') titleEl.value = '';
+    // 其他任務說明也非必填
+    reqStar.style.display = 'none';
     ptsGroup.style.display = 'none';
   }
   tdValidateAll();
@@ -6252,7 +6255,7 @@ function tdSetStatus(msg, ok) {
   el.style.color = ok ? '#16a34a' : '#6b7a92';
 }
 
-// 從當前事件的 personnelStr 取出所有隊別
+// 從當前事件的 personnelStr 取出所有隊別（帶組別前綴）
 function tdRenderSquads() {
   var ev = _events[_curIdx];
   if (!ev) return;
@@ -6296,17 +6299,14 @@ function tdSelectPriority(el) {
 }
 
 function tdValidateAll() {
-  var hasSquad   = _tdSelectedSquads.length > 0;
-  var hasTitle   = document.getElementById('tdTaskTitle').value.trim() !== '';
-  var hasContent = document.getElementById('tdTaskContent').value.trim() !== '';
-  // 量測任務時說明非必填
-  var contentOk  = (_tdTaskType === 'msr') ? true : hasContent;
-  var ok = hasSquad && hasTitle && contentOk;
+  var hasSquad  = _tdSelectedSquads.length > 0;
+  var hasTitle  = document.getElementById('tdTaskTitle').value.trim() !== '';
+  // 兩種任務類型說明均非必填
+  var ok = hasSquad && hasTitle;
   document.getElementById('tdBtnSubmit').disabled = !ok;
   var msgs = [];
-  if (!hasSquad)               msgs.push('派送對象');
-  if (!hasTitle)               msgs.push('任務標題');
-  if (!contentOk)              msgs.push('任務說明');
+  if (!hasSquad) msgs.push('派送對象');
+  if (!hasTitle) msgs.push('任務標題');
   if (ok) {
     tdSetStatus('已選：' + _tdSelectedSquads.join('、') + '　✔ 可送出', true);
   } else {
@@ -6544,7 +6544,8 @@ function tvRender() {
 </div>
 
 <script>
-var _myTaskTeam = '';
+var _myTaskTeam  = '';  // filterKey（技術組-北一小隊 / 參謀組 / 新聞組）
+var _myTaskLabel = '';  // 顯示用標籤
 var _myTaskAll  = [];
 var _myTaskEvMap = {};
 
@@ -6563,19 +6564,27 @@ function myTaskDone(taskId) {
   }, 1000);
 }
 
-function openMyTaskModal(team) {
-  // 優先用傳入的 team，沒有的話自己讀 localStorage
-  var t = team || '';
-  if (!t) {
+function openMyTaskModal(team, label) {
+  // 優先用傳入的 team（filterKey），沒有的話自己讀 localStorage
+  var filterKey = team || '';
+  var displayLabel = label || '';
+  if (!filterKey) {
     try {
       var s = localStorage.getItem('radAuth');
-      if (s) t = JSON.parse(s).team || '';
+      if (s) {
+        var auth = JSON.parse(s);
+        var grp = auth.group || '';
+        var tm  = auth.team  || '';
+        if (grp === '技術組') { filterKey = tm ? grp+'-'+tm : grp; displayLabel = filterKey; }
+        else { filterKey = grp; displayLabel = grp; }
+      }
     } catch(e) {}
   }
-  _myTaskTeam = t;
+  _myTaskTeam = filterKey;
+  _myTaskLabel = displayLabel;
   document.getElementById('myTaskModal').classList.add('open');
   document.getElementById('myTaskTeamLabel').textContent =
-    _myTaskTeam ? '隊別：' + _myTaskTeam : '（無隊別資料）';
+    _myTaskLabel ? _myTaskLabel : (_myTaskTeam || '（無隊別資料）');
   myTaskLoad();
 }
 function closeMyTaskModal() {
@@ -6588,11 +6597,12 @@ function myTaskLoad() {
   (_events || []).forEach(function(ev) { _myTaskEvMap[ev.id] = ev.name; });
   _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
     var all = (data && data.tasks) ? data.tasks : [];
-    // 過濾：target === 隊別 或 target 以「隊別:」開頭（個人派送）
+    // filterKey：技術組-北一小隊 → target 以此開頭即符合
+    // 參謀組/新聞組 → target 以 "參謀組" 或 "新聞組" 開頭即符合
     _myTaskAll = all.filter(function(t) {
       if (!_myTaskTeam) return false;
       var tgt = (t.target || '').trim();
-      return tgt === _myTaskTeam || tgt.indexOf(_myTaskTeam + ':') === 0;
+      return tgt === _myTaskTeam || tgt.indexOf(_myTaskTeam) === 0;
     });
     myTaskRender();
   });

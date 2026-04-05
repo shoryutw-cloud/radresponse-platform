@@ -729,17 +729,18 @@ window.addEventListener('message', function(e) {
     }
     if (_pendingMyTask) {
       _pendingMyTask = false;
-      var team2 = '';
-      try { var s2 = localStorage.getItem('radAuth'); if (s2) team2 = JSON.parse(s2).team || ''; } catch(e) {}
+      var fKey = _getMyTaskFilterKey();
+      var fGrp = _getMyGroup(); var fTm = _getMyTeam();
+      var fLbl = fGrp === '技術組' ? (fTm ? fGrp+'-'+fTm : fGrp) : fGrp;
       setTimeout(function() {
-        try { frame.contentWindow.postMessage({ type: 'openMyTask', team: team2 }, '*'); } catch(e) {}
+        try { frame.contentWindow.postMessage({ type: 'openMyTask', team: fKey, label: fLbl }, '*'); } catch(e) {}
       }, 400);
     }
   }
 
   // iframe FAB 的「回報任務」按鈕 → 開啟隊別任務 Modal
   if (e.data && e.data.type === 'openMyTaskFromFab') {
-    openMyTaskModal(_getMyTeam());
+    openMyTaskModal();
     return;
   }
 
@@ -1601,7 +1602,7 @@ function submitLogin() {
     }
 
     // ── 登入成功：存入 localStorage，帶 lastActivity ──
-    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', lastActivity: Date.now() };
+    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', group: data.group || '', lastActivity: Date.now() };
     try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
 
     _applyAuthUI(user);
@@ -1688,48 +1689,44 @@ function _startTaskBadgePolling() {
 }
 
 function _fetchTaskBadge() {
-  var team = '';
-  try {
-    var s = localStorage.getItem('radAuth');
-    if (s) team = JSON.parse(s).team || '';
-  } catch(e) {}
+  var filterKey = _getMyTaskFilterKey(); // e.g. "技術組-北一小隊" or "參謀組"
 
   _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
     if (!data || !data.tasks) return;
 
-    var myCount  = 0; // 隊別未結案（含隊別任務 + 任務查看 badge 一致）
-    var allCount = 0; // 所有未結案
+    var myCount  = 0;
+    var allCount = 0;
 
     data.tasks.forEach(function(t) {
       if (t.status !== 'pending') return;
       allCount++;
-      if (team) {
+      if (filterKey) {
         var tgt = (t.target || '').trim();
-        if (tgt === team || tgt.indexOf(team + ':') === 0) myCount++;
+        if (tgt === filterKey || tgt.indexOf(filterKey) === 0) myCount++;
       }
     });
 
-    // 回報角標（隊別任務數，只有有隊別才顯示）
-    _updateTaskBadge(team ? myCount : 0);
+    // 回報角標（隊別任務數，只有有 filterKey 才顯示）
+    _updateTaskBadge(filterKey ? myCount : 0);
 
     // 任務查看 nav 角標（隊別任務數）
     var tvBadge = document.getElementById('taskViewBadge');
     if (tvBadge) {
-      if (team && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
+      if (filterKey && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
       else { tvBadge.style.display = 'none'; }
     }
 
     // 漢堡角標（手機，隊別任務數）
     var hBadge = document.getElementById('hamburgerBadge');
     if (hBadge) {
-      if (team && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'inline-block'; }
+      if (filterKey && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'inline-block'; }
       else { hBadge.style.display = 'none'; }
     }
 
     // 下拉選項：隊別任務 badge
     var myBadge = document.getElementById('dropMyTaskBadge');
     if (myBadge) {
-      if (team && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
+      if (filterKey && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
       else { myBadge.style.display = 'none'; }
     }
 
@@ -1830,6 +1827,17 @@ function _getMyTeam() {
   try { var s = localStorage.getItem('radAuth'); if (s) return JSON.parse(s).team || ''; } catch(e) {}
   return '';
 }
+function _getMyGroup() {
+  try { var s = localStorage.getItem('radAuth'); if (s) return JSON.parse(s).group || ''; } catch(e) {}
+  return '';
+}
+// 依組別決定任務過濾 key：技術組用 group-team，參謀組/新聞組用 group
+function _getMyTaskFilterKey() {
+  var group = _getMyGroup();
+  var team  = _getMyTeam();
+  if (group === '技術組') return team ? team : group;  // e.g. "技術組-北一小隊"
+  return group; // "參謀組" or "新聞組"
+}
 function openMyTaskModal(team) {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
@@ -1838,10 +1846,15 @@ function openMyTaskModal(team) {
     showIframe('current-events.html');
     return;
   }
-  var t = (team !== undefined && team !== null) ? team : _getMyTeam();
+  var filterKey = _getMyTaskFilterKey();
+  var group = _getMyGroup();
+  var myTeam = _getMyTeam();
+  var label = '';
+  if (group === '技術組') label = myTeam ? group + '-' + myTeam : group;
+  else label = group;
   setTimeout(function() {
-    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: t }, '*'); } catch(e) {}
-  }, 50);
+    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: filterKey, label: label }, '*'); } catch(e) {}
+  }, 100);
 }
 function toggleLoginPwd() {
   var f = document.getElementById('loginPwd');
