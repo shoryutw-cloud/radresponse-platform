@@ -807,7 +807,7 @@ cursor: pointer; transition: background .15s;
       </div>
       <!-- 備註 -->
       <div>
-        <div class="modal-section-lbl">備註（選填）</div>
+        <div class="modal-section-lbl">任務說明（選填）</div>
         <textarea class="modal-inp" id="assignNote" rows="2" placeholder="例：請攜帶 NaI 偵檢器，注意上風向…"></textarea>
       </div>
     </div>
@@ -5065,7 +5065,8 @@ function submitAssignment() {
     : '';
   var ptLine = '【量測點位置】\n' + tLabel + '-地圖右鍵新增 (' +
     _assignLatLng.lat.toFixed(5) + ',' + _assignLatLng.lng.toFixed(5) + ')';
-  var content = (windLine ? windLine + '\n' : '') + ptLine + (note ? '\n備註：' + note : '');
+  var autoInfo = '備註：\n' + (windLine ? windLine + '\n' : '') + ptLine;
+  var content = (note ? note + '\n' : '') + autoInfo;
 
   // 先存起來，closeAssignModal 會清掉原始變數
   var latlng = _assignLatLng;
@@ -6388,10 +6389,10 @@ function tdSubmitTask() {
         }
         return label;
       });
-      var append = (windLine ? windLine + '\n' : '') + '【量測點位置】\n' + ptLines.join('\n');
-      content = (content ? content + '\n' : '') + append;
+      var autoInfo = '備註：\n' + (windLine ? windLine + '\n' : '') + '【量測點位置】\n' + ptLines.join('\n');
+      content = (content ? content + '\n' : '') + autoInfo;
     } else if (windLine) {
-      content = (content ? content + '\n' : '') + windLine;
+      content = (content ? content + '\n' : '') + '備註：\n' + windLine;
     }
   }
 
@@ -6523,9 +6524,34 @@ function tvLoad() {
 }
 function tvRender() {
   var filter = document.getElementById('tvStatusSel').value;
-  var list = _tvTasks.filter(function(t) { return !filter || t.status === filter; });
-  document.getElementById('tvCount').textContent = '共 ' + list.length + ' 筆';
-  if (!list.length) {
+  var raw = _tvTasks.filter(function(t) { return !filter || t.status === filter; });
+
+  // ── 合併同批派送（相同 eventId + title + content）──
+  var grouped = [], seen = {};
+  raw.forEach(function(t) {
+    var key = (t.eventId || '') + '|' + (t.title || '') + '|' + (t.content || '');
+    if (seen[key] !== undefined) {
+      // 合併 target
+      grouped[seen[key]].targets.push(t.target || '');
+      // 任一筆 pending → 整批 pending
+      if (t.status !== 'done') grouped[seen[key]].status = t.status;
+    } else {
+      seen[key] = grouped.length;
+      grouped.push({
+        eventId:   t.eventId,
+        title:     t.title,
+        content:   t.content,
+        priority:  t.priority,
+        createdAt: t.createdAt,
+        status:    t.status,
+        targets:   [t.target || ''],
+        taskId:    t.taskId
+      });
+    }
+  });
+
+  document.getElementById('tvCount').textContent = '共 ' + grouped.length + ' 筆';
+  if (!grouped.length) {
     document.getElementById('tvBody').innerHTML =
       '<div style="text-align:center;padding:40px;color:#94a3b8">📭 無任務紀錄</div>';
     return;
@@ -6538,7 +6564,7 @@ function tvRender() {
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
-  list.forEach(function(t, idx) {
+  grouped.forEach(function(t, idx) {
     var evName = _tvEvMap[t.eventId] || t.eventId;
     var ts = '—';
     try { var d=new Date(t.createdAt); if(!isNaN(d.getTime())) ts=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); } catch(e){}
@@ -6547,11 +6573,12 @@ function tvRender() {
       ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">✅ 已完成</span>'
       : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
     var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
+    var targetStr = t.targets.filter(Boolean).join('、');
     var rowStyle = 'border-bottom:' + (t.content ? 'none' : '1px solid #f0f4f8') + (isDone?';opacity:.65':'');
     html += '<tr style="' + rowStyle + '">';
     html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;color:#3d5070;white-space:nowrap">'+_esc(t.target)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;color:#3d5070">'+_esc(targetStr)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
