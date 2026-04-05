@@ -6263,15 +6263,21 @@ function tdSetStep(n) {
   [1,2].forEach(function(i) {
     var el = document.getElementById('tdStep' + i);
     var panel = document.getElementById('tdPanel' + i);
-    el.classList.remove('active','done');
+    if (el) { el.classList.remove('active','done'); }
     if (panel) panel.classList.remove('active');
-    if (i < n) el.classList.add('done');
-    else if (i === n) el.classList.add('active');
+    if (el) {
+      if (i < n) el.classList.add('done');
+      else if (i === n) el.classList.add('active');
+    }
   });
-  document.getElementById('tdPanel' + n).classList.add('active');
-  document.getElementById('tdBtnGroup1').style.display = (n === 1) ? 'flex' : 'none';
-  document.getElementById('tdBtnGroup2').style.display = (n === 2) ? 'flex' : 'none';
-  document.getElementById('tdSuccessBox').classList.remove('show');
+  var activePanel = document.getElementById('tdPanel' + n);
+  if (activePanel) activePanel.classList.add('active');
+  var g1 = document.getElementById('tdBtnGroup1');
+  var g2 = document.getElementById('tdBtnGroup2');
+  if (g1) g1.style.display = (n === 1) ? 'flex' : 'none';
+  if (g2) g2.style.display = (n === 2) ? 'flex' : 'none';
+  var sb = document.getElementById('tdSuccessBox');
+  if (sb) sb.classList.remove('show');
 }
 
 function tdSetStatus(msg, ok) {
