@@ -470,16 +470,16 @@
   <div id="drawerAuthContent" class="auth-hidden">
     <div class="drawer-section">
       <div class="drawer-section-title">事件儀表板</div>
-      <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">🗺️ 目前事件</button>
-      <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">🧭 導航至量測點</button>
-      <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">📋 歷史事件查詢</button>
+      <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">目前事件</button>
+      <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">導航至量測點</button>
+      <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">歷史事件查詢</button>
     </div>
 
     <div class="drawer-section">
       <div class="drawer-section-title">回報</div>
       <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
-      <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">🔍 回報數值查詢</button>
-      <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">📝 現場其他事情回報</button>
+      <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">回報數值查詢</button>
+      <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">現場其他事情回報</button>
     </div>
 
     <div class="drawer-section">
@@ -490,24 +490,23 @@
 
     <div class="drawer-section">
       <div class="drawer-section-title">設定</div>
-      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">👤 個人資料維護</button>
-      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">📖 使用說明</button>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
     </div>
 
     <!-- 後台功能：僅管理員可見 -->
     <div class="drawer-section auth-hidden" id="drawerAdminSection">
       <div class="drawer-section-title">後台功能</div>
-      <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">🔑 開啟/關閉編輯地圖</button>
-      <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">➕ 建立事件</button>
-      <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">✏️ 編輯事件</button>
-      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">📨 派送任務</button>
-      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">📋 查看任務</button>
-      <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">👥 編組管理</button>
-      <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">🔧 儀器管理</button>
-      <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">📱 出勤通知簡訊紀錄</button>
-      <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">📜 事件異動紀錄</button>
-      <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">🗒️ 各帳號異動紀錄</button>
-      <button class="drawer-item" onclick="openPanel('各帳號登入紀錄');closeDrawer()">🔐 各帳號登入紀錄</button>
+      <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
+      <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
+      <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
+      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">派送任務</button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">查看任務</button>
+      <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">編組管理</button>
+      <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">儀器管理</button>
+      <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">出勤通知簡訊紀錄</button>
+      <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">事件異動紀錄</button>
+      <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">各帳號異動紀錄</button>
+      <button class="drawer-item" onclick="openPanel('各帳號登入紀錄');closeDrawer()">各帳號登入紀錄</button>
     </div>
 
     <button class="drawer-logout" onclick="doLogout()">← 登出</button>
@@ -607,8 +606,6 @@
 </div>
 <div class="top-drop" id="drop-user">
   <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
-  <button class="top-drop-btn" onclick="openPanel('使用說明');closeAllMenus()">使用說明</button>
-  <div style="height:1px;background:#2d3f54;margin:4px 0"></div>
   <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
 </div>
 <div class="top-drop" id="drop-admin">
@@ -848,7 +845,7 @@ function closeDrawer() {
 function drawerToggleAdmin() {
   toggleMapEdit();
   var btn = document.getElementById('drawerAdminBtn');
-  if (btn) btn.textContent = _mapEditOn ? '🔑 編輯地圖（開啟中）' : '🔑 開啟/關閉編輯地圖';
+  if (btn) btn.textContent = _mapEditOn ? '🔑 編輯地圖（開啟中）' : '開啟/關閉編輯地圖';
   closeDrawer();
 }
 
@@ -1438,7 +1435,7 @@ function sendMapEditMsg() {
     <!-- 共用標頭 -->
     <div style="display:flex;align-items:center;justify-content:space-between;
       padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
-      <div style="font-size:16px;font-weight:700;color:#1e2a3a">🧭 導航至量測點</div>
+      <div style="font-size:16px;font-weight:700;color:#1e2a3a">導航至量測點</div>
       <button onclick="closeNavSelectModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
     </div>
 
@@ -1852,7 +1849,7 @@ function _updateEditEventBtn() {
   var btnDesktop = document.getElementById('btnEditEvent');
   if (btnDesktop) btnDesktop.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
   var btnDrawer = document.getElementById('drawerEditEventBtn');
-  if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '✏️ 編輯事件（開啟中）' : '✏️ 編輯事件';
+  if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
 }
 
 // ── 任務派送：確保在地圖頁，再通知 iframe 開啟 Modal ──
