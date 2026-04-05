@@ -6451,7 +6451,7 @@ function _tdEsc(s) {
 <div id="taskViewModal">
   <div style="
     background:white;border-radius:14px;overflow:hidden;
-    width:min(860px,96vw);max-height: 88vh;
+    width:min(1060px,96vw);max-height: 88vh;
     display:flex;flex-direction:column;
     box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
     <div style="display:flex;align-items:center;justify-content:space-between;
@@ -6551,7 +6551,7 @@ function tvRender() {
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
-      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:12px;color:#6b7a92;white-space:pre-wrap;line-height:1.6">'+_esc(t.content)+'</td>';
+      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:12px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
       html += '</tr>';
     }
   });
@@ -6573,7 +6573,7 @@ function tvRender() {
 </style>
 <div id="myTaskModal">
   <div style="background:white;border-radius:14px;overflow:hidden;
-    width:min(780px,96vw);max-height: 88vh;
+    width:min(980px,96vw);max-height: 88vh;
     display:flex;flex-direction:column;
     box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
     <div style="display:flex;align-items:center;justify-content:space-between;
@@ -6768,7 +6768,7 @@ function myTaskRender() {
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
-      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:12px;color:#6b7a92;white-space:pre-wrap;line-height:1.6">'+_esc(t.content)+'</td>';
+      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:12px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
       html += '</tr>';
     }
   });
