@@ -424,12 +424,14 @@
   <!-- 手機漢堡按鈕 -->
   <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單" style="position:relative">
     <span></span><span></span><span></span>
-    <span id="hamburgerBadge" style="
-      display:none;position:absolute;top:4px;right:4px;
-      background:#dc2626;color:white;border-radius:10px;
+    <div id="hamburgerBadge" style="
+      display:none;position:absolute;top:-2px;right:-2px;
+      background:#dc2626;color:white;border-radius:50%;
       font-size:10px;font-weight:700;line-height:1;
-      padding:2px 5px;min-width:15px;text-align:center;
-      pointer-events:none;z-index:1">0</span>
+      width:18px;height:18px;
+      display:none;align-items:center;justify-content:center;
+      pointer-events:none;z-index:1;
+      box-shadow:0 1px 3px rgba(0,0,0,.3)">0</div>
   </button>
 </div>
 
@@ -464,14 +466,8 @@
 
     <div class="drawer-section">
       <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
-      <button class="drawer-item" onclick="closeDrawer();openMyTaskModal(_getMyTeam())">我的任務</button>
-      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務</button>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-title">設定</div>
-      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
-      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">使用說明</button>
+      <button class="drawer-item" onclick="closeDrawer();openMyTaskModal()">隊別任務 <span id="drawerMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務 <span id="drawerAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
     </div>
 
     <!-- 後台功能：僅管理員可見 -->
@@ -1103,6 +1099,22 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 80);
     });
   });
+
+  // ── tnav-user：手機版 click toggle（hover 仍適用桌機）──
+  var userNav = document.getElementById('tnav-user');
+  var userDrop = document.getElementById('drop-user');
+  if (userNav && userDrop) {
+    userNav.querySelector('.tnav-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = userDrop.classList.contains('active');
+      closeAllMenus();
+      if (!isOpen) {
+        userDrop.classList.add('active');
+        positionDrop(userDrop, userNav);
+        userNav.classList.add('open');
+      }
+    });
+  }
 
   // ── L3：事件管理 hover（在 drop-admin 內）──
   if (btnJishi && dropJishi && dropAdmin) {
@@ -1739,7 +1751,7 @@ function _fetchTaskBadge() {
     // 漢堡角標（手機，隊別任務數）
     var hBadge = document.getElementById('hamburgerBadge');
     if (hBadge) {
-      if (filterKey && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'inline-block'; }
+      if (filterKey && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'flex'; }
       else { hBadge.style.display = 'none'; }
     }
 
@@ -1749,12 +1761,23 @@ function _fetchTaskBadge() {
       if (filterKey && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
       else { myBadge.style.display = 'none'; }
     }
+    // 抽屜：隊別任務 badge
+    var dMyBadge = document.getElementById('drawerMyTaskBadge');
+    if (dMyBadge) {
+      if (filterKey && myCount > 0) { dMyBadge.textContent = myCount; dMyBadge.style.display = 'inline'; }
+      else { dMyBadge.style.display = 'none'; }
+    }
 
     // 下拉選項：所有任務 badge（橘色）
     var allBadge = document.getElementById('dropAllTaskBadge');
     if (allBadge) {
       if (allCount > 0) { allBadge.textContent = allCount; allBadge.style.display = 'inline'; }
       else { allBadge.style.display = 'none'; }
+    }
+    var dAllBadge = document.getElementById('drawerAllTaskBadge');
+    if (dAllBadge) {
+      if (allCount > 0) { dAllBadge.textContent = allCount; dAllBadge.style.display = 'inline'; }
+      else { dAllBadge.style.display = 'none'; }
     }
   });
 }
