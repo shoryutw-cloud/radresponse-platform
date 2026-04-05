@@ -217,13 +217,14 @@ cursor: pointer; transition: all .15s;
 .chg-modal-overlay {
   position: fixed; inset: 0; z-index: 3000;
   background: rgba(0,0,0,0.45); display: none;
-  align-items: center; justify-content: center;
+  align-items: flex-start; justify-content: center;
+  padding-top: 6vh;
 }
 .chg-modal-overlay.show { display: flex; }
 .chg-modal {
   background: white; border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-  width: min(720px, 95vw); max-height: 90vh;
+  width: min(720px, 95vw); max-height: 88vh;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .chg-modal-hd {
@@ -470,8 +471,8 @@ transition: background .1s;
 .modal-overlay {
 position: fixed; inset: 0; z-index: 7000;
 background: rgba(0,0,0,.45); display: flex;
-align-items: center; justify-content: center;
-padding: 20px; backdrop-filter: blur(2px);
+align-items: flex-start; justify-content: center;
+padding: 6vh 20px 20px; backdrop-filter: blur(2px);
 }
 .modal-card {
 background: white; border-radius: 14px;
@@ -479,7 +480,7 @@ box-shadow: 0 16px 48px rgba(0,0,0,.22);
 width: 100%; max-width: 420px;
 display: flex; flex-direction: column;
 animation: modalIn .2s cubic-bezier(.34,1.3,.7,1);
-max-height: 90vh; overflow: hidden;
+max-height: 88vh; overflow: hidden;
 }
 @keyframes modalIn { from { opacity:0; transform:translateY(24px) scale(.97); } to { opacity:1; transform:none; } }
 .modal-header {
@@ -866,7 +867,7 @@ cursor: pointer; transition: background .15s;
      出勤人員 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="personnelViewModal">
-  <div class="chg-modal" style="width:min(640px,96vw);max-height:90vh">
+  <div class="chg-modal" style="width:min(640px,96vw);max-height: 88vh">
     <div class="chg-modal-hd">
       <span>👥 事件出勤人員</span>
       <button class="chg-modal-close" onclick="closePersonnelViewModal()">✕</button>
@@ -884,7 +885,7 @@ cursor: pointer; transition: background .15s;
      出動儀器 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="instrViewModal">
-  <div class="chg-modal" style="width:min(820px,96vw);max-height:90vh">
+  <div class="chg-modal" style="width:min(820px,96vw);max-height: 88vh">
     <div class="chg-modal-hd">
       <span>🔧 攜帶儀器</span>
       <button class="chg-modal-close" onclick="closeInstrViewModal()">✕</button>
@@ -903,7 +904,7 @@ cursor: pointer; transition: background .15s;
      回報數值查詢 Modal
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="msrQueryModal">
-  <div class="chg-modal" style="width:min(1100px,96vw);max-height:90vh">
+  <div class="chg-modal" style="width:min(1100px,96vw);max-height: 88vh">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
       <span>📊 回報數值查詢</span>
       <button class="chg-modal-close" onclick="closeMsrQueryModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
@@ -1045,7 +1046,7 @@ cursor: pointer; transition: background .15s;
 <!-- 回報劑量確認 Modal -->
 <div id="msrConfirmModal" style="
   display:none;position:fixed;inset:0;z-index:8000;
-  background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  background:rgba(0,0,0,.5);align-items:flex-start;justify-content:center;padding-top:6vh;">
   <div style="
     background:white;border-radius:14px;overflow:hidden;
     width:min(400px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.3);
@@ -5873,7 +5874,8 @@ function updateUserDirCone() {
 /* ── 任務派送 Modal 樣式（前綴 td- 避免衝突）── */
 #tdModal {
   display: none; position: fixed; inset: 0; z-index: 8000;
-  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center;
+  padding-top: 6vh;
 }
 #tdModal.open { display: flex; }
 #tdBox {
@@ -6378,14 +6380,15 @@ function _tdEsc(s) {
 <style>
 #taskViewModal {
   display: none; position: fixed; inset: 0; z-index: 8100;
-  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center;
+  padding-top: 6vh;
 }
 #taskViewModal.open { display: flex; }
 </style>
 <div id="taskViewModal">
   <div style="
     background:white;border-radius:14px;overflow:hidden;
-    width:min(860px,96vw);max-height:90vh;
+    width:min(860px,96vw);max-height: 88vh;
     display:flex;flex-direction:column;
     box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
     <div style="display:flex;align-items:center;justify-content:space-between;
@@ -6491,13 +6494,14 @@ function tvRender() {
 <style>
 #myTaskModal {
   display: none; position: fixed; inset: 0; z-index: 8200;
-  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center;
+  padding-top: 6vh;
 }
 #myTaskModal.open { display: flex; }
 </style>
 <div id="myTaskModal">
   <div style="background:white;border-radius:14px;overflow:hidden;
-    width:min(780px,96vw);max-height:90vh;
+    width:min(780px,96vw);max-height: 88vh;
     display:flex;flex-direction:column;
     box-shadow:0 8px 40px rgba(0,0,0,.35);font-family:var(--font)">
     <div style="display:flex;align-items:center;justify-content:space-between;
