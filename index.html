@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-<title>應變資訊平台</title>
+<title>輻射事件應變資訊平台</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☢️</text></svg>">
 <link rel="apple-touch-icon" href="logo.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -486,6 +486,12 @@
       <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal()">隊別任務 <span id="drawerMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務 <span id="drawerAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">設定</div>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">👤 個人資料維護</button>
+      <button class="drawer-item" onclick="openPanel('使用說明');closeDrawer()">📖 使用說明</button>
     </div>
 
     <!-- 後台功能：僅管理員可見 -->
