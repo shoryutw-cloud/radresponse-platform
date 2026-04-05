@@ -6136,17 +6136,34 @@ function updateUserDirCone() {
 // 任務派送 Modal JS（單頁：組別+內容同時填）
 // ════════════════════════════════════════════
 var _tdSelectedSquads = [];
-var _tdTaskType = 'other';       // 'msr' | 'other'
-var _tdMsrPts   = [];            // 快照：量測點 [{label,tip}]，一旦抓到就不刪除
-var _tdSelectedPts = [];         // 已勾選的點位 label 陣列
+var _tdTaskType = 'other';
+var _tdMsrPts   = [];
+var _tdSelectedPts = [];
+
+// 所有已知隊別（技術組 + 參謀組 + 新聞組），在頁面載入後立即快取
+var _tdAllSquads = [];
+function _tdLoadSquads(cb) {
+  if (_tdAllSquads.length) { cb(); return; }
+  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
+    var techSquads = (data && data.squads) ? data.squads : [];
+    _tdAllSquads = techSquads.slice();
+    ['參謀組', '新聞組'].forEach(function(s) {
+      if (_tdAllSquads.indexOf(s) === -1) _tdAllSquads.push(s);
+    });
+    cb();
+  });
+}
 
 function openTdModal() {
   _checkModalConflict('td', function() {
     var ev = _events[_curIdx];
     if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
-    document.getElementById('tdModal').classList.add('open');
-    _setActiveModal('td');
-    tdResetForm();
+    // 先確保隊別資料已載入，再開 modal
+    _tdLoadSquads(function() {
+      document.getElementById('tdModal').classList.add('open');
+      _setActiveModal('td');
+      tdResetForm();
+    });
   });
 }
 
@@ -6263,38 +6280,15 @@ function tdSetStatus(msg, ok) {
   el.style.color = ok ? '#16a34a' : '#6b7a92';
 }
 
-// 派送對象：直接從 GAS 抓技術組所有隊別 + 參謀組 + 新聞組
+// 派送對象：直接用已快取的 _tdAllSquads
 function tdRenderSquads() {
   var grid = document.getElementById('tdSquadGrid');
   if (!grid) return;
-
-  // 若已有快取，直接渲染
-  if (_pmSquadOrder && _pmSquadOrder.length) {
-    _tdBuildSquadGrid(grid);
+  if (!_tdAllSquads.length) {
+    grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⚠️ 無法取得隊別資料，請關閉後重試</div>';
     return;
   }
-
-  // 否則先載入 getSquads
-  grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⏳ 載入隊別資料中…</div>';
-  _jsonpGet(SHEETS_URL + '?action=getSquads', function(data) {
-    _pmSquadOrder = (data && data.squads) ? data.squads : [];
-    _tdBuildSquadGrid(grid);
-  });
-}
-
-function _tdBuildSquadGrid(grid) {
-  // 技術組各隊 + 參謀組 + 新聞組
-  var allSquads = (_pmSquadOrder || []).slice();
-  ['參謀組', '新聞組'].forEach(function(s) {
-    if (allSquads.indexOf(s) === -1) allSquads.push(s);
-  });
-
-  if (!allSquads.length) {
-    grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">⚠️ 無法取得隊別資料，請重試</div>';
-    return;
-  }
-
-  grid.innerHTML = allSquads.map(function(sq) {
+  grid.innerHTML = _tdAllSquads.map(function(sq) {
     return '<button class="td-squad-btn" data-sq="' + _tdEsc(sq) + '" onclick="tdSelectSquad(this)">' + _tdEsc(sq) + '</button>';
   }).join('');
   _tdSelectedSquads = [];
@@ -6584,25 +6578,11 @@ function _clearActiveModal()   { _activeModal = null; }
 // name: 要開的新 modal 名稱
 // onConfirm: 確認後執行的 callback
 function _checkModalConflict(name, onConfirm) {
-  if (!_activeModal || _activeModal === name) { onConfirm(); return; }
-  var labels = {
-    'td':          '派送任務',
-    'taskView':    '查看任務',
-    'myTask':      '隊別任務',
-    'msrQuery':    '回報數值查詢',
-    'personnelView':'事件出勤人員',
-    'instrView':   '攜帶儀器',
-    'personnel':   '出勤人員異動',
-    'instr':       '攜帶儀器異動',
-    'assign':      '量測任務派遣',
-    'measure':     '回報劑量',
-  };
-  var currLabel = labels[_activeModal] || _activeModal;
-  var newLabel  = labels[name]         || name;
-  if (confirm('目前「' + currLabel + '」尚未關閉。\n是否取消並開啟「' + newLabel + '」？')) {
+  // 有其他 modal 開著時，直接關閉它再開新的
+  if (_activeModal && _activeModal !== name) {
     _closeAllModals();
-    onConfirm();
   }
+  onConfirm();
 }
 
 function _closeAllModals() {
