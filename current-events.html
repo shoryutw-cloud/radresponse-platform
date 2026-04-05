@@ -4496,7 +4496,7 @@ function _loadTaskMarkers() {
     _jsonpGet(SHEETS_URL + '?action=tasks&eventId=' + encodeURIComponent(ev.id), function(data) {
       if (!data || !data.tasks) return;
       data.tasks.forEach(function(task) {
-        if (task.title !== '量測點任務') return;
+        if (task.title !== '量測任務') return;
         // 從 content 解析座標（格式：「座標：lat, lng　地址：...」）
         var m = task.content.match(/座標：([\d.]+),\s*([\d.]+)/);
         if (!m) return;
@@ -5053,11 +5053,17 @@ function submitAssignment() {
   var ev = _events[_curIdx];
   if (!ev) { alert('找不到目前事件'); return; }
 
-  var note    = document.getElementById('assignNote').value.trim();
-  var addrStr = document.getElementById('assignAddrVal').textContent;
-  var locDesc = '座標：' + _assignLatLng.lat.toFixed(6) + ', ' + _assignLatLng.lng.toFixed(6) +
-                '　地址：' + addrStr;
-  var content = locDesc + (note ? '\n備註：' + note : '');
+  // 計算本點的 T 編號（與 placeTempMeasureMarker 相同邏輯）
+  var evId2  = ev.id;
+  var tNum   = _taskMarkers.filter(function(t){ return t.eventId === evId2; }).length + 1;
+  var tLabel = 'T' + (tNum < 10 ? '0' + tNum : tNum);
+
+  var windLine = (ev.windDir && ev.windDir !== '')
+    ? '【派送時風向】' + ev.windDir + '°' + (ev.windSpeed ? ' / ' + ev.windSpeed + ' m/s' : '')
+    : '';
+  var ptLine = '【量測點位置】\n' + tLabel + '-地圖右鍵新增 (' +
+    _assignLatLng.lat.toFixed(5) + ',' + _assignLatLng.lng.toFixed(5) + ')';
+  var content = (windLine ? windLine + '\n' : '') + ptLine + (note ? '\n備註：' + note : '');
 
   // 先存起來，closeAssignModal 會清掉原始變數
   var latlng = _assignLatLng;
@@ -5073,7 +5079,7 @@ function submitAssignment() {
     action:   'addTask',
     eventId:  ev.id,
     target:   squad,
-    title:    '量測點任務',
+    title:    '量測任務',
     content:  content,
     priority: 'high'
   };
