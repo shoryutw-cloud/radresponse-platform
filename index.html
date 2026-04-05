@@ -383,6 +383,15 @@
 
   <!-- 桌機橫向導覽列（靠右；未登入時隱藏）-->
   <nav class="top-nav auth-hidden" id="topNav">
+    <!-- 姓名顯示（事件儀表板左邊）-->
+    <div class="tnav-item auth-hidden" id="tnav-user" style="margin-right:4px">
+      <button class="tnav-btn" style="
+        color:#e8f0fa;font-weight:600;font-size:13px;
+        border:1px solid rgba(255,255,255,0.18);border-radius:6px;
+        padding:0 14px;margin:8px 0;height:36px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
+      </button>
+    </div>
     <div class="tnav-item" id="tnav-dashboard">
       <button class="tnav-btn" onclick="showIframe('current-events.html')">事件儀表板</button>
     </div>
@@ -407,16 +416,6 @@
       <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9664;</span></button>
     </div>
   </nav>
-
-  <!-- 姓名下拉選單（登入後顯示，hover 展開）-->
-  <div class="tnav-item auth-hidden" id="tnav-user" style="margin-left:8px">
-    <button class="tnav-btn" style="
-      color:#e8f0fa;font-weight:600;font-size:13px;
-      border:1px solid rgba(255,255,255,0.18);border-radius:6px;
-      padding:0 14px;margin:8px 0;height:36px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-      <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
-    </button>
-  </div>
 
   <!-- 登入按鈕（未登入才顯示）-->
   <button id="topbarLoginBtn" onclick="openLoginModal()">&#x2192; 登入</button>
@@ -1681,10 +1680,8 @@ function _applyAuthUI(user) {
     // team 可能是多個隊別，以 / 分隔（格式：北一小隊/南一小隊）
     var teamParts = dispTeam ? dispTeam.split('/').map(function(t){ return t.trim(); }).filter(Boolean) : [];
     var label = '';
-    if (dispGroup && teamParts.length) {
-      label = dispGroup + '-' + teamParts.join('/') + '，' + user.name;
-    } else if (dispGroup) {
-      label = dispGroup + '，' + user.name;
+    if (dispGroup) {
+      label = dispGroup + '・' + user.name;
     } else {
       label = user.name;
     }
@@ -1878,7 +1875,7 @@ function _getMyGroup() {
 function _getMyTaskFilterKey() {
   var group = _getMyGroup();
   var team  = _getMyTeam();
-  if (group === '技術組') return team ? team : group;  // e.g. "技術組-北一小隊"
+  if (group === '技術組') return team ? group + '-' + team : group; // "技術組-北三小隊"
   return group; // "參謀組" or "新聞組"
 }
 function openMyTaskModal(team) {
