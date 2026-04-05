@@ -6207,22 +6207,41 @@ function tdSnapshotMsrPts() {
   if (_tdMsrPts.length > 0) return;
   var ev = _events[_curIdx];
   if (!ev || !ev.windDir || ev.windDir === '') return;
+  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+  if (isNaN(la) || isNaN(lo)) return;
+
+  var wd = (parseFloat(ev.windDir) + 180) % 360;
   var pts = [];
+
+  // 扇形 10 點（含座標）
   [
-    { label:'1',  tip:'1km中線',   group:'sector' },
-    { label:'2',  tip:'500m中線',  group:'sector' },
-    { label:'3',  tip:'2km中線',   group:'sector' },
-    { label:'4',  tip:'3km上緣',   group:'sector' },
-    { label:'5',  tip:'3km中線',   group:'sector' },
-    { label:'6',  tip:'3km下緣',   group:'sector' },
-    { label:'7',  tip:'4km中線',   group:'sector' },
-    { label:'8',  tip:'5km上緣',   group:'sector' },
-    { label:'9',  tip:'5km中線',   group:'sector' },
-    { label:'10', tip:'5km下緣',   group:'sector' }
-  ].forEach(function(p){ pts.push(p); });
-  for (var i = 1; i <= 20; i++) {
-    pts.push({ label:'A' + (i < 10 ? '0'+i : ''+i), tip:'橫切面第'+i+'點', group:'cross' });
+    { label:'1',  tip:'1km中線',  bearing: wd,        dist: 1000 },
+    { label:'2',  tip:'500m中線', bearing: wd,        dist: 500  },
+    { label:'3',  tip:'2km中線',  bearing: wd,        dist: 2000 },
+    { label:'4',  tip:'3km上緣',  bearing: wd - 22.5, dist: 3000 },
+    { label:'5',  tip:'3km中線',  bearing: wd,        dist: 3000 },
+    { label:'6',  tip:'3km下緣',  bearing: wd + 22.5, dist: 3000 },
+    { label:'7',  tip:'4km中線',  bearing: wd,        dist: 4000 },
+    { label:'8',  tip:'5km上緣',  bearing: wd - 22.5, dist: 5000 },
+    { label:'9',  tip:'5km中線',  bearing: wd,        dist: 5000 },
+    { label:'10', tip:'5km下緣',  bearing: wd + 22.5, dist: 5000 }
+  ].forEach(function(d) {
+    var pt = destPoint(la, lo, d.bearing, d.dist);
+    pts.push({ label: d.label, tip: d.tip, group: 'sector', lat: pt[0], lng: pt[1] });
+  });
+
+  // 橫切面 20 點 A01–A20（與地圖相同算法）
+  var lineCenter = destPoint(la, lo, wd, 1000);
+  var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
+  var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
+  for (var i = 0; i < 20; i++) {
+    var t = i / 19;
+    var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
+    var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
+    var cLabel = 'A' + (i + 1 < 10 ? '0' + (i + 1) : '' + (i + 1));
+    pts.push({ label: cLabel, tip: '橫切面第' + (i + 1) + '點', group: 'cross', lat: cLat, lng: cLng });
   }
+
   _tdMsrPts = pts;
 }
 
@@ -6345,9 +6364,27 @@ function tdSubmitTask() {
   var content  = document.getElementById('tdTaskContent').value.trim();
   var priority = document.getElementById('tdTaskPriority').value;
 
-  // 量測任務：把選中的點位加到說明
-  if (_tdTaskType === 'msr' && _tdSelectedPts.length > 0) {
-    content = (content ? content + '\n' : '') + '指定點位：' + _tdSelectedPts.join('、');
+  // 量測任務：附上派送時風向 + 選中點位座標
+  if (_tdTaskType === 'msr') {
+    var windLine = (ev.windDir && ev.windDir !== '')
+      ? '【派送時風向】' + ev.windDir + '°' + (ev.windSpeed ? ' / ' + ev.windSpeed + ' m/s' : '')
+      : '';
+    if (_tdSelectedPts.length > 0) {
+      var ptLines = _tdSelectedPts.map(function(label) {
+        var found = null;
+        for (var pi = 0; pi < _tdMsrPts.length; pi++) {
+          if (_tdMsrPts[pi].label === label) { found = _tdMsrPts[pi]; break; }
+        }
+        if (found && found.lat !== undefined) {
+          return label + '-' + found.tip + ' (' + found.lat.toFixed(5) + ',' + found.lng.toFixed(5) + ')';
+        }
+        return label;
+      });
+      var append = (windLine ? windLine + '\n' : '') + '【量測點位置】\n' + ptLines.join('\n');
+      content = (content ? content + '\n' : '') + append;
+    } else if (windLine) {
+      content = (content ? content + '\n' : '') + windLine;
+    }
   }
 
   var squads = _tdSelectedSquads.slice();
