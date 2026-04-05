@@ -134,6 +134,20 @@
   .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
 
 
+  /* ────── 手機版姓名標籤 ────── */
+  .topbar-name-mobile {
+    display: none; /* 桌機隱藏，手機 media query 才顯示 */
+    flex: 1;
+    text-align: center;
+    color: #e8f0fa;
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 8px;
+  }
+
   /* ────── 漢堡按鈕 ────── */
   .hamburger-btn {
     display: none; flex-direction: column; justify-content: center;
@@ -209,6 +223,8 @@
     /* 手機版只顯示 logo 圖示，隱藏文字 */
     .logo-text { display: none !important; }
     .topbar { padding: 0 14px; overflow: visible; }
+    /* 手機版姓名顯示 */
+    .topbar-name-mobile { display: block; }
   }
 
   /* ────── LAYOUT ────── */
@@ -416,6 +432,9 @@
       <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9664;</span></button>
     </div>
   </nav>
+
+  <!-- 手機版姓名（登入後，手機才顯示）-->
+  <span id="topbarNameMobile" class="auth-hidden topbar-name-mobile"></span>
 
   <!-- 登入按鈕（未登入才顯示）-->
   <button id="topbarLoginBtn" onclick="openLoginModal()">&#x2192; 登入</button>
@@ -1687,6 +1706,9 @@ function _applyAuthUI(user) {
     }
     nameEl.textContent = label;
   }
+  // 手機版姓名同步
+  var nameMobileEl = document.getElementById('topbarNameMobile');
+  if (nameMobileEl) nameMobileEl.textContent = label;
 
   // 隱藏 dashboard 歡迎文字（若還存在）
   var dashW = document.getElementById('dashWelcome');
