@@ -5053,6 +5053,8 @@ function submitAssignment() {
   var ev = _events[_curIdx];
   if (!ev) { alert('找不到目前事件'); return; }
 
+  var note   = document.getElementById('assignNote').value.trim();
+
   // 計算本點的 T 編號（與 placeTempMeasureMarker 相同邏輯）
   var evId2  = ev.id;
   var tNum   = _taskMarkers.filter(function(t){ return t.eventId === evId2; }).length + 1;
