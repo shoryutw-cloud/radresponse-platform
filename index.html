@@ -407,7 +407,7 @@
     <button class="tnav-btn" style="
       color:#e8f0fa;font-weight:600;font-size:13px;
       border:1px solid rgba(255,255,255,0.18);border-radius:6px;
-      padding:0 14px;margin:8px 0;height:36px;">
+      padding:0 14px;margin:8px 0;height:36px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
       <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
     </button>
   </div>
@@ -1655,9 +1655,23 @@ function _applyAuthUI(user) {
     if (adminSec) adminSec.style.display = 'none';
   }
 
-  // 顯示姓名（topbar 姓名下拉）
+  // 顯示姓名（topbar 姓名下拉）—— 格式：技術組-北一小隊/南一小隊，王大明
   var nameEl = document.getElementById('topbarName');
-  if (nameEl) nameEl.textContent = user.name;
+  if (nameEl) {
+    var dispGroup = user.group || '';
+    var dispTeam  = user.team  || '';
+    // team 可能是多個隊別，以 / 分隔（格式：北一小隊/南一小隊）
+    var teamParts = dispTeam ? dispTeam.split('/').map(function(t){ return t.trim(); }).filter(Boolean) : [];
+    var label = '';
+    if (dispGroup && teamParts.length) {
+      label = dispGroup + '-' + teamParts.join('/') + '，' + user.name;
+    } else if (dispGroup) {
+      label = dispGroup + '，' + user.name;
+    } else {
+      label = user.name;
+    }
+    nameEl.textContent = label;
+  }
 
   // 隱藏 dashboard 歡迎文字（若還存在）
   var dashW = document.getElementById('dashWelcome');

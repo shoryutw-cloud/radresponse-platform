@@ -904,9 +904,9 @@ cursor: pointer; transition: background .15s;
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="msrQueryModal">
   <div class="chg-modal" style="width:min(1100px,96vw);max-height:90vh">
-    <div class="chg-modal-hd">
+    <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
       <span>📊 回報數值查詢</span>
-      <button class="chg-modal-close" onclick="closeMsrQueryModal()">✕</button>
+      <button class="chg-modal-close" onclick="closeMsrQueryModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
     </div>
     <div class="chg-modal-bd" id="msrQueryBody" style="padding:16px 20px">
       <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
@@ -6026,15 +6026,9 @@ function updateUserDirCone() {
 <!-- 任務派送 Modal HTML -->
 <div id="tdModal">
   <div id="tdBox">
-    <!-- 標頭（與其他 modal 一致：白底、下邊框）-->
-    <div id="tdHeader" style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0">
-      <span style="font-size:15px;font-weight:700;color:#1e2a3a;flex:1">📋 派送任務</span>
-      <button onclick="closeTdModal()" style="width:28px;height:28px;border-radius:5px;border:1px solid #e2e8f0;background:none;cursor:pointer;font-size:13px;color:#6b7a92;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>
-    <!-- 步驟指示（簡化為提示列）-->
-    <div id="tdSteps" style="padding:10px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;color:#6b7a92;flex-shrink:0">
-      <span id="tdStep1" style="display:none"></span>
-      <span id="tdStep2" style="display:none"></span>
+    <div id="tdHeader" style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:#1e2a3a;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700;color:#e8f0fa;flex:1">📋 派送任務</span>
+      <button onclick="closeTdModal()" style="width:28px;height:28px;border-radius:5px;border:none;background:none;cursor:pointer;font-size:20px;color:#8da0b8;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <!-- 主體：單一畫面 -->
     <div id="tdBody">
