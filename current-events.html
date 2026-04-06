@@ -6879,30 +6879,33 @@ function openMsrTaskPick() {
   document.getElementById('msrTaskPickModal').style.display = 'flex';
   _jsonpGet(SHEETS_URL + '?action=tasks&eventId=' + encodeURIComponent(ev.id), function(data) {
     var tasks = (data && data.tasks) ? data.tasks : [];
-    // 只取量測任務、尚未完成、合併同批
-    var seen = {}, filtered = [];
+    // 合併同批（相同 content），收集所有 target
+    var seenIdx = {}, grouped = [];
     tasks.forEach(function(t) {
       if (t.title !== '量測任務') return;
-      var key = (t.content || '');
-      if (!seen[key]) {
-        seen[key] = true;
-        filtered.push(t);
+      var key = t.content || '';
+      if (seenIdx[key] !== undefined) {
+        grouped[seenIdx[key]].targets.push(t.target || '');
+      } else {
+        seenIdx[key] = grouped.length;
+        grouped.push({ title: t.title, content: t.content, targets: [t.target || ''], taskId: t.taskId });
       }
     });
-    if (!filtered.length) {
+    if (!grouped.length) {
       list.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:20px">目前無量測任務</div>';
       return;
     }
-    list.innerHTML = filtered.map(function(t, i) {
-      var preview = (t.content || '').split('\n').slice(0,2).join(' ');
-      return '<button onclick="pickMsrTask(' + i + ')" data-idx="' + i + '" style="' +
+    list.innerHTML = grouped.map(function(t, i) {
+      var targetStr = t.targets.filter(Boolean).join('、');
+      var preview = (t.content || '').split('\n').slice(0, 2).join(' ');
+      return '<button onclick="pickMsrTask(' + i + ')" style="' +
         'text-align:left;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;' +
         'background:white;cursor:pointer;font-family:inherit;width:100%;transition:all .15s">' +
-        '<div style="font-size:13px;font-weight:700;color:#1e2a3a">' + _esc(t.title) + ' ← ' + _esc(t.target||'') + '</div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1e2a3a">量測任務－派送對象：' + _esc(targetStr) + '</div>' +
         '<div style="font-size:12px;color:#6b7a92;margin-top:3px;white-space:pre-line">' + _esc(preview) + '</div>' +
         '</button>';
     }).join('');
-    list._tasks = filtered;
+    list._tasks = grouped;
   });
 }
 function closeMsrTaskPick() {
@@ -6917,7 +6920,7 @@ function pickMsrTask(i) {
   var row = document.getElementById('msrTaskRow');
   var lbl = document.getElementById('msrTaskLabel');
   row.style.display = '';
-  lbl.textContent = t.title + '（' + (t.target||'') + '）';
+  lbl.textContent = '量測任務－派送對象：' + (t.targets ? t.targets.filter(Boolean).join('、') : (t.target||''));
   openMeasureModal();
 }
 </script>
