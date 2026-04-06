@@ -5011,10 +5011,9 @@ function openAssignModal(latlng) {
       var emoji = sq.indexOf('參謀') !== -1 ? '🎖️' :
                   sq.indexOf('新聞') !== -1 ? '📡' : '🔬';
       optHtml +=
-        '<label class="squad-option" onclick="selectSquad(\'' + _esc(sq) + '\', this)">' +
-        '<input type="checkbox" value="' + _esc(sq) + '">' +
+        '<div class="squad-option" onclick="selectSquad(\'' + _esc(sq) + '\', this)">' +
         '<span>' + _esc(sq) + '</span>' +
-        '</label>';
+        '</div>';
     });
     if (!optHtml) {
       optHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">⚠️ 此事件尚無人員記錄</div>';
