@@ -4494,21 +4494,35 @@ function loadEvents() {
   });
 }
 
-// 從 GAS 讀取任務，把「量測點任務」畫到地圖上
+// 從 GAS 讀取任務，把「量測任務」畫到地圖上
 function _loadTaskMarkers() {
   if (!_events.length) return;
   _events.forEach(function(ev) {
     _jsonpGet(SHEETS_URL + '?action=tasks&eventId=' + encodeURIComponent(ev.id), function(data) {
       if (!data || !data.tasks) return;
+      // 合併同批（相同 content），每批只畫一個 marker
+      var seenContent = {};
       data.tasks.forEach(function(task) {
         if (task.title !== '量測任務') return;
-        // 從 content 解析座標（格式：「座標：lat, lng　地址：...」）
-        var m = task.content.match(/座標：([\d.]+),\s*([\d.]+)/);
+        var content = task.content || '';
+        if (seenContent[content]) return; // 同批已畫過
+        seenContent[content] = true;
+
+        // 解析格式：T01-地圖右鍵新增 (lat,lng) 或 A01-橫切面第1點 (lat,lng)
+        // 取 content 裡第一個 (lat,lng) 座標
+        var m = content.match(/\(([\d.]+),([\d.]+)\)/);
         if (!m) return;
         var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
         if (isNaN(lat) || isNaN(lng)) return;
-        var latlng = { lat: lat, lng: lng };
-        placeTempMeasureMarker(latlng, task.target || '', false);
+
+        // 收集本批所有 targets
+        var targets = data.tasks
+          .filter(function(t){ return t.title === '量測任務' && t.content === content; })
+          .map(function(t){ return t.target || ''; })
+          .filter(Boolean);
+        var squadStr = targets.join('、');
+
+        placeTempMeasureMarker({ lat: lat, lng: lng }, squadStr, false);
       });
     });
   });
