@@ -1749,11 +1749,15 @@ function _fetchTaskBadge() {
     if (!data || !data.tasks) return;
 
     var myCount  = 0;
+    var allSeen  = {};
     var allCount = 0;
 
     data.tasks.forEach(function(t) {
       if (t.status !== 'pending') return;
-      allCount++;
+      // 所有任務：合併同批（相同 eventId+title+content）只算一筆
+      var key = (t.eventId || '') + '|' + (t.title || '') + '|' + (t.content || '');
+      if (!allSeen[key]) { allSeen[key] = true; allCount++; }
+      // 隊別任務：不合併，照自己那份算
       if (filterKey) {
         var tgt = (t.target || '').trim();
         if (tgt === filterKey || tgt.indexOf(filterKey) === 0) myCount++;
