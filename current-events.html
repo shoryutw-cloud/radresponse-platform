@@ -3424,7 +3424,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:#7c3aed;border:1.5px solid #7c3aed"></span>待量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#7c3aed,#f97316);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
       '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>2m 範圍（模擬100m）</label>' +
@@ -4567,7 +4567,7 @@ function _placePendingMarker(latlng, label, squadStr, eventId) {
 
   // A開頭=橫切面(藍), 純數字=扇形(紫)
   var isCross = /^A/.test(label);
-  var bgColor = isCross ? '#3b82f6' : '#8b5cf6';
+  var bgColor = isCross ? '#3b82f6' : '#f97316';
 
   var icon = L.divIcon({
     className: '',
@@ -6341,7 +6341,7 @@ function tdRenderMsrPts() {
   var crossEl  = document.getElementById('tdMsrPtsCross');
   function makeBtn(p) {
     var sel = _tdSelectedPts.indexOf(p.label) !== -1;
-    var color = p.group === 'sector' ? '#8b5cf6' : '#3b82f6';
+    var color = p.group === 'sector' ? '#f97316' : '#3b82f6';
     return '<button onclick="tdTogglePt(\'' + p.label + '\')" title="' + p.tip + '" style="' +
       'padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;' +
       'font-family:inherit;transition:all .12s;' +
@@ -6479,8 +6479,23 @@ function tdSubmitTask() {
   }
 
   var squads = _tdSelectedSquads.slice();
+  // ── 若是量測任務，派送完成後立即在地圖上顯示點位（不用 F5）──
+  var ptsToPlace = (_tdTaskType === 'msr' && _tdSelectedPts.length > 0)
+    ? _tdSelectedPts.map(function(label) {
+        for (var pi = 0; pi < _tdMsrPts.length; pi++) {
+          if (_tdMsrPts[pi].label === label) return _tdMsrPts[pi];
+        }
+        return null;
+      }).filter(Boolean)
+    : [];
+  var squadStr = squads.join('、');
+
   function sendNext(i) {
     if (i >= squads.length) {
+      // 立即放 marker
+      ptsToPlace.forEach(function(pt) {
+        _placePendingMarker({ lat: pt.lat, lng: pt.lng }, pt.label, squadStr, ev.id);
+      });
       setTimeout(function() {
         btn.disabled = false; btn.innerHTML = '📤 派送任務';
         document.getElementById('tdPanel1').classList.remove('active');
