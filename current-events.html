@@ -3424,6 +3424,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:#7c3aed;border:1.5px solid #7c3aed"></span>待量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
       '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>2m 範圍（模擬100m）</label>' +
@@ -3659,6 +3660,18 @@ var _windCtx      = null;
 var _windAnimId   = null;
 var _windParticles = [];
 var _WIND_COUNT   = 1800;  // 高密度粒子（Windy 風格）
+
+function onPendingChk(checked) {
+  _pendingLayerOn = checked;
+  _pendingMsrMks.forEach(function(mk) {
+    if (checked) mk.addTo(gMap);
+    else mk.remove();
+  });
+  _taskMarkers.forEach(function(t) {
+    if (checked) t.mk.addTo(gMap);
+    else t.mk.remove();
+  });
+}
 
 function onWindChk(checked) {
   _windLayerOn = checked;
@@ -4497,23 +4510,20 @@ function loadEvents() {
 // 從 GAS 讀取任務，把「量測任務」畫到地圖上
 function _loadTaskMarkers() {
   if (!_events.length) return;
+  // 清除舊的 pending markers
+  _pendingMsrMks.forEach(function(m) { m.remove(); });
+  _pendingMsrMks = [];
+
   _events.forEach(function(ev) {
     _jsonpGet(SHEETS_URL + '?action=tasks&eventId=' + encodeURIComponent(ev.id), function(data) {
       if (!data || !data.tasks) return;
-      // 合併同批（相同 content），每批只畫一個 marker
+      // 合併同批（相同 content），每批只畫一個 T marker，並解析所有個別點位
       var seenContent = {};
       data.tasks.forEach(function(task) {
         if (task.title !== '量測任務') return;
         var content = task.content || '';
-        if (seenContent[content]) return; // 同批已畫過
+        if (seenContent[content]) return;
         seenContent[content] = true;
-
-        // 解析格式：T01-地圖右鍵新增 (lat,lng) 或 A01-橫切面第1點 (lat,lng)
-        // 取 content 裡第一個 (lat,lng) 座標
-        var m = content.match(/\(([\d.]+),([\d.]+)\)/);
-        if (!m) return;
-        var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
-        if (isNaN(lat) || isNaN(lng)) return;
 
         // 收集本批所有 targets
         var targets = data.tasks
@@ -4522,10 +4532,58 @@ function _loadTaskMarkers() {
           .filter(Boolean);
         var squadStr = targets.join('、');
 
-        placeTempMeasureMarker({ lat: lat, lng: lng }, squadStr, false);
+        // 解析所有點位（格式：label-tip (lat,lng)），每行一個點
+        var ptRegex = /([A-Z]?[\d]+(?:-\S+)?)[^(]*\(([\d.]+),([\d.]+)\)/g;
+        var match, ptFound = false;
+        while ((match = ptRegex.exec(content)) !== null) {
+          var label = match[1];
+          var lat = parseFloat(match[2]), lng = parseFloat(match[3]);
+          if (isNaN(lat) || isNaN(lng)) continue;
+          ptFound = true;
+          _placePendingMarker({ lat: lat, lng: lng }, label, squadStr, ev.id);
+        }
+
+        // 若 content 沒有標準點位格式（舊格式），用第一個座標當 T marker
+        if (!ptFound) {
+          var m0 = content.match(/\(([\d.]+),([\d.]+)\)/);
+          if (!m0) return;
+          var lat0 = parseFloat(m0[1]), lng0 = parseFloat(m0[2]);
+          if (isNaN(lat0) || isNaN(lng0)) return;
+          placeTempMeasureMarker({ lat: lat0, lng: lng0 }, squadStr, false);
+        }
       });
     });
   });
+}
+
+// 放置待量測點位 marker（A01/1/T01 等，顯示 label 文字）
+function _placePendingMarker(latlng, label, squadStr, eventId) {
+  // 判斷類型：T開頭=右鍵, A開頭=橫切面, 純數字=扇形
+  var isTee    = /^T/.test(label);
+  var isCross  = /^A/.test(label);
+  var isSector = /^\d+$/.test(label);
+  var bgColor  = isTee ? '#7c3aed' : isCross ? '#3b82f6' : '#8b5cf6';
+  var dispLabel = label;
+
+  // T 開頭：走舊的 placeTempMeasureMarker 流程
+  if (isTee) {
+    placeTempMeasureMarker(latlng, squadStr, false);
+    return;
+  }
+
+  var icon = L.divIcon({
+    className: '',
+    html: '<div style="' +
+      'background:' + bgColor + ';color:white;border:2px solid white;border-radius:4px;' +
+      'padding:1px 4px;font-size:9px;font-weight:700;white-space:nowrap;' +
+      'box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:ui-monospace,monospace;' +
+      'opacity:0.92">' + _esc(dispLabel) + '</div>',
+    iconSize: null, iconAnchor: [14, 10]
+  });
+  var mk = L.marker(latlng, { icon: icon });
+  mk.bindTooltip(label + '｜' + squadStr, { direction: 'top', offset: [0, -8] });
+  if (_pendingLayerOn) mk.addTo(gMap);
+  _pendingMsrMks.push(mk);
 }
 
 // ════════════════════════════════════════════
@@ -5113,6 +5171,8 @@ function submitAssignment() {
 
 // ── 地圖上放置正式量測任務標記（紫色，有編號） ──
 var _taskMarkers = [];  // [{ mk, latlng, squad, num, label, eventId }]
+var _pendingMsrMks = []; // 派送任務的個別點位 marker（A01~A20, 1~10）
+var _pendingLayerOn = true; // 待量測數值圖層，預設打勾
 function placeTempMeasureMarker(latlng, squadName, autoOpen) {
   var evId = _events[_curIdx] ? _events[_curIdx].id : '';
   // 只計算當前事件的點數（避免跨事件編號錯誤）
@@ -5132,7 +5192,8 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
           '</div>',
     iconSize: [32, 32], iconAnchor: [16, 16]
   });
-  var mk = L.marker(latlng, { icon: icon }).addTo(gMap);
+  var mk = L.marker(latlng, { icon: icon });
+  if (_pendingLayerOn) mk.addTo(gMap);
   mk.bindPopup(
     '<div style="font-family:var(--font);min-width:140px">' +
     '<div style="font-size:13px;font-weight:700;margin-bottom:4px">' + label + ' 量測任務</div>' +
