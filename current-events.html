@@ -4559,30 +4559,41 @@ function _loadTaskMarkers() {
 
 // 放置待量測點位 marker（A01/1/T01 等，顯示 label 文字）
 function _placePendingMarker(latlng, label, squadStr, eventId) {
-  // 判斷類型：T開頭=右鍵, A開頭=橫切面, 純數字=扇形
-  var isTee    = /^T/.test(label);
-  var isCross  = /^A/.test(label);
-  var isSector = /^\d+$/.test(label);
-  var bgColor  = isTee ? '#7c3aed' : isCross ? '#3b82f6' : '#8b5cf6';
-  var dispLabel = label;
-
   // T 開頭：走舊的 placeTempMeasureMarker 流程
-  if (isTee) {
+  if (/^T/.test(label)) {
     placeTempMeasureMarker(latlng, squadStr, false);
     return;
   }
 
+  // A開頭=橫切面(藍), 純數字=扇形(紫)
+  var isCross = /^A/.test(label);
+  var bgColor = isCross ? '#3b82f6' : '#8b5cf6';
+
   var icon = L.divIcon({
     className: '',
-    html: '<div style="' +
-      'background:' + bgColor + ';color:white;border:2px solid white;border-radius:4px;' +
-      'padding:1px 4px;font-size:9px;font-weight:700;white-space:nowrap;' +
-      'box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:ui-monospace,monospace;' +
-      'opacity:0.92">' + _esc(dispLabel) + '</div>',
-    iconSize: null, iconAnchor: [14, 10]
+    html: '<div style="position:relative;width:32px;height:32px;">' +
+          '<div style="width:32px;height:32px;background:' + bgColor + ';' +
+          'border:3px solid white;border-radius:50%;' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.4)">📐</div>' +
+          '<div style="position:absolute;top:-6px;right:-6px;' +
+          'background:#dc2626;border:1.5px solid white;border-radius:10px;' +
+          'font-size:9px;font-weight:700;color:white;font-family:ui-monospace,monospace;' +
+          'padding:1px 4px;white-space:nowrap">' + _esc(label) + '</div>' +
+          '</div>',
+    iconSize: [32, 32], iconAnchor: [16, 16]
   });
+
   var mk = L.marker(latlng, { icon: icon });
-  mk.bindTooltip(label + '｜' + squadStr, { direction: 'top', offset: [0, -8] });
+  // hover 顯示，不用點
+  mk.bindTooltip(
+    '<div style="font-family:var(--font);min-width:120px;line-height:1.5">' +
+    '<div style="font-size:13px;font-weight:700;color:#1e2a3a;margin-bottom:2px">' + _esc(label) + ' 量測任務</div>' +
+    '<div style="font-size:12px;color:' + bgColor + ';font-weight:600">' + _esc(squadStr) + '</div>' +
+    '<div style="font-size:11px;color:#94a3b8;margin-top:2px">待量測</div>' +
+    '</div>',
+    { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
+  );
   if (_pendingLayerOn) mk.addTo(gMap);
   _pendingMsrMks.push(mk);
 }
@@ -5176,7 +5187,6 @@ var _pendingMsrMks = []; // 派送任務的個別點位 marker（A01~A20, 1~10�
 var _pendingLayerOn = true; // 待量測數值圖層，預設打勾
 function placeTempMeasureMarker(latlng, squadName, autoOpen) {
   var evId = _events[_curIdx] ? _events[_curIdx].id : '';
-  // 只計算當前事件的點數（避免跨事件編號錯誤）
   var num = _taskMarkers.filter(function(t){ return t.eventId === evId; }).length + 1;
   var label = 'T' + (num < 10 ? '0' + num : num);
   var icon = L.divIcon({
@@ -5186,25 +5196,24 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
           'border:3px solid white;border-radius:50%;' +
           'display:flex;align-items:center;justify-content:center;' +
           'font-size:16px;box-shadow:0 2px 8px rgba(124,58,237,.5)">📐</div>' +
-          '<div style="position:absolute;top:-4px;right:-4px;' +
-          'width:16px;height:16px;background:#dc2626;border:1.5px solid white;' +
-          'border-radius:50%;display:flex;align-items:center;justify-content:center;' +
-          'font-size:9px;font-weight:700;color:white;font-family:ui-monospace,monospace">' + num + '</div>' +
+          '<div style="position:absolute;top:-6px;right:-6px;' +
+          'background:#dc2626;border:1.5px solid white;border-radius:10px;' +
+          'font-size:9px;font-weight:700;color:white;font-family:ui-monospace,monospace;' +
+          'padding:1px 4px;white-space:nowrap">' + label + '</div>' +
           '</div>',
     iconSize: [32, 32], iconAnchor: [16, 16]
   });
   var mk = L.marker(latlng, { icon: icon });
-  if (_pendingLayerOn) mk.addTo(gMap);
-  mk.bindPopup(
-    '<div style="font-family:var(--font);min-width:140px">' +
-    '<div style="font-size:13px;font-weight:700;margin-bottom:4px">' + label + ' 量測任務</div>' +
+  mk.bindTooltip(
+    '<div style="font-family:var(--font);min-width:120px;line-height:1.5">' +
+    '<div style="font-size:13px;font-weight:700;color:#1e2a3a;margin-bottom:2px">' + label + ' 量測任務</div>' +
     '<div style="font-size:12px;color:#7c3aed;font-weight:600">' + _esc(squadName) + '</div>' +
-    '<div style="font-size:11px;color:#94a3b8;margin-top:4px">待量測</div>' +
-    '</div>'
+    '<div style="font-size:11px;color:#94a3b8;margin-top:2px">待量測</div>' +
+    '</div>',
+    { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  if (autoOpen !== false) mk.openPopup();
+  if (_pendingLayerOn) mk.addTo(gMap);
   _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label, eventId: evId });
-  // 導航點位更新
   _refreshNavPoints();
 }
 
