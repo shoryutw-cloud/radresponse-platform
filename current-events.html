@@ -4532,11 +4532,12 @@ function _loadTaskMarkers() {
           .filter(Boolean);
         var squadStr = targets.join('、');
 
-        // 解析所有點位（格式：label-tip (lat,lng)），每行一個點
-        var ptRegex = /([A-Z]?[\d]+(?:-\S+)?)[^(]*\(([\d.]+),([\d.]+)\)/g;
+        // 解析所有點位（格式：A07-tip (lat,lng) 或 1-tip (lat,lng) 或 T01-tip (lat,lng)）
+        // 多行模式：^ 錨點只比對行首，避免誤抓風向數字
+        var ptRegex = /^(A\d+|T\d+|\d+)[^(]*\(([0-9.]+),([0-9.]+)\)/gm;
         var match, ptFound = false;
         while ((match = ptRegex.exec(content)) !== null) {
-          var label = match[1];
+          var label = match[1]; // 已是短標：A07 / 1 / T01
           var lat = parseFloat(match[2]), lng = parseFloat(match[3]);
           if (isNaN(lat) || isNaN(lng)) continue;
           ptFound = true;
