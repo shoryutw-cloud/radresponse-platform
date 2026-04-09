@@ -1416,7 +1416,12 @@ function fetchCwaWind(autoIdx) {
     ev.windSpeed     = String(data.windSpeed || '');
     ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
     // 手動按「從氣象局抓取」→ 清除手動旗標，之後自動輪詢可正常更新
-    if (!isAuto) ev.windManual = false;
+    if (!isAuto) {
+      ev.windManual = false;
+      // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
+      fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
+    }
 
     // 判斷是否為有效風向（排除特殊異常值）
     var _wdNormal = ev.windDir && ev.windDir !== ''
@@ -1493,6 +1498,7 @@ function saveEdit() {
     eventId:  ev.id,
     windDir:   windVal,
     windSpeed: windSpVal,
+    windManual: true,
     name:      nameVal,
     type:     typeVal,
     date:     dateVal,
