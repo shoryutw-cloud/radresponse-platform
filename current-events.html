@@ -2891,20 +2891,20 @@ function buildEventLayers(idx) {
 
   // (5) 20m 橫切面（模擬 1km，縮小50倍）+ 5個量測點
   if (showMiniLine && hasWind) {
-    var mlCenter = destPoint(la, lo, wd, 30);  // 30m（調整後）
-    var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 10);  // 10m = 500m/50
-    var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 10);
+    var mlCenter = destPoint(la, lo, wd, 40);  // 40m（S2-S1 gap）
+    var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 20);  // 20m（加倍）
+    var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 20);
     _evLayers[idx].miniLine = L.polyline([mlPerpA, mlPerpB], {
       color: '#3b82f6', weight: 2, opacity: 0.85, dashArray: '5 3'
     }).addTo(gMap);
 
-    // 5 個量測點（B01~B05）
+    // 10 個量測點（B01~B10）
     var miniLineMks = [];
-    for (var mli = 0; mli < 5; mli++) {
-      var mlt = mli / 4;
+    for (var mli = 0; mli < 10; mli++) {
+      var mlt = mli / 9;
       var mlLat = mlPerpB[0] + (mlPerpA[0] - mlPerpB[0]) * mlt;
       var mlLng = mlPerpB[1] + (mlPerpA[1] - mlPerpB[1]) * mlt;
-      var mlLabel = 'B0' + (mli + 1);
+      var mlLabel = 'B' + (mli + 1 < 10 ? '0' + (mli + 1) : '' + (mli + 1));
       var mlIcon = L.divIcon({
         className: '',
         html: '<div style="width:16px;height:16px;border-radius:50%;' +
@@ -4438,16 +4438,17 @@ window.addEventListener('message', function(e) {
         pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng], category: 'cross' });
       }
 
-      // 20m 橫切面量測點（B01~B05，模擬 1km 橫切面縮小50倍）
+      // 20m 橫切面量測點（B01~B10，中心40m，半寬20m）
       if (isLayerOn(_curIdx, 'mini_line')) {
-        var mlc2 = destPoint(la, lo, wd, 20);
-        var mlpa2 = destPoint(mlc2[0], mlc2[1], (wd + 90) % 360, 10);
-        var mlpb2 = destPoint(mlc2[0], mlc2[1], (wd - 90 + 360) % 360, 10);
-        for (var bi = 0; bi < 5; bi++) {
-          var bt = bi / 4;
+        var mlc2 = destPoint(la, lo, wd, 40);
+        var mlpa2 = destPoint(mlc2[0], mlc2[1], (wd + 90) % 360, 20);
+        var mlpb2 = destPoint(mlc2[0], mlc2[1], (wd - 90 + 360) % 360, 20);
+        for (var bi = 0; bi < 10; bi++) {
+          var bt = bi / 9;
           var bLat = mlpb2[0] + (mlpa2[0] - mlpb2[0]) * bt;
           var bLng = mlpb2[1] + (mlpa2[1] - mlpb2[1]) * bt;
-          pts.push({ label: 'B0' + (bi + 1), shortTip: '20m橫切面' + (bi+1), pt: [bLat, bLng], category: 'mini_cross' });
+          var bLabel = 'B' + (bi + 1 < 10 ? '0' + (bi + 1) : '' + (bi + 1));
+          pts.push({ label: bLabel, shortTip: '模擬橫切面' + (bi+1), pt: [bLat, bLng], category: 'mini_cross' });
         }
       }
 
