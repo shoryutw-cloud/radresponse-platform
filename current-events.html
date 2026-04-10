@@ -1431,13 +1431,9 @@ function fetchCwaWind(autoIdx) {
     if (idx === _curIdx) {
       renderCard(idx);
       buildEventLayers(idx);
-      // ★ 依風向是否正常自動開關風向圖層
+      // ★ 若風向失效且目前風向圖層開著，自動關閉
       var _cbWind = document.getElementById('lyr_wind');
-      if (_wdNormal && !_windLayerOn) {
-        _windLayerOn = true;
-        if (_cbWind) _cbWind.checked = true;
-        _startWindLayer();
-      } else if (!_wdNormal && _windLayerOn) {
+      if (!_wdNormal && _windLayerOn) {
         _windLayerOn = false;
         if (_cbWind) _cbWind.checked = false;
         _stopWindLayer();
@@ -1579,19 +1575,14 @@ function navEvent(dir) {
   renderCard(_curIdx);
   flyToEvent(_curIdx);
 
-  // ★ 依新事件風速決定是否自動開啟風向圖層
+  // ★ 若切換到無風向的事件，自動關閉風向圖層
   var newEv = _events[_curIdx];
   var newWs = newEv && newEv.windSpeed ? parseFloat(newEv.windSpeed) : 0;
   var hasWind = !isNaN(newWs) && newWs > 0 && newEv && newEv.windDir && newEv.windDir !== '';
-  if (hasWind) {
-    if (!_windLayerOn) {
-      _windLayerOn = true;
-      _startWindLayer();
-    } else {
-      _refreshWindIfOn();
-    }
-  } else {
-    if (_windLayerOn) { _stopWindLayer(); _windLayerOn = false; }
+  if (!hasWind && _windLayerOn) {
+    _stopWindLayer(); _windLayerOn = false;
+  } else if (hasWind && _windLayerOn) {
+    _refreshWindIfOn();
   }
 
   renderLayerPanel();
@@ -3026,8 +3017,8 @@ var _layerPrefs = {};
 
 // 取得指定事件+圖層的記憶狀態
 // 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
-// 預設：只開 100m 範圍 + 量測數值，其他全關
-var _LAYER_DEFAULTS = { circle: true, line: false, sector: false, msr: true };
+// 預設：全部關閉
+var _LAYER_DEFAULTS = {};
 function getLayerPref(eventId, type) {
   if (!_layerPrefs[eventId]) {
     return (_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false;
@@ -5247,7 +5238,7 @@ function submitAssignment() {
 // ── 地圖上放置正式量測任務標記（紫色，有編號） ──
 var _taskMarkers = [];  // [{ mk, latlng, squad, num, label, eventId }]
 var _pendingMsrMks = []; // 派送任務的個別點位 marker（A01~A20, 1~10）
-var _pendingLayerOn = true; // 待量測數值圖層，預設打勾
+var _pendingLayerOn = false; // 待量測數值圖層，預設關閉
 function placeTempMeasureMarker(latlng, squadName, autoOpen) {
   var evId = _events[_curIdx] ? _events[_curIdx].id : '';
   var num = _taskMarkers.filter(function(t){ return t.eventId === evId; }).length + 1;
