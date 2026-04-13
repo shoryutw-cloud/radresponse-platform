@@ -565,43 +565,13 @@ cursor: pointer; transition: background .15s;
    ══════════════════════════════════════════ */
 @media (max-width: 600px) {
 
-  /* ── 事件卡：移到底部，改為抽屜樣式 ── */
+  /* ── 事件卡：手機版隱藏，改用右側 icon 按鈕觸發 ── */
   .ev-card {
-    top: auto !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    border-radius: 14px 14px 0 0 !important;
-    box-shadow: 0 -4px 24px rgba(0,0,0,.18) !important;
-    /* 預設只露出 header；+ iOS 底部 safe area 高度 */
-    max-height: calc(52px + env(safe-area-inset-bottom, 0px));
-    overflow: hidden;
-    transition: max-height .3s cubic-bezier(.4,0,.2,1);
-    /* iOS safe area: 底部留白讓 home indicator 不蓋住把手 */
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    display: none !important;
   }
-  .ev-card.mob-expanded {
-    max-height: 75vh;
-    overflow-y: auto;
-  }
-  /* 標題列加上拖曳把手提示 */
-  .ev-card-header {
-    border-radius: 14px 14px 0 0;
-    cursor: pointer !important;
-    padding: 10px 14px !important;
-  }
-  .ev-card-header::before {
-    content: '';
-    display: block;
-    width: 36px; height: 4px;
-    background: #d0d8e4; border-radius: 2px;
-    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-  }
-  /* 內容區可捲動 */
-  .ev-card-body {
-    max-height: calc(75vh - 52px);
-    overflow-y: auto;
+  /* 事件資訊面板（手機版，從右側彈出）*/
+  .mob-ev-panel {
+    display: block !important;
   }
 
   /* ── 圖層面板：預設隱藏，改用浮動按鈕開關 ── */
@@ -617,6 +587,10 @@ cursor: pointer; transition: background .15s;
 
   /* 圖層開關浮動按鈕 */
   .mob-layer-btn {
+    display: flex !important;
+  }
+  /* 事件資訊 icon 按鈕 */
+  .mob-ev-btn {
     display: flex !important;
   }
 
@@ -636,6 +610,21 @@ cursor: pointer; transition: background .15s;
 
 /* 手機版圖層按鈕預設隱藏（桌機不顯示）*/
 .mob-layer-btn { display: none; }
+.mob-ev-btn { display: none; }
+/* 手機版事件資訊面板 */
+.mob-ev-panel {
+  display: none;
+  position: fixed;
+  top: 0; right: 0;
+  width: 260px; max-width: 88vw;
+  height: 100%;
+  background: white;
+  z-index: 1200;
+  box-shadow: -4px 0 24px rgba(0,0,0,.18);
+  overflow-y: auto;
+  padding: 0;
+  transition: transform .25s ease;
+}
 
 /* ── 畫筆工具列 ── */
 .draw-toolbar {
@@ -1090,6 +1079,30 @@ cursor: pointer; transition: background .15s;
          align-items:center;justify-content:center;">
   🗺️
 </button>
+
+<!-- 手機版：事件資訊 icon 按鈕（圖層按鈕下方）-->
+<button class="mob-ev-btn" id="mobEvBtn" onclick="toggleMobEvPanel()"
+  style="position:fixed;top:58px;right:12px;z-index:1001;
+         width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+         background:white;box-shadow:0 2px 8px rgba(0,0,0,.15);
+         font-size:18px;cursor:pointer;
+         align-items:center;justify-content:center;">
+  🚨
+</button>
+
+<!-- 手機版事件資訊面板 -->
+<div class="mob-ev-panel" id="mobEvPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;position:sticky;top:0;z-index:2">
+    <div style="font-size:14px;font-weight:700;color:#1e2a3a">🚨 事件狀態</div>
+    <button onclick="toggleMobEvPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+  </div>
+  <!-- 事件卡片內容由 JS 動態填入 -->
+  <div id="mobEvPanelBody" style="padding:12px 16px"></div>
+</div>
+<!-- 手機版事件面板背景遮罩 -->
+<div id="mobEvOverlay" onclick="toggleMobEvPanel()"
+  style="display:none;position:fixed;inset:0;z-index:1199;background:rgba(0,0,0,.3)"></div>
 
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
@@ -5742,6 +5755,37 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleMobLayer() {
   var panel = document.getElementById('layerPanel');
   panel.classList.toggle('mob-show');
+}
+
+// ── 手機版事件資訊面板 ──
+var _mobEvPanelOpen = false;
+function toggleMobEvPanel() {
+  _mobEvPanelOpen = !_mobEvPanelOpen;
+  var panel   = document.getElementById('mobEvPanel');
+  var overlay = document.getElementById('mobEvOverlay');
+  if (_mobEvPanelOpen) {
+    _renderMobEvPanel();
+    panel.style.display   = 'block';
+    overlay.style.display = 'block';
+  } else {
+    panel.style.display   = 'none';
+    overlay.style.display = 'none';
+  }
+}
+
+function _renderMobEvPanel() {
+  var body = document.getElementById('mobEvPanelBody');
+  if (!body) return;
+  var ev = _events[_curIdx];
+  if (!ev) {
+    body.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:24px">目前無進行中事件</div>';
+    return;
+  }
+  // 從 evCardBody 直接複製最新 HTML 到 panel
+  var cardBody = document.getElementById('evCardBody');
+  if (cardBody) {
+    body.innerHTML = cardBody.innerHTML;
+  }
 }
 
 // ── 視窗縮放時重設樣式 ──
