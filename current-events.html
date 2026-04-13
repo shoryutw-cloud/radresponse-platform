@@ -2913,7 +2913,7 @@ function buildEventLayers(idx) {
         iconSize: [16, 16], iconAnchor: [8, 8]
       });
       var mlMk = L.marker([mlLat, mlLng], { icon: mlIcon }).addTo(gMap);
-      mlMk.bindTooltip(mlLabel + '：20m橫切面', { permanent: false, direction: 'top' });
+      mlMk.bindTooltip(mlLabel + '：模擬1km橫切面', { permanent: false, direction: 'top' });
       miniLineMks.push(mlMk);
     }
     _evLayers[idx].miniLineMks = miniLineMks;
@@ -4373,6 +4373,8 @@ window.addEventListener('message', function(e) {
   if (e.data.type === 'setLoginUser') {
     _loginUserName = String(e.data.name || '').trim();
     _loginUserTeam = String(e.data.team || '').trim();
+    _loginUserTitle = String(e.data.title || '').trim();
+    _loginTeachMode = !!e.data.teachLogin;
     return;
   }
 
@@ -4470,7 +4472,7 @@ window.addEventListener('message', function(e) {
           { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90) },
           { label:'S9',  pt: destPoint(la, lo, wd,        90) },
           { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90) }
-        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(100m扇形)', pt:p.pt, category:'mini_sector' }); });
+        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(模擬5km扇形)', pt:p.pt, category:'mini_sector' }); });
       }
     }
     // 人工設定的量測點（T01, T02...）只取當前事件的
@@ -5040,6 +5042,8 @@ function isMobile() { return window.innerWidth <= 600; }
 var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
 var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
+var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
+var _loginTeachMode = false; // 是否為教學快速登入
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -5406,25 +5410,30 @@ function openMeasureModal() {
       var squad = colonIdx >= 0 ? s.slice(0, colonIdx).trim() : '';
       var name  = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
       if (!name) return;
-      var displayVal = squad ? squad + ':' + name : name;
+      var storeVal = squad ? squad + ':' + name : name;
+      // 教學登入：顯示只用姓名；一般登入：顯示 squad:name
+      var displayText = _loginTeachMode ? name : storeVal;
       var opt = document.createElement('option');
-      opt.value = displayVal;
-      opt.textContent = displayVal;
+      opt.value = storeVal;
+      opt.textContent = displayText;
       sel.appendChild(opt);
       if (_loginUserName && name === _loginUserName && !_defaultVal) {
-        _defaultVal = displayVal;
+        _defaultVal = storeVal;
       }
     });
   }
 
   // 若登入者不在出勤名單，仍補上一個選項供選取
   if (_loginUserName && !_defaultVal) {
-    var selfVal = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
+    var selfVal = (_loginTeachMode ? '' : (_loginUserTeam ? _loginUserTeam + ':' : '')) + _loginUserName;
+    var selfDisplay = _loginTeachMode
+      ? (_loginUserTitle ? _loginUserTitle + '－' + _loginUserName : _loginUserName) + '（本人）'
+      : selfVal + '（本人）';
     var selfOpt = document.createElement('option');
-    selfOpt.value = selfVal;
-    selfOpt.textContent = selfVal + '（本人）';
+    selfOpt.value = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
+    selfOpt.textContent = selfDisplay;
     sel.insertBefore(selfOpt, sel.options[1] || null);
-    _defaultVal = selfVal;
+    _defaultVal = selfOpt.value;
   }
 
   if (_defaultVal) sel.value = _defaultVal;
