@@ -1345,8 +1345,8 @@ function _navRenderPoints() {
       cross:       '⚠️ 請先設定風向以產生橫切面量測點',
       area:        '⚠️ 附近場域量測點尚未設定',
       sector:      '⚠️ 請先設定風向以產生扇形量測點',
-      mini_cross:  '⚠️ 請先開啟「20m橫切面」圖層並設定風向',
-      mini_sector: '⚠️ 請先開啟「100m扇形」圖層並設定風向'
+      mini_cross:  '⚠️ 請先開啟「模擬1km橫切面」圖層並設定風向',
+      mini_sector: '⚠️ 請先開啟「模擬5km扇形」圖層並設定風向'
     };
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
     return;
@@ -1731,18 +1731,17 @@ function _applyAuthUI(user) {
     if (adminSec) adminSec.style.display = 'none';
   }
 
-  // 顯示姓名（topbar 姓名下拉）—— 格式：技術組-北一小隊/南一小隊，王大明
+  // 顯示姓名（topbar 姓名下拉）
   var nameEl = document.getElementById('topbarName');
+  var label = '';
   if (nameEl) {
-    var dispGroup = user.group || '';
-    var dispTeam  = user.team  || '';
-    // team 可能是多個隊別，以 / 分隔（格式：北一小隊/南一小隊）
-    var teamParts = dispTeam ? dispTeam.split('/').map(function(t){ return t.trim(); }).filter(Boolean) : [];
-    var label = '';
-    if (dispGroup) {
-      label = dispGroup + '・' + user.name;
+    if (user.teachLogin && user.title) {
+      // 教學登入：顯示「職稱－姓名」，如「1號隊員－陳映州」
+      label = user.title + '－' + user.name;
     } else {
-      label = user.name;
+      // 帳密登入：顯示「組別・姓名」
+      var dispGroup = user.group || '';
+      label = dispGroup ? (dispGroup + '・' + user.name) : user.name;
     }
     nameEl.textContent = label;
   }
@@ -1836,14 +1835,16 @@ function submitTeachLogin() {
   var member = JSON.parse(sel.value);
   var user = {
     name: member.name,
+    title: member.title || '',  // 職稱，如「1號隊員」
     team: member.team || '',
     group: member.group || '技術組',
     isAdmin: false,
     teachLogin: true
   };
   try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
+  _applyAuthUI(user);
   document.getElementById('loginOverlay').classList.add('hide');
-  onLoginSuccess(user);
+  showIframe('current-events.html');
 }
 
 // ── 教學模式初始化（頁面載入時）──
