@@ -732,7 +732,9 @@ window.addEventListener('message', function(e) {
         frame.contentWindow.postMessage({
           type: 'setLoginUser',
           name: _lsUser.name || '',
-          team: _lsUser.team || ''
+          team: _lsUser.team || '',
+          title: _lsUser.title || '',
+          teachLogin: !!_lsUser.teachLogin
         }, '*');
       }
     } catch(e2) {}
