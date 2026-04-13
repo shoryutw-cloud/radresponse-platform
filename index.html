@@ -964,6 +964,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (_authUser) {
     // 已登入：套用 UI 後繼續正常初始化
     _applyAuthUI(_authUser);
+    // 若沒有 hash，直接進入目前事件
+    if (!window.location.hash || window.location.hash === '#') {
+      showIframe('current-events.html');
+    }
   } else {
     // 未登入：清除 hash（防止直接跳頁）、顯示登入遮罩
     if (window.location.hash) history.replaceState('', document.title, window.location.pathname);
