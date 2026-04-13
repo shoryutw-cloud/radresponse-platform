@@ -523,7 +523,7 @@
 <!-- LAYOUT -->
 <div class="layout">
   <main class="map-area" id="mapArea" style="position:relative">
-    <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:flex;align-items:center;justify-content:center">
+    <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:none;align-items:center;justify-content:center">
       <div id="dashboard" style="max-width:640px;width:100%;padding:0 32px 24px;display:flex;flex-direction:column;gap:16px">
         <div style="text-align:center;padding-top:8px">
           <div style="font-size:48px;line-height:1">☢️</div>
@@ -572,7 +572,7 @@
         </div>
       </div>
     </div>
-    <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:none">
+    <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:block">
       <iframe id="contentFrame" src="" style="width:100%;height:100%;border:none"></iframe>
     </div>
 
@@ -680,7 +680,7 @@ var PANELS = {
 // src = 要載入的 HTML 檔名（例如 group.html）
 // 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
 function showIframe(src) {
-  document.getElementById('mapLayer').style.display = 'none';
+  // mapLayer 已永久隱藏，不需控制
   var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
   hideEls.forEach(function(sel) {
     var el = document.querySelector(sel);
@@ -858,10 +858,8 @@ function drawerToggleAdmin() {
 
 // -- 切換回儀表板首頁 --
 function showMap() {
-  document.getElementById('iframeLayer').style.display = 'none';
-  document.getElementById('mapLayer').style.display = 'block';
-  history.pushState('', document.title, window.location.pathname + window.location.search);
-  loadDashStats();
+  // dashboard 已移除，直接跳目前事件
+  showIframe('current-events.html');
 }
 
 // ── 載入儀表板統計數字 ──
