@@ -5360,6 +5360,8 @@ function showReportFabs() {
   btn2.onclick = function() {
     try { parent.postMessage({ type: 'openMyTaskFromFab' }, '*'); } catch(e) {}
   };
+  // 教學模式下隱藏回報任務
+  if (_teachMode) btn2.style.display = 'none';
 
   el.appendChild(btn1);
   el.appendChild(btn2);

@@ -1316,8 +1316,8 @@ function navChooseCategory(cat) {
     cross:       '🔵 1km橫切面量測點',
     area:        '🟢 附近場域量測點',
     sector:      '🟣 5km扇形量測點',
-    mini_cross:  '🔵 20m橫切面量測點',
-    mini_sector: '🟣 100m扇形量測點'
+    mini_cross:  '🔵 模擬1km橫切面量測點',
+    mini_sector: '🟣 模擬5km扇形量測點'
   };
   document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
   document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
@@ -1458,7 +1458,7 @@ function sendMapEditMsg() {
     <div id="navTypeStep" style="display:flex;flex-direction:column;gap:0;padding:16px 20px 20px;max-height:70vh;overflow-y:auto">
       <div style="font-size:13px;color:#6b7a92;margin-bottom:14px">請選擇量測點類型：</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button onclick="navChooseCategory('manual')" style="
+        <button class="nav-type-normal" onclick="navChooseCategory('manual')" style="
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
@@ -1471,7 +1471,7 @@ function sendMapEditMsg() {
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
         </button>
-        <button onclick="navChooseCategory('cross')" style="
+        <button class="nav-type-normal" onclick="navChooseCategory('cross')" style="
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
@@ -1484,7 +1484,7 @@ function sendMapEditMsg() {
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
         </button>
-        <button onclick="navChooseCategory('area')" style="
+        <button class="nav-type-normal" onclick="navChooseCategory('area')" style="
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
@@ -1497,7 +1497,7 @@ function sendMapEditMsg() {
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
         </button>
-        <button onclick="navChooseCategory('sector')" style="
+        <button class="nav-type-normal" onclick="navChooseCategory('sector')" style="
           display:flex;align-items:center;gap:14px;padding:14px 16px;
           border:2px solid #e2e8f0;border-radius:10px;background:white;
           font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
@@ -1518,8 +1518,8 @@ function sendMapEditMsg() {
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
           <span style="width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
           <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">20m橫切面量測點</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:2px">B01～B05，需開啟圖層且設定風向</div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬1km橫切面量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">B01～B10，需開啟圖層且設定風向</div>
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
         </button>
@@ -1531,7 +1531,7 @@ function sendMapEditMsg() {
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
           <span style="width:24px;height:24px;border-radius:50%;background:#7c3aed;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
           <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">100m扇形量測點</div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬5km扇形量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">S1～S10，需開啟圖層且設定風向</div>
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
@@ -1600,67 +1600,46 @@ function openMsrQueryInIframe() {
     <div class="login-logo">☢️</div>
     <div class="login-title">輻射事件應變資訊平台</div>
 
-    <!-- ★ 教學快速登入（教學模式開啟時顯示）-->
+    <!-- ★ 教學快速登入（永遠顯示，教學模式開啟時放最前面）-->
     <div id="teachLoginSection">
-      <div style="font-size:12px;color:#f59e0b;text-align:center;letter-spacing:.05em;font-weight:600">⚡ 教學快速登入</div>
+      <div style="font-size:12px;color:#f59e0b;text-align:center;letter-spacing:.05em;font-weight:600;margin-bottom:8px">⚡ 教學快速登入</div>
       <select id="teachMemberSel" style="
         width:100%;padding:10px 12px;background:#0f1820;
         border:1.5px solid #2d3f55;border-radius:8px;
         font-family:inherit;font-size:14px;color:#b8cce0;
-        outline:none;appearance:none;cursor:pointer;margin-top:8px">
+        outline:none;appearance:none;cursor:pointer">
         <option value="">⏳ 載入人員中…</option>
       </select>
       <button onclick="submitTeachLogin()" style="
-        width:100%;padding:12px;border-radius:8px;border:none;margin-top:8px;
+        width:100%;padding:11px;border-radius:8px;border:none;margin-top:8px;
         background:#f59e0b;color:white;font-family:inherit;font-size:15px;
         font-weight:700;cursor:pointer">進入系統</button>
     </div>
 
-    <!-- 原帳密登入（教學模式關閉時顯示）-->
+    <!-- 分隔線 -->
+    <div id="loginDivider" style="width:100%;display:flex;align-items:center;gap:8px;margin:4px 0">
+      <div style="flex:1;height:1px;background:#2d3f55"></div>
+      <span style="font-size:11px;color:#4a6080;white-space:nowrap">或管理員帳密登入</span>
+      <div style="flex:1;height:1px;background:#2d3f55"></div>
+    </div>
+
+    <!-- 帳密登入（永遠顯示）-->
     <div id="normalLoginSection">
-    <div class="login-subtitle">請使用您的帳號密碼登入</div>
-
-    <input class="login-field" id="loginAcc" type="text"
-      placeholder="帳號" autocomplete="username"
-      onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
-    <div style="width:100%;position:relative">
-      <input class="login-field" id="loginPwd" type="password"
-        placeholder="密碼" autocomplete="current-password"
-        style="padding-right:44px"
-        onkeydown="if(event.key==='Enter')submitLogin()">
-      <button id="loginPwdEye" onclick="toggleLoginPwd()" type="button"
-        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-        background:none;border:none;cursor:pointer;font-size:18px;color:#4a6080;
-        line-height:1;padding:0">👁</button>
-    </div>
-
-    <div class="login-err" id="loginErr"></div>
-    <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
-
-    <!-- 測試快速登入按鈕 -->
-    <div style="width:100%;border-top:1px solid #2d3f55;padding-top:14px;display:flex;flex-direction:column;gap:7px">
-      <div style="font-size:12px;color:#4a6080;text-align:center;letter-spacing:.05em">— 快速登入 —</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="fillTest('1234','1234')" style="
-          flex:1;padding:10px 12px;background:#0f1820;
-          border:1px solid #2d3f55;border-radius:7px;cursor:pointer;
-          font-family:inherit;font-size:14px;color:#7aa3cc;
-          transition:all .15s;text-align:center"
-          onmouseover="this.style.borderColor='#1a56db';this.style.color='#93c5fd'"
-          onmouseout="this.style.borderColor='#2d3f55';this.style.color='#7aa3cc'">
-          一般使用者
-        </button>
-        <button onclick="fillTest('5555','5555')" style="
-          flex:1;padding:10px 12px;background:#0f1820;
-          border:1px solid #2d3f55;border-radius:7px;cursor:pointer;
-          font-family:inherit;font-size:14px;color:#fbbf24;
-          transition:all .15s;text-align:center"
-          onmouseover="this.style.borderColor='#f59e0b';this.style.color='#fcd34d'"
-          onmouseout="this.style.borderColor='#2d3f55';this.style.color='#fbbf24'">
-          管理者
-        </button>
+      <input class="login-field" id="loginAcc" type="text"
+        placeholder="帳號" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+      <div style="width:100%;position:relative">
+        <input class="login-field" id="loginPwd" type="password"
+          placeholder="密碼" autocomplete="current-password"
+          style="padding-right:44px"
+          onkeydown="if(event.key==='Enter')submitLogin()">
+        <button id="loginPwdEye" onclick="toggleLoginPwd()" type="button"
+          style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+          background:none;border:none;cursor:pointer;font-size:18px;color:#4a6080;
+          line-height:1;padding:0">👁</button>
       </div>
-    </div>
+      <div class="login-err" id="loginErr"></div>
+      <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
     </div><!-- end normalLoginSection -->
   </div>
 </div>
@@ -1821,11 +1800,16 @@ function _applyTeachModeUI() {
   var drawerBtn = document.getElementById('drawerTeachBtn');
   if (btn) { btn.textContent = label; btn.style.color = _teachMode ? '#fbbf24' : '#b8cce0'; }
   if (drawerBtn) { drawerBtn.textContent = label; drawerBtn.style.color = _teachMode ? '#fbbf24' : '#93c5fd'; }
-  // 登入頁切換
-  var teachSec  = document.getElementById('teachLoginSection');
-  var normalSec = document.getElementById('normalLoginSection');
-  if (teachSec)  teachSec.style.display  = _teachMode ? '' : 'none';
-  if (normalSec) normalSec.style.display = _teachMode ? 'none' : '';
+  // 教學選人：教學模式開啟時才顯示
+  var teachSec = document.getElementById('teachLoginSection');
+  var divider  = document.getElementById('loginDivider');
+  if (teachSec) teachSec.style.display = _teachMode ? '' : 'none';
+  if (divider)  divider.style.display  = _teachMode ? '' : 'none';
+  // 帳密區塊：永遠顯示
+  // 導航選項：教學模式時隱藏 normal 選項
+  document.querySelectorAll('.nav-type-normal').forEach(function(el) {
+    el.style.display = _teachMode ? 'none' : '';
+  });
   // 通知 iframe（若已載入）
   var frame = document.getElementById('contentFrame');
   if (frame) { try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e) {} }
