@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>目前事件</title>
 <style>
   :root {
@@ -951,7 +951,8 @@ cursor: pointer; transition: background .15s;
     background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.22);
     width:340px;max-width:calc(100vw - 32px);
     display:flex;flex-direction:column;pointer-events:auto;
-    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;">
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+    max-height:calc(100dvh - 32px);">
     <!-- 拖曳把手 -->
     <div id="measureDragBar" style="
       display:flex;align-items:center;justify-content:space-between;
@@ -978,7 +979,7 @@ cursor: pointer; transition: background .15s;
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">👤 回報人員 <span style="color:#dc2626">*</span></div>
         <select id="msrReporter" style="
           width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;appearance:none;">
           <option value="">— 選擇人員 —</option>
         </select>
@@ -999,7 +1000,7 @@ cursor: pointer; transition: background .15s;
         <div style="display:flex;gap:6px;align-items:center">
           <input id="msrValue" type="number" step="0.001" min="0" placeholder="例：0.15"
             style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-            font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+            font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
             outline:none;box-sizing:border-box;">
           <span id="msrUnitLabel" style="font-size:13px;font-weight:600;color:#1a56db;white-space:nowrap">μSv/h</span>
         </div>
@@ -1009,7 +1010,7 @@ cursor: pointer; transition: background .15s;
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">🔧 使用儀器（選填）</div>
         <input id="msrInstrument" type="text" placeholder="例：6150AD4(85572)"
           style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
       </div>
       <!-- 備註 -->
@@ -1017,7 +1018,7 @@ cursor: pointer; transition: background .15s;
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📝 備註（選填）</div>
         <input id="msrNote" type="text" placeholder="例：上風向量測"
           style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-          font-family:inherit;font-size:14px;color:#1e2a3a;background:white;
+          font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
       </div>
     </div>
