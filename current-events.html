@@ -4375,6 +4375,7 @@ window.addEventListener('message', function(e) {
     _loginUserTeam = String(e.data.team || '').trim();
     _loginUserTitle = String(e.data.title || '').trim();
     _loginTeachMode = !!e.data.teachLogin;
+    _loadTitleMap();
     return;
   }
 
@@ -5044,6 +5045,18 @@ var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入�
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
 var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
 var _loginTeachMode = false; // 是否為教學快速登入
+var _titleMap = {}; // 姓名 → 職稱 快取（教學模式用）
+
+// 教學模式時：抓取所有技術組人員職稱，建立姓名→職稱對應表
+function _loadTitleMap() {
+  if (!_loginTeachMode) return;
+  _jsonpGet(SHEETS_URL + '?action=group&id=tech-rdd', function(data) {
+    if (!data || !data.members) return;
+    data.members.forEach(function(m) {
+      if (m.name && m.title) _titleMap[m.name] = m.title;
+    });
+  });
+}
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -5411,8 +5424,9 @@ function openMeasureModal() {
       var name  = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
       if (!name) return;
       var storeVal = squad ? squad + ':' + name : name;
-      // 教學登入：顯示只用姓名；一般登入：顯示 squad:name
-      var displayText = _loginTeachMode ? name : storeVal;
+      // 教學登入：顯示「職稱－姓名」；一般登入：顯示 squad:name
+      var title = _titleMap[name] || '';
+      var displayText = _loginTeachMode ? (title ? title + '－' + name : name) : storeVal;
       var opt = document.createElement('option');
       opt.value = storeVal;
       opt.textContent = displayText;
