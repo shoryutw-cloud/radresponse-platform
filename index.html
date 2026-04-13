@@ -498,6 +498,7 @@
     <!-- 後台功能：僅管理員可見 -->
     <div class="drawer-section auth-hidden" id="drawerAdminSection">
       <div class="drawer-section-title">後台功能</div>
+      <button class="drawer-item admin-item" id="drawerTeachBtn" onclick="toggleTeachMode();closeDrawer()">教學模式：開啟中</button>
       <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
@@ -611,6 +612,8 @@
   <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
 </div>
 <div class="top-drop" id="drop-admin">
+  <button class="top-drop-btn" id="btnTeachMode" onclick="toggleTeachMode();closeAllMenus()">教學模式：開啟中</button>
+  <div style="height:1px;background:#2d3f54;margin:4px 0"></div>
   <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
   <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">編組管理</button>
   <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">儀器管理</button>
@@ -719,6 +722,8 @@ window.addEventListener('message', function(e) {
       } catch(err) {}
       _pendingIframeIdx = null;
     }
+    // 傳送教學模式狀態給 iframe
+    try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e3) {}
     // 傳送登入者資訊給 iframe（供回報劑量自動預選人員）
     try {
       var _lsAuth = localStorage.getItem('radAuth');
@@ -1590,12 +1595,30 @@ function openMsrQueryInIframe() {
   <div class="login-card">
     <div class="login-logo">☢️</div>
     <div class="login-title">輻射事件應變資訊平台</div>
+
+    <!-- ★ 教學快速登入（教學模式開啟時顯示）-->
+    <div id="teachLoginSection">
+      <div style="font-size:12px;color:#f59e0b;text-align:center;letter-spacing:.05em;font-weight:600">⚡ 教學快速登入</div>
+      <select id="teachMemberSel" style="
+        width:100%;padding:10px 12px;background:#0f1820;
+        border:1.5px solid #2d3f55;border-radius:8px;
+        font-family:inherit;font-size:14px;color:#b8cce0;
+        outline:none;appearance:none;cursor:pointer;margin-top:8px">
+        <option value="">⏳ 載入人員中…</option>
+      </select>
+      <button onclick="submitTeachLogin()" style="
+        width:100%;padding:12px;border-radius:8px;border:none;margin-top:8px;
+        background:#f59e0b;color:white;font-family:inherit;font-size:15px;
+        font-weight:700;cursor:pointer">進入系統</button>
+    </div>
+
+    <!-- 原帳密登入（教學模式關閉時顯示）-->
+    <div id="normalLoginSection">
     <div class="login-subtitle">請使用您的帳號密碼登入</div>
 
     <input class="login-field" id="loginAcc" type="text"
       placeholder="帳號" autocomplete="username"
       onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
-    <!-- 密碼欄 + 眼睛按鈕 -->
     <div style="width:100%;position:relative">
       <input class="login-field" id="loginPwd" type="password"
         placeholder="密碼" autocomplete="current-password"
@@ -1608,7 +1631,6 @@ function openMsrQueryInIframe() {
     </div>
 
     <div class="login-err" id="loginErr"></div>
-
     <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
 
     <!-- 測試快速登入按鈕 -->
@@ -1635,6 +1657,8 @@ function openMsrQueryInIframe() {
         </button>
       </div>
     </div>
+    </div><!-- end normalLoginSection -->
+  </div>
 </div>
 
 <script>
@@ -1765,7 +1789,82 @@ function doLogout() {
   window.location.reload();
 }
 
-// ── 任務角標：輪詢該隊的 pending 任務數 ──
+// ════════════════════════════════════════════════════════════
+// 教學模式
+// ════════════════════════════════════════════════════════════
+var _teachMode = true; // 預設開啟
+
+function _initTeachMode() {
+  try {
+    var stored = localStorage.getItem('teachMode');
+    _teachMode = (stored === null) ? true : (stored === 'true');
+  } catch(e) { _teachMode = true; }
+  _applyTeachModeUI();
+}
+
+function toggleTeachMode() {
+  _teachMode = !_teachMode;
+  try { localStorage.setItem('teachMode', _teachMode ? 'true' : 'false'); } catch(e) {}
+  _applyTeachModeUI();
+  // 通知 iframe
+  var frame = document.getElementById('contentFrame');
+  if (frame) { try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e) {} }
+}
+
+function _applyTeachModeUI() {
+  var label = _teachMode ? '教學模式：開啟中' : '教學模式：關閉';
+  var btn = document.getElementById('btnTeachMode');
+  var drawerBtn = document.getElementById('drawerTeachBtn');
+  if (btn) { btn.textContent = label; btn.style.color = _teachMode ? '#fbbf24' : '#b8cce0'; }
+  if (drawerBtn) { drawerBtn.textContent = label; drawerBtn.style.color = _teachMode ? '#fbbf24' : '#93c5fd'; }
+  // 登入頁切換
+  var teachSec  = document.getElementById('teachLoginSection');
+  var normalSec = document.getElementById('normalLoginSection');
+  if (teachSec)  teachSec.style.display  = _teachMode ? '' : 'none';
+  if (normalSec) normalSec.style.display = _teachMode ? 'none' : '';
+  // 通知 iframe（若已載入）
+  var frame = document.getElementById('contentFrame');
+  if (frame) { try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e) {} }
+}
+
+// 教學登入：載入人員名單（從 GAS tech-rdd 讀取）
+function _loadTeachMembers() {
+  var sel = document.getElementById('teachMemberSel');
+  if (!sel) return;
+  _jsonpGet(SHEETS_URL + '?action=group&id=tech-rdd', function(data) {
+    if (!data || !data.members || !data.members.length) {
+      sel.innerHTML = '<option value="">（無法載入人員）</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— 選擇您的姓名 —</option>' +
+      data.members.map(function(m) {
+        var val = JSON.stringify({ name: m.name, title: m.title, team: m.team, group: '技術組' });
+        return '<option value=\'' + val.replace(/'/g, '&apos;') + '\'>' + m.title + '－' + m.name + '</option>';
+      }).join('');
+  });
+}
+
+function submitTeachLogin() {
+  var sel = document.getElementById('teachMemberSel');
+  if (!sel || !sel.value) { alert('請選擇您的姓名'); return; }
+  var member = JSON.parse(sel.value);
+  var user = {
+    name: member.name,
+    team: member.team || '',
+    group: member.group || '技術組',
+    isAdmin: false,
+    teachLogin: true
+  };
+  try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
+  document.getElementById('loginOverlay').classList.add('hide');
+  onLoginSuccess(user);
+}
+
+// ── 教學模式初始化（頁面載入時）──
+window.addEventListener('DOMContentLoaded', function() {
+  _initTeachMode();
+  _loadTeachMembers();
+});
 var _taskBadgeTimer = null;
 
 function _startTaskBadgePolling() {

@@ -3014,6 +3014,7 @@ function removeEventLayers(idx) {
 // ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
 // 預設全部為 true（全開），使用者勾選後自動記憶
 var _layerPrefs = {};
+var _teachMode = false; // 從 parent postMessage 接收
 
 // 取得指定事件+圖層的記憶狀態
 // 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
@@ -3472,12 +3473,12 @@ function renderLayerPanel() {
   body.innerHTML =
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
+      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍</label>') +
+      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>') +
+      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>') +
+      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>') +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
+      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>') +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
       '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>模擬100m範圍圓</label>' +
@@ -4360,6 +4361,13 @@ var _pendingIdx = null;
 var _pendingEventId = null;
 window.addEventListener('message', function(e) {
   if (!e.data) return;
+
+  // ── 教學模式切換 ──
+  if (e.data.type === 'teachMode') {
+    _teachMode = !!e.data.on;
+    renderLayerPanel(); // 重新渲染圖層面板（隱藏/顯示部分圖層）
+    return;
+  }
 
   // ── 接收登入者姓名與隊別（由 index.html iframeReady 後傳入）──
   if (e.data.type === 'setLoginUser') {
@@ -5335,7 +5343,13 @@ function showReportFabs() {
     'pointer-events:auto;padding:13px 26px;border-radius:40px;border:none;' +
     'background:#f97316;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(249,115,22,.5);cursor:pointer;';
-  btn1.onclick = function() { openMsrTypeModal(); };
+  btn1.onclick = function() {
+    if (_teachMode) {
+      openMeasureModal(); // 教學模式：直接開回報劑量
+    } else {
+      openMsrTypeModal(); // 一般模式：先問是否量測任務
+    }
+  };
 
   var btn2 = document.createElement('button');
   btn2.textContent = '回報任務';
