@@ -3613,15 +3613,13 @@ function renderContourLayer() {
   var wd = (parseFloat(ev.windDir) + 180) % 360;
   if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
 
-  // 七條等值線（mSv/h）
+  // 五條等值線（mSv/h）
   var levels = [
-    { val: 0.0005, color: '#16a34a', label: '0.5μSv/h' },
-    { val: 0.0012, color: '#4ade80', label: '1.2μSv/h' },
-    { val: 0.012,  color: '#facc15', label: '12μSv/h'  },
-    { val: 0.12,   color: '#fb923c', label: '120μSv/h' },
-    { val: 1.2,    color: '#ef4444', label: '1.2mSv/h' },
-    { val: 12,     color: '#b91c1c', label: '12mSv/h'  },
-    { val: 100,    color: '#7f1d1d', label: '100mSv/h' }
+    { val: 0.0002, color: '#16a34a', label: '0.2μSv/h'  },
+    { val: 0.0012, color: '#4ade80', label: '1.2μSv/h'  },
+    { val: 0.012,  color: '#facc15', label: '12μSv/h'   },
+    { val: 0.12,   color: '#fb923c', label: '120μSv/h'  },
+    { val: 0.25,   color: '#ef4444', label: '250μSv/h'  }
   ];
 
   levels.forEach(function(lev) {
