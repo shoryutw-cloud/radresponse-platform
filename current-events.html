@@ -1551,6 +1551,7 @@ function saveEdit() {
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
+    if (_contourLayerOn) renderContourLayer(); // 等值線也重繪
     // 先更新原始風向記錄，避免 toggleEditPanel 還原成舊值
     _editOrigWindDir = ev.windDir;
     // 關閉面板，重新渲染卡片
@@ -3513,6 +3514,7 @@ function renderLayerPanel() {
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
     '</div></div>';
 }
 
@@ -3528,6 +3530,125 @@ function onMsrChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msr', checked);
   toggleMsrLayer(idx);
+}
+
+// ════════════════════════════════════════════
+// 理論等值線圖層（管理員非教學模式專用）
+// ════════════════════════════════════════════
+var _contourLayerOn = false;
+var _contourLines   = []; // 存放所有 L.polyline 物件
+
+// 劑量計算（與 sim_index.html 同模型）
+var _DOSE_TABLE = [
+  [0.1,  120    ],
+  [5,    12     ],
+  [15,   1.2    ],
+  [30,   0.12   ],
+  [50,   0.012  ],
+  [70,   0.0012 ],
+  [90,   0.0005 ],
+  [110,  0.00005]
+];
+var _CONTOUR_SIGMA = 15;
+var _SRC_DOSE = 120;
+
+function _ctDeltaAngle(a, b) {
+  var d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+function _ctIsUpwind(bearing, windDir) {
+  return _ctDeltaAngle(bearing, (windDir + 180) % 360) < 60;
+}
+function _ctTableInterp(distM) {
+  var t = _DOSE_TABLE;
+  if (distM <= t[0][0]) return t[0][1];
+  if (distM >= t[t.length-1][0]) return t[t.length-1][1];
+  for (var i = 0; i < t.length-1; i++) {
+    if (distM <= t[i+1][0]) {
+      var d0 = t[i][0], d1 = t[i+1][0], v0 = t[i][1], v1 = t[i+1][1];
+      var tt = (distM - d0) / (d1 - d0);
+      return Math.exp(Math.log(v0) + tt * (Math.log(v1) - Math.log(v0)));
+    }
+  }
+  return t[t.length-1][1];
+}
+function _ctCalcDose(distM, bearingFromSrc, windDir) {
+  if (distM < 0.5) return _SRC_DOSE;
+  var doseAxis = _ctTableInterp(distM);
+  var angleDiff = _ctDeltaAngle(bearingFromSrc, windDir);
+  var sigmaEff = Math.max(_CONTOUR_SIGMA, _CONTOUR_SIGMA + distM * 0.02);
+  var sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+  var gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+  var upFactor = _ctIsUpwind(bearingFromSrc, windDir) ? 0.02 : 1.0;
+  var wf = gaussian * upFactor + 0.01;
+  return Math.min(doseAxis * (wf / 1.01), _SRC_DOSE);
+}
+
+// 極座標法：每個角度找等值線距離（二分搜尋）
+function _ctFindDist(targetDoseMsv, angleDeg, windDir) {
+  var lo = 0.5, hi = 115;
+  for (var iter = 0; iter < 30; iter++) {
+    var mid = (lo + hi) / 2;
+    var d = _ctCalcDose(mid, angleDeg, windDir);
+    if (d > targetDoseMsv) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+// 繪製等值線
+function renderContourLayer() {
+  // 清除舊線
+  _contourLines.forEach(function(l) { l.remove(); });
+  _contourLines = [];
+  if (!_contourLayerOn) return;
+
+  var ev = _events[_curIdx];
+  if (!ev || !ev.lat || !ev.lng || !ev.windDir || ev.windDir === '') {
+    showToast('⚠️ 請先設定事件座標及風向');
+    return;
+  }
+  var la = parseFloat(ev.lat);
+  var lo = parseFloat(ev.lng);
+  var wd = parseFloat(ev.windDir);
+  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
+
+  // 七條等值線（mSv/h）
+  var levels = [
+    { val: 0.0005, color: '#16a34a', label: '0.5μSv/h' },
+    { val: 0.0012, color: '#4ade80', label: '1.2μSv/h' },
+    { val: 0.012,  color: '#facc15', label: '12μSv/h'  },
+    { val: 0.12,   color: '#fb923c', label: '120μSv/h' },
+    { val: 1.2,    color: '#ef4444', label: '1.2mSv/h' },
+    { val: 12,     color: '#b91c1c', label: '12mSv/h'  },
+    { val: 100,    color: '#7f1d1d', label: '100mSv/h' }
+  ];
+
+  levels.forEach(function(lev) {
+    var pts = [];
+    var steps = 72; // 每 5 度一個點
+    for (var i = 0; i <= steps; i++) {
+      var bearingDeg = (i / steps) * 360;
+      var distM = _ctFindDist(lev.val, bearingDeg, wd);
+      if (distM >= 113) return; // 超出範圍不畫
+      var pt = destPoint(la, lo, bearingDeg, distM);
+      pts.push(pt);
+    }
+    if (pts.length < 3) return;
+    // 閉合
+    pts.push(pts[0]);
+    var line = L.polyline(pts, {
+      color: lev.color, weight: 2, opacity: 0.85,
+      dashArray: null
+    }).addTo(gMap);
+    line.bindTooltip(lev.label, { permanent: false, direction: 'top' });
+    _contourLines.push(line);
+  });
+}
+
+function onContourChk(checked) {
+  _contourLayerOn = checked;
+  if (checked) renderContourLayer();
+  else { _contourLines.forEach(function(l){ l.remove(); }); _contourLines = []; }
 }
 
 // ════════════════════════════════════════════
@@ -4388,6 +4509,12 @@ window.addEventListener('message', function(e) {
   // ── 教學模式切換 ──
   if (e.data.type === 'teachMode') {
     _teachMode = !!e.data.on;
+    // 教學模式開啟時強制關閉等值線
+    if (_teachMode && _contourLayerOn) {
+      _contourLayerOn = false;
+      _contourLines.forEach(function(l){ l.remove(); });
+      _contourLines = [];
+    }
     renderLayerPanel(); // 重新渲染圖層面板（隱藏/顯示部分圖層）
     return;
   }
