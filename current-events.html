@@ -3523,15 +3523,6 @@ function onMsrChk(idx, checked) {
   toggleMsrLayer(idx);
 }
 
-// ── zoom 改變時重渲量測標記（重新計算聚合和標籤位置）──
-gMap.on('zoomend', function() {
-  _events.forEach(function(ev) {
-    if (isLayerOn(_events.indexOf ? _events.indexOf(ev) : 0, 'msr')) {
-      renderMsrMarkers(ev.id);
-    }
-  });
-});
-
 // ════════════════════════════════════════════
 // 環境輻射監測站圖層（官方固定站，菱形標記）
 // ════════════════════════════════════════════
@@ -5958,6 +5949,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 縮放或拖動 → 視為取消量測點建議，移除圖釘
     gMap.on('zoomstart', function() { hideCtxMenu(); });
+
+    // zoom 改變時重渲量測標記（重新計算聚合和標籤位置）
+    gMap.on('zoomend', function() {
+      _events.forEach(function(ev, evIdx) {
+        if (isLayerOn(evIdx, 'msr')) renderMsrMarkers(ev.id);
+      });
+    });
     gMap.on('dragstart',  function() {
       hideCtxMenu();
       // 若同時在導航模式中拖動，停止跟隨
