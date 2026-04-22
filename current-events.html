@@ -2711,8 +2711,8 @@ function flyToEvent(idx) {
 var _evLayers = {};
 var _windDeg  = 270; // 預設東風
 var _msrMarkers   = []; // 量測標記
-var _clusterMode  = 'none'; // 'pixel' | 'geo' | 'none'
-var _clusterPixel = 80;      // 像素聚合距離（px）
+var _clusterMode  = 'pixel'; // 'pixel' | 'geo' | 'none'
+var _clusterPixel = 80;      // 像素聚合距離（px），依 zoom 動態調整
 var _clusterGeoM  = 500;     // 地理聚合距離（公尺）
 var _msrCache   = {}; // { eventId: [measurements] }
 
@@ -3171,6 +3171,10 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
+  // ── 依 zoom 動態調整聚合距離 ──
+  var zoom = gMap.getZoom();
+  _clusterPixel = zoom >= 18 ? 30 : zoom >= 16 ? 55 : zoom >= 14 ? 80 : 110;
+
   // ── 聚合分組 ──
   var groups = clusterMsrPoints(valid, _clusterMode);
 
@@ -3184,9 +3188,10 @@ function renderMsrMarkers(eventId) {
     var sz  = grp.members.length > 5 ? 44 : 36;
     var clusterIcon = L.divIcon({
       className: '',
-      html: '<div class="msr-cluster" style="width:'+sz+'px;height:'+sz+'px;background:'+col+';color:white;">' +
-            '<span style="font-size:10px;font-weight:800;line-height:1">' + val.toFixed(1) + '</span>' +
-            '<span style="font-size:9px;opacity:.8">×'+grp.members.length+'</span>' +
+      html: '<div class="msr-cluster" style="width:'+sz+'px;height:'+sz+'px;background:'+col+';color:white;box-shadow:0 2px 10px rgba(0,0,0,.4)">' +
+            '<div style="font-size:10px;font-weight:900;line-height:1.1">' + _fmtDose(val).val + '</div>' +
+            '<div style="font-size:9px;opacity:.85">' + _fmtDose(val).unit + '</div>' +
+            '<div style="font-size:8px;opacity:.7">×'+grp.members.length+'</div>' +
             '</div>',
       iconSize: [sz,sz], iconAnchor: [sz/2,sz/2]
     });
@@ -3215,7 +3220,7 @@ function renderMsrMarkers(eventId) {
 
   // ★ 固定虛線長度：60px（不隨縮放變，保持視覺一致）
   var LINE_LEN = 55;
-  var R_MAX    = LINE_LEN + 100; // 最多往外推 100px，不讓標籤跑太遠
+  var R_MAX    = LINE_LEN + 300; // 放大可推範圍，避免重疊
 
   // ★ 使用 containerPoint（容器像素座標），確保 clamp 與碰撞在同一座標系
   var pts = valid.map(function(msr) {
@@ -3517,6 +3522,15 @@ function onMsrChk(idx, checked) {
   if (ev) saveLayerPref(ev.id, 'msr', checked);
   toggleMsrLayer(idx);
 }
+
+// ── zoom 改變時重渲量測標記（重新計算聚合和標籤位置）──
+gMap.on('zoomend', function() {
+  _events.forEach(function(ev) {
+    if (isLayerOn(_events.indexOf ? _events.indexOf(ev) : 0, 'msr')) {
+      renderMsrMarkers(ev.id);
+    }
+  });
+});
 
 // ════════════════════════════════════════════
 // 環境輻射監測站圖層（官方固定站，菱形標記）
