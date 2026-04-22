@@ -3609,7 +3609,8 @@ function renderContourLayer() {
   }
   var la = parseFloat(ev.lat);
   var lo = parseFloat(ev.lng);
-  var wd = parseFloat(ev.windDir);
+  // windDir 是風來的方向（氣象慣例），煙羽方向 = windDir + 180°
+  var wd = (parseFloat(ev.windDir) + 180) % 360;
   if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
 
   // 七條等值線（mSv/h）
@@ -3629,7 +3630,7 @@ function renderContourLayer() {
     for (var i = 0; i <= steps; i++) {
       var bearingDeg = (i / steps) * 360;
       var distM = _ctFindDist(lev.val, bearingDeg, wd);
-      if (distM >= 113) return; // 超出範圍不畫
+      if (distM >= 113) continue; // 超出範圍跳過此角度
       var pt = destPoint(la, lo, bearingDeg, distM);
       pts.push(pt);
     }
