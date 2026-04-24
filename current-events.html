@@ -3503,7 +3503,7 @@ function renderLayerPanel() {
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>') +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>') +
-      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' : '') +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
       '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>模擬100m範圍圓</label>' +
       '<label class="layer-row" title="模擬 1km 橫切面（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_line" '  +c('mini_line')  +' onchange="onLayerChk('+i+',\'mini_line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px dashed #3b82f6"></span>模擬1km橫切面</label>' +
@@ -3515,6 +3515,7 @@ function renderLayerPanel() {
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線</label>' : '') +
     '</div></div>';
 }
 
@@ -3535,8 +3536,10 @@ function onMsrChk(idx, checked) {
 // ════════════════════════════════════════════
 // 理論等值線圖層（管理員非教學模式專用）
 // ════════════════════════════════════════════
-var _contourLayerOn = false;
-var _contourLines   = []; // 存放所有 L.polyline 物件
+var _contourLayerOn  = false;
+var _contourLines    = []; // 存放所有 L.polyline 物件
+var _contour3LayerOn = false;
+var _contour3Lines   = []; // 教學用三圈等值線
 
 // 劑量計算（與 sim_index.html 同模型）
 var _DOSE_TABLE = [
@@ -3650,8 +3653,44 @@ function onContourChk(checked) {
   else { _contourLines.forEach(function(l){ l.remove(); }); _contourLines = []; }
 }
 
-// ════════════════════════════════════════════
-// 環境輻射監測站圖層（官方固定站，菱形標記）
+function onContour3Chk(checked) {
+  _contour3LayerOn = checked;
+  if (checked) renderContour3Layer();
+  else { _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = []; }
+}
+
+// 三圈教學用等值線：0.5μSv/h、100μSv/h、250μSv/h
+function renderContour3Layer() {
+  _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = [];
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+  var wd = (parseFloat(ev.windDir) + 180) % 360;
+  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
+
+  var levels3 = [
+    { val: 0.0005, color: '#0ea5e9', width: 2.5 },
+    { val: 0.1,    color: '#f59e0b', width: 2.5 },
+    { val: 0.25,   color: '#ef4444', width: 2.5 }
+  ];
+
+  levels3.forEach(function(lev) {
+    var pts = [];
+    for (var deg = 0; deg < 360; deg += 3) {
+      var distM = _ctFindDist(lev.val, deg, wd);
+      if (distM < 113) pts.push(destPoint(la, lo, deg, distM));
+    }
+    if (pts.length > 4) {
+      pts.push(pts[0]);
+      var line = L.polyline(pts, { color: lev.color, weight: lev.width, opacity: 0.9 }).addTo(gMap);
+      line.bindTooltip(_ctFmtVal(lev.val), {
+        permanent: true, direction: 'center',
+        className: 'contour-lbl', offset: [0, 0]
+      });
+      _contour3Lines.push(line);
+    }
+  });
+}
 // ════════════════════════════════════════════
 var _envMarkers   = [];
 var _envTimer     = null;
