@@ -3515,8 +3515,7 @@ function renderLayerPanel() {
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線A</label>' : '') +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour4" ' + (_contour4LayerOn ? 'checked' : '') + ' onchange="onContour4Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#a855f7,#ef4444);border:1.5px solid #a855f7"></span>教學用等值線B</label>' : '') +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線</label>' : '') +
     '</div></div>';
 }
 
@@ -3673,7 +3672,7 @@ function renderContour3Layer() {
 
   // 等值線A：0.5μSv / 12μSv / 120μSv（值域自然分開，三圈間距均勻）
   var levels3 = [
-    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h'  },
+    { val: 0.0012, color: '#0ea5e9', width: 2.5, label: '1.2 μSv/h'  },
     { val: 0.012,  color: '#f59e0b', width: 2.5, label: '12 μSv/h'   },
     { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
   ];
