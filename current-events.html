@@ -3669,9 +3669,9 @@ function renderContour3Layer() {
   if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
 
   var levels3 = [
-    { val: 0.0005, color: '#0ea5e9', width: 2.5 },
-    { val: 0.1,    color: '#f59e0b', width: 2.5 },
-    { val: 0.25,   color: '#ef4444', width: 2.5 }
+    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h' },
+    { val: 0.1,    color: '#f59e0b', width: 2.5, label: '100 μSv/h' },
+    { val: 0.25,   color: '#ef4444', width: 2.5, label: '250 μSv/h' }
   ];
 
   levels3.forEach(function(lev) {
@@ -3679,13 +3679,15 @@ function renderContour3Layer() {
     for (var deg = 0; deg < 360; deg += 3) {
       var distM = _ctFindDist(lev.val, deg, wd);
       if (distM < 113) pts.push(destPoint(la, lo, deg, distM));
+      // 注意：超出範圍跳過此角度（不 return，繼續下一個角度）
     }
     if (pts.length > 4) {
-      pts.push(pts[0]);
+      pts.push(pts[0]); // 閉合
       var line = L.polyline(pts, { color: lev.color, weight: lev.width, opacity: 0.9 }).addTo(gMap);
-      line.bindTooltip(_ctFmtVal(lev.val), {
-        permanent: true, direction: 'center',
-        className: 'contour-lbl', offset: [0, 0]
+      // hover 顯示數值
+      line.bindTooltip(lev.label, {
+        sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95,
+        className: 'contour-lbl'
       });
       _contour3Lines.push(line);
     }
