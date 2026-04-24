@@ -3515,7 +3515,8 @@ function renderLayerPanel() {
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線</label>' : '') +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線A</label>' : '') +
+      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour4" ' + (_contour4LayerOn ? 'checked' : '') + ' onchange="onContour4Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#a855f7,#ef4444);border:1.5px solid #a855f7"></span>教學用等值線B</label>' : '') +
     '</div></div>';
 }
 
@@ -3539,7 +3540,9 @@ function onMsrChk(idx, checked) {
 var _contourLayerOn  = false;
 var _contourLines    = []; // 存放所有 L.polyline 物件
 var _contour3LayerOn = false;
-var _contour3Lines   = []; // 教學用三圈等值線
+var _contour3Lines   = []; // 教學用三圈等值線A（物理版）
+var _contour4LayerOn = false;
+var _contour4Lines   = []; // 教學用三圈等值線B（梯度版）
 
 // 劑量計算（與 sim_index.html 同模型）
 var _DOSE_TABLE = [
@@ -3668,10 +3671,11 @@ function renderContour3Layer() {
   var wd = (parseFloat(ev.windDir) + 180) % 360;
   if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
 
+  // 等值線A：0.5μSv / 12μSv / 120μSv（值域自然分開，三圈間距均勻）
   var levels3 = [
-    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h' },
-    { val: 0.1,    color: '#f59e0b', width: 2.5, label: '100 μSv/h' },
-    { val: 0.25,   color: '#ef4444', width: 2.5, label: '250 μSv/h' }
+    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h'  },
+    { val: 0.012,  color: '#f59e0b', width: 2.5, label: '12 μSv/h'   },
+    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
   ];
 
   levels3.forEach(function(lev) {
@@ -3679,17 +3683,85 @@ function renderContour3Layer() {
     for (var deg = 0; deg < 360; deg += 3) {
       var distM = _ctFindDist(lev.val, deg, wd);
       if (distM < 113) pts.push(destPoint(la, lo, deg, distM));
-      // 注意：超出範圍跳過此角度（不 return，繼續下一個角度）
     }
     if (pts.length > 4) {
-      pts.push(pts[0]); // 閉合
+      pts.push(pts[0]);
       var line = L.polyline(pts, { color: lev.color, weight: lev.width, opacity: 0.9 }).addTo(gMap);
-      // hover 顯示數值
-      line.bindTooltip(lev.label, {
-        sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95,
-        className: 'contour-lbl'
-      });
+      line.bindTooltip(lev.label, { sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95, className: 'contour-lbl' });
       _contour3Lines.push(line);
+    }
+  });
+}
+
+function onContour4Chk(checked) {
+  _contour4LayerOn = checked;
+  if (checked) renderContour4Layer();
+  else { _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = []; }
+}
+
+// 等值線B：0.5μSv / 100μSv / 120μSv，用調整 doseTable 讓三圈分開
+function renderContour4Layer() {
+  _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = [];
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+  var wd = (parseFloat(ev.windDir) + 180) % 360;
+  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
+
+  // 調整 doseTable 讓 120μSv 在 ~5m，100μSv 在 ~30m
+  var customTable = [
+    [0.1,  150   ],
+    [5,    0.12  ],
+    [30,   0.10  ],
+    [50,   0.012 ],
+    [70,   0.0012],
+    [90,   0.0005],
+    [110,  0.00005]
+  ];
+  function interpB(d) {
+    if (d <= customTable[0][0]) return customTable[0][1];
+    if (d >= customTable[customTable.length-1][0]) return customTable[customTable.length-1][1];
+    for (var i = 0; i < customTable.length-1; i++) {
+      if (d <= customTable[i+1][0]) {
+        var d0=customTable[i][0], d1=customTable[i+1][0];
+        var v0=customTable[i][1], v1=customTable[i+1][1];
+        var r=(d-d0)/(d1-d0);
+        return Math.exp(Math.log(v0)+r*(Math.log(v1)-Math.log(v0)));
+      }
+    }
+    return customTable[customTable.length-1][1];
+  }
+  function findDistB(target, bearingDeg) {
+    var sigma=7;
+    for (var d=0.5; d<=113; d+=0.5) {
+      var axis=interpB(d);
+      var seff=Math.max(sigma,sigma+d*0.02);
+      var sang=(seff/d)*(180/Math.PI);
+      var ad=Math.abs(bearingDeg-wd)%360; if(ad>180)ad=360-ad;
+      var upwind=ad>110;
+      var gaus=Math.exp(-(ad*ad)/(2*sang*sang));
+      var wf=gaus*(upwind?0.02:1.0)+0.01;
+      if(Math.min(axis*(wf/1.01),150)<=target) return d;
+    }
+    return 999;
+  }
+
+  var levels4 = [
+    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h'  },
+    { val: 0.10,   color: '#f59e0b', width: 2.5, label: '100 μSv/h'  },
+    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
+  ];
+  levels4.forEach(function(lev) {
+    var pts = [];
+    for (var deg=0; deg<360; deg+=3) {
+      var distM=findDistB(lev.val,deg);
+      if (distM<113) pts.push(destPoint(la,lo,deg,distM));
+    }
+    if (pts.length>4) {
+      pts.push(pts[0]);
+      var line=L.polyline(pts,{color:lev.color,weight:2.5,opacity:0.9}).addTo(gMap);
+      line.bindTooltip(lev.label,{sticky:true,direction:'top',offset:[0,-8],opacity:0.95});
+      _contour4Lines.push(line);
     }
   });
 }
