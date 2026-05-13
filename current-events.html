@@ -3105,13 +3105,14 @@ function loadMeasurements(idx, force) {
 
   if (!force && _msrCache[ev.id]) {
     renderMsrMarkers(ev.id);
+    renderMsrDotLayer(idx);
     return;
   }
 
   _jsonpGet(SHEETS_URL + '?action=measurements&eventId=' + encodeURIComponent(ev.id), function(data) {
     _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
     renderMsrMarkers(ev.id);
-    // 量測數據載入後重繪卡片，確保最大劑量率欄位即時更新
+    renderMsrDotLayer(idx);
     if (idx === _curIdx) renderCard(idx);
   });
 }
@@ -3530,6 +3531,7 @@ function renderLayerPanel() {
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>') +
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>') +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" ' +c('msrdot')+ ' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測數值(不顯示數據)</label>' +
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>') +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' : '') +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
@@ -3559,6 +3561,41 @@ function onMsrChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msr', checked);
   toggleMsrLayer(idx);
+}
+
+function onMsrDotChk(idx, checked) {
+  var ev = _events[idx];
+  if (ev) saveLayerPref(ev.id, 'msrdot', checked);
+  renderMsrDotLayer(idx);
+}
+
+// ── 量測點：只顯示彩色圓點，不顯示數字 ──
+var _msrDotMarkers = [];
+function renderMsrDotLayer(idx) {
+  _msrDotMarkers.forEach(function(m){ m.remove(); }); _msrDotMarkers = [];
+  if (!isLayerOn(idx, 'msrdot')) return;
+  var ev = _events[idx];
+  if (!ev) return;
+  var data = _msrCache[ev.id];
+  if (!data || !data.measurements) return;
+
+  data.measurements.forEach(function(msr) {
+    var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    var val = parseFloat(msr.value); // μSv/h
+    // 顏色：綠<1.2μSv, 橙1.2~120μSv, 紅>120μSv
+    var col = val < 1.2 ? '#16a34a' : val < 120 ? '#f97316' : '#dc2626';
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';' +
+            'border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,.4)"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7]
+    });
+    var mk = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    mk.bindTooltip(val >= 1000 ? (val/1000).toFixed(3)+' mSv/h' : val.toFixed(3)+' μSv/h',
+      { sticky: true, direction: 'top', offset: [0, -8] });
+    _msrDotMarkers.push(mk);
+  });
 }
 
 // ════════════════════════════════════════════
