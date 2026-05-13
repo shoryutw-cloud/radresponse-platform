@@ -947,12 +947,12 @@ cursor: pointer; transition: background .15s;
 <!-- 回報劑量 Modal（可拖曳）-->
 <div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none">
   <div id="measureCard" style="
-    position:absolute;top:16px;left:50%;transform:translateX(-50%);
+    position:absolute;top:8px;left:50%;transform:translateX(-50%);
     background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.22);
     width:340px;max-width:calc(100vw - 32px);
     display:flex;flex-direction:column;pointer-events:auto;
     font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
-    max-height:calc(100dvh - 32px);">
+    max-height:calc(100dvh - 16px);">
     <!-- 拖曳把手 -->
     <div id="measureDragBar" style="
       display:flex;align-items:center;justify-content:space-between;
@@ -1005,6 +1005,34 @@ cursor: pointer; transition: background .15s;
           <span id="msrUnitLabel" style="font-size:13px;font-weight:600;color:#1a56db;white-space:nowrap">μSv/h</span>
         </div>
       </div>
+      <!-- 污染值（放在劑量率下方） -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em">☢️ 污染值（選填）</div>
+          <div style="display:flex;gap:0;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+            <button id="contamBtnAlpha" onclick="setContamType('α')"
+              style="padding:3px 10px;font-size:12px;font-weight:700;border:none;cursor:pointer;
+              background:white;color:#6b7a92;font-family:inherit;transition:all .15s">α</button>
+            <button id="contamBtnBeta" onclick="setContamType('β')"
+              style="padding:3px 10px;font-size:12px;font-weight:700;border:none;cursor:pointer;
+              background:white;color:#6b7a92;font-family:inherit;transition:all .15s">β</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="contamValue" type="number" step="1" min="0" placeholder="數值"
+            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+            font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
+            outline:none;box-sizing:border-box;">
+          <div style="display:flex;gap:0;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;flex-shrink:0">
+            <button id="contamUnitCps" onclick="setContamUnit('cps')"
+              style="padding:8px 10px;border:none;background:#1a56db;color:white;
+              font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s">cps</button>
+            <button id="contamUnitCpm" onclick="setContamUnit('cpm')"
+              style="padding:8px 10px;border:none;background:white;color:#6b7a92;
+              font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s">cpm</button>
+          </div>
+        </div>
+      </div>
       <!-- 儀器 -->
       <div>
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">🔧 使用儀器（選填）</div>
@@ -1012,36 +1040,6 @@ cursor: pointer; transition: background .15s;
           style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
           font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
-      </div>
-      <!-- 污染值 -->
-      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;background:#fafbfc">
-        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:8px">☢️ 污染值（選填）</div>
-        <!-- α / β 選擇 -->
-        <div style="display:flex;gap:6px;margin-bottom:8px">
-          <button id="contamBtnAlpha" onclick="setContamType('α')"
-            style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e2e8f0;
-            background:white;font-family:inherit;font-size:15px;font-weight:700;
-            color:#6b7a92;cursor:pointer;transition:all .15s">α</button>
-          <button id="contamBtnBeta" onclick="setContamType('β')"
-            style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e2e8f0;
-            background:white;font-family:inherit;font-size:15px;font-weight:700;
-            color:#6b7a92;cursor:pointer;transition:all .15s">β</button>
-        </div>
-        <!-- 數值 + 單位 -->
-        <div style="display:flex;gap:6px;align-items:center">
-          <input id="contamValue" type="number" step="1" min="0" placeholder="數值"
-            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-            font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
-            outline:none;box-sizing:border-box;">
-          <div style="display:flex;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden">
-            <button id="contamUnitCps" onclick="setContamUnit('cps')"
-              style="padding:8px 12px;border:none;background:#1a56db;color:white;
-              font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">cps</button>
-            <button id="contamUnitCpm" onclick="setContamUnit('cpm')"
-              style="padding:8px 12px;border:none;background:white;color:#6b7a92;
-              font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">cpm</button>
-          </div>
-        </div>
       </div>
       <!-- 備註 -->
       <div>
@@ -5696,8 +5694,8 @@ function setContamType(t) {
   _contamType = (_contamType === t) ? '' : t;
   var alpha = document.getElementById('contamBtnAlpha');
   var beta  = document.getElementById('contamBtnBeta');
-  if (alpha) { alpha.style.background = (_contamType==='α') ? '#1a56db' : 'white'; alpha.style.color = (_contamType==='α') ? 'white' : '#6b7a92'; alpha.style.borderColor = (_contamType==='α') ? '#1a56db' : '#e2e8f0'; }
-  if (beta)  { beta.style.background  = (_contamType==='β') ? '#1a56db' : 'white'; beta.style.color  = (_contamType==='β') ? 'white' : '#6b7a92'; beta.style.borderColor  = (_contamType==='β') ? '#1a56db' : '#e2e8f0'; }
+  if (alpha) { alpha.style.background = (_contamType==='α') ? '#1a56db' : 'white'; alpha.style.color = (_contamType==='α') ? 'white' : '#6b7a92'; }
+  if (beta)  { beta.style.background  = (_contamType==='β') ? '#1a56db' : 'white'; beta.style.color  = (_contamType==='β') ? 'white' : '#6b7a92'; }
 }
 
 function setContamUnit(u) {
