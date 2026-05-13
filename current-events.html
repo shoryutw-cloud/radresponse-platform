@@ -3566,7 +3566,11 @@ function onMsrChk(idx, checked) {
 function onMsrDotChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msrdot', checked);
-  renderMsrDotLayer(idx);
+  if (checked && ev && !_msrCache[ev.id]) {
+    loadMeasurements(idx); // 資料未載入時先拉取
+  } else {
+    renderMsrDotLayer(idx);
+  }
 }
 
 // ── 量測點：只顯示彩色圓點，不顯示數字 ──
@@ -3576,14 +3580,15 @@ function renderMsrDotLayer(idx) {
   if (!isLayerOn(idx, 'msrdot')) return;
   var ev = _events[idx];
   if (!ev) return;
-  var data = _msrCache[ev.id];
-  if (!data || !data.measurements) return;
+  var measurements = _msrCache[ev.id]; // 直接是陣列
+  if (!measurements || !measurements.length) return;
 
-  data.measurements.forEach(function(msr) {
+  measurements.forEach(function(msr) {
     var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
     if (isNaN(lat) || isNaN(lng)) return;
     var val = parseFloat(msr.value); // μSv/h
-    // 顏色：綠<1.2μSv, 橙1.2~120μSv, 紅>120μSv
+    if (isNaN(val)) return;
+    // 顏色：綠<1.2μSv, 橙1.2~120μSv, 紅≥120μSv
     var col = val < 1.2 ? '#16a34a' : val < 120 ? '#f97316' : '#dc2626';
     var icon = L.divIcon({
       className: '',
@@ -3592,8 +3597,8 @@ function renderMsrDotLayer(idx) {
       iconSize: [14, 14], iconAnchor: [7, 7]
     });
     var mk = L.marker([lat, lng], { icon: icon }).addTo(gMap);
-    mk.bindTooltip(val >= 1000 ? (val/1000).toFixed(3)+' mSv/h' : val.toFixed(3)+' μSv/h',
-      { sticky: true, direction: 'top', offset: [0, -8] });
+    var tipVal = val >= 1000 ? (val/1000).toFixed(3)+' mSv/h' : val.toFixed(3)+' μSv/h';
+    mk.bindTooltip(tipVal, { sticky: true, direction: 'top', offset: [0, -8] });
     _msrDotMarkers.push(mk);
   });
 }
