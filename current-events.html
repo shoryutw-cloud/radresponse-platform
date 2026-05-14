@@ -3555,7 +3555,10 @@ function renderLayerPanel() {
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>輻射濃度疊加層</label>' +
-      '<div style="padding:2px 4px 6px 28px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">📂 上傳 KMZ</button></div>' +
+      '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px">' +
+        '<button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">📂 上傳 KMZ</button>' +
+        '<button onclick="rotateKmz180()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">🔄 旋轉180°</button>' +
+      '</div>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線</label>' : '') +
@@ -3921,6 +3924,28 @@ function onKmzChk(checked) {
 }
 
 // ── KMZ 上傳解析 ──
+// ── KMZ 旋轉 180° ──
+function rotateKmz180() {
+  if (!_kmzOverlay || !_KMZ_OVERLAY_B64) {
+    showToast('⚠️ 請先載入疊加層'); return;
+  }
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    var ctx = canvas.getContext('2d');
+    ctx.translate(img.width / 2, img.height / 2);
+    ctx.rotate(Math.PI); // 180°
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    var rotated = canvas.toDataURL('image/png');
+    _KMZ_OVERLAY_B64 = rotated;
+    if (_kmzOverlay) { _kmzOverlay.remove(); }
+    _kmzOverlay = L.imageOverlay(rotated, _KMZ_BOUNDS, { opacity: 0.75, interactive: false }).addTo(gMap);
+    showToast('✅ 已旋轉180°');
+  };
+  img.src = _KMZ_OVERLAY_B64;
+}
+
 function openKmzUpload() {
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.kmz,.kml';
