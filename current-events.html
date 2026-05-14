@@ -945,9 +945,9 @@ cursor: pointer; transition: background .15s;
 
 
 <!-- 回報劑量 Modal（可拖曳）-->
-<div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none">
+<div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:6px 0 6px">
   <div id="measureCard" style="
-    position:absolute;top:2px;left:50%;transform:translateX(-50%);
+    position:relative;margin:0 auto;
     background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.22);
     width:340px;max-width:calc(100vw - 32px);
     display:flex;flex-direction:column;pointer-events:auto;
@@ -3106,6 +3106,7 @@ function loadMeasurements(idx, force) {
   if (!force && _msrCache[ev.id]) {
     renderMsrMarkers(ev.id);
     renderMsrDotLayer(idx);
+    renderContamDotLayer(idx);
     return;
   }
 
@@ -3113,6 +3114,7 @@ function loadMeasurements(idx, force) {
     _msrCache[ev.id] = (data && data.measurements) ? data.measurements : [];
     renderMsrMarkers(ev.id);
     renderMsrDotLayer(idx);
+    renderContamDotLayer(idx);
     if (idx === _curIdx) renderCard(idx);
   });
 }
@@ -3532,6 +3534,7 @@ function renderLayerPanel() {
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>') +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '   +c('msr')  +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" ' +c('msrdot')+ ' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測數值(不顯示數據)</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" ' +c('contamdot')+ ' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>污染值點位</label>' +
       (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>') +
       (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' : '') +
       '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
@@ -3563,11 +3566,53 @@ function onMsrChk(idx, checked) {
   toggleMsrLayer(idx);
 }
 
+function onContamDotChk(idx, checked) {
+  var ev = _events[idx];
+  if (ev) saveLayerPref(ev.id, 'contamdot', checked);
+  if (checked && ev && !_msrCache[ev.id]) {
+    loadMeasurements(idx);
+  } else {
+    renderContamDotLayer(idx);
+  }
+}
+
+// ── 污染值點位圖層 ──
+var _contamDotMarkers = [];
+function renderContamDotLayer(idx) {
+  _contamDotMarkers.forEach(function(m){ m.remove(); }); _contamDotMarkers = [];
+  if (!isLayerOn(idx, 'contamdot')) return;
+  var ev = _events[idx];
+  if (!ev) return;
+  var measurements = _msrCache[ev.id];
+  if (!measurements || !measurements.length) return;
+
+  measurements.forEach(function(msr) {
+    var contam = (msr.contamination || '').trim();
+    if (!contam) return; // 沒有污染值就跳過
+    var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    // 判斷 α 或 β
+    var isAlpha = contam.indexOf('α') >= 0;
+    var col = isAlpha ? '#7c3aed' : '#0ea5e9'; // 紫=α, 藍=β
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="background:' + col + ';color:white;border:2px solid white;' +
+            'border-radius:4px;padding:1px 4px;font-size:10px;font-weight:700;' +
+            'white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35)">' +
+            _esc(contam) + '</div>',
+      iconSize: null, iconAnchor: [20, 10]
+    });
+    var mk = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    mk.bindTooltip(contam, { sticky: true, direction: 'top', offset: [0, -8] });
+    _contamDotMarkers.push(mk);
+  });
+}
+
 function onMsrDotChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msrdot', checked);
   if (checked && ev && !_msrCache[ev.id]) {
-    loadMeasurements(idx); // 資料未載入時先拉取
+    loadMeasurements(idx);
   } else {
     renderMsrDotLayer(idx);
   }
@@ -5908,11 +5953,12 @@ function openMsrConfirm() {
     ['GPS座標',  gps]
   ];
 
-  // 加污染值（有填才顯示）
+  // 加污染值（有數值就顯示，類型可選）
   var contamValEl = document.getElementById('contamValue');
   var contamVal = contamValEl ? contamValEl.value.trim() : '';
-  if (contamVal && _contamType) {
-    rows.splice(4, 0, ['污染值', _contamType + '  ' + contamVal + ' ' + _contamUnit]);
+  if (contamVal) {
+    var contamDisplay = (_contamType ? _contamType + '  ' : '') + contamVal + ' ' + _contamUnit;
+    rows.splice(4, 0, ['污染值', contamDisplay]);
   }
 
   var body = document.getElementById('msrConfirmBody');
