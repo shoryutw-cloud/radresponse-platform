@@ -3923,18 +3923,30 @@ function onKmzChk(checked) {
 }
 
 // ── KMZ 上傳解析 ──
-// ── KMZ CSS 旋轉（往北偏 10 度）──
-var _KMZ_ROTATE_DEG = -40; // 累計逆時針 20 度
+// ── KMZ Canvas 旋轉（往北偏，角度為逆時針度數）──
+var _KMZ_ROTATE_DEG = -20; // 逆時針 20 度
+
 function _applyKmzRotation(overlay) {
-  if (!overlay) return;
-  // 等圖片載入後再套 CSS transform
-  setTimeout(function() {
-    var el = overlay.getElement ? overlay.getElement() : null;
-    if (el) {
-      el.style.transformOrigin = 'center center';
-      el.style.transform = 'rotate(' + _KMZ_ROTATE_DEG + 'deg)';
-    }
-  }, 200);
+  // 不用 CSS，改用 Canvas 把旋轉燒進圖片
+  if (!overlay || !_KMZ_OVERLAY_B64) return;
+  var deg = _KMZ_ROTATE_DEG;
+  if (deg === 0) return;
+  var img = new Image();
+  img.onload = function() {
+    var rad = deg * Math.PI / 180;
+    var cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+    var newW = Math.round(img.width * cos + img.height * sin);
+    var newH = Math.round(img.width * sin + img.height * cos);
+    var canvas = document.createElement('canvas');
+    canvas.width = newW; canvas.height = newH;
+    var ctx = canvas.getContext('2d');
+    ctx.translate(newW / 2, newH / 2);
+    ctx.rotate(rad);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    var rotatedUrl = canvas.toDataURL('image/png');
+    overlay.setUrl(rotatedUrl);
+  };
+  img.src = _KMZ_OVERLAY_B64;
 }
 
 // ── KMZ 旋轉 180° ──
