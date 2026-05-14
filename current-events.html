@@ -945,16 +945,13 @@ cursor: pointer; transition: background .15s;
 
 
 <!-- 回報劑量 Modal（可拖曳）-->
-<div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none;
-  display:none;align-items:flex-start;justify-content:center;
-  padding-top:calc(48px + (100dvh - 48px) * 0.15)">
+<div id="measureModal" style="display:none;position:fixed;inset:0;z-index:7500;pointer-events:none">
   <div id="measureCard" style="
-    position:relative;
+    position:absolute;left:50%;transform:translateX(-50%);top:80px;
     background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.22);
     width:340px;max-width:calc(100vw - 32px);
     display:flex;flex-direction:column;pointer-events:auto;
-    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
-    max-height:calc(100dvh - 48px - (100dvh - 48px) * 0.15 - 16px);">
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;">
     <!-- 拖曳把手 -->
     <div id="measureDragBar" style="
       display:flex;align-items:center;justify-content:space-between;
@@ -5876,9 +5873,24 @@ function openMeasureModal() {
     });
   }
 
-  modal.style.display = 'flex';
+  modal.style.display       = 'block';
   modal.style.pointerEvents = 'auto';
   initMeasureDrag();
+
+  // 動態計算垂直位置（1:2 比例）
+  requestAnimationFrame(function() {
+    var card      = document.getElementById('measureCard');
+    var topbar    = 48;
+    var vh        = window.innerHeight;
+    var cardH     = card.offsetHeight;
+    var available = vh - topbar;
+    var maxH      = available * 0.85;
+    card.style.maxHeight = maxH + 'px';
+    var topPos = topbar + Math.max(4, (available - Math.min(cardH, maxH)) / 3);
+    card.style.top       = topPos + 'px';
+    card.style.left      = '50%';
+    card.style.transform = 'translateX(-50%)';
+  });
 }
 
 function closeMeasureModal() {
@@ -6047,22 +6059,21 @@ function initMeasureDrag() {
   var card = document.getElementById('measureCard');
   var bar  = document.getElementById('measureDragBar');
   if (!card || !bar) return;
-
-  // 重置位置到初始
-  card.style.left      = '50%';
-  card.style.top       = '80px';
-  card.style.transform = 'translateX(-50%)';
+  // 移除舊監聽器
+  bar.replaceWith(bar.cloneNode(true));
+  bar = document.getElementById('measureDragBar');
 
   var startX, startY, startL, startT;
   function onDown(e) {
     var clientX = e.touches ? e.touches[0].clientX : e.clientX;
     var clientY = e.touches ? e.touches[0].clientY : e.clientY;
     var rect = card.getBoundingClientRect();
+    // 拖曳前固定為 px 座標，移除 transform
+    card.style.left      = rect.left + 'px';
+    card.style.top       = rect.top  + 'px';
+    card.style.transform = 'none';
     startX = clientX; startY = clientY;
     startL = rect.left; startT = rect.top;
-    card.style.left      = startL + 'px';
-    card.style.top       = startT + 'px';
-    card.style.transform = 'none';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup',   onUp);
     document.addEventListener('touchmove', onMove, { passive: false });
@@ -6074,7 +6085,6 @@ function initMeasureDrag() {
     var clientY = e.touches ? e.touches[0].clientY : e.clientY;
     var newL = startL + (clientX - startX);
     var newT = startT + (clientY - startY);
-    // 限制在視窗內
     newL = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  newL));
     newT = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, newT));
     card.style.left = newL + 'px';
