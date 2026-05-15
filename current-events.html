@@ -3644,7 +3644,7 @@ function renderMsrDotLayer(idx) {
     var val = parseFloat(msr.value); // μSv/h
     if (isNaN(val)) return;
     // 顏色：綠<1.2μSv, 橙1.2~120μSv, 紅≥120μSv
-    var col = val < 1.2 ? '#16a34a' : val < 120 ? '#f97316' : '#dc2626';
+    var col = val < 0.5 ? '#16a34a' : val < 100 ? '#f97316' : '#dc2626';
     var icon = L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';' +
