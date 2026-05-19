@@ -3148,12 +3148,19 @@ function loadMeasurements(idx, force) {
   });
 }
 
+// ── 任一量測圖層是否有勾 ──
+function _anyMsrLayerOn(idx) {
+  return ['msr','msr_contam','msrdot','contamdot'].some(function(k) {
+    var cb = document.getElementById('lyr_' + idx + '_' + k);
+    return cb && cb.checked;
+  });
+}
+
 // ── 啟動定時刷新（5秒）──
 function startMsrTimer(idx) {
   stopMsrTimer();
   _msrTimer = setInterval(function() {
-    var cb = document.getElementById('lyr_' + idx + '_msr');
-    if (cb && cb.checked) loadMeasurements(idx, true);
+    if (_anyMsrLayerOn(idx)) loadMeasurements(idx, true);
   }, 5000);
 }
 
@@ -3507,11 +3514,10 @@ function renderMsrMarkers(eventId) {
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
-            'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;' +
-            'transform:translate(-50%,-50%);position:relative">' +
+            'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
             labelContent +
             '</div>',
-      iconSize: [0, 0], iconAnchor: [0, 0]
+      iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
 
@@ -3611,10 +3617,16 @@ function onMsrChk(idx, checked) {
 function onMsrContamChk(idx, checked) {
   var ev = _events[idx];
   if (ev) saveLayerPref(ev.id, 'msr_contam', checked);
-  if (checked && ev && !_msrCache[ev.id]) {
-    loadMeasurements(idx);
+  if (checked && ev) {
+    if (!_msrCache[ev.id]) {
+      loadMeasurements(idx);
+    } else {
+      renderMsrContamLayer(idx);
+    }
+    startMsrTimer(idx);
   } else {
-    renderMsrContamLayer(idx);
+    _msrContamMarkers.forEach(function(m){ m.remove(); }); _msrContamMarkers = [];
+    if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
 
@@ -3636,14 +3648,14 @@ function renderMsrContamLayer(idx) {
   });
   if (!valid.length) return;
 
-  // 估算標籤碰撞矩形（用於防重疊運算，比實際略寬保留間距）
-  var LW = 110, LH = 26;
-  var DOT_R = 7;
-  var LINE_LEN = 50;
-  var R_MAX = LINE_LEN + 250;
-  var PAD = 6;
-  var EV_R = 26;
-  var mSize = gMap.getSize();
+  // 與 renderMsrMarkers 相同的防重疊常數
+  var LW = 120, LH = 28;
+  var DOT_R  = 7;
+  var LINE_LEN = 55;
+  var R_MAX    = LINE_LEN + 300;
+  var PAD      = 6;
+  var EV_R     = 26;
+  var mSize    = gMap.getSize();
 
   var pts = valid.map(function(msr) {
     var ll = L.latLng(parseFloat(msr.lat), parseFloat(msr.lng));
@@ -3652,161 +3664,164 @@ function renderMsrContamLayer(idx) {
 
   // 過濾螢幕外的點
   pts = pts.filter(function(pt) {
-    var margin = DOT_R + 4;
-    return pt.cp.x >= -margin && pt.cp.x <= mSize.x + margin &&
-           pt.cp.y >= -margin && pt.cp.y <= mSize.y + margin;
+    var m = DOT_R + 4;
+    return pt.cp.x >= -m && pt.cp.x <= mSize.x + m &&
+           pt.cp.y >= -m && pt.cp.y <= mSize.y + m;
   });
   if (!pts.length) return;
 
+  // ── 與 renderMsrMarkers 完全相同的輔助函數 ──
   function rectsOverlap(a, b) {
-    var GAP = 8;
-    return !(a.x + a.w + GAP < b.x || b.x + b.w + GAP < a.x ||
-             a.y + a.h + GAP < b.y || b.y + b.h + GAP < a.y);
+    var GAP = 10;
+    return !(a.x+a.w+GAP < b.x || b.x+b.w+GAP < a.x ||
+             a.y+a.h+GAP < b.y || b.y+b.h+GAP < a.y);
   }
   function clamp(cx, cy) {
-    cx = Math.max(LW/2 + PAD, Math.min(mSize.x - LW/2 - PAD, cx));
-    cy = Math.max(LH/2 + PAD, Math.min(mSize.y - LH/2 - PAD, cy));
+    cx = Math.max(LW/2+PAD, Math.min(mSize.x-LW/2-PAD, cx));
+    cy = Math.max(LH/2+PAD, Math.min(mSize.y-LH/2-PAD, cy));
     return { x: cx, y: cy };
   }
   function lineIntersectsCircle(ax, ay, bx, by, cx, cy, r) {
-    var dx = bx-ax, dy = by-ay, fx = ax-cx, fy = ay-cy;
-    var a = dx*dx+dy*dy;
+    var dx=bx-ax, dy=by-ay, fx=ax-cx, fy=ay-cy, a=dx*dx+dy*dy;
     if (a===0) return Math.hypot(fx,fy)<r;
-    var b = 2*(fx*dx+fy*dy), cc = fx*fx+fy*fy-r*r, disc = b*b-4*a*cc;
+    var b=2*(fx*dx+fy*dy), cc=fx*fx+fy*fy-r*r, disc=b*b-4*a*cc;
     if (disc<0) return false;
-    var sq = Math.sqrt(disc), t1=(-b-sq)/(2*a), t2=(-b+sq)/(2*a);
+    var sq=Math.sqrt(disc), t1=(-b-sq)/(2*a), t2=(-b+sq)/(2*a);
     return (t1>=0&&t1<=1)||(t2>=0&&t2<=1)||(t1<0&&t2>1);
+  }
+  function buildAngles(base) {
+    var arr = [base, base+180];
+    for (var d=20; d<180; d+=20) { arr.push(base+d); arr.push(base-d); }
+    return arr;
   }
 
   // 禁區（事發地點）
   var forbidCircles = [];
-  _events.forEach(function(ev2) {
-    if (isNaN(parseFloat(ev2.lat))) return;
-    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(ev2.lat), parseFloat(ev2.lng)));
+  _events.forEach(function(e2) {
+    if (isNaN(parseFloat(e2.lat))) return;
+    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(e2.lat), parseFloat(e2.lng)));
     forbidCircles.push({ x: ep.x, y: ep.y, r: EV_R });
   });
 
-  // 已佔位清單（量測點圓圈 + 事發地點）
+  // 已佔位清單
   var placed = [];
   pts.forEach(function(pt) {
     placed.push({ x: pt.cp.x-DOT_R, y: pt.cp.y-DOT_R, w: DOT_R*2, h: DOT_R*2 });
   });
-  _events.forEach(function(ev2) {
-    if (isNaN(parseFloat(ev2.lat))) return;
-    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(ev2.lat), parseFloat(ev2.lng)));
+  _events.forEach(function(e2) {
+    if (isNaN(parseFloat(e2.lat))) return;
+    var ep = gMap.latLngToContainerPoint(L.latLng(parseFloat(e2.lat), parseFloat(e2.lng)));
     placed.push({ x: ep.x-EV_R, y: ep.y-EV_R, w: EV_R*2, h: EV_R*2 });
   });
 
-  var curEv = _events[idx];
-  var evCP = (curEv && !isNaN(parseFloat(curEv.lat)))
+  var curEv  = _events[idx];
+  var evCP   = (curEv && !isNaN(parseFloat(curEv.lat)))
     ? gMap.latLngToContainerPoint(L.latLng(parseFloat(curEv.lat), parseFloat(curEv.lng)))
     : null;
 
-  function buildAngles(base) {
-    var a = [base, base+180];
-    for (var d = 20; d < 180; d += 20) { a.push(base+d); a.push(base-d); }
-    return a;
-  }
-
-  // 計算最佳放置位置（防重疊）
+  // ── 計算每個點的最佳放置位置 ──
   pts.forEach(function(pt) {
     var baseAngle;
     if (evCP) {
-      var dx = pt.cp.x-evCP.x, dy = pt.cp.y-evCP.y;
-      var radial = Math.atan2(dy, dx)*180/Math.PI;
-      var p1 = radial+90, p2 = radial-90, s1 = 0, s2 = 0;
+      var dx=pt.cp.x-evCP.x, dy=pt.cp.y-evCP.y;
+      var radial=Math.atan2(dy,dx)*180/Math.PI;
+      var p1=radial+90, p2=radial-90, s1=0, s2=0;
       pts.forEach(function(o) {
         if (o===pt) return;
-        s1 += Math.hypot(pt.cp.x+LINE_LEN*Math.cos(p1*Math.PI/180)-o.cp.x, pt.cp.y+LINE_LEN*Math.sin(p1*Math.PI/180)-o.cp.y);
-        s2 += Math.hypot(pt.cp.x+LINE_LEN*Math.cos(p2*Math.PI/180)-o.cp.x, pt.cp.y+LINE_LEN*Math.sin(p2*Math.PI/180)-o.cp.y);
+        s1+=Math.hypot(pt.cp.x+LINE_LEN*Math.cos(p1*Math.PI/180)-o.cp.x, pt.cp.y+LINE_LEN*Math.sin(p1*Math.PI/180)-o.cp.y);
+        s2+=Math.hypot(pt.cp.x+LINE_LEN*Math.cos(p2*Math.PI/180)-o.cp.x, pt.cp.y+LINE_LEN*Math.sin(p2*Math.PI/180)-o.cp.y);
       });
       baseAngle = (s1>=s2) ? p1 : p2;
     } else {
-      var ox = 0, oy = 0;
+      var ox=0, oy=0;
       pts.forEach(function(o) {
         if (o===pt) return;
-        var d = Math.hypot(pt.cp.x-o.cp.x, pt.cp.y-o.cp.y)||1;
-        ox += (pt.cp.x-o.cp.x)/d; oy += (pt.cp.y-o.cp.y)/d;
+        var d=Math.hypot(pt.cp.x-o.cp.x, pt.cp.y-o.cp.y)||1;
+        ox+=(pt.cp.x-o.cp.x)/d; oy+=(pt.cp.y-o.cp.y)/d;
       });
       baseAngle = (ox||oy) ? Math.atan2(oy,ox)*180/Math.PI : -45;
     }
 
     var angles = buildAngles(baseAngle);
-    var placed_ok = false;
+    var done = false;
+    var rr, ai, rad, cl, rect, clash, pi, ci, fc;
 
-    outer_c:
-    for (var r = LINE_LEN; r <= R_MAX; r += 8) {
-      for (var ai = 0; ai < angles.length; ai++) {
-        var rad = angles[ai]*Math.PI/180;
-        var cl = clamp(pt.cp.x+r*Math.cos(rad), pt.cp.y+r*Math.sin(rad));
-        var rect = { x: cl.x-LW/2, y: cl.y-LH/2, w: LW, h: LH };
-        var clash = false;
-        for (var pi = 0; pi < placed.length; pi++) { if (rectsOverlap(rect, placed[pi])) { clash=true; break; } }
+    // 第一輪：避開禁區
+    search1:
+    for (rr=LINE_LEN; rr<=R_MAX; rr+=8) {
+      for (ai=0; ai<angles.length; ai++) {
+        rad=angles[ai]*Math.PI/180;
+        cl=clamp(pt.cp.x+rr*Math.cos(rad), pt.cp.y+rr*Math.sin(rad));
+        rect={ x:cl.x-LW/2, y:cl.y-LH/2, w:LW, h:LH };
+        clash=false;
+        for (pi=0; pi<placed.length; pi++) { if (rectsOverlap(rect,placed[pi])) { clash=true; break; } }
         if (!clash) {
-          for (var ci = 0; ci < forbidCircles.length; ci++) {
-            var fc = forbidCircles[ci];
-            if (lineIntersectsCircle(pt.cp.x, pt.cp.y, cl.x, cl.y, fc.x, fc.y, fc.r)) { clash=true; break; }
+          for (ci=0; ci<forbidCircles.length; ci++) {
+            fc=forbidCircles[ci];
+            if (lineIntersectsCircle(pt.cp.x,pt.cp.y,cl.x,cl.y,fc.x,fc.y,fc.r)) { clash=true; break; }
           }
         }
-        if (!clash) { placed.push(rect); pt.offLL = gMap.containerPointToLatLng(L.point(cl.x, cl.y)); placed_ok=true; break outer_c; }
+        if (!clash) { placed.push(rect); pt.offLL=gMap.containerPointToLatLng(L.point(cl.x,cl.y)); done=true; break search1; }
       }
     }
-    if (!placed_ok) {
-      outer_c2:
-      for (var r2 = LINE_LEN; r2 <= R_MAX+80; r2 += 8) {
-        for (var ai2 = 0; ai2 < angles.length; ai2++) {
-          var rad2 = angles[ai2]*Math.PI/180;
-          var cl2 = clamp(pt.cp.x+r2*Math.cos(rad2), pt.cp.y+r2*Math.sin(rad2));
-          var rect2 = { x: cl2.x-LW/2, y: cl2.y-LH/2, w: LW, h: LH };
-          var clash2 = false;
-          for (var pi2 = 0; pi2 < placed.length; pi2++) { if (rectsOverlap(rect2, placed[pi2])) { clash2=true; break; } }
-          if (!clash2) { placed.push(rect2); pt.offLL = gMap.containerPointToLatLng(L.point(cl2.x, cl2.y)); break outer_c2; }
+    // 第二輪 fallback：忽略禁區
+    if (!done) {
+      search2:
+      for (rr=LINE_LEN; rr<=R_MAX+80; rr+=8) {
+        for (ai=0; ai<angles.length; ai++) {
+          rad=angles[ai]*Math.PI/180;
+          cl=clamp(pt.cp.x+rr*Math.cos(rad), pt.cp.y+rr*Math.sin(rad));
+          rect={ x:cl.x-LW/2, y:cl.y-LH/2, w:LW, h:LH };
+          clash=false;
+          for (pi=0; pi<placed.length; pi++) { if (rectsOverlap(rect,placed[pi])) { clash=true; break; } }
+          if (!clash) { placed.push(rect); pt.offLL=gMap.containerPointToLatLng(L.point(cl.x,cl.y)); done=true; break search2; }
         }
       }
-      if (!pt.offLL) {
-        var cl0 = clamp(pt.cp.x+LINE_LEN*Math.cos(baseAngle*Math.PI/180), pt.cp.y+LINE_LEN*Math.sin(baseAngle*Math.PI/180));
-        placed.push({ x: cl0.x-LW/2, y: cl0.y-LH/2, w: LW, h: LH });
-        pt.offLL = gMap.containerPointToLatLng(L.point(cl0.x, cl0.y));
-      }
+    }
+    if (!done) {
+      cl=clamp(pt.cp.x+LINE_LEN*Math.cos(baseAngle*Math.PI/180), pt.cp.y+LINE_LEN*Math.sin(baseAngle*Math.PI/180));
+      placed.push({ x:cl.x-LW/2, y:cl.y-LH/2, w:LW, h:LH });
+      pt.offLL=gMap.containerPointToLatLng(L.point(cl.x,cl.y));
     }
   });
 
-  // 渲染：圓點 + 指引線 + 標籤
+  // ── 渲染：圓點 + 指引線 + 標籤 ──
   pts.forEach(function(pt) {
-    var msr = pt.msr;
+    var msr    = pt.msr;
     var contam = (msr.contamination || '').trim();
     var isAlpha = contam.indexOf('α') >= 0;
-    var col = isAlpha ? '#7c3aed' : '#0ea5e9';
-    var offLL = pt.offLL;
+    var col    = isAlpha ? '#7c3aed' : '#0ea5e9';
+    var offLL  = pt.offLL;
 
-    // 圓點
+    // 圓點（與劑量率點樣式一致）
     var dotIcon = L.divIcon({
       className: '',
-      html: '<div style="width:11px;height:11px;border-radius:50%;background:' + col + ';' +
-            'border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,.45)"></div>',
-      iconSize: [11, 11], iconAnchor: [5, 5]
+      html: '<div style="width:13px;height:13px;background:' + col + ';' +
+            'border:2.5px solid white;border-radius:50%;' +
+            'box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>',
+      iconSize: [13,13], iconAnchor: [6,6]
     });
     _msrContamMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
 
     // 指引線
     _msrContamMarkers.push(L.polyline([pt.ll, offLL], {
-      color: col, weight: 2, opacity: 0.75, dashArray: '5 3'
+      color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
     }).addTo(gMap));
 
-    // 標籤：iconSize:[0,0] + CSS transform 確保任意文字長度都從中心對齊
+    // 標籤：用 display:inline-flex 讓白框自動包住文字（同劑量率標籤的做法）
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
-            'border-radius:5px;padding:3px 9px 3px 7px;' +
+            'border-radius:5px;padding:4px 10px 4px 8px;' +
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
-            'white-space:nowrap;font-size:11px;font-weight:800;' +
-            'color:' + col + ';font-family:ui-monospace,monospace;' +
-            'transform:translate(-50%,-50%);position:relative">' +
+            'white-space:nowrap;display:inline-flex;align-items:center;' +
+            'font-size:11px;font-weight:800;color:' + col + ';' +
+            'font-family:ui-monospace,monospace">' +
             _esc(contam) + '</div>',
-      iconSize: [0, 0], iconAnchor: [0, 0]
+      iconAnchor: [LW/2, LH/2]
     });
     var mk = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
-    mk.bindTooltip((msr.reporter || '') + (contam ? ' · ' + contam : ''),
+    mk.bindTooltip((msr.reporter||'') + (contam ? ' · '+contam : ''),
                    { sticky: true, direction: 'top', offset: [0, -8] });
     _msrContamMarkers.push(mk);
   });
@@ -5108,9 +5123,9 @@ function toggleMsrLayer(idx) {
     loadMeasurements(idx, true);
     startMsrTimer(idx);
   } else {
-    stopMsrTimer();
     _msrMarkers.forEach(function(m) { m.remove(); });
     _msrMarkers = [];
+    if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
 
@@ -6840,6 +6855,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!ev) return;
       var cb = document.getElementById('lyr_' + _curIdx + '_msr');
       if (!cb || cb.checked) renderMsrMarkers(ev.id);
+      renderMsrContamLayer(_curIdx);
       // 環境監測站標籤也要重算
       if (_envLayerOn && _envMarkers.length) loadEnvMonitor();
     });
