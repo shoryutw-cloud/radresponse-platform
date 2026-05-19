@@ -3568,7 +3568,7 @@ function renderLayerPanel() {
       '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>模擬100m爆炸區域</label>' +
       '<label class="layer-row" title="模擬 1km 橫切面（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_line" '  +c('mini_line')  +' onchange="onLayerChk('+i+',\'mini_line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px dashed #3b82f6"></span>模擬1km橫切面</label>' +
       '<label class="layer-row" title="模擬附近場域（100m圓前緣到橫切面的矩形）"><input type="checkbox" id="lyr_'+i+'_mini_area" '  +c('mini_area')  +' onchange="onLayerChk('+i+',\'mini_area\',this.checked)"><span class="layer-dot" style="background:#16a34a;border:1.5px dashed #16a34a"></span>模擬附近場域</label>' +
-      '<label class="layer-row" title="模擬 5km 扇形（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_sector" '+c('mini_sector')+' onchange="onLayerChk('+i+',\'mini_sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px dashed #8b5cf6"></span>模擬5km10點偵測</label>' +
+      '<label class="layer-row" title="模擬 5km 扇形（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_sector" '+c('mini_sector')+' onchange="onLayerChk('+i+',\'mini_sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px dashed #8b5cf6"></span>模擬5km十點偵測</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
@@ -5073,7 +5073,7 @@ window.addEventListener('message', function(e) {
           { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90) },
           { label:'S9',  pt: destPoint(la, lo, wd,        90) },
           { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90) }
-        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(模擬5km扇形)', pt:p.pt, category:'mini_sector' }); });
+        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(模擬5km十點偵測)', pt:p.pt, category:'mini_sector' }); });
       }
     }
     // 人工設定的量測點（T01, T02...）只取當前事件的
