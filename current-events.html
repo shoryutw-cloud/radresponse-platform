@@ -3478,16 +3478,9 @@ function renderMsrMarkers(eventId) {
   pts.forEach(function(pt) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
-    var hasVal = !isNaN(val) && msr.value !== '' && msr.value !== null;
-    var contam = (msr.contamination || '').trim();
-
-    // 顏色：有劑量用劑量判斷，否則紫色（污染值專用）
-    var col = hasVal
-      ? (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a')
-      : (contam ? '#7c3aed' : '#94a3b8');
-
-    // 若劑量和污染值都沒有，跳過不畫
-    if (!hasVal && !contam) return;
+    // 量測劑量率：只顯示有劑量率的點
+    if (isNaN(val) || msr.value === '' || msr.value === null || msr.value === 'NaN') return;
+    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
     var offLL = pt.offLL;
 
     // 圓點
@@ -3505,17 +3498,10 @@ function renderMsrMarkers(eventId) {
       color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
     }).addTo(gMap));
 
-    // 數值標籤
-    var labelContent;
-    if (hasVal) {
-      labelContent = '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
-        _fmtDose(val).val + '</span>' +
-        '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>';
-    } else {
-      // 只有污染值，顯示污染值
-      labelContent = '<span style="font-size:11px;font-weight:800;color:#7c3aed;font-family:ui-monospace,monospace">' +
-        _esc(contam) + '</span>';
-    }
+    // 數值標籤（僅劑量率）
+    var labelContent = '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
+      _fmtDose(val).val + '</span>' +
+      '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>';
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
@@ -3693,11 +3679,9 @@ function renderContamDotLayer(idx) {
     var col = isAlpha ? '#7c3aed' : '#0ea5e9'; // 紫=α, 藍=β
     var icon = L.divIcon({
       className: '',
-      html: '<div style="background:' + col + ';color:white;border:2px solid white;' +
-            'border-radius:4px;padding:1px 4px;font-size:10px;font-weight:700;' +
-            'white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35)">' +
-            _esc(contam) + '</div>',
-      iconSize: null, iconAnchor: [20, 10]
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';' +
+            'border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,.4)"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7]
     });
     var mk = L.marker([lat, lng], { icon: icon }).addTo(gMap);
     mk.bindTooltip(contam, { sticky: true, direction: 'top', offset: [0, -8] });
