@@ -3472,7 +3472,16 @@ function renderMsrMarkers(eventId) {
   pts.forEach(function(pt) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
-    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
+    var hasVal = !isNaN(val) && msr.value !== '' && msr.value !== null;
+    var contam = (msr.contamination || '').trim();
+
+    // 顏色：有劑量用劑量判斷，否則紫色（污染值專用）
+    var col = hasVal
+      ? (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a')
+      : (contam ? '#7c3aed' : '#94a3b8');
+
+    // 若劑量和污染值都沒有，跳過不畫
+    if (!hasVal && !contam) return;
     var offLL = pt.offLL;
 
     // 圓點
@@ -3491,15 +3500,23 @@ function renderMsrMarkers(eventId) {
     }).addTo(gMap));
 
     // 數值標籤
+    var labelContent;
+    if (hasVal) {
+      labelContent = '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
+        _fmtDose(val).val + '</span>' +
+        '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>';
+    } else {
+      // 只有污染值，顯示污染值
+      labelContent = '<span style="font-size:11px;font-weight:800;color:#7c3aed;font-family:ui-monospace,monospace">' +
+        _esc(contam) + '</span>';
+    }
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
             'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
-            '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
-            _fmtDose(val).val + '</span>' +
-            '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>' +
+            labelContent +
             '</div>',
       iconAnchor: [LW/2, LH/2]
     });
