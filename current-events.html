@@ -6313,7 +6313,7 @@ function submitMeasure() {
   // 污染值
   var contamValEl2 = document.getElementById('contamValue');
   var contamVal2 = contamValEl2 ? contamValEl2.value.trim() : '';
-  var contamStr = (contamVal2 && _contamType) ? (_contamType + ' ' + contamVal2 + ' ' + _contamUnit) : '';
+  var contamStr = contamVal2 ? ((_contamType ? _contamType + ' ' : '') + contamVal2 + ' ' + _contamUnit) : '';
 
   var payload = {
     action:     'addMeasurement',
