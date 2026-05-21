@@ -498,8 +498,7 @@
     <!-- 後台功能：僅管理員可見 -->
     <div class="drawer-section auth-hidden" id="drawerAdminSection">
       <div class="drawer-section-title">後台功能</div>
-      <button class="drawer-item admin-item" id="drawerTeachBtn" onclick="toggleTeachMode();closeDrawer()">教學模式：開啟中</button>
-      <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
+<button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
       <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">派送任務</button>
@@ -612,8 +611,6 @@
   <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
 </div>
 <div class="top-drop" id="drop-admin">
-  <button class="top-drop-btn" id="btnTeachMode" onclick="toggleTeachMode();closeAllMenus()">教學模式：開啟中</button>
-  <div style="height:1px;background:#2d3f54;margin:4px 0"></div>
   <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
   <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">編組管理</button>
   <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">儀器管理</button>
@@ -722,8 +719,6 @@ window.addEventListener('message', function(e) {
       } catch(err) {}
       _pendingIframeIdx = null;
     }
-    // 傳送教學模式狀態給 iframe
-    try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e3) {}
     // 傳送登入者資訊給 iframe（供回報劑量自動預選人員）
     try {
       var _lsAuth = localStorage.getItem('radAuth');
@@ -734,7 +729,6 @@ window.addEventListener('message', function(e) {
           name: _lsUser.name || '',
           team: _lsUser.team || '',
           title: _lsUser.title || '',
-          teachLogin: !!_lsUser.teachLogin
         }, '*');
       }
     } catch(e2) {}
@@ -796,7 +790,7 @@ window.addEventListener('message', function(e) {
     var grid = document.getElementById('navPointGrid');
     if (!grid) return;
     if (!_navPointsCache.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:8px">⚠️ 目前事件無風向資料，無法計算點位</div>';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:8px">目前事件無風向資料，無法計算點位</div>';
       return;
     }
     grid.innerHTML = _navPointsCache.map(function(p) {
@@ -854,7 +848,7 @@ function closeDrawer() {
 function drawerToggleAdmin() {
   toggleMapEdit();
   var btn = document.getElementById('drawerAdminBtn');
-  if (btn) btn.textContent = _mapEditOn ? '🔑 編輯地圖（開啟中）' : '開啟/關閉編輯地圖';
+  if (btn) btn.textContent = _mapEditOn ? '編輯地圖（開啟中）' : '開啟/關閉編輯地圖';
   closeDrawer();
 }
 
@@ -1239,7 +1233,7 @@ function toggleReportFabs() {
   if (btn) btn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
   // 手機版抽屜按鈕
   var drawerBtn = document.getElementById('drawerReportActive');
-  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '📡 我要回報';
+  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
 
   var frame = document.getElementById('contentFrame');
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
@@ -1337,18 +1331,18 @@ function navBackToType() {
 function _navRenderPoints() {
   var grid = document.getElementById('navPointGrid');
   if (!_navPointsCache) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:16px">⏳ 計算點位中…</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:16px">計算點位中…</div>';
     return;
   }
   var filtered = _navPointsCache.filter(function(p){ return p.category === _navSelCategory; });
   if (!filtered.length) {
     var emptyMsg = {
-      manual:      '⚠️ 目前尚無人工設定的量測點',
-      cross:       '⚠️ 請先設定風向以產生橫切面量測點',
-      area:        '⚠️ 附近場域量測點尚未設定',
-      sector:      '⚠️ 請先設定風向以產生扇形量測點',
-      mini_cross:  '⚠️ 請先開啟「模擬1km橫切面」圖層並設定風向',
-      mini_sector: '⚠️ 請先開啟「模擬5km扇形」圖層並設定風向'
+      manual:      '目前尚無人工設定的量測點',
+      cross:       '請先設定風向以產生橫切面量測點',
+      area:        '附近場域量測點尚未設定',
+      sector:      '請先設定風向以產生扇形量測點',
+      mini_cross:  '請先開啟「模擬1km橫切面」圖層並設定風向',
+      mini_sector: '請先開啟「模擬5km扇形」圖層並設定風向'
     };
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
     return;
@@ -1600,30 +1594,7 @@ function openMsrQueryInIframe() {
     <div class="login-logo">☢️</div>
     <div class="login-title">輻射事件應變資訊平台</div>
 
-    <!-- ★ 教學快速登入（永遠顯示，教學模式開啟時放最前面）-->
-    <div id="teachLoginSection">
-      <div style="font-size:12px;color:#f59e0b;text-align:center;letter-spacing:.05em;font-weight:600;margin-bottom:8px">⚡ 教學快速登入</div>
-      <select id="teachMemberSel" style="
-        width:100%;padding:10px 12px;background:#0f1820;
-        border:1.5px solid #2d3f55;border-radius:8px;
-        font-family:inherit;font-size:14px;color:#b8cce0;
-        outline:none;appearance:none;cursor:pointer">
-        <option value="">⏳ 載入人員中…</option>
-      </select>
-      <button onclick="submitTeachLogin()" style="
-        width:100%;padding:11px;border-radius:8px;border:none;margin-top:8px;
-        background:#f59e0b;color:white;font-family:inherit;font-size:15px;
-        font-weight:700;cursor:pointer">進入系統</button>
-    </div>
-
-    <!-- 分隔線 -->
-    <div id="loginDivider" style="width:100%;display:flex;align-items:center;gap:8px;margin:4px 0">
-      <div style="flex:1;height:1px;background:#2d3f55"></div>
-      <span style="font-size:11px;color:#4a6080;white-space:nowrap">或管理員帳密登入</span>
-      <div style="flex:1;height:1px;background:#2d3f55"></div>
-    </div>
-
-    <!-- 帳密登入（永遠顯示）-->
+    <!-- 帳密登入 -->
     <div id="normalLoginSection">
       <input class="login-field" id="loginAcc" type="text"
         placeholder="帳號" autocomplete="username"
@@ -1737,14 +1708,10 @@ function _applyAuthUI(user) {
   var nameEl = document.getElementById('topbarName');
   var label = '';
   if (nameEl) {
-    if (user.teachLogin && user.title) {
-      // 教學登入：顯示「職稱－姓名」，如「1號隊員－陳映州」
-      label = user.title + '－' + user.name;
-    } else {
       // 帳密登入：顯示「組別・姓名」
       var dispGroup = user.group || '';
       label = dispGroup ? (dispGroup + '・' + user.name) : user.name;
-    }
+    
     nameEl.textContent = label;
   }
   // 手機版姓名同步
@@ -1772,88 +1739,6 @@ function doLogout() {
 }
 
 // ════════════════════════════════════════════════════════════
-// 教學模式
-// ════════════════════════════════════════════════════════════
-var _teachMode = true; // 預設開啟
-
-function _initTeachMode() {
-  try {
-    var stored = localStorage.getItem('teachMode');
-    _teachMode = (stored === null) ? true : (stored === 'true');
-  } catch(e) { _teachMode = true; }
-  _applyTeachModeUI();
-}
-
-function toggleTeachMode() {
-  _teachMode = !_teachMode;
-  try { localStorage.setItem('teachMode', _teachMode ? 'true' : 'false'); } catch(e) {}
-  _applyTeachModeUI();
-  // 通知 iframe
-  var frame = document.getElementById('contentFrame');
-  if (frame) { try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e) {} }
-}
-
-function _applyTeachModeUI() {
-  var label = _teachMode ? '教學模式：開啟中' : '教學模式：關閉';
-  var btn = document.getElementById('btnTeachMode');
-  var drawerBtn = document.getElementById('drawerTeachBtn');
-  if (btn) { btn.textContent = label; btn.style.color = _teachMode ? '#fbbf24' : '#b8cce0'; }
-  if (drawerBtn) { drawerBtn.textContent = label; drawerBtn.style.color = _teachMode ? '#fbbf24' : '#93c5fd'; }
-  // 教學選人：教學模式開啟時才顯示
-  var teachSec = document.getElementById('teachLoginSection');
-  var divider  = document.getElementById('loginDivider');
-  if (teachSec) teachSec.style.display = _teachMode ? '' : 'none';
-  if (divider)  divider.style.display  = _teachMode ? '' : 'none';
-  // 帳密區塊：永遠顯示
-  // 導航選項：教學模式時隱藏 normal 選項
-  document.querySelectorAll('.nav-type-normal').forEach(function(el) {
-    el.style.display = _teachMode ? 'none' : '';
-  });
-  // 通知 iframe（若已載入）
-  var frame = document.getElementById('contentFrame');
-  if (frame) { try { frame.contentWindow.postMessage({ type: 'teachMode', on: _teachMode }, '*'); } catch(e) {} }
-}
-
-// 教學登入：載入人員名單（從 GAS tech-rdd 讀取）
-function _loadTeachMembers() {
-  var sel = document.getElementById('teachMemberSel');
-  if (!sel) return;
-  _jsonpGet(SHEETS_URL + '?action=group&id=tech-rdd', function(data) {
-    if (!data || !data.members || !data.members.length) {
-      sel.innerHTML = '<option value="">（無法載入人員）</option>';
-      return;
-    }
-    sel.innerHTML = '<option value="">— 選擇您的姓名 —</option>' +
-      data.members.map(function(m) {
-        var val = JSON.stringify({ name: m.name, title: m.title, team: m.team, group: '技術組' });
-        return '<option value=\'' + val.replace(/'/g, '&apos;') + '\'>' + m.title + '－' + m.name + '</option>';
-      }).join('');
-  });
-}
-
-function submitTeachLogin() {
-  var sel = document.getElementById('teachMemberSel');
-  if (!sel || !sel.value) { alert('請選擇您的姓名'); return; }
-  var member = JSON.parse(sel.value);
-  var user = {
-    name: member.name,
-    title: member.title || '',  // 職稱，如「1號隊員」
-    team: member.team || '',
-    group: member.group || '技術組',
-    isAdmin: false,
-    teachLogin: true
-  };
-  try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
-  _applyAuthUI(user);
-  document.getElementById('loginOverlay').classList.add('hide');
-  showIframe('current-events.html');
-}
-
-// ── 教學模式初始化（頁面載入時）──
-window.addEventListener('DOMContentLoaded', function() {
-  _initTeachMode();
-  _loadTeachMembers();
-});
 var _taskBadgeTimer = null;
 
 function _startTaskBadgePolling() {

@@ -757,7 +757,7 @@ cursor: pointer; transition: background .15s;
     <!-- 出勤/儀器異動快捷按鈕（編輯模式專用，有儲存功能）-->
     <div class="ev-edit-change-btns">
       <button class="ev-edit-change-btn" onclick="openPersonnelModal()">👥 出勤人員異動</button>
-      <button class="ev-edit-change-btn" onclick="openInstrModal()">🔧 攜帶儀器異動</button>
+      <button class="ev-edit-change-btn" onclick="openInstrModal()">攜帶儀器異動</button>
     </div>
   </div>
 </div>
@@ -837,7 +837,7 @@ cursor: pointer; transition: background .15s;
 <div class="chg-modal-overlay" id="instrModal">
   <div class="chg-modal">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
-      <span>🔧 攜帶儀器異動</span>
+      <span>攜帶儀器異動</span>
       <button class="chg-modal-close" onclick="closeInstrModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
     </div>
     <div class="chg-modal-bd" id="instrModalBody">
@@ -877,7 +877,7 @@ cursor: pointer; transition: background .15s;
 <div class="chg-modal-overlay" id="instrViewModal">
   <div class="chg-modal" style="width:min(820px,96vw);max-height: 88vh">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
-      <span>🔧 攜帶儀器</span>
+      <span>攜帶儀器</span>
       <button class="chg-modal-close" onclick="closeInstrViewModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
     </div>
     <div class="chg-modal-bd" id="instrViewBody">
@@ -1084,7 +1084,7 @@ cursor: pointer; transition: background .15s;
     width:min(400px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.3);
     font-family:var(--font);display:flex;flex-direction:column;">
     <div style="padding:14px 18px;background:#f97316;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:15px;font-weight:700;color:white">📋 確認回報資料</span>
+      <span style="font-size:15px;font-weight:700;color:white">確認回報資料</span>
       <button onclick="closeMsrConfirm()" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;line-height:1">✕</button>
     </div>
     <div id="msrConfirmBody" style="padding:18px;display:flex;flex-direction:column;gap:10px"></div>
@@ -1098,7 +1098,7 @@ cursor: pointer; transition: background .15s;
         flex:2;padding:10px;border:none;border-radius:8px;
         background:#f97316;color:white;font-family:inherit;
         font-size:14px;font-weight:700;cursor:pointer">
-        ✅ 確認送出
+        確認送出
       </button>
     </div>
   </div>
@@ -1344,7 +1344,7 @@ function _editAddrPick(lat, lng, addr) {
   var coordEl = document.getElementById('editLocCoord');
   if (coordEl) {
     coordEl.style.display = 'block';
-    coordEl.textContent = '✅ 已選：' + parseFloat(lat).toFixed(6) + ', ' + parseFloat(lng).toFixed(6);
+    coordEl.textContent = '已選：' + parseFloat(lat).toFixed(6) + ', ' + parseFloat(lng).toFixed(6);
     coordEl.style.color = '#16a34a';
   }
   // 移動地圖
@@ -1369,13 +1369,13 @@ function toggleLocPickMode() {
   if (_editLocPickOn) {
     btn.style.background = '#f97316';
     btn.style.color = 'white';
-    btn.textContent = '📍 點擊地圖選點（取消）';
+    btn.textContent = '點擊地圖選點（取消）';
     gMap.getContainer().style.cursor = 'crosshair';
-    showToast('📍 請點擊地圖選擇新事件地點');
+    showToast('請點擊地圖選擇新事件地點');
   } else {
     btn.style.background = '#fff7ed';
     btn.style.color = '#c2410c';
-    btn.textContent = '📍 地圖點選';
+    btn.textContent = '地圖點選';
     gMap.getContainer().style.cursor = '';
   }
 }
@@ -1401,7 +1401,7 @@ function _onMapClickForLocPick(e) {
   var coordEl = document.getElementById('editLocCoord');
   if (coordEl) {
     coordEl.style.display = 'block';
-    coordEl.textContent = '✅ 已選：' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '　（可繼續點選更新）';
+    coordEl.textContent = '已選：' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '　（可繼續點選更新）';
     coordEl.style.color = '#16a34a';
   }
 
@@ -1422,7 +1422,7 @@ function fetchCwaWind(autoIdx) {
   var idx = isAuto ? autoIdx : _curIdx;
   var ev  = _events[idx];
   if (!ev || !ev.lat || !ev.lng) {
-    if (!isAuto) showToast('⚠️ 事件缺少座標，無法查詢');
+    if (!isAuto) showToast('事件缺少座標，無法查詢');
     return;
   }
   // ★ 自動輪詢時，若使用者已手動儲存風向，不覆蓋（手動優先於氣象署）
@@ -1431,7 +1431,7 @@ function fetchCwaWind(autoIdx) {
   if (!isAuto) {
     var btn = document.getElementById('cwaFetchBtn');
     var sts = document.getElementById('cwaFetchStatus');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ 查詢中…'; }
+    if (btn) { btn.disabled = true; btn.textContent = '查詢中…'; }
     if (sts) { sts.textContent = '正在呼叫氣象署 API…'; sts.style.display = 'block'; sts.style.color = '#6b7a92'; }
   }
 
@@ -1444,7 +1444,7 @@ function fetchCwaWind(autoIdx) {
       var sts2 = document.getElementById('cwaFetchStatus');
       if (btn2) { btn2.disabled = false; btn2.textContent = '🌐 從氣象局抓取'; }
       if (data && data.error) {
-        if (sts2) { sts2.textContent = '❌ ' + data.error; sts2.style.color = '#dc2626'; }
+        if (sts2) { sts2.textContent = data.error; sts2.style.color = '#dc2626'; }
         return;
       }
     } else {
@@ -1501,7 +1501,7 @@ function fetchCwaWind(autoIdx) {
       if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
       if (sts3) {
         sts3.style.color = '#16a34a';
-        sts3.textContent = '✅ ' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
+        sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
                          + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
       }
     }
@@ -1929,7 +1929,7 @@ function _drawMsrTable(allRows) {
     var lat = parseFloat(row.lat), lng = parseFloat(row.lng);
     var gpsHtml = '<span style="color:#b0bec5;font-size:12px">—</span>';
     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      gpsHtml = '<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:var(--accent);font-size:11px;font-family:monospace;text-decoration:none;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">📍 '+lat.toFixed(4)+','+lng.toFixed(4)+'</a>';
+      gpsHtml = '<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:var(--accent);font-size:11px;font-family:monospace;text-decoration:none;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">'+lat.toFixed(4)+','+lng.toFixed(4)+'</a>';
     }
     html += '<tr style="border-bottom:1px solid #f0f4f8">';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;font-family:monospace;white-space:nowrap">'+(i+1)+'</td>';
@@ -2022,7 +2022,7 @@ function mqToggleAutoRefresh() {
       var ev = _events[_curIdx];
       if (ev) { delete _msrCache[ev.id]; _renderMsrQuery(); }
     }, 30000);
-    showToast('✅ 自動刷新已開啟（每30秒）');
+    showToast('自動刷新已開啟（每30秒）');
   } else {
     if (dot) dot.style.display = 'none';
     if (btn) btn.style.color = 'var(--text-muted)';
@@ -2032,9 +2032,9 @@ function mqToggleAutoRefresh() {
 }
 function mqExportCSV() {
   var ev = _events[_curIdx];
-  if (!ev) { showToast('⚠️ 無可匯出的事件'); return; }
+  if (!ev) { showToast('無可匯出的事件'); return; }
   var rows = _msrCache[ev.id];
-  if (!rows || !rows.length) { showToast('⚠️ 尚無量測資料可匯出'); return; }
+  if (!rows || !rows.length) { showToast('尚無量測資料可匯出'); return; }
   var bom  = '\uFEFF';
   var head = '\u56de\u5831\u7de8\u865f,\u4e8b\u4ef6\u7de8\u865f,\u56de\u5831\u4eba\u54e1,\u6578\u5024(\u03bcSv/h),\u4f7f\u7528\u5100\u5668,\u7def\u5ea6,\u7d93\u5ea6,\u6642\u9593\r\n';
   var body2 = rows.map(function(r) {
@@ -3081,7 +3081,6 @@ function removeEventLayers(idx) {
 // ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
 // 預設全部為 true（全開），使用者勾選後自動記憶
 var _layerPrefs = {};
-var _teachMode = false; // 從 parent postMessage 接收
 
 // 取得指定事件+圖層的記憶狀態
 // 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
@@ -3571,31 +3570,25 @@ function renderLayerPanel() {
   body.innerHTML =
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍</label>') +
-      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>') +
-      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>') +
-      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>') +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m 範圍</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_line" '  +c('line')  +' onchange="onLayerChk('+i+',\'line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px solid #3b82f6"></span>1km 橫切面</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_nearby" '+c('nearby')+' onchange="onLayerChk('+i+',\'nearby\',this.checked)"><span class="layer-dot" style="background:#059669;border:1.5px solid #059669"></span>附近場域</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km 扇形</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '        +c('msr')       +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測劑量率</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr_contam" '   +c('msr_contam') +' onchange="onMsrContamChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #7c3aed"></span>量測污染值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" '       +c('msrdot')     +' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測劑量率(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" '    +c('contamdot')  +' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>量測污染值(不顯示數值)</label>' +
-      (_teachMode ? '' : '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>') +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' : '') +
-      '<div style="height:1px;background:#e2e8f0;margin:4px 0"></div>' +
-      '<label class="layer-row" title="模擬 100m 範圍圓（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_circle" '+c('mini_circle')+' onchange="onLayerChk('+i+',\'mini_circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px dashed #f97316"></span>模擬100m爆炸區域</label>' +
-      '<label class="layer-row" title="模擬 1km 橫切面（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_line" '  +c('mini_line')  +' onchange="onLayerChk('+i+',\'mini_line\',this.checked)"><span class="layer-dot" style="background:#3b82f6;border:1.5px dashed #3b82f6"></span>模擬1km橫切面</label>' +
-      '<label class="layer-row" title="模擬附近場域（100m圓前緣到橫切面的矩形）"><input type="checkbox" id="lyr_'+i+'_mini_area" '  +c('mini_area')  +' onchange="onLayerChk('+i+',\'mini_area\',this.checked)"><span class="layer-dot" style="background:#16a34a;border:1.5px dashed #16a34a"></span>模擬附近場域</label>' +
-      '<label class="layer-row" title="模擬 5km 扇形（縮小50倍）"><input type="checkbox" id="lyr_'+i+'_mini_sector" '+c('mini_sector')+' onchange="onLayerChk('+i+',\'mini_sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px dashed #8b5cf6"></span>模擬5km十點偵測</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>輻射濃度疊加層</label>' : '') +
-      (!_teachMode ? '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">📂 上傳 KMZ</button><button onclick="rotateKmz180()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">🔄 旋轉180°</button></div>' : '') +
+      '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>輻射濃度疊加層</label>' +
+      '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button><button onclick="rotateKmz180()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">旋轉180°</button></div>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' : '') +
-      (!_teachMode ? '<label class="layer-row"><input type="checkbox" id="lyr_contour3" ' + (_contour3LayerOn ? 'checked' : '') + ' onchange="onContour3Chk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#f59e0b,#ef4444);border:1.5px solid #f59e0b"></span>教學用等值線</label>' : '') +
+      '<label class="layer-row"><input type="checkbox" id="lyr_contour" ' + (_contourLayerOn ? 'checked' : '') + ' onchange="onContourChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#dc2626);border:1.5px solid #dc2626"></span>理論等值線</label>' +
     '</div></div>';
 }
 
@@ -5184,18 +5177,6 @@ var _pendingEventId = null;
 window.addEventListener('message', function(e) {
   if (!e.data) return;
 
-  // ── 教學模式切換 ──
-  if (e.data.type === 'teachMode') {
-    _teachMode = !!e.data.on;
-    // 教學模式開啟時強制關閉等值線
-    if (_teachMode && _contourLayerOn) {
-      _contourLayerOn = false;
-      _contourLines.forEach(function(l){ l.remove(); });
-      _contourLines = [];
-    }
-    renderLayerPanel(); // 重新渲染圖層面板（隱藏/顯示部分圖層）
-    return;
-  }
 
   // ── 接收登入者姓名與隊別（由 index.html iframeReady 後傳入）──
   if (e.data.type === 'setLoginUser') {
@@ -5872,8 +5853,6 @@ var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才�
 var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
 var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
-var _loginTeachMode = false; // 是否為教學快速登入
-var _titleMap = {}; // 姓名 → 職稱 快取（教學模式用）
 
 // 教學模式時：抓取所有技術組人員職稱，建立姓名→職稱對應表
 function _loadTitleMap() {
@@ -6189,11 +6168,7 @@ function showReportFabs() {
     'background:#f97316;color:white;font-family:inherit;font-size:15px;font-weight:700;' +
     'box-shadow:0 4px 16px rgba(249,115,22,.5);cursor:pointer;';
   btn1.onclick = function() {
-    if (_teachMode) {
-      openMeasureModal(); // 教學模式：直接開回報劑量
-    } else {
-      openMsrTypeModal(); // 一般模式：先問是否量測任務
-    }
+    openMsrTypeModal();
   };
 
   var btn2 = document.createElement('button');
@@ -6205,8 +6180,6 @@ function showReportFabs() {
   btn2.onclick = function() {
     try { parent.postMessage({ type: 'openMyTaskFromFab' }, '*'); } catch(e) {}
   };
-  // 教學模式下隱藏回報任務
-  if (_teachMode) btn2.style.display = 'none';
 
   el.appendChild(btn1);
   el.appendChild(btn2);
