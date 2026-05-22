@@ -1309,9 +1309,9 @@ function navChooseCategory(cat) {
     manual:      '🔴 人工設定量測點',
     cross:       '🔵 1km橫切面量測點',
     area:        '🟢 附近場域量測點',
-    sector:      '🟣 5km扇形量測點',
+    sector:      '🟣 5km十點偵測量測點',
     mini_cross:  '🔵 模擬1km橫切面量測點',
-    mini_sector: '🟣 模擬5km扇形量測點'
+    mini_sector: '🟣 模擬5km十點偵測量測點'
   };
   document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
   document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
@@ -1340,9 +1340,9 @@ function _navRenderPoints() {
       manual:      '目前尚無人工設定的量測點',
       cross:       '請先設定風向以產生橫切面量測點',
       area:        '附近場域量測點尚未設定',
-      sector:      '請先設定風向以產生扇形量測點',
+      sector:      '請先設定風向以產生十點偵測量測點',
       mini_cross:  '請先開啟「模擬1km橫切面」圖層並設定風向',
-      mini_sector: '請先開啟「模擬5km扇形」圖層並設定風向'
+      mini_sector: '請先開啟「模擬5km十點偵測」圖層並設定風向'
     };
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
     return;
@@ -1499,7 +1499,7 @@ function sendMapEditMsg() {
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
           <span style="width:24px;height:24px;border-radius:50%;background:#8b5cf6;display:inline-block;flex-shrink:0"></span>
           <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">5km扇形量測點</div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">5km十點偵測量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">編號 1～10，需設定風向才可使用</div>
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
@@ -1525,7 +1525,7 @@ function sendMapEditMsg() {
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
           <span style="width:24px;height:24px;border-radius:50%;background:#7c3aed;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
           <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬5km扇形量測點</div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬5km十點偵測量測點</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">S1～S10，需開啟圖層且設定風向</div>
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
