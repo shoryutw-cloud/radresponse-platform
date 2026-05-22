@@ -5812,6 +5812,7 @@ var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才�
 var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
 var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
+var _titleMap = {};       // 姓名→職稱對照表（教學模式下使用）
 
 // 教學模式時：抓取所有技術組人員職稱，建立姓名→職稱對應表
 function _loadTitleMap() {
