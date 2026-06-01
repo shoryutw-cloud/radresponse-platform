@@ -434,6 +434,20 @@ transition: all .15s;
 /* 導航模式中按鈕變紫色 */
 .locate-btn.nav-active { background: #ede9fe; border-color: #7c3aed; }
 
+/* ── 右下角底圖切換按鈕 ── */
+.basemap-btn {
+position: fixed; bottom: 150px; right: 24px; z-index: 1000;
+bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+width: 38px; height: 38px; border-radius: 10px;
+background: white; border: 1px solid #d0d8e4;
+cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 19px;
+box-shadow: 0 2px 8px rgba(0,0,0,.14);
+transition: all .15s;
+}
+.basemap-btn:hover { background: #f0f4ff; border-color: var(--accent); }
+.basemap-btn.satellite { background: #1e2a3a; border-color: #4a6080; color: white; }
+
 /* ── 地圖右鍵選單 ── */
 .map-ctx-menu {
 position: fixed; z-index: 6000;
@@ -766,6 +780,9 @@ cursor: pointer; transition: background .15s;
 
 <!-- 右下角圖釘（回到定位/飛到事件）-->
 <button class="locate-btn" id="locateBtn" title="回到事件位置" onclick="onLocateBtnClick()">📍</button>
+
+<!-- 右下角底圖切換按鈕（衛星/一般）-->
+<button class="basemap-btn" id="basemapBtn" title="切換衛星地圖" onclick="toggleBasemap()">🛰️</button>
 
 <!-- 地圖右鍵選單 -->
 <div id="mapCtxMenu" class="map-ctx-menu" style="display:none">
@@ -1124,6 +1141,16 @@ cursor: pointer; transition: background .15s;
   🚨
 </button>
 
+<!-- 手機版：底圖切換按鈕（事件按鈕下方）-->
+<button class="mob-ev-btn" id="mobBasemapBtn" onclick="toggleBasemap()"
+  style="position:fixed;top:104px;right:12px;z-index:1001;
+         width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+         background:white;box-shadow:0 2px 8px rgba(0,0,0,.15);
+         font-size:18px;cursor:pointer;
+         align-items:center;justify-content:center;">
+  🛰️
+</button>
+
 <!-- 手機版事件資訊面板 -->
 <div class="mob-ev-panel" id="mobEvPanel" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;
@@ -1170,6 +1197,9 @@ function loadSquads(cb) {
 
 
 var gMap = null;
+var _osmLayer   = null;   // 一般底圖（OpenStreetMap）
+var _satLayer   = null;   // 衛星底圖（Esri World Imagery）
+var _isSatellite = false; // 目前是否為衛星模式
 var _events = [];    // 所有進行中事件
 var _curIdx = 0;     // 目前顯示哪一筆
 var _markers = [];   // 地圖標記
@@ -6740,9 +6770,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function initMap() {
     gMap = L.map('map', { zoomControl: false }).setView([25.046, 121.517], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+    // ── 底圖圖層定義 ──
+    _osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
-    }).addTo(gMap);
+    });
+    _satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 19
+    });
+    _osmLayer.addTo(gMap);
+    _isSatellite = false;
 
     // ── 右鍵選單：顯示暫時圖釘 + context menu ──
     gMap.on('contextmenu', function(e) {
@@ -6813,6 +6851,38 @@ document.addEventListener('DOMContentLoaded', function() {
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', initMap, function(){});
   });
 });
+
+// ════════════════════════════════════════════
+// 底圖切換（一般地圖 ⇄ 衛星地圖）
+// ════════════════════════════════════════════
+function toggleBasemap() {
+  if (!gMap || !_osmLayer || !_satLayer) return;
+  _isSatellite = !_isSatellite;
+  if (_isSatellite) {
+    gMap.removeLayer(_osmLayer);
+    _satLayer.addTo(gMap);
+    _satLayer.bringToBack();
+  } else {
+    gMap.removeLayer(_satLayer);
+    _osmLayer.addTo(gMap);
+    _osmLayer.bringToBack();
+  }
+  // 更新桌機版按鈕狀態
+  var btn = document.getElementById('basemapBtn');
+  if (btn) {
+    btn.title     = _isSatellite ? '切換一般地圖' : '切換衛星地圖';
+    btn.innerHTML = _isSatellite ? '🗺️' : '🛰️';
+    if (_isSatellite) { btn.classList.add('satellite'); }
+    else              { btn.classList.remove('satellite'); }
+  }
+  // 更新手機版按鈕狀態
+  var mbtn = document.getElementById('mobBasemapBtn');
+  if (mbtn) {
+    mbtn.innerHTML = _isSatellite ? '🗺️' : '🛰️';
+    mbtn.style.background = _isSatellite ? '#1e2a3a' : 'white';
+    mbtn.style.borderColor = _isSatellite ? '#4a6080' : 'var(--border)';
+  }
+}
 
 // ════════════════════════════════════════════
 // 使用者即時位置（藍點 + 方向扇形 + 精確度圓）
