@@ -14,7 +14,7 @@
 <style>
   /* ────── CSS 變數 ────── */
   :root {
-    --header-h: 52px;
+    --header-h: 40px;
     --accent: #1a56db;
     --text: #1e2a3a;
     --text-muted: #6b7a92;
@@ -54,10 +54,10 @@
     display: flex; align-items: center; gap: 8px;
     text-decoration: none; flex-shrink: 0;
   }
-  .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
+  .logo-icon { width: 20px; height: 20px; background: var(--accent); border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; color: #fff; font-weight: 700; }
-  .logo-text { font-size: 26px; font-weight: 700; color: #e8f0fa; white-space: nowrap; }
+    font-size: 11px; color: #fff; font-weight: 700; }
+  .logo-text { font-size: 18px; font-weight: 700; color: #e8f0fa; white-space: nowrap; }
 
   /* ────── TOP NAV（桌機版，橫排）────── */
   .top-nav {
@@ -67,8 +67,8 @@
   .tnav-item { position: relative; display: flex; align-items: stretch; }
   .tnav-btn {
     display: flex; align-items: center; gap: 5px;
-    padding: 0 16px; background: none; border: none;
-    color: #b8cce0; font-family: var(--font); font-size: 16px; font-weight: 500;
+    padding: 0 12px; background: none; border: none;
+    color: #b8cce0; font-family: var(--font); font-size: 13px; font-weight: 500;
     cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
     border-bottom: 2px solid transparent;
   }
@@ -96,7 +96,7 @@
     min-width: 0; background: #1e2a3a;
     border: 1px solid #2d3f54; border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
-    max-height: calc(100vh - 60px); overflow-y: auto;
+    max-height: calc(100vh - 40px); overflow-y: auto;
   }
   .top-drop.active { display: block; }
   .top-drop-btn {
@@ -114,7 +114,7 @@
     min-width: 0; background: #1e2a3a;
     border: 1px solid #2d3f54; border-radius: var(--radius);
     box-shadow: var(--shadow-md); z-index: 10001; padding: 4px 0;
-    max-height: calc(100vh - 60px); overflow-y: auto;
+    max-height: calc(100vh - 40px); overflow-y: auto;
   }
   .top-drop-l3.active { display: block; }
   .top-drop-l3-btn {
@@ -392,8 +392,8 @@
 <div class="topbar">
   <!-- Logo（靠左）-->
   <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁" onclick="return onLogoClick(event)">
-    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
-      <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
+    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:20px;height:20px;flex-shrink:0">
+      <img src="logo.png" style="width:20px;height:20px;object-fit:contain;display:block">
     </div>
     <span class="logo-text">輻射事件資訊網</span>
   </a>
@@ -405,7 +405,7 @@
       <button class="tnav-btn" style="
         color:#e8f0fa;font-weight:600;font-size:13px;
         border:1px solid rgba(255,255,255,0.18);border-radius:6px;
-        padding:0 14px;margin:8px 0;height:36px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        padding:0 10px;margin:5px 0;height:28px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
