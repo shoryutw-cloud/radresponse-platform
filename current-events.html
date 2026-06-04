@@ -5338,6 +5338,11 @@ function loadEvents() {
   loadSquads(function(squads) { TECH_SQUADS = squads.concat(['未分配']); });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
+    // GAS 欄位名稱對應前端：personnel→personnelStr, instrument→instrumentStr
+    _events.forEach(function(ev) {
+      if (ev.personnelStr === undefined) ev.personnelStr = ev.personnel || '';
+      if (ev.instrumentStr === undefined) ev.instrumentStr = ev.instrument || '';
+    });
     // 套用 pendingIdx（postMessage 比 JSONP 早到的情況）
     if (_pendingEventId !== null) {
       var found = -1;
@@ -6461,14 +6466,18 @@ function submitMeasure() {
   var contamStr = contamVal2 ? ((_contamType ? _contamType + ' ' : '') + contamVal2 + ' ' + _contamUnit) : '';
 
   var payload = {
-    action:     'addMeasurement',
-    eventId:    ev ? ev.id : '',
-    reporter:   reporter,
-    value:      isNaN(numVal) ? '' : numVal.toString(),
-    instrument: instr + (note ? ' [' + note + ']' : ''),
-    lat:        _msrLat ? _msrLat.toString() : '',
-    lng:        _msrLng ? _msrLng.toString() : '',
-    contamination: contamStr
+    action: 'saveMeasurement',
+    measurement: {
+      eventId:       ev ? ev.id : '',
+      reporter:      reporter,
+      value:         isNaN(numVal) ? '' : numVal.toString(),
+      contamination: contamStr,
+      lat:           _msrLat ? _msrLat.toString() : '',
+      lng:           _msrLng ? _msrLng.toString() : '',
+      time:          new Date().toLocaleString('zh-TW'),
+      pending:       '',
+      note:          instr + (note ? ' [' + note + ']' : '')
+    }
   };
 
   fetch(SHEETS_URL, {
