@@ -3293,7 +3293,7 @@ function renderMsrMarkers(eventId) {
   // 只保留有填劑量率的回報
   valid = valid.filter(function(msr) {
     var v = parseFloat(msr.value);
-    return !isNaN(v) && msr.value !== '' && msr.value !== null;
+    return !isNaN(v) && String(msr.value).trim() !== '' && String(msr.value).trim() !== 'NaN';
   });
 
   // zoom < 13 時：只顯示數值最高的 8 個，避免全台看起來都是輻射
@@ -3932,7 +3932,7 @@ function renderMsrDotLayer(idx) {
 
   measurements.forEach(function(msr) {
     var val = parseFloat(msr.value);
-    if (isNaN(val) || msr.value === '' || msr.value === null) return; // 只顯示有劑量率
+    if (isNaN(val) || String(msr.value).trim() === '' || String(msr.value).trim() === 'NaN') return; // 只顯示有劑量率
     var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
     if (isNaN(lat) || isNaN(lng)) return;
     var col = val < 0.5 ? '#16a34a' : val < 100 ? '#f97316' : '#dc2626';
@@ -6464,7 +6464,7 @@ function submitMeasure() {
     action:     'addMeasurement',
     eventId:    ev ? ev.id : '',
     reporter:   reporter,
-    value:      numVal.toString(),
+    value:      isNaN(numVal) ? '' : numVal.toString(),
     instrument: instr + (note ? ' [' + note + ']' : ''),
     lat:        _msrLat ? _msrLat.toString() : '',
     lng:        _msrLng ? _msrLng.toString() : '',
