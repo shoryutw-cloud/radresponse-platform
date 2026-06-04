@@ -8091,231 +8091,97 @@ function pickMsrTask(i) {
 
 
 <!-- ══════════════════════════════════════════
-     AI 鳥（僅管理員可見）v5
-     鳥+面板群組，整體移動，動畫飛行
+     AI 鳥（僅管理員可見）v6
      ══════════════════════════════════════════ -->
 <style>
-/*
- * #aiBirdGroup = 最外層容器，負責整體定位與飛行動畫
- *   └─ #aiBirdCircle  = 鳥圓圈（左上角）
- *   └─ #aiBirdPanel   = 面板（緊接在鳥右下方，群組內）
- */
-
-/* ── 群組容器 ── */
 #aiBirdGroup {
-  display: none;
-  position: fixed;
-  z-index: 2200;
-  user-select: none;
-  /* 待機：右下角，在衛星/定位按鈕左邊 */
-  bottom: 80px;
-  right: 90px;
-  /* 飛行動畫 */
-  transition: top    0.55s cubic-bezier(.34,1.15,.64,1),
-              left   0.55s cubic-bezier(.34,1.15,.64,1),
-              bottom 0.55s cubic-bezier(.34,1.15,.64,1),
-              right  0.55s cubic-bezier(.34,1.15,.64,1);
+  display: none; position: fixed; z-index: 2200; user-select: none;
+  bottom: 80px; right: 90px;
+  transition: top .55s cubic-bezier(.34,1.15,.64,1), left .55s cubic-bezier(.34,1.15,.64,1),
+              bottom .55s cubic-bezier(.34,1.15,.64,1), right .55s cubic-bezier(.34,1.15,.64,1);
 }
-
-/* ── 鳥圓圈 ── */
 #aiBirdCircle {
-  width: 105px; height: 105px; border-radius: 50%;
-  background: #12243a;
-  border: 2.5px solid rgba(255,255,255,.18);
-  overflow: hidden;
-  box-shadow: 0 4px 18px rgba(0,0,0,.42);
-  transition: transform .2s, box-shadow .2s;
-  position: relative;
-  cursor: pointer;
-  flex-shrink: 0;
+  width:105px; height:105px; border-radius:50%;
+  background:#12243a; border:2.5px solid rgba(255,255,255,.18);
+  overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.42);
+  transition:transform .2s,box-shadow .2s; position:relative;
+  cursor:pointer; flex-shrink:0; z-index:2;
 }
-#aiBirdGroup:not(.bird-open):hover #aiBirdCircle {
-  transform: scale(1.08);
-  box-shadow: 0 8px 28px rgba(0,0,0,.5);
-}
-#aiBirdGroup.bird-open #aiBirdCircle {
-  cursor: default;
-}
-#aiBirdCircle img {
-  width: 100%; height: 100%;
-  object-fit: contain; mix-blend-mode: screen;
-  pointer-events: none;
-}
+#aiBirdGroup:not(.bird-open):hover #aiBirdCircle { transform:scale(1.08); box-shadow:0 8px 28px rgba(0,0,0,.5); }
+#aiBirdCircle img { width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;pointer-events:none; }
 #aiBirdBadge {
-  position: absolute; top: 4px; right: 4px;
-  background: #dc2626; color: #fff;
-  border-radius: 50%; width: 26px; height: 26px;
-  font-size: 11px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  animation: birdBadgePulse 2s infinite; z-index: 1;
+  position:absolute; top:4px; right:4px; background:#dc2626; color:#fff;
+  border-radius:50%; width:26px; height:26px; font-size:11px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; animation:birdBadgePulse 2s infinite; z-index:1;
 }
-@keyframes birdBadgePulse {
-  0%,100%{ opacity:1; transform:scale(1);    }
-  50%    { opacity:.5; transform:scale(.86); }
-}
-/* 鳥抵達震動 */
+@keyframes birdBadgePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.86)} }
 @keyframes birdArriveShake {
-  0%  { transform:scale(1.0)  rotate(0deg);  }
-  20% { transform:scale(1.32) rotate(-6deg); }
-  40% { transform:scale(1.28) rotate(5deg);  }
-  60% { transform:scale(1.25) rotate(-3deg); }
-  80% { transform:scale(1.22) rotate(2deg);  }
-  100%{ transform:scale(1.15) rotate(0deg);  }
+  0%{transform:scale(1) rotate(0)} 20%{transform:scale(1.32) rotate(-6deg)}
+  40%{transform:scale(1.28) rotate(5deg)} 60%{transform:scale(1.25) rotate(-3deg)}
+  80%{transform:scale(1.22) rotate(2deg)} 100%{transform:scale(1.15) rotate(0)}
 }
 #aiBirdGroup.bird-arrived #aiBirdCircle {
-  animation: birdArriveShake .55s ease forwards;
-  box-shadow: 0 0 0 7px rgba(26,86,219,.28), 0 8px 32px rgba(0,0,0,.5);
+  animation:birdArriveShake .55s ease forwards;
+  box-shadow:0 0 0 7px rgba(26,86,219,.28),0 8px 32px rgba(0,0,0,.5);
 }
-
-/* ── 面板（群組內，預設隱藏）── */
 #aiBirdPanel {
-  display: none;
-  position: absolute;
-  /* 面板左上角對齊鳥圓圈的圓心 */
-  top: 45px;   /* 105/2 - 8 = 鳥半徑偏移，讓面板稍微壓住鳥 */
-  left: 45px;
-  width: 420px;
-  min-width: 300px; min-height: 380px;
-  max-width: calc(100vw - 80px);
-  max-height: calc(100vh - 120px);
-  background: white;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 48px rgba(0,0,0,.28);
-  flex-direction: column;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "PingFang TC", sans-serif;
-  font-size: 16.9px;
-  resize: both;
-  z-index: 1;  /* 鳥在面板上面 */
+  display:none; position:absolute; top:45px; left:45px;
+  width:430px; min-width:300px; min-height:380px;
+  max-width:calc(100vw - 80px); max-height:calc(100vh - 120px);
+  background:white; border-radius:14px; border:1px solid #e2e8f0;
+  box-shadow:0 10px 48px rgba(0,0,0,.28);
+  flex-direction:column; overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei","PingFang TC",sans-serif;
+  font-size:16.9px; resize:both; z-index:1;
 }
-#aiBirdGroup.bird-open #aiBirdPanel {
-  display: flex;
-  animation: birdPanelIn .3s cubic-bezier(.34,1.15,.64,1);
+#aiBirdGroup.bird-open #aiBirdPanel { display:flex; animation:birdPanelIn .3s cubic-bezier(.34,1.15,.64,1); }
+@keyframes birdPanelIn { from{opacity:0;transform:scale(.88) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@media(max-width:600px){
+  #aiBirdGroup{bottom:80px!important;right:8px!important;top:auto!important;left:auto!important}
+  #aiBirdCircle{width:80px;height:80px} #aiBirdBadge{width:22px;height:22px;font-size:10px}
+  #aiBirdPanel{top:35px;left:35px;width:calc(100vw - 60px)!important;max-width:none;font-size:15.6px;resize:none}
 }
-@keyframes birdPanelIn {
-  from { opacity:0; transform:scale(.88) translateY(8px); }
-  to   { opacity:1; transform:scale(1)   translateY(0);   }
-}
-/* 讓鳥圓圈永遠在面板上面 */
-#aiBirdCircle { position: relative; z-index: 2; }
-
-/* 手機版 */
-@media (max-width: 600px) {
-  #aiBirdGroup {
-    bottom: 80px !important;
-    right: 8px !important;
-    top: auto !important;
-    left: auto !important;
-  }
-  #aiBirdCircle { width: 80px; height: 80px; }
-  #aiBirdBadge  { width: 22px; height: 22px; font-size: 10px; }
-  #aiBirdPanel {
-    top: 35px; left: 35px;
-    width: calc(100vw - 60px) !important;
-    max-width: none;
-    font-size: 15.6px;
-    resize: none;
-  }
-}
-
-/* ── 面板內部 ── */
 .bird-panel-hd {
-  display: flex; align-items: center; gap: 10px;
-  padding: 13px 16px; background: #1e2a3a;
-  border-radius: 14px 14px 0 0; flex-shrink: 0;
-  cursor: move; user-select: none;
+  display:flex;align-items:center;gap:10px;padding:13px 16px;background:#1e2a3a;
+  border-radius:14px 14px 0 0;flex-shrink:0;cursor:move;user-select:none;
 }
-.bird-panel-hd-title {
-  font-size: 18.2px; font-weight: 700; color: #e8f0fa; flex: 1;
-}
-.bird-panel-close {
-  width: 28px; height: 28px; border-radius: 5px; border: none;
-  background: rgba(255,255,255,.13); color: #8da0b8;
-  font-size: 17px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s; flex-shrink: 0;
-}
-.bird-panel-close:hover { background: rgba(220,38,38,.4); color: #fff; }
-.bird-panel-body {
-  flex: 1; overflow-y: auto;
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 11px; min-height: 0;
-}
-.bird-panel-body::-webkit-scrollbar { width: 4px; }
-.bird-panel-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
-/* Groq Key */
-.bird-key-row {
-  display: flex; gap: 7px; align-items: center;
-  padding: 9px 11px; background: #f8fafc;
-  border-radius: 8px; border: 1px solid #e2e8f0;
-}
-.bird-key-lbl { font-size: 14.3px; color: #6b7a92; white-space: nowrap; }
-.bird-key-inp {
-  flex:1; border:none; background:none;
-  font-size: 14.3px; font-family:ui-monospace,monospace;
-  color:#1e2a3a; outline:none;
-}
-.bird-kb-status {
-  font-size: 14.3px; color: #6b7a92;
-  padding: 6px 9px; background: #f0f2f5;
-  border-radius: 5px; text-align: center;
-}
-.bird-kb-status.ok      { color:#16a34a; background:#f0fdf4; }
-.bird-kb-status.loading { color:#1a56db; background:#eff6ff; }
-.bird-analyze-btn {
-  padding: 11px 14px; border-radius: 9px; border: none;
-  background: linear-gradient(135deg,#1e2a3a,#1a56db);
-  color: white; font-family: inherit;
-  font-size: 16.9px; font-weight: 600;
-  cursor: pointer; transition: opacity .15s;
-}
-.bird-analyze-btn:hover    { opacity:.86; }
-.bird-analyze-btn:disabled { opacity:.5; cursor:not-allowed; }
-.bird-alert-hd {
-  background: #dc2626; border-radius: 8px;
-  padding: 11px 13px; color: white;
-  font-size: 16.9px; font-weight: 700;
-  animation: birdAlertFlash 1.6s ease infinite;
-}
-@keyframes birdAlertFlash { 0%,100%{opacity:1} 50%{opacity:.68} }
-#birdResult {
-  display: none;
-  font-size: 16.9px; color: #3d5070; line-height: 1.65;
-  background: #f8fafc; border-radius: 9px;
-  padding: 11px 13px; border: 1px solid #e2e8f0;
-}
-#birdResult .br-item {
-  display: flex; gap: 9px; align-items: flex-start;
-  padding: 7px 0; border-bottom: 1px solid #f0f2f5;
-}
-#birdResult .br-item:last-child { border-bottom: none; }
-#birdResult .br-num {
-  min-width: 24px; height: 24px; border-radius: 50%;
-  background: #1a56db; color: white;
-  font-size: 13px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; margin-top: 1px;
-}
-#birdResult .br-text { flex:1; }
-#birdResult .br-src  { font-size: 13px; color: #94a3b8; margin-top: 3px; }
-.bird-quick-pill {
-  font-size: 15.6px; padding: 5px 12px; border-radius: 14px;
-  border: 1px solid #e2e8f0; color: #6b7a92;
-  cursor: pointer; background: #f8fafc;
-  transition: all .12s; font-family: inherit;
-}
-.bird-quick-pill:hover { border-color:#1a56db; color:#1a56db; background:#eff6ff; }
+.bird-panel-hd-title{font-size:18.2px;font-weight:700;color:#e8f0fa;flex:1}
+.bird-panel-close{width:28px;height:28px;border-radius:5px;border:none;background:rgba(255,255,255,.13);
+  color:#8da0b8;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.bird-panel-close:hover{background:rgba(220,38,38,.4);color:#fff}
+.bird-panel-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:11px;min-height:0}
+.bird-panel-body::-webkit-scrollbar{width:4px}
+.bird-panel-body::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px}
+.bird-key-row{display:flex;gap:7px;align-items:center;padding:9px 11px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+.bird-key-lbl{font-size:14.3px;color:#6b7a92;white-space:nowrap}
+.bird-key-inp{flex:1;border:none;background:none;font-size:14.3px;font-family:ui-monospace,monospace;color:#1e2a3a;outline:none}
+.bird-kb-status{font-size:14.3px;color:#6b7a92;padding:6px 9px;background:#f0f2f5;border-radius:5px;text-align:center}
+.bird-kb-status.ok{color:#16a34a;background:#f0fdf4}
+.bird-kb-status.loading{color:#1a56db;background:#eff6ff}
+.bird-analyze-btn{padding:11px 14px;border-radius:9px;border:none;background:linear-gradient(135deg,#1e2a3a,#1a56db);
+  color:white;font-family:inherit;font-size:16.9px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.bird-analyze-btn:hover{opacity:.86} .bird-analyze-btn:disabled{opacity:.5;cursor:not-allowed}
+.bird-alert-hd{background:#dc2626;border-radius:8px;padding:11px 13px;color:white;font-size:16.9px;font-weight:700;animation:birdAlertFlash 1.6s ease infinite}
+@keyframes birdAlertFlash{0%,100%{opacity:1}50%{opacity:.68}}
+#birdResult{display:none;font-size:16.9px;color:#3d5070;line-height:1.65;background:#f8fafc;border-radius:9px;padding:11px 13px;border:1px solid #e2e8f0}
+#birdResult .br-item{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f0f2f5}
+#birdResult .br-item:last-child{border-bottom:none}
+#birdResult .br-num{min-width:24px;height:24px;border-radius:50%;background:#1a56db;color:white;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+#birdResult .br-title{font-weight:700;color:#1e2a3a;margin-bottom:3px;font-size:16.9px}
+#birdResult .br-desc{color:#3d5070;line-height:1.6}
+#birdResult .br-src{font-size:13px;color:#94a3b8;margin-top:3px}
+#birdResult .br-summary{font-size:16.9px;color:#1e2a3a;line-height:1.7;margin-bottom:8px;padding:10px 12px;background:#eff6ff;border-radius:8px;border-left:3px solid #1a56db}
+.bird-quick-pill{font-size:15.6px;padding:5px 12px;border-radius:14px;border:1px solid #e2e8f0;color:#6b7a92;cursor:pointer;background:#f8fafc;transition:all .12s;font-family:inherit}
+.bird-quick-pill:hover{border-color:#1a56db;color:#1a56db;background:#eff6ff}
+/* AI 建議圖層的圖層面板列 */
+.layer-row.ai-layer-row { background: rgba(26,86,219,.04); }
 </style>
 
-<!-- AI 鳥群組（鳥 + 面板整體） -->
 <div id="aiBirdGroup">
-  <!-- 鳥圓圈（點擊開關） -->
   <div id="aiBirdCircle" onclick="_birdCircleClick(event)">
     <img src="bird.png" alt="AI鳥">
     <div id="aiBirdBadge">AI</div>
   </div>
-  <!-- 面板（群組內，跟鳥一起移動） -->
   <div id="aiBirdPanel">
     <div class="bird-panel-hd" id="aiBirdPanelHd">
       <img src="bird.png" alt="" style="width:30px;height:30px;object-fit:contain;mix-blend-mode:screen;border-radius:50%;background:#12243a;flex-shrink:0">
@@ -8355,35 +8221,24 @@ function pickMsrTask(i) {
 
 <script>
 // ══════════════════════════════════════════════════════════════
-// AI 鳥 v5：鳥+面板群組，飛行動畫，位置記憶
+// AI 鳥 v6：智慧回答 + 地圖畫圖 + 圖層控制
 // ══════════════════════════════════════════════════════════════
+var BIRD_REST_BOTTOM = 80, BIRD_REST_RIGHT = 90;
+var BIRD_OPEN_TOP    = 60;
 
-// 展開後鳥的目標位置（右上區，參考輻災情資網）
-var BIRD_OPEN_TOP  = 60;   // px from top
-var BIRD_OPEN_LEFT = null; // 動態計算（window.innerWidth - 面板寬 - 鳥寬 - margin）
-
-// 待機位置（right/bottom）
-var BIRD_REST_BOTTOM = 80;
-var BIRD_REST_RIGHT  = 90;
-
-var _birdIsOpen    = false;
-var _birdKbText    = '';
-var _birdKbLoaded  = false;
-var _birdKbLoading = false;
-var _birdDragging  = false;
-var _birdDragOffX  = 0, _birdDragOffY = 0;
-var _birdQaHistory = [];
+var _birdIsOpen      = false;
+var _birdKbText      = '';
+var _birdKbLoaded    = false;
+var _birdKbLoading   = false;
+var _birdDragging    = false;
+var _birdQaHistory   = [];
 var _birdKbFileNames = [];
 var _BIRD_FOLDER_ID  = '1XRM7zIkRotFaqX_afKw7ij4PlG-6z5Fq';
+var _birdAiLayerGroup = null;   // Leaflet LayerGroup for AI drawings
+var _birdAiLayerOn    = false;
 
-var _SK_GROUP_TOP  = '_birdGrpTop';
-var _SK_GROUP_LEFT = '_birdGrpLeft';
-var _SK_PANEL_W    = '_birdPanelW';
-var _SK_PANEL_H    = '_birdPanelH';
-
-function _esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// ── HTML escape ──
+function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── 初始化 ──
 function _initBirdBtn() {
@@ -8403,94 +8258,54 @@ function _initBirdBtn() {
     grp.style.display = 'none';
   }
 }
+function saveBirdKey(v){ try{ localStorage.setItem('_birdGroqKey', v); }catch(e){} }
 
-function saveBirdKey(v) { try { localStorage.setItem('_birdGroqKey', v); } catch(e) {} }
-
-// ── 鳥圓圈點擊（開關）──
+// ── 開關 ──
 function _birdCircleClick(e) {
-  if (!_loginIsAdmin) return;
-  if (_birdDragging) return;
+  if (!_loginIsAdmin || _birdDragging) return;
   e.stopPropagation();
   if (_birdIsOpen) { _birdClose(); } else { _birdOpen(); }
 }
-
-// ── 計算預設展開位置 ──
-function _getBirdDefaultPos() {
-  var panelW = 420;
-  var birdW  = 105;
-  // 鳥在右上，面板往右下展開，整體不超出畫面
-  var left = window.innerWidth - panelW - birdW - 16;
-  left = Math.max(8, left);
-  return { top: BIRD_OPEN_TOP, left: left };
-}
-
-// ── 開啟：群組飛到展開位置 ──
 function _birdOpen() {
   if (_birdIsOpen) return;
   _birdIsOpen = true;
   var grp = document.getElementById('aiBirdGroup');
-  if (!grp) return;
-
+  var panel = document.getElementById('aiBirdPanel');
   // 決定目標位置
   var pos;
   try {
-    var st = sessionStorage.getItem(_SK_GROUP_TOP);
-    var sl = sessionStorage.getItem(_SK_GROUP_LEFT);
-    if (st !== null && sl !== null) pos = { top: parseInt(st), left: parseInt(sl) };
+    var st = sessionStorage.getItem('_birdGrpTop'), sl = sessionStorage.getItem('_birdGrpLeft');
+    if (st !== null && sl !== null) pos = { top:parseInt(st), left:parseInt(sl) };
   } catch(e) {}
-  if (!pos) pos = _getBirdDefaultPos();
-
+  if (!pos) pos = { top: BIRD_OPEN_TOP, left: Math.max(8, window.innerWidth - 430 - 105 - 16) };
   // 還原面板大小
-  var panel = document.getElementById('aiBirdPanel');
   try {
-    var pw = sessionStorage.getItem(_SK_PANEL_W);
-    var ph = sessionStorage.getItem(_SK_PANEL_H);
-    if (pw && panel) panel.style.width  = parseInt(pw) + 'px';
-    if (ph && panel) panel.style.height = parseInt(ph) + 'px';
+    var pw = sessionStorage.getItem('_birdPanelW'), ph = sessionStorage.getItem('_birdPanelH');
+    if (pw && panel) panel.style.width  = parseInt(pw)+'px';
+    if (ph && panel) panel.style.height = parseInt(ph)+'px';
   } catch(e) {}
-
-  // 切到 top/left 定位並移動（transition 會自動飛過去）
-  grp.style.bottom = 'auto';
-  grp.style.right  = 'auto';
-  grp.style.top    = pos.top  + 'px';
-  grp.style.left   = pos.left + 'px';
-
-  // 等飛行完成（~550ms）再展開面板＋震動
-  setTimeout(function() {
-    grp.classList.add('bird-open');
-    grp.classList.add('bird-arrived');
+  grp.style.bottom='auto'; grp.style.right='auto';
+  grp.style.top=pos.top+'px'; grp.style.left=pos.left+'px';
+  setTimeout(function(){
+    grp.classList.add('bird-open','bird-arrived');
     setTimeout(function(){ grp.classList.remove('bird-arrived'); }, 600);
-    // 讀 Key
     try {
-      var sk = localStorage.getItem('_birdGroqKey');
-      var inp = document.getElementById('birdGroqKey');
-      if (sk && inp && !inp.value) inp.value = sk;
-    } catch(e) {}
+      var sk=localStorage.getItem('_birdGroqKey');
+      var inp=document.getElementById('birdGroqKey');
+      if(sk && inp && !inp.value) inp.value=sk;
+    } catch(e){}
   }, 560);
 }
-
-// ── 關閉：面板收起，群組飛回待機 ──
 function _birdClose() {
   if (!_birdIsOpen) return;
   _birdIsOpen = false;
   var grp = document.getElementById('aiBirdGroup');
-  if (!grp) return;
-
-  // 先收起面板
   grp.classList.remove('bird-open');
-
-  // 切回 bottom/right 定位（transition 飛回右下角）
-  grp.style.top   = 'auto';
-  grp.style.left  = 'auto';
-  grp.style.bottom = BIRD_REST_BOTTOM + 'px';
-  grp.style.right  = BIRD_REST_RIGHT  + 'px';
-
-  // 清除記憶（下次回預設）
+  grp.style.top='auto'; grp.style.left='auto';
+  grp.style.bottom=BIRD_REST_BOTTOM+'px'; grp.style.right=BIRD_REST_RIGHT+'px';
   try {
-    sessionStorage.removeItem(_SK_GROUP_TOP);
-    sessionStorage.removeItem(_SK_GROUP_LEFT);
-    sessionStorage.removeItem(_SK_PANEL_W);
-    sessionStorage.removeItem(_SK_PANEL_H);
+    sessionStorage.removeItem('_birdGrpTop'); sessionStorage.removeItem('_birdGrpLeft');
+    sessionStorage.removeItem('_birdPanelW'); sessionStorage.removeItem('_birdPanelH');
   } catch(e) {}
 }
 
@@ -8499,228 +8314,359 @@ function _initBirdDrag() {
   var grp = document.getElementById('aiBirdGroup');
   if (!grp) return;
   var startX, startY, startL, startT, moved;
-
-  function onDown(cx, cy) {
-    if (!_birdIsOpen) return false;
-    var rect = grp.getBoundingClientRect();
-    startX = cx; startY = cy;
-    startL = rect.left; startT = rect.top;
-    moved  = false;
-    _birdDragging = false;
-    return true;
-  }
-  function onMove(cx, cy) {
-    var dx = cx - startX, dy = cy - startY;
-    if (!_birdDragging && (Math.abs(dx)>4 || Math.abs(dy)>4)) _birdDragging = true;
-    if (!_birdDragging) return;
-    // 暫停 transition 讓拖曳跟手
-    grp.style.transition = 'none';
-    var nl = Math.max(0, Math.min(window.innerWidth  - grp.offsetWidth,  startL + dx));
-    var nt = Math.max(0, Math.min(window.innerHeight - grp.offsetHeight, startT + dy));
-    grp.style.left = nl + 'px';
-    grp.style.top  = nt + 'px';
-  }
-  function onUp() {
-    // 恢復 transition
-    grp.style.transition = '';
-    if (_birdDragging) {
-      var rect = grp.getBoundingClientRect();
-      try {
-        sessionStorage.setItem(_SK_GROUP_TOP,  Math.round(rect.top));
-        sessionStorage.setItem(_SK_GROUP_LEFT, Math.round(rect.left));
-      } catch(ex) {}
-    }
-    setTimeout(function(){ _birdDragging = false; }, 50);
-  }
-
-  // Mouse
   grp.addEventListener('mousedown', function(e) {
-    // 僅 header 和鳥圓圈可拖（不攔截面板內輸入）
+    if (!_birdIsOpen) return;
     var t = e.target;
-    var inPanel = t.closest && t.closest('#aiBirdPanel');
-    var inHd    = t.closest && t.closest('.bird-panel-hd');
-    var inCircle = t.closest && t.closest('#aiBirdCircle');
-    if (inPanel && !inHd) return;  // 面板內容區不拖
-    if (!onDown(e.clientX, e.clientY)) return;
-    document.addEventListener('mousemove', mMove);
-    document.addEventListener('mouseup',   mUp);
+    var inBody = t.closest && t.closest('.bird-panel-body');
+    var inHd   = t.closest && t.closest('.bird-panel-hd');
+    if (inBody && !inHd) return;
+    if (t.tagName==='BUTTON'||t.tagName==='INPUT') return;
+    var rect=grp.getBoundingClientRect();
+    startX=e.clientX; startY=e.clientY; startL=rect.left; startT=rect.top; moved=false; _birdDragging=false;
+    document.addEventListener('mousemove', mMove); document.addEventListener('mouseup', mUp);
     e.preventDefault();
   });
-  function mMove(e) { onMove(e.clientX, e.clientY); }
-  function mUp()    { onUp(); document.removeEventListener('mousemove',mMove); document.removeEventListener('mouseup',mUp); }
-
-  // Touch（鳥圓圈觸控拖曳）
-  var circ = document.getElementById('aiBirdCircle');
-  if (circ) {
-    circ.addEventListener('touchstart', function(e) {
-      if (!_birdIsOpen) return;
-      var t = e.touches[0];
-      if (!onDown(t.clientX, t.clientY)) return;
-      document.addEventListener('touchmove', tMove, {passive:false});
-      document.addEventListener('touchend',  tUp);
-    }, {passive:true});
+  function mMove(e){
+    var dx=e.clientX-startX, dy=e.clientY-startY;
+    if(!_birdDragging&&(Math.abs(dx)>4||Math.abs(dy)>4)){ _birdDragging=true; moved=true; }
+    if(!_birdDragging)return;
+    grp.style.transition='none';
+    var nl=Math.max(0,Math.min(window.innerWidth-grp.offsetWidth, startL+dx));
+    var nt=Math.max(0,Math.min(window.innerHeight-grp.offsetHeight,startT+dy));
+    grp.style.left=nl+'px'; grp.style.top=nt+'px';
   }
-  function tMove(e) { e.preventDefault(); var t=e.touches[0]; onMove(t.clientX, t.clientY); }
-  function tUp()    { onUp(); document.removeEventListener('touchmove',tMove); document.removeEventListener('touchend',tUp); }
-}
-
-// ── 監聽面板 resize ──
-function _initPanelResizeObserver() {
-  var panel = document.getElementById('aiBirdPanel');
-  if (!panel || !window.ResizeObserver) return;
-  new ResizeObserver(function(entries) {
-    if (!_birdIsOpen) return;
-    var e = entries[0];
-    if (e) {
-      try {
-        sessionStorage.setItem(_SK_PANEL_W, Math.round(e.contentRect.width  + 45));
-        sessionStorage.setItem(_SK_PANEL_H, Math.round(e.contentRect.height + 45));
-      } catch(ex) {}
+  function mUp(){
+    grp.style.transition='';
+    document.removeEventListener('mousemove',mMove); document.removeEventListener('mouseup',mUp);
+    if(moved){
+      var rect=grp.getBoundingClientRect();
+      try{ sessionStorage.setItem('_birdGrpTop',Math.round(rect.top)); sessionStorage.setItem('_birdGrpLeft',Math.round(rect.left)); }catch(ex){}
     }
+    setTimeout(function(){ _birdDragging=false; }, 50);
+  }
+}
+function _initPanelResizeObserver() {
+  var panel=document.getElementById('aiBirdPanel');
+  if(!panel||!window.ResizeObserver)return;
+  new ResizeObserver(function(entries){
+    if(!_birdIsOpen)return;
+    var e=entries[0]; if(!e)return;
+    try{ sessionStorage.setItem('_birdPanelW',Math.round(e.contentRect.width+45)); sessionStorage.setItem('_birdPanelH',Math.round(e.contentRect.height+45)); }catch(ex){}
   }).observe(panel);
 }
 
 // ── 知識庫 JSONP via GAS ──
 function loadBirdKnowledge() {
   if (_birdKbLoading) return;
-  _birdKbLoading = true;
-  var statusEl = document.getElementById('birdKbStatus');
-  statusEl.className = 'bird-kb-status loading';
-  statusEl.textContent = '⏳ 讀取知識庫中…';
-
-  var cbName = '_birdKbCb_' + Date.now();
-  var timer = setTimeout(function() {
-    try { delete window[cbName]; } catch(e) {}
-    _birdKbLoading = false;
-    try {
-      var c = sessionStorage.getItem('_birdKbCache');
-      if (c && c.length > 100) {
-        _birdKbText = c; _birdKbLoaded = true;
-        statusEl.className = 'bird-kb-status ok';
-        statusEl.textContent = '✅ 已從快取還原（' + Math.round(c.length/1000) + 'k 字）';
-        return;
-      }
-    } catch(e) {}
-    statusEl.className = 'bird-kb-status';
-    statusEl.textContent = '⚠️ 載入逾時，請重試';
+  _birdKbLoading=true;
+  var statusEl=document.getElementById('birdKbStatus');
+  statusEl.className='bird-kb-status loading'; statusEl.textContent='⏳ 讀取知識庫中…';
+  var cbName='_birdKbCb_'+Date.now();
+  var timer=setTimeout(function(){
+    try{delete window[cbName];}catch(e){}
+    _birdKbLoading=false;
+    try{
+      var c=sessionStorage.getItem('_birdKbCache');
+      if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; statusEl.className='bird-kb-status ok'; statusEl.textContent='✅ 已從快取還原（'+Math.round(c.length/1000)+'k 字）'; return; }
+    }catch(e){}
+    statusEl.className='bird-kb-status'; statusEl.textContent='⚠️ 載入逾時，請重試';
   }, 30000);
-
-  window[cbName] = function(data) {
-    clearTimeout(timer);
-    try { delete window[cbName]; } catch(e) {}
-    _birdKbLoading = false;
-    if (data && data.docs && data.docs.length) {
-      var valid = data.docs.filter(function(d){ return d.content && d.content.length > 50; });
-      if (valid.length) {
-        _birdKbText = valid.map(function(d){ return '【'+d.name+'】\n'+d.content; }).join('\n\n---\n\n');
-        _birdKbLoaded = true;
-        _birdKbFileNames = valid.map(function(d){ return d.name; });
-        try { sessionStorage.setItem('_birdKbCache', _birdKbText); } catch(e) {}
-        statusEl.className = 'bird-kb-status ok';
-        statusEl.textContent = '✅ 已載入：' + _birdKbFileNames.join('、') + '（' + Math.round(_birdKbText.length/1000) + 'k 字）';
+  window[cbName]=function(data){
+    clearTimeout(timer); try{delete window[cbName];}catch(e){} _birdKbLoading=false;
+    if(data&&data.docs&&data.docs.length){
+      var valid=data.docs.filter(function(d){return d.content&&d.content.length>50;});
+      if(valid.length){
+        _birdKbText=valid.map(function(d){return '【'+d.name+'】\n'+d.content;}).join('\n\n---\n\n');
+        _birdKbLoaded=true;
+        _birdKbFileNames=valid.map(function(d){return d.name;});
+        try{sessionStorage.setItem('_birdKbCache',_birdKbText);}catch(e){}
+        statusEl.className='bird-kb-status ok';
+        statusEl.textContent='✅ 已載入：'+_birdKbFileNames.join('、')+'（'+Math.round(_birdKbText.length/1000)+'k 字）';
         return;
       }
     }
-    var msg = (data && data.error) ? data.error : '無法取得文件';
-    try {
-      var c = sessionStorage.getItem('_birdKbCache');
-      if (c && c.length > 100) {
-        _birdKbText = c; _birdKbLoaded = true;
-        statusEl.className = 'bird-kb-status ok';
-        statusEl.textContent = '✅ 已從快取還原（' + Math.round(c.length/1000) + 'k 字）';
-        return;
-      }
-    } catch(e) {}
-    statusEl.className = 'bird-kb-status';
-    statusEl.textContent = '⚠️ 載入失敗：' + msg;
+    var msg=(data&&data.error)?data.error:'無法取得文件';
+    try{
+      var c=sessionStorage.getItem('_birdKbCache');
+      if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; statusEl.className='bird-kb-status ok'; statusEl.textContent='✅ 已從快取還原（'+Math.round(c.length/1000)+'k 字）'; return; }
+    }catch(e){}
+    statusEl.className='bird-kb-status'; statusEl.textContent='⚠️ 載入失敗：'+msg;
   };
-
-  var s = document.createElement('script');
-  s.src = SHEETS_URL + '?action=getKnowledge&folderId=' +
-    encodeURIComponent(_BIRD_FOLDER_ID) + '&callback=' + encodeURIComponent(cbName);
-  s.onerror = function() {
-    clearTimeout(timer); _birdKbLoading = false;
-    statusEl.className = 'bird-kb-status';
-    statusEl.textContent = '⚠️ 網路錯誤，請重試';
-  };
+  var s=document.createElement('script');
+  s.src=SHEETS_URL+'?action=getKnowledge&folderId='+encodeURIComponent(_BIRD_FOLDER_ID)+'&callback='+encodeURIComponent(cbName);
+  s.onerror=function(){ clearTimeout(timer); _birdKbLoading=false; statusEl.className='bird-kb-status'; statusEl.textContent='⚠️ 網路錯誤，請重試'; };
   document.head.appendChild(s);
 }
 
-// ── 關鍵字比對 ──
+// ── 關鍵字比對取最相關段落 ──
 function _birdGetRelevantKb(query) {
   if (!_birdKbText) return '';
-  var paras = _birdKbText.split(/\n{2,}/);
-  var kws   = query.replace(/[？?！!。，,、]/g,'').split(/\s+/).filter(function(k){return k.length>1;});
-  var scored = paras.map(function(p){
-    var s=0; kws.forEach(function(k){ if(p.indexOf(k)>=0) s++; }); return {p:p,s:s};
-  }).sort(function(a,b){return b.s-a.s;});
-  var out = scored.slice(0,6).filter(function(x){return x.s>0;}).map(function(x){return x.p;}).join('\n\n');
+  var paras=_birdKbText.split(/\n{2,}/);
+  var kws=query.replace(/[？?！!。，,、]/g,'').split(/\s+/).filter(function(k){return k.length>1;});
+  var scored=paras.map(function(p){ var s=0; kws.forEach(function(k){if(p.indexOf(k)>=0)s++;}); return {p:p,s:s}; })
+    .sort(function(a,b){return b.s-a.s;});
+  var out=scored.slice(0,6).filter(function(x){return x.s>0;}).map(function(x){return x.p;}).join('\n\n');
   return (out||_birdKbText.substring(0,2000)).substring(0,4000);
 }
 
-// ── 事件上下文 ──
-function _birdGetEvCtx() {
+// ── Reverse Geocode（Nominatim）──
+async function _birdReverseGeo(lat, lng) {
+  try {
+    var r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=zh&zoom=17', {headers:{'Accept-Language':'zh-TW,zh'}});
+    var d = await r.json();
+    // 優先取建築/景點名稱
+    var n = d.namedetails && d.namedetails.name;
+    if (!n && d.address) {
+      n = d.address.building || d.address.amenity || d.address.tourism || d.address.leisure ||
+          d.address.office  || d.address.road || '';
+    }
+    return n || d.display_name || (lat+','+lng);
+  } catch(e) { return lat+','+lng; }
+}
+
+// ── 目前事件上下文（含地點名稱）──
+async function _birdGetEvCtxAsync() {
   var ev = _events ? _events[_curIdx] : null;
   if (!ev) return '目前無進行中事件';
-  var ctx = '事件名稱：'+(ev.name||'—')+'\n類型：'+(ev.type||'—')+
-    '\n地點：'+(ev.address||'—')+'\n風向：'+(ev.windDir||'—')+'°'+
-    '\n風速：'+(ev.windSpeed||'—')+' m/s\n最大劑量率：'+(ev.doseMax||'—')+' μSv/h';
+  var locationName = ev.address || '';
+  // 用經緯度反查地名補充
+  if (ev.lat && ev.lng) {
+    try {
+      var geoName = await _birdReverseGeo(parseFloat(ev.lat), parseFloat(ev.lng));
+      if (geoName && geoName !== locationName) locationName = geoName + '（' + ev.address + '）';
+    } catch(e) {}
+  }
+  var ctx = '事件名稱：'+(ev.name||'—')+'\n事件類型：'+(ev.type||'—')+
+    '\n確切地點：'+locationName+
+    '\n經緯度：'+(ev.lat||'—')+', '+(ev.lng||'—')+
+    '\n最大劑量率：'+(ev.doseMax&&ev.doseMax!==''?ev.doseMax+' μSv/h':'未知')+
+    '\n風向：'+(ev.windDir||'—')+'°（正北為0°）\n風速：'+(ev.windSpeed||'—')+' m/s';
   if (_msrCache && _msrCache[ev.id] && _msrCache[ev.id].length) {
-    var lines = _msrCache[ev.id].slice(-8).map(function(m){
-      return '  '+m.reporter+' '+m.value+' μSv/h'+(m.contamination?' 污染:'+m.contamination:'');
-    });
-    ctx += '\n最近量測：\n'+lines.join('\n');
+    var msrs=_msrCache[ev.id].slice(-8);
+    // 逐一反查地點
+    var msrLines = await Promise.all(msrs.map(async function(m){
+      var loc = (m.lat&&m.lng) ? await _birdReverseGeo(parseFloat(m.lat),parseFloat(m.lng)) : '';
+      return '  '+m.reporter+(loc?' 於'+loc:'')+' 回報 '+m.value+' μSv/h'+(m.contamination?' 污染:'+m.contamination+' cps':'');
+    }));
+    ctx += '\n\n最近量測回報：\n'+msrLines.join('\n');
   }
   return ctx;
 }
 
-// ── 渲染結果 ──
-function _birdRenderResult(text, srcNames) {
+// ── 渲染結果（智慧判斷格式）──
+function _birdRenderResult(parsed, srcNames) {
   var el = document.getElementById('birdResult');
   el.style.display = 'block';
-  var lines = text.split(/\n/).map(function(l){return l.trim();}).filter(Boolean);
-  var hasNumbered = lines.some(function(l){ return /^(\d+)[\.、\)]\s/.test(l)||/^[•\-\*]\s/.test(l); });
   var srcLabel = (srcNames && srcNames.length) ? srcNames.join('、') : '一般應變原則';
-
-  if (!hasNumbered) {
-    el.innerHTML = '<div style="white-space:pre-wrap;line-height:1.7">'+_esc(text)+'</div>' +
-      '<div class="br-src" style="margin-top:6px">【依據：'+_esc(srcLabel)+'】</div>';
-    return;
+  var html = '';
+  // summary（情境描述）
+  if (parsed.summary) {
+    html += '<div class="br-summary">'+_esc(parsed.summary)+'</div>';
   }
-  var items=[]; var cur=null;
-  lines.forEach(function(l){
-    var m=l.match(/^(\d+)[\.、\)]\s*(.+)/)||l.match(/^[•\-\*]\s*(.+)/);
-    if(m){ if(cur)items.push(cur); cur={text:m[2]||m[1]}; }
-    else if(cur){ cur.text+=' '+l; }
-    else{ items.push({text:l}); }
+  // actions（條列建議）
+  if (parsed.actions && parsed.actions.length) {
+    html += parsed.actions.map(function(a, i) {
+      return '<div class="br-item">' +
+        '<div class="br-num">'+(i+1)+'</div>' +
+        '<div class="br-text">' +
+        (a.title ? '<div class="br-title">'+_esc(a.title)+'</div>' : '') +
+        '<div class="br-desc">'+_esc(a.desc)+'</div>' +
+        (a.ref  ? '<div class="br-src">【依據：'+_esc(a.ref)+'】</div>' : '') +
+        '</div></div>';
+    }).join('');
+    html += '<div class="br-src" style="padding:4px 2px;margin-top:4px">來源文件：'+_esc(srcLabel)+'</div>';
+  } else if (parsed.text) {
+    // 純文字回答
+    html += '<div style="white-space:pre-wrap;line-height:1.7">'+_esc(parsed.text)+'</div>' +
+      '<div class="br-src" style="margin-top:6px">【依據：'+_esc(srcLabel)+'】</div>';
+  }
+  el.innerHTML = html || '<div style="color:#6b7a92">（無回應）</div>';
+}
+
+// ── Groq API 呼叫（共用）──
+async function _birdGroqCall(messages, model, maxTokens) {
+  var key=''; try{key=(document.getElementById('birdGroqKey').value||'').trim();}catch(e){}
+  if(!key) throw new Error('請先輸入 Groq Key');
+  var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({model:model||'llama-3.3-70b-versatile',max_tokens:maxTokens||1000,temperature:0.1,messages:messages})
   });
-  if(cur)items.push(cur);
-  el.innerHTML = items.map(function(it,i){
-    return '<div class="br-item"><div class="br-num">'+(i+1)+'</div>' +
-      '<div class="br-text"><div>'+_esc(it.text)+'</div></div></div>';
-  }).join('') + '<div class="br-src" style="padding:4px 2px">【依據：'+_esc(srcLabel)+'】</div>';
+  var d=await res.json();
+  if(d.error) throw new Error(d.error.message);
+  return d.choices[0].message.content||'';
+}
+
+// ── System Prompt（核心）──
+function _birdSystemPrompt(evCtx, kb) {
+  return '你是輻射災害緊急應變AI助手，協助指揮官做決策（非核子事故，針對輻射彈/放射性物質/放射性物料事件）。\n\n' +
+    '【重要規則】\n' +
+    '1. 根據「事件類型」欄位，從知識庫中找對應的應變程序書（輻射彈對應輻射彈程序書，放射性物質對應物質程序書，以此類推）\n' +
+    '2. 「確切地點」和「最近量測回報」中已有地名，直接使用，不要重新描述事件基本資料\n' +
+    '3. 回答格式必須是 **JSON**，結構如下：\n' +
+    '{\n' +
+    '  "summary": "情境描述：在哪裡偵測到什麼數值，達到哪個等級標準，需要什麼級別回應（1-2句話）",\n' +
+    '  "actions": [\n' +
+    '    {\n' +
+    '      "title": "行動標題（簡短，如：劃定熱區）",\n' +
+    '      "desc": "具體說明，包含地點、數值、時限等細節",\n' +
+    '      "ref": "程序書章節（如：輻射彈事件處理程序第3章第2節）"\n' +
+    '    }\n' +
+    '  ],\n' +
+    '  "draw": [\n' +
+    '    {"type":"marker","lat":xx.xxx,"lng":xx.xxx,"label":"說明","color":"#dc2626"},\n' +
+    '    {"type":"circle","lat":xx.xxx,"lng":xx.xxx,"radius":100,"label":"熱區","color":"#dc2626","fillOpacity":0.15},\n' +
+    '    {"type":"polygon","latlngs":[[lat,lng],[lat,lng],[lat,lng]],"label":"量測區域","color":"#f97316","fillOpacity":0.1}\n' +
+    '  ]\n' +
+    '}\n' +
+    '"draw" 陣列：當建議「去某處量測」或「劃定某區域」時，加入對應的地圖圖形。marker=建議量測點，circle=區域範圍，polygon=不規則範圍。\n' +
+    '不需要畫圖時 "draw" 給空陣列 []。\n' +
+    '只輸出 JSON，不要任何其他文字。\n\n' +
+    '【目前事件資訊】\n' + evCtx + '\n\n' +
+    '【知識庫（相關段落）】\n' + kb;
+}
+
+// ── 解析 Groq 回傳的 JSON ──
+function _parseBirdResponse(text) {
+  try {
+    var j1=text.indexOf('{'), j2=text.lastIndexOf('}');
+    if(j1>=0&&j2>j1) return JSON.parse(text.substring(j1,j2+1));
+  } catch(e) {}
+  // 解析失敗：把整段文字當 text 回傳
+  return { text: text, actions: [], draw: [] };
+}
+
+// ── 畫 AI 建議圖層 ──
+function _birdDrawLayers(drawItems) {
+  if (!gMap || !drawItems || !drawItems.length) return;
+  // 清除舊圖層
+  if (_birdAiLayerGroup) { gMap.removeLayer(_birdAiLayerGroup); }
+  _birdAiLayerGroup = L.layerGroup();
+
+  drawItems.forEach(function(item) {
+    try {
+      var color = item.color || '#1a56db';
+      if (item.type === 'marker') {
+        var icon = L.divIcon({
+          className:'',
+          html:'<div style="background:'+color+';width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+          iconSize:[14,14], iconAnchor:[7,7]
+        });
+        L.marker([item.lat,item.lng],{icon:icon}).bindTooltip(item.label||'',{permanent:true,direction:'right',className:'ai-layer-tooltip'}).addTo(_birdAiLayerGroup);
+      } else if (item.type === 'circle') {
+        L.circle([item.lat,item.lng],{radius:item.radius||100,color:color,weight:2,fillColor:color,fillOpacity:item.fillOpacity||0.12})
+          .bindTooltip(item.label||'',{sticky:true}).addTo(_birdAiLayerGroup);
+      } else if (item.type === 'polygon') {
+        L.polygon(item.latlngs,{color:color,weight:2,fillColor:color,fillOpacity:item.fillOpacity||0.1})
+          .bindTooltip(item.label||'',{sticky:true}).addTo(_birdAiLayerGroup);
+      }
+    } catch(e) {}
+  });
+
+  _birdAiLayerGroup.addTo(gMap);
+  _birdAiLayerOn = true;
+  // 更新圖層面板
+  _birdUpdateLayerPanel();
+}
+
+// ── 更新圖層面板：加入/移除「AI建議圖層」列 ──
+function _birdUpdateLayerPanel() {
+  var body = document.getElementById('layerPanelBody');
+  if (!body) return;
+  // 移除舊的 AI 圖層列
+  var old = document.getElementById('lyr_ai_bird');
+  if (old) { var parent = old.closest('label')||old; parent.parentNode && parent.parentNode.removeChild(parent); }
+  if (!_birdAiLayerGroup || !_birdAiLayerOn) return;
+  // 在最後一個 layer-ev-block 前插入
+  var label = document.createElement('label');
+  label.className = 'layer-row ai-layer-row';
+  label.innerHTML =
+    '<input type="checkbox" id="lyr_ai_bird" checked onchange="_birdAiLayerToggle(this.checked)">' +
+    '<span class="layer-dot" style="background:linear-gradient(135deg,#1a56db,#dc2626);border:1.5px solid #1a56db"></span>' +
+    'AI 建議圖層';
+  // 插入到第一個 layer-ev-block 的 cbs 結尾
+  var cbs = body.querySelector('.layer-ev-cbs');
+  if (cbs) cbs.appendChild(label);
+  else body.appendChild(label);
+}
+function _birdAiLayerToggle(on) {
+  _birdAiLayerOn = on;
+  if (!_birdAiLayerGroup || !gMap) return;
+  if (on) { _birdAiLayerGroup.addTo(gMap); } else { gMap.removeLayer(_birdAiLayerGroup); }
+}
+
+// ── AI 分析（手動）──
+async function birdAnalyze() {
+  var btn=document.getElementById('birdAnalyzeBtn');
+  var resultEl=document.getElementById('birdResult');
+  btn.disabled=true; btn.textContent='⏳ 分析中…';
+  resultEl.style.display='block'; resultEl.innerHTML='<div style="color:#6b7a92">⏳ AI 分析中（含地名查詢）…</div>';
+  try {
+    var evCtx = await _birdGetEvCtxAsync();
+    var kb = _birdGetRelevantKb(evCtx + ' ' + (_events[_curIdx]?_events[_curIdx].type:''));
+    var sysPrompt = _birdSystemPrompt(evCtx, kb);
+    var messages = [{role:'system',content:sysPrompt}]
+      .concat(_birdQaHistory.slice(-6))
+      .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 陣列中標出建議量測位置或劃定區域。'}]);
+    var text = await _birdGroqCall(messages,'llama-3.3-70b-versatile',1200);
+    var parsed = _parseBirdResponse(text);
+    _birdRenderResult(parsed, _birdKbFileNames);
+    if (parsed.draw && parsed.draw.length) _birdDrawLayers(parsed.draw);
+    _birdQaHistory.push({role:'user',content:'分析事件'});
+    _birdQaHistory.push({role:'assistant',content:JSON.stringify(parsed)});
+    if(_birdQaHistory.length>6)_birdQaHistory=_birdQaHistory.slice(-6);
+    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
+  } catch(e) {
+    resultEl.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>';
+  }
+  btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
+}
+
+// ── 快速問答 ──
+function birdQuickAsk(q){ var inp=document.getElementById('birdQaInput'); if(inp)inp.value=q; birdSendQa(); }
+
+async function birdSendQa() {
+  var inp=document.getElementById('birdQaInput');
+  var q=inp?inp.value.trim():'';
+  if (!q) return;
+  if (inp) inp.value='';
+  var resultEl=document.getElementById('birdResult');
+  resultEl.style.display='block'; resultEl.innerHTML='<div style="color:#6b7a92">⏳ 思考中…</div>';
+  try {
+    var evCtx = await _birdGetEvCtxAsync();
+    var kb = _birdGetRelevantKb(q + ' ' + (_events[_curIdx]?_events[_curIdx].type:''));
+    var sysPrompt = _birdSystemPrompt(evCtx, kb);
+    var messages = [{role:'system',content:sysPrompt}]
+      .concat(_birdQaHistory.slice(-6))
+      .concat([{role:'user',content:q}]);
+    var text = await _birdGroqCall(messages,'llama-3.1-8b-instant',800);
+    var parsed = _parseBirdResponse(text);
+    _birdRenderResult(parsed, _birdKbFileNames);
+    if (parsed.draw && parsed.draw.length) _birdDrawLayers(parsed.draw);
+    _birdQaHistory.push({role:'user',content:q});
+    _birdQaHistory.push({role:'assistant',content:JSON.stringify(parsed)});
+    if(_birdQaHistory.length>6)_birdQaHistory=_birdQaHistory.slice(-6);
+    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
+  } catch(e) {
+    resultEl.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>';
+  }
 }
 
 // ── 異常警報 ──
 async function birdCheckAlert(measurements) {
   if (!_loginIsAdmin || !_birdKbLoaded) return;
   var key='';
-  try{ key=(document.getElementById('birdGroqKey')||{}).value||localStorage.getItem('_birdGroqKey')||''; }catch(e){}
-  key=(key||'').trim(); if(!key)return;
-
-  var evCtx=_birdGetEvCtx();
-  var msrSummary=measurements.slice(-10).map(function(m){
-    return m.reporter+':'+m.value+'μSv/h'+(m.contamination?' 污染:'+m.contamination:'');
-  }).join('、');
+  try{key=(document.getElementById('birdGroqKey')||{}).value||localStorage.getItem('_birdGroqKey')||'';}catch(e){}
+  key=(key||'').trim(); if(!key) return;
+  var evCtx=await _birdGetEvCtxAsync();
   var kb=_birdKbText.substring(0,5000);
-  var prompt='你是輻射災害應變AI。根據知識庫閾值判斷量測是否需要立即處置。\n\n'+
-    '【目前事件】\n'+evCtx+'\n\n【最新量測】\n'+msrSummary+'\n\n【知識庫】\n'+kb+
-    '\n\n只輸出JSON：{"is_alert":true/false,"reason":"理由","actions":["行動1","行動2","行動3"],"source":"知識庫章節"}';
+  var prompt='你是輻射災害應變AI。根據知識庫判斷量測值是否需要立即處置。\n\n'+
+    '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb+
+    '\n\n只輸出JSON：{"is_alert":true/false,"reason":"理由","actions":["行動1","行動2"],"source":"程序書章節"}';
   try{
     var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,temperature:0.1,
-        messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,temperature:0.1,messages:[{role:'user',content:prompt}]})
     });
     var d=await res.json(); if(d.error)return;
     var txt=d.choices[0].message.content||'';
@@ -8730,7 +8676,6 @@ async function birdCheckAlert(measurements) {
     if(result.is_alert) _birdShowAlert(result.reason,result.actions||[],result.source||'');
   }catch(e){}
 }
-
 function _birdShowAlert(reason, actions, source) {
   var alertArea=document.getElementById('birdAlertArea');
   if(alertArea){
@@ -8743,83 +8688,6 @@ function _birdShowAlert(reason, actions, source) {
   }
   if(!_birdIsOpen) _birdOpen();
   else showToast('⚠️ AI 偵測到量測異常，請查看建議');
-}
-
-// ── AI 分析（手動）──
-async function birdAnalyze() {
-  var key=''; try{key=(document.getElementById('birdGroqKey').value||'').trim();}catch(e){}
-  if(!key){showToast('⚠️ 請先輸入 Groq Key');return;}
-  var btn=document.getElementById('birdAnalyzeBtn');
-  var resultEl=document.getElementById('birdResult');
-  btn.disabled=true; btn.textContent='⏳ 分析中…';
-  resultEl.style.display='block'; resultEl.innerHTML='<div style="color:#6b7a92">⏳ AI 分析中…</div>';
-
-  var evCtx=_birdGetEvCtx();
-  var kb=_birdGetRelevantKb(evCtx);
-  var messages=[{role:'system',content:
-    '你是輻射災害應變AI助手，專門處理輻射彈、放射性物質、放射性物料事件（非核子事故）。\n'+
-    '用繁體中文。直接給具體行動建議，不複述已知事實。\n'+
-    '有多個建議時用數字條列（1. 2. 3.），每條後標【依據：文件/章節名稱】。\n'+
-    '【應變計畫文件】\n'+kb
-  }].concat(_birdQaHistory.slice(-6)).concat([{role:'user',content:'請根據以下狀況給出應變行動建議：\n'+evCtx}]);
-
-  try{
-    var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:800,temperature:0.15,messages:messages})
-    });
-    var d=await res.json(); if(d.error)throw new Error(d.error.message);
-    var answer=d.choices[0].message.content||'無法取得回應';
-    _birdRenderResult(answer, _birdKbFileNames);
-    _birdQaHistory.push({role:'user',content:'分析：'+evCtx});
-    _birdQaHistory.push({role:'assistant',content:answer});
-    if(_birdQaHistory.length>6)_birdQaHistory=_birdQaHistory.slice(-6);
-    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
-  }catch(e){
-    resultEl.innerHTML='<div style="color:#dc2626">⚠️ AI 呼叫失敗：'+_esc(e.message)+'</div>';
-  }
-  btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
-}
-
-// ── 快速問答 ──
-function birdQuickAsk(q){
-  var inp=document.getElementById('birdQaInput'); if(inp)inp.value=q; birdSendQa();
-}
-
-async function birdSendQa(){
-  var key=''; try{key=(document.getElementById('birdGroqKey').value||'').trim();}catch(e){}
-  var inp=document.getElementById('birdQaInput');
-  var q=inp?inp.value.trim():'';
-  if(!key){showToast('⚠️ 請先輸入 Groq Key');return;}
-  if(!q)return;
-  if(inp)inp.value='';
-
-  var resultEl=document.getElementById('birdResult');
-  resultEl.style.display='block'; resultEl.innerHTML='<div style="color:#6b7a92">⏳ 思考中…</div>';
-
-  var kb=_birdGetRelevantKb(q);
-  var evCtx=_birdGetEvCtx();
-  var messages=[{role:'system',content:
-    '你是輻射災害應變AI助手（輻射彈、放射性物質、放射性物料事件，非核子事故）。\n'+
-    '用繁體中文。回答問題本身，不複述問題。有多個步驟用數字條列，適時標【依據：文件名稱】。簡潔。\n'+
-    '【目前事件】\n'+evCtx+'\n\n【相關應變文件段落】\n'+kb
-  }].concat(_birdQaHistory.slice(-6)).concat([{role:'user',content:q}]);
-
-  try{
-    var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:700,temperature:0.15,messages:messages})
-    });
-    var d=await res.json(); if(d.error)throw new Error(d.error.message);
-    var answer=d.choices[0].message.content||'無法取得回應';
-    _birdRenderResult(answer, _birdKbFileNames);
-    _birdQaHistory.push({role:'user',content:q});
-    _birdQaHistory.push({role:'assistant',content:answer});
-    if(_birdQaHistory.length>6)_birdQaHistory=_birdQaHistory.slice(-6);
-    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
-  }catch(e){
-    resultEl.innerHTML='<div style="color:#dc2626">⚠️ AI 呼叫失敗：'+_esc(e.message)+'</div>';
-  }
 }
 </script>
 
