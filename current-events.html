@@ -1196,6 +1196,7 @@ function loadSquads(cb) {
 var gMap = null;
 var _osmLayer   = null;   // 一般底圖（OpenStreetMap）
 var _satLayer   = null;   // 衛星底圖（Esri World Imagery）
+var _satLabelLayer = null; // 衛星地名標籤層（Esri Reference）
 var _isSatellite = false; // 目前是否為衛星模式
 var _events = [];    // 所有進行中事件
 var _curIdx = 0;     // 目前顯示哪一筆
@@ -6786,11 +6787,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── 底圖圖層定義 ──
     _osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19,
+      zIndex: 1
     });
     _satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-      maxZoom: 19
+      maxZoom: 19, zIndex: 1
+    });
+    // 衛星底圖專用地名標籤層（Esri Reference，有地名/道路/機構名）
+    _satLabelLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '', maxZoom: 19, zIndex: 2, opacity: 0.9
     });
     _osmLayer.addTo(gMap);
     _isSatellite = false;
@@ -6872,13 +6878,17 @@ function toggleBasemap() {
   if (!gMap || !_osmLayer || !_satLayer) return;
   _isSatellite = !_isSatellite;
   if (_isSatellite) {
+    // 切換到衛星：移除 OSM，加衛星底圖 + 地名標籤
     gMap.removeLayer(_osmLayer);
     _satLayer.addTo(gMap);
-    _satLayer.bringToBack();
+    _satLayer.setZIndex(1);
+    if (_satLabelLayer) { _satLabelLayer.addTo(gMap); _satLabelLayer.setZIndex(2); }
   } else {
+    // 切換回一般：移除衛星和標籤，加 OSM
     gMap.removeLayer(_satLayer);
+    if (_satLabelLayer && gMap.hasLayer(_satLabelLayer)) gMap.removeLayer(_satLabelLayer);
     _osmLayer.addTo(gMap);
-    _osmLayer.bringToBack();
+    _osmLayer.setZIndex(1);
   }
   // 更新桌機版按鈕狀態
   var btn = document.getElementById('basemapBtn');
@@ -8079,31 +8089,36 @@ function pickMsrTask(i) {
      AI 鳥（僅管理員可見）
      ══════════════════════════════════════════ -->
 <style>
-/* AI 鳥按鈕 */
+/* AI 鳥按鈕（桌機版）*/
 #aiBirdBtn {
   display: none; /* 預設隱藏，_initBirdBtn() 才顯示 */
   position: fixed;
   bottom: 196px; right: 24px;
   bottom: calc(196px + env(safe-area-inset-bottom, 0px));
   z-index: 1000;
-  width: 38px; height: 38px; border-radius: 10px;
-  background: #1e2a3a; border: 1px solid #4a6080;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--navy, #12243a); border: 2px solid rgba(255,255,255,0.2);
   cursor: pointer; align-items: center; justify-content: center;
-  font-size: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  padding: 0; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
   transition: all .15s;
 }
-#aiBirdBtn:hover { background: #2d3f54; border-color: #6a90b0; }
-#aiBirdBtn.active { background: #1a56db; border-color: #1a56db; }
-/* 手機版 AI 鳥按鈕 */
+#aiBirdBtn:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+#aiBirdBtn.active { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.3), 0 4px 16px rgba(0,0,0,.35); }
+#aiBirdBtn img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
+/* AI 鳥手機版按鈕 - 與桌機版相同樣式但在右上角 */
 #aiBirdBtnMob {
   display: none;
-  position: fixed; top: 150px; right: 12px; z-index: 1001;
-  width: 38px; height: 38px; border-radius: 10px;
-  background: #1e2a3a; border: 1px solid #4a6080;
-  box-shadow: 0 2px 8px rgba(0,0,0,.15);
-  font-size: 20px; cursor: pointer;
+  position: fixed; top: 150px; right: 8px; z-index: 1001;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--navy, #12243a); border: 2px solid rgba(255,255,255,0.2);
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  cursor: pointer; padding: 0; overflow: hidden;
   align-items: center; justify-content: center;
+}
+#aiBirdBtnMob img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
+@media (max-width: 600px) {
+  #aiBirdBtn { display: none !important; } /* 手機只用 mob 版 */
 }
 /* AI 鳥面板 */
 #aiBirdPanel {
@@ -8197,14 +8212,18 @@ function pickMsrTask(i) {
 </style>
 
 <!-- AI 鳥桌機版按鈕 -->
-<button id="aiBirdBtn" title="AI 分析助手（管理員）" onclick="toggleBirdPanel()">🤖</button>
+<button id="aiBirdBtn" title="AI 分析助手（管理員）" onclick="toggleBirdPanel()">
+  <img src="bird.png" alt="AI鳥">
+</button>
 <!-- AI 鳥手機版按鈕 -->
-<button id="aiBirdBtnMob" class="mob-ev-btn" title="AI 分析助手" onclick="toggleBirdPanel()">🤖</button>
+<button id="aiBirdBtnMob" title="AI 分析助手（管理員）" onclick="toggleBirdPanel()">
+  <img src="bird.png" alt="AI鳥">
+</button>
 
 <!-- AI 鳥面板 -->
 <div id="aiBirdPanel">
   <div class="bird-panel-hd">
-    <span style="font-size:18px">🤖</span>
+    <img src="bird.png" alt="AI鳥" style="width:28px;height:28px;object-fit:contain;mix-blend-mode:multiply;border-radius:50%;background:#1e2a3a">
     <span class="bird-panel-hd-title">AI 分析助手（管理員）</span>
     <button class="bird-panel-close" onclick="toggleBirdPanel()">✕</button>
   </div>
