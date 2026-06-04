@@ -3147,12 +3147,12 @@ function saveLayerPref(eventId, type, checked) {
 // checkbox 狀態（先查記憶，再查 DOM）
 function isLayerOn(idx, type) {
   var ev = _events[idx];
-  if (ev) {
-    // 優先從記憶取值（不依賴 DOM 是否存在）
-    return getLayerPref(ev.id, type);
-  }
+  // 先查 DOM checkbox（最即時）
   var cb = document.getElementById('lyr_' + idx + '_' + type);
-  return cb ? cb.checked : true;
+  if (cb) return cb.checked;
+  // DOM 不存在時才查記憶
+  if (ev) return getLayerPref(ev.id, type);
+  return true;
 }
 
 // ── 重建所有事件的圖層 ──
