@@ -3286,20 +3286,17 @@ function renderMsrMarkers(eventId) {
   });
   if (!valid.length) return;
 
-  // zoom < 13 時：只顯示數值最高的 8 個，避免全台看起來都是輻射
   var zoom = gMap.getZoom();
   _clusterPixel = zoom >= 18 ? 30 : zoom >= 16 ? 55 : zoom >= 14 ? 80 : 110;
 
-  // 只保留有填劑量率的回報
-  valid = valid.filter(function(msr) {
-    var v = parseFloat(msr.value);
-    return !isNaN(v) && String(msr.value).trim() !== '' && String(msr.value).trim() !== 'NaN';
-  });
-
-  // zoom < 13 時：只顯示數值最高的 8 個，避免全台看起來都是輻射
+  // zoom < 13 時：只顯示前 8 個（依劑量率排序，空值排後面）
   if (zoom < 13) {
     valid = valid.slice().sort(function(a, b) {
-      return parseFloat(b.value) - parseFloat(a.value);
+      var va = parseFloat(a.value), vb = parseFloat(b.value);
+      if (isNaN(va) && isNaN(vb)) return 0;
+      if (isNaN(va)) return 1;
+      if (isNaN(vb)) return -1;
+      return vb - va;
     }).slice(0, 8);
   }
 
@@ -3311,7 +3308,7 @@ function renderMsrMarkers(eventId) {
     if (grp.members.length <= 1) return; // 單點走原本流程
     var rep = grp.rep;
     var val = parseFloat(rep.value);
-    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
+    var col = isNaN(val) ? '#94a3b8' : (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a');
     var ll  = L.latLng(parseFloat(rep.lat), parseFloat(rep.lng));
     var sz  = grp.members.length > 5 ? 44 : 36;
     var clusterIcon = L.divIcon({
@@ -3534,9 +3531,8 @@ function renderMsrMarkers(eventId) {
   pts.forEach(function(pt) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
-    // 量測劑量率：只顯示有劑量率的點
-    if (isNaN(val) || msr.value === '' || msr.value === null || msr.value === 'NaN') return;
-    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
+    var hasVal = !isNaN(val) && String(msr.value).trim() !== '' && String(msr.value).trim() !== 'NaN';
+    var col = !hasVal ? '#94a3b8' : (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a');
     var offLL = pt.offLL;
 
     // 圓點
@@ -3554,10 +3550,12 @@ function renderMsrMarkers(eventId) {
       color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
     }).addTo(gMap));
 
-    // 數值標籤（僅劑量率）
-    var labelContent = '<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
-      _fmtDose(val).val + '</span>' +
-      '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>';
+    // 數值標籤（有值顯示劑量率，無值顯示回報者）
+    var labelContent = hasVal
+      ? ('<span style="font-size:13px;font-weight:800;color:#1e2a3a;font-family:ui-monospace,monospace">' +
+         _fmtDose(val).val + '</span>' +
+         '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>')
+      : ('<span style="font-size:12px;color:#94a3b8;font-family:inherit">' + (msr.reporter||'回報') + '</span>');
     var labelIcon = L.divIcon({
       className: '',
       html: '<div style="background:white;border-left:4px solid ' + col + ';' +
@@ -3931,11 +3929,11 @@ function renderMsrDotLayer(idx) {
   if (!measurements || !measurements.length) return;
 
   measurements.forEach(function(msr) {
-    var val = parseFloat(msr.value);
-    if (isNaN(val) || String(msr.value).trim() === '' || String(msr.value).trim() === 'NaN') return; // 只顯示有劑量率
     var lat = parseFloat(msr.lat), lng = parseFloat(msr.lng);
     if (isNaN(lat) || isNaN(lng)) return;
-    var col = val < 0.5 ? '#16a34a' : val < 100 ? '#f97316' : '#dc2626';
+    var val = parseFloat(msr.value);
+    // value 空時用灰點（位置標記），有值才用顏色
+    var col = isNaN(val) ? '#94a3b8' : (val < 0.5 ? '#16a34a' : val < 100 ? '#f97316' : '#dc2626');
     var icon = L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';' +
