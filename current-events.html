@@ -3188,6 +3188,10 @@ function loadMeasurements(idx, force) {
     renderMsrContamLayer(idx);
     renderContamDotLayer(idx);
     if (idx === _curIdx) renderCard(idx);
+    // AI 鳥：自動偵測異常（每次拉到新資料就判斷）
+    if (_loginIsAdmin && _birdKbLoaded && _msrCache[ev.id] && _msrCache[ev.id].length) {
+      birdCheckAlert(_msrCache[ev.id]);
+    }
   });
 }
 
@@ -8085,71 +8089,85 @@ function pickMsrTask(i) {
 }
 </script>
 
+
 <!-- ══════════════════════════════════════════
      AI 鳥（僅管理員可見）
      ══════════════════════════════════════════ -->
 <style>
-/* AI 鳥按鈕（桌機版）*/
-#aiBirdBtn {
-  display: none; /* 預設隱藏，_initBirdBtn() 才顯示 */
-  position: fixed;
-  bottom: 196px; right: 24px;
-  bottom: calc(196px + env(safe-area-inset-bottom, 0px));
-  z-index: 1000;
-  width: 56px; height: 56px; border-radius: 50%;
-  background: var(--navy, #12243a); border: 2px solid rgba(255,255,255,0.2);
-  cursor: pointer; align-items: center; justify-content: center;
-  padding: 0; overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,.35);
-  transition: all .15s;
-}
-#aiBirdBtn:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
-#aiBirdBtn.active { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.3), 0 4px 16px rgba(0,0,0,.35); }
-#aiBirdBtn img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
-/* AI 鳥手機版按鈕 - 與桌機版相同樣式但在右上角 */
-#aiBirdBtnMob {
+/* ── AI 鳥容器（桌機版）── */
+#aiBirdWrap {
   display: none;
-  position: fixed; top: 150px; right: 8px; z-index: 1001;
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--navy, #12243a); border: 2px solid rgba(255,255,255,0.2);
-  box-shadow: 0 3px 10px rgba(0,0,0,.3);
-  cursor: pointer; padding: 0; overflow: hidden;
-  align-items: center; justify-content: center;
+  position: fixed;
+  bottom: 200px; right: 16px;
+  bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  z-index: 1500;
+  cursor: pointer;
+  user-select: none;
+  transition: bottom .4s cubic-bezier(.34,1.2,.64,1), right .4s cubic-bezier(.34,1.2,.64,1);
 }
-#aiBirdBtnMob img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
-@media (max-width: 600px) {
-  #aiBirdBtn { display: none !important; } /* 手機只用 mob 版 */
+#aiBirdWrap.mob-bird {
+  bottom: auto; right: 8px; top: 196px;
 }
-/* AI 鳥面板 */
+/* 鳥圓圈 */
+#aiBirdCircle {
+  width: 105px; height: 105px; border-radius: 50%;
+  background: #12243a;
+  border: 2px solid rgba(255,255,255,0.2);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  transition: transform .2s;
+  position: relative;
+}
+#aiBirdWrap:hover #aiBirdCircle { transform: scale(1.08); }
+#aiBirdCircle img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
+/* AI badge */
+#aiBirdBadge {
+  position: absolute; top: 2px; right: 2px;
+  background: #dc2626; color: #fff; border-radius: 50%;
+  width: 26px; height: 26px; font-size: 11px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  animation: birdBadgePulse 2s infinite;
+  z-index: 1;
+}
+@keyframes birdBadgePulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+/* 鳥飛出動畫 */
+@keyframes birdFlyIn {
+  from { transform: translateY(30px) scale(0.7); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+#aiBirdWrap.alert-fly { animation: birdFlyIn .5s cubic-bezier(.34,1.2,.64,1); }
+
+/* ── AI 鳥面板 ── */
 #aiBirdPanel {
   display: none;
   position: fixed;
-  bottom: 240px; right: 68px;
-  bottom: calc(240px + env(safe-area-inset-bottom, 0px));
-  z-index: 2000;
-  width: 360px; max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 280px);
+  z-index: 2400;
+  width: 380px; max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 120px);
   background: white; border-radius: 14px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 8px 32px rgba(0,0,0,.22);
-  display: none; flex-direction: column;
-  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  flex-direction: column; overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "PingFang TC", sans-serif;
+  /* 預設位置，由 JS 動態計算 */
+  bottom: 320px; right: 130px;
+  transform-origin: bottom right;
 }
-#aiBirdPanel.open { display: flex; }
-/* 手機版面板 */
-@media (max-width: 600px) {
-  #aiBirdPanel {
-    bottom: auto; right: auto;
-    top: 12px; left: 12px; right: 12px;
-    width: auto; max-width: none;
-    max-height: calc(100vh - 24px);
-  }
+#aiBirdPanel.open { display: flex; animation: birdPanelIn .28s cubic-bezier(.34,1.2,.64,1); }
+@keyframes birdPanelIn { from{opacity:0;transform:scale(.92)} to{opacity:1;transform:scale(1)} }
+@media (max-width:600px) {
+  #aiBirdPanel { bottom: auto; right: auto; top: 12px; left: 12px; right: 12px; width: auto; max-width: none; }
+  #aiBirdWrap  { right: 8px; bottom: auto; top: 196px; }
+  #aiBirdCircle { width: 80px; height: 80px; }
+  #aiBirdBadge  { width: 22px; height: 22px; font-size: 10px; }
 }
+
+/* 面板 header（可拖曳）*/
 .bird-panel-hd {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px; background: #1e2a3a;
   border-radius: 14px 14px 0 0; flex-shrink: 0;
+  cursor: move; user-select: none;
 }
 .bird-panel-hd-title { font-size: 14px; font-weight: 700; color: #e8f0fa; flex: 1; }
 .bird-panel-close {
@@ -8161,71 +8179,60 @@ function pickMsrTask(i) {
 .bird-panel-close:hover { background: rgba(220,38,38,.4); color: white; }
 .bird-panel-body {
   flex: 1; overflow-y: auto; padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 10px;
-  min-height: 0;
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
 }
 .bird-panel-body::-webkit-scrollbar { width: 4px; }
 .bird-panel-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
-/* Groq Key 輸入 */
+/* Groq Key */
 .bird-key-row {
   display: flex; gap: 6px; align-items: center;
-  padding: 8px 10px; background: #f8fafc; border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: 8px 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
 }
-.bird-key-inp {
-  flex: 1; border: none; background: none; font-size: 12px;
-  font-family: ui-monospace, monospace; color: #1e2a3a;
-  outline: none;
-}
-.bird-key-lbl { font-size: 11px; color: #6b7a92; white-space: nowrap; }
+.bird-key-inp { flex:1; border:none; background:none; font-size:12px; font-family:ui-monospace,monospace; color:#1e2a3a; outline:none; }
+.bird-key-lbl { font-size:11px; color:#6b7a92; white-space:nowrap; }
 /* 分析按鈕 */
 .bird-analyze-btn {
   padding: 9px; border-radius: 8px; border: none;
-  background: linear-gradient(135deg, #1e2a3a, #1a56db);
+  background: linear-gradient(135deg,#1e2a3a,#1a56db);
   color: white; font-family: inherit; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: opacity .15s; text-align: center;
 }
-.bird-analyze-btn:hover { opacity: .85; }
-.bird-analyze-btn:disabled { opacity: .5; cursor: not-allowed; }
-/* 建議卡片 */
-.bird-rec-card {
-  border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
-  font-size: 13px;
-}
-.bird-rec-priority {
-  display: inline-block; font-size: 11px; font-weight: 600;
-  padding: 1px 7px; border-radius: 3px; margin-bottom: 4px;
-}
-.bird-rec-p-urgent { background: rgba(220,38,38,.1); color: #dc2626; border: 1px solid rgba(220,38,38,.3); }
-.bird-rec-p-high   { background: rgba(234,88,12,.1); color: #ea580c; border: 1px solid rgba(234,88,12,.3); }
-.bird-rec-p-mid    { background: rgba(217,119,6,.1); color: #d97706; border: 1px solid rgba(217,119,6,.3); }
-.bird-rec-p-low    { background: rgba(22,163,74,.1); color: #16a34a; border: 1px solid rgba(22,163,74,.25); }
-.bird-rec-title { font-size: 13px; font-weight: 700; color: #1e2a3a; margin-bottom: 4px; }
-.bird-rec-action { font-size: 12px; color: #3d5070; line-height: 1.5; }
+.bird-analyze-btn:hover { opacity:.85; }
+.bird-analyze-btn:disabled { opacity:.5; cursor:not-allowed; }
 /* 知識庫狀態 */
-.bird-kb-status {
-  font-size: 11px; color: #6b7a92; padding: 5px 8px;
-  background: #f0f2f5; border-radius: 5px; text-align: center;
+.bird-kb-status { font-size:11px; color:#6b7a92; padding:5px 8px; background:#f0f2f5; border-radius:5px; text-align:center; }
+.bird-kb-status.ok { color:#16a34a; background:#f0fdf4; }
+.bird-kb-status.loading { color:#1a56db; background:#eff6ff; }
+/* 快捷按鈕 */
+.bird-quick-pill {
+  font-size:12px; padding:4px 10px; border-radius:12px;
+  border:1px solid #e2e8f0; color:#6b7a92; cursor:pointer;
+  background:#f8fafc; transition:all .12s; font-family:inherit;
 }
-.bird-kb-status.ok { color: #16a34a; background: #f0fdf4; }
-.bird-kb-status.loading { color: #1a56db; background: #eff6ff; }
+.bird-quick-pill:hover { border-color:#1a56db; color:#1a56db; background:#eff6ff; }
+/* 警報標頭 */
+.bird-alert-hd {
+  background: #dc2626; border-radius: 8px; padding: 10px 12px;
+  color: white; font-size: 13px; font-weight: 700;
+  animation: birdAlertFlash 1.5s ease infinite;
+}
+@keyframes birdAlertFlash { 0%,100%{opacity:1} 50%{opacity:.7} }
 </style>
 
-<!-- AI 鳥桌機版按鈕 -->
-<button id="aiBirdBtn" title="AI 分析助手（管理員）" onclick="toggleBirdPanel()">
-  <img src="bird.png" alt="AI鳥">
-</button>
-<!-- AI 鳥手機版按鈕 -->
-<button id="aiBirdBtnMob" title="AI 分析助手（管理員）" onclick="toggleBirdPanel()">
-  <img src="bird.png" alt="AI鳥">
-</button>
+<!-- AI 鳥按鈕（單一容器，桌/手機 RWD 由 CSS 控制）-->
+<div id="aiBirdWrap" onclick="toggleBirdPanel()">
+  <div id="aiBirdCircle">
+    <img src="bird.png" alt="AI鳥">
+    <div id="aiBirdBadge">AI</div>
+  </div>
+</div>
 
 <!-- AI 鳥面板 -->
 <div id="aiBirdPanel">
-  <div class="bird-panel-hd">
-    <img src="bird.png" alt="AI鳥" style="width:28px;height:28px;object-fit:contain;mix-blend-mode:multiply;border-radius:50%;background:#1e2a3a">
-    <span class="bird-panel-hd-title">AI 分析助手（管理員）</span>
-    <button class="bird-panel-close" onclick="toggleBirdPanel()">✕</button>
+  <div class="bird-panel-hd" id="aiBirdPanelHd">
+    <img src="bird.png" alt="AI鳥" style="width:28px;height:28px;object-fit:contain;mix-blend-mode:screen;border-radius:50%;background:#12243a;flex-shrink:0">
+    <span class="bird-panel-hd-title">AI 應變助手（管理員）</span>
+    <button class="bird-panel-close" onclick="closeBirdPanel(event)">✕</button>
   </div>
   <div class="bird-panel-body" id="aiBirdPanelBody">
     <!-- Groq Key -->
@@ -8235,7 +8242,9 @@ function pickMsrTask(i) {
       <button onclick="loadBirdKnowledge()" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;white-space:nowrap;font-family:inherit">載入知識庫</button>
     </div>
     <!-- 知識庫狀態 -->
-    <div class="bird-kb-status" id="birdKbStatus">知識庫未載入</div>
+    <div class="bird-kb-status" id="birdKbStatus">知識庫未載入（請點右上角「載入知識庫」）</div>
+    <!-- 警報區（有異常時顯示）-->
+    <div id="birdAlertArea" style="display:none"></div>
     <!-- 分析按鈕 -->
     <button class="bird-analyze-btn" id="birdAnalyzeBtn" onclick="birdAnalyze()">⚡ AI 分析目前事件狀況</button>
     <!-- 結果區 -->
@@ -8243,11 +8252,13 @@ function pickMsrTask(i) {
     <!-- 快問 -->
     <div style="border-top:1px solid #e2e8f0;padding-top:8px">
       <div style="font-size:11px;color:#6b7a92;margin-bottom:6px;font-weight:600">快速問答</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px" id="birdQuickPills">
-        <button class="bird-quick-pill" onclick="birdQuickAsk('目前事故等級研判？')">事故等級</button>
-        <button class="bird-quick-pill" onclick="birdQuickAsk('建議疏散方向？')">疏散方向</button>
-        <button class="bird-quick-pill" onclick="birdQuickAsk('碘片應何時服用？')">碘片時機</button>
-        <button class="bird-quick-pill" onclick="birdQuickAsk('弱勢族群如何優先處置？')">弱勢族群</button>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        <button class="bird-quick-pill" onclick="birdQuickAsk('目前事件的應變程序為何？')">應變程序</button>
+        <button class="bird-quick-pill" onclick="birdQuickAsk('現場量測數值異常，建議採取什麼行動？')">數值異常</button>
+        <button class="bird-quick-pill" onclick="birdQuickAsk('人員防護措施為何？')">人員防護</button>
+        <button class="bird-quick-pill" onclick="birdQuickAsk('通報程序為何？')">通報程序</button>
+        <button class="bird-quick-pill" onclick="birdQuickAsk('污染管制措施？')">污染管制</button>
+        <button class="bird-quick-pill" onclick="birdQuickAsk('儀器量測程序？')">量測程序</button>
       </div>
     </div>
     <!-- 問答輸入 -->
@@ -8262,35 +8273,34 @@ function pickMsrTask(i) {
 
 <script>
 // ══════════════════════════════════════════════════════════
-// AI 鳥：管理員專用分析助手
+// AI 鳥：管理員專用應變助手
 // ══════════════════════════════════════════════════════════
-var _birdOpen      = false;
-var _birdKbText    = '';   // 知識庫內容快取
-var _birdKbLoaded  = false;
-var _birdKbLoading = false;
-var _BIRD_DRIVE_FOLDER = '1XRM7zIkRotFaqX_afKw7ij4PlG-6z5Fq'; // Google Drive 資料夾 ID
+var _birdOpen        = false;
+var _birdKbText      = '';
+var _birdKbLoaded    = false;
+var _birdKbLoading   = false;
+var _birdAlertFired  = false;  // 每次新量測只觸發一次警報
+var _birdDragging    = false;
+var _birdDragOffX    = 0, _birdDragOffY = 0;
+var _BIRD_FOLDER_ID  = '1XRM7zIkRotFaqX_afKw7ij4PlG-6z5Fq';
+var _birdQaHistory   = []; // 最近3輪歷史 [{role,content},...]
 
-// 初始化：根據 isAdmin 顯示/隱藏鳥按鈕
+// ── 初始化：管理員才顯示 ──
 function _initBirdBtn() {
-  var btn    = document.getElementById('aiBirdBtn');
-  var btnMob = document.getElementById('aiBirdBtnMob');
+  var wrap = document.getElementById('aiBirdWrap');
+  if (!wrap) return;
   if (_loginIsAdmin) {
-    if (btn)    { btn.style.display    = 'flex'; }
-    if (btnMob) { btnMob.style.display = 'flex'; }
-    // 讀取已存的 Groq Key
+    wrap.style.display = 'block';
+    // 讀已存 Key
     try {
-      var savedKey = localStorage.getItem('_birdGroqKey');
-      if (savedKey) {
-        var inp = document.getElementById('birdGroqKey');
-        if (inp) inp.value = savedKey;
-      }
+      var sk = localStorage.getItem('_birdGroqKey');
+      var inp = document.getElementById('birdGroqKey');
+      if (sk && inp) inp.value = sk;
     } catch(e) {}
+    _initBirdDrag();
   } else {
-    if (btn)    btn.style.display    = 'none';
-    if (btnMob) btnMob.style.display = 'none';
-    // 非管理員確保面板也關閉
-    var panel = document.getElementById('aiBirdPanel');
-    if (panel) { panel.classList.remove('open'); _birdOpen = false; }
+    wrap.style.display = 'none';
+    closeBirdPanel();
   }
 }
 
@@ -8298,166 +8308,334 @@ function saveBirdKey(val) {
   try { localStorage.setItem('_birdGroqKey', val); } catch(e) {}
 }
 
+// ── 面板開關 ──
 function toggleBirdPanel() {
   if (!_loginIsAdmin) return;
-  _birdOpen = !_birdOpen;
-  var panel = document.getElementById('aiBirdPanel');
-  var btn   = document.getElementById('aiBirdBtn');
-  var btnM  = document.getElementById('aiBirdBtnMob');
-  if (_birdOpen) {
-    panel.classList.add('open');
-    if (btn)  btn.classList.add('active');
-    if (btnM) btnM.style.background = '#1a56db';
-    // 自動讀存的 Key
-    try {
-      var sk = localStorage.getItem('_birdGroqKey');
-      var inp = document.getElementById('birdGroqKey');
-      if (sk && inp && !inp.value) inp.value = sk;
-    } catch(e) {}
-  } else {
-    panel.classList.remove('open');
-    if (btn)  btn.classList.remove('active');
-    if (btnM) btnM.style.background = '#1e2a3a';
-  }
+  if (_birdOpen) { closeBirdPanel(); } else { openBirdPanel(); }
 }
 
-// ── 知識庫載入（讀 Google Drive 資料夾所有文件）──
+function openBirdPanel() {
+  _birdOpen = true;
+  var panel = document.getElementById('aiBirdPanel');
+  var wrap  = document.getElementById('aiBirdWrap');
+  if (!panel) return;
+  // 計算面板位置（在鳥的左上方）
+  var wRect = wrap ? wrap.getBoundingClientRect() : null;
+  if (wRect) {
+    var pw = 380, ph = 480;
+    var left = Math.max(8, wRect.left - pw - 8);
+    var top  = Math.max(8, wRect.bottom - ph);
+    panel.style.left   = left + 'px';
+    panel.style.top    = top  + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right  = 'auto';
+  }
+  panel.classList.add('open');
+  // 讀 Key
+  try {
+    var sk = localStorage.getItem('_birdGroqKey');
+    var inp = document.getElementById('birdGroqKey');
+    if (sk && inp && !inp.value) inp.value = sk;
+  } catch(e) {}
+}
+
+function closeBirdPanel(e) {
+  if (e) e.stopPropagation();
+  _birdOpen = false;
+  var panel = document.getElementById('aiBirdPanel');
+  if (panel) panel.classList.remove('open');
+}
+
+// ── 面板拖曳 ──
+function _initBirdDrag() {
+  var hd = document.getElementById('aiBirdPanelHd');
+  if (!hd) return;
+  hd.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    var panel = document.getElementById('aiBirdPanel');
+    var rect  = panel.getBoundingClientRect();
+    _birdDragOffX = e.clientX - rect.left;
+    _birdDragOffY = e.clientY - rect.top;
+    _birdDragging = true;
+    document.addEventListener('mousemove', _birdDragMove);
+    document.addEventListener('mouseup',   _birdDragUp);
+  });
+  hd.addEventListener('touchstart', function(e) {
+    var t = e.touches[0];
+    var panel = document.getElementById('aiBirdPanel');
+    var rect  = panel.getBoundingClientRect();
+    _birdDragOffX = t.clientX - rect.left;
+    _birdDragOffY = t.clientY - rect.top;
+    _birdDragging = true;
+    document.addEventListener('touchmove', _birdDragMoveT, {passive:false});
+    document.addEventListener('touchend',  _birdDragUp);
+  }, {passive:true});
+}
+
+function _birdDragMove(e) {
+  if (!_birdDragging) return;
+  var panel = document.getElementById('aiBirdPanel');
+  var nl = e.clientX - _birdDragOffX;
+  var nt = e.clientY - _birdDragOffY;
+  nl = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  nl));
+  nt = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, nt));
+  panel.style.left = nl + 'px'; panel.style.top = nt + 'px';
+  panel.style.right = 'auto'; panel.style.bottom = 'auto';
+}
+function _birdDragMoveT(e) {
+  e.preventDefault();
+  _birdDragMove(e.touches[0]);
+}
+function _birdDragUp() {
+  _birdDragging = false;
+  document.removeEventListener('mousemove', _birdDragMove);
+  document.removeEventListener('mouseup',   _birdDragUp);
+  document.removeEventListener('touchmove', _birdDragMoveT);
+  document.removeEventListener('touchend',  _birdDragUp);
+}
+
+// ── 知識庫動態載入（讀 Drive 資料夾所有 Google Doc）──
 async function loadBirdKnowledge() {
   if (_birdKbLoading) return;
   _birdKbLoading = true;
   var statusEl = document.getElementById('birdKbStatus');
   statusEl.className = 'bird-kb-status loading';
-  statusEl.textContent = '⏳ 載入知識庫中…';
+  statusEl.textContent = '⏳ 讀取資料夾清單…';
 
   try {
-    // 用 Google Drive API（公開資料夾，不需 OAuth）
-    var folderUrl = 'https://drive.google.com/drive/folders/' + _BIRD_DRIVE_FOLDER;
-    // 透過 Drive export：列出資料夾（需用 gviz 或直接抓文件）
-    // 策略：先用已知可 export 的方式抓文件清單，再逐一讀文字
+    // Step1：用 Drive gviz 取資料夾內檔案清單（免 API key）
+    // 改用 export html 方式取得資料夾 index
     var texts = [];
+    // 方法：直接用已知的 Drive export txt endpoint 掃描
+    // 由於無法用 Drive API（需 key），改用 Drive 的 shared folder page 解析
+    // 實際上：用 Google Drive 的 gviz/tq 介面（需 Spreadsheet），
+    // 對 Doc 資料夾最可靠的方法是：
+    // 1. 抓資料夾頁面 HTML → 用 regex 找 docId
+    // 2. 逐一 export txt
 
-    // 方法：透過 Google Drive RSS/Atom feed 取得文件列表
-    var feedUrl = 'https://drive.google.com/drive/folders/' + _BIRD_DRIVE_FOLDER;
-    // 改用直接 export txt 的方式，先抓已知 Google Docs 文件
-    // Drive 資料夾可匿名讀：https://www.googleapis.com/drive/v3/files?q='"folderId"+in+parents
-    var apiUrl = 'https://www.googleapis.com/drive/v3/files?q=%27' + _BIRD_DRIVE_FOLDER +
-      '%27+in+parents+and+trashed%3Dfalse&key=AIzaSyD-9tSrke72PluDDi7XYVRmspJAKLpMFl0' +
-      '&fields=files(id,name,mimeType)&pageSize=50';
+    var folderHtml = await fetch(
+      'https://drive.google.com/drive/folders/' + _BIRD_FOLDER_ID,
+      { headers: {'User-Agent': 'Mozilla/5.0'}, signal: AbortSignal.timeout(10000) }
+    ).then(function(r){ return r.text(); }).catch(function(){ return ''; });
 
-    var r1 = await fetch(apiUrl, { signal: AbortSignal.timeout(8000) });
-    if (!r1.ok) throw new Error('Drive API HTTP ' + r1.status);
-    var filesData = await r1.json();
-    var files = filesData.files || [];
-
-    if (!files.length) {
-      throw new Error('資料夾無檔案或無法存取');
+    // 從 HTML 中提取 Google Doc ID（25~44 字元英數字）
+    var docIds = [];
+    var docNames = {};
+    // 匹配 "id":"...", "name":"..." 或 docId 格式
+    var idRegex = /["\/]([A-Za-z0-9_-]{25,44})["\/]/g;
+    var nameRegex = /\\x22([^\\]+)\\x22/g;
+    var match;
+    var seen = {};
+    while ((match = idRegex.exec(folderHtml)) !== null) {
+      var id = match[1];
+      if (!seen[id] && id !== _BIRD_FOLDER_ID && id.length >= 25) {
+        seen[id] = true;
+        docIds.push(id);
+      }
     }
 
-    statusEl.textContent = '⏳ 讀取 ' + files.length + ' 個文件…';
+    if (!docIds.length) {
+      // fallback：試用 API key 公開版（不需授權的公開 key）
+      var apiUrl = 'https://www.googleapis.com/drive/v3/files?' +
+        'q=%27' + _BIRD_FOLDER_ID + '%27+in+parents+and+trashed%3Dfalse' +
+        '&fields=files(id,name,mimeType)&pageSize=50';
+      var apiRes = await fetch(apiUrl, {signal: AbortSignal.timeout(8000)}).then(function(r){return r.json();}).catch(function(){return null;});
+      if (apiRes && apiRes.files && apiRes.files.length) {
+        apiRes.files.forEach(function(f) {
+          if (!seen[f.id]) { seen[f.id]=true; docIds.push(f.id); docNames[f.id]=f.name; }
+        });
+      }
+    }
 
-    // 逐一讀取文件內容
-    for (var i = 0; i < files.length; i++) {
-      var f = files[i];
+    if (!docIds.length) throw new Error('無法取得資料夾文件清單，請確認分享設定');
+
+    statusEl.textContent = '⏳ 讀取文件中（找到 ' + docIds.length + ' 個）…';
+    var loadedCount = 0;
+
+    // 逐一嘗試 export txt
+    for (var i = 0; i < Math.min(docIds.length, 30); i++) {
+      var docId = docIds[i];
       try {
-        var exportUrl = '';
-        if (f.mimeType === 'application/vnd.google-apps.document') {
-          exportUrl = 'https://docs.google.com/document/d/' + f.id + '/export?format=txt';
-        } else if (f.mimeType === 'application/pdf') {
-          // PDF 先跳過（純文字即可）
-          continue;
-        } else if (f.mimeType === 'text/plain') {
-          exportUrl = 'https://drive.google.com/uc?export=download&id=' + f.id;
-        } else {
-          continue; // 其他格式跳過
-        }
-        var r2 = await fetch(exportUrl, { signal: AbortSignal.timeout(10000) });
-        if (r2.ok) {
-          var t = await r2.text();
-          if (t && t.length > 50) {
-            texts.push('【' + f.name + '】\n' + t);
-            statusEl.textContent = '⏳ 已讀 ' + texts.length + '/' + files.length + '…';
+        var txtUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=txt';
+        var r = await fetch(txtUrl, {signal: AbortSignal.timeout(8000)});
+        if (r.ok) {
+          var ct = r.headers.get('content-type') || '';
+          // 確認是文字檔（非圖片/二進位）
+          if (ct.indexOf('text') >= 0 || ct.indexOf('plain') >= 0) {
+            var t = await r.text();
+            if (t && t.length > 100) {
+              var name = docNames[docId] || ('文件' + (loadedCount+1));
+              texts.push('【' + name + '】\n' + t);
+              loadedCount++;
+              statusEl.textContent = '⏳ 已載入 ' + loadedCount + ' 份文件…';
+            }
           }
         }
       } catch(err) { /* 單一文件失敗不影響其他 */ }
     }
 
-    if (!texts.length) throw new Error('無法讀取任何文件內容');
+    if (!texts.length) throw new Error('無法讀取任何文件，請確認文件是 Google Doc 格式且已公開分享');
 
     _birdKbText   = texts.join('\n\n---\n\n');
     _birdKbLoaded = true;
+    // 存入 sessionStorage
+    try { sessionStorage.setItem('_birdKbCache', _birdKbText); } catch(e) {}
     statusEl.className = 'bird-kb-status ok';
-    statusEl.textContent = '✅ 知識庫已載入（' + texts.length + ' 份文件，' + Math.round(_birdKbText.length/1000) + 'k 字元）';
+    statusEl.textContent = '✅ 知識庫已載入（' + loadedCount + ' 份文件，' + Math.round(_birdKbText.length/1000) + 'k 字）';
 
   } catch(e) {
+    // 嘗試從 sessionStorage 還原
+    try {
+      var cached = sessionStorage.getItem('_birdKbCache');
+      if (cached && cached.length > 100) {
+        _birdKbText = cached; _birdKbLoaded = true;
+        statusEl.className = 'bird-kb-status ok';
+        statusEl.textContent = '✅ 已從快取還原知識庫（' + Math.round(cached.length/1000) + 'k 字）';
+        _birdKbLoading = false; return;
+      }
+    } catch(e2) {}
     _birdKbLoaded = false;
     statusEl.className = 'bird-kb-status';
-    statusEl.textContent = '⚠️ 知識庫載入失敗：' + e.message;
+    statusEl.textContent = '⚠️ 載入失敗：' + e.message;
   }
   _birdKbLoading = false;
 }
 
-// ── 組合目前事件狀態給 AI ──
-function _buildBirdContext() {
+// ── 關鍵字比對取最相關段落 ──
+function _birdGetRelevantKb(query) {
+  if (!_birdKbText) return '';
+  var paras = _birdKbText.split(/\n{2,}/);
+  var keywords = query.replace(/[？?！!。，,]/g,'').split(/\s+/).filter(function(k){return k.length>1;});
+  var scored = paras.map(function(p) {
+    var score = 0;
+    keywords.forEach(function(k){ if(p.indexOf(k)>=0) score++; });
+    return {p:p, score:score};
+  });
+  scored.sort(function(a,b){return b.score-a.score;});
+  // 取前5段，最多3000字
+  var result = scored.slice(0,5).filter(function(x){return x.score>0;}).map(function(x){return x.p;}).join('\n\n');
+  return result.substring(0, 3000) || _birdKbText.substring(0, 2000);
+}
+
+// ── 目前事件狀態 ──
+function _birdGetEvCtx() {
   var ev = _events[_curIdx];
-  var ctx = '';
-  if (ev) {
-    ctx += '【目前事件】\n';
-    ctx += '事件名稱：' + (ev.name || '—') + '\n';
-    ctx += '事件類型：' + (ev.type || '—') + '\n';
-    ctx += '地點：' + (ev.address || '—') + '\n';
-    ctx += '風向：' + (ev.windDir || '—') + '°\n';
-    ctx += '風速：' + (ev.windSpeed || '—') + ' m/s\n';
-    ctx += '目前劑量率：' + (ev.doseMax || '—') + ' μSv/h\n';
-    ctx += '出勤人員：' + (ev.personnelStr || '—') + '\n';
-  }
-  // 量測回報
-  if (ev && _msrCache[ev.id] && _msrCache[ev.id].length) {
-    var msrs = _msrCache[ev.id];
-    ctx += '\n【量測回報（最近5筆）】\n';
-    msrs.slice(-5).forEach(function(m) {
-      ctx += m.reporter + ' 回報 ' + m.value + ' μSv/h';
-      if (m.lat && m.lng) ctx += '（' + parseFloat(m.lat).toFixed(5) + ',' + parseFloat(m.lng).toFixed(5) + '）';
-      ctx += '\n';
-    });
+  if (!ev) return '目前無進行中事件';
+  var ctx = '事件名稱：'+(ev.name||'—')+'\n事件類型：'+(ev.type||'—')+
+    '\n地點：'+(ev.address||'—')+'\n風向：'+(ev.windDir||'—')+'°'+
+    '\n風速：'+(ev.windSpeed||'—')+' m/s\n最大劑量率：'+(ev.doseMax||'—')+' μSv/h';
+  if (_msrCache[ev.id] && _msrCache[ev.id].length) {
+    var msrs = _msrCache[ev.id].slice(-5);
+    ctx += '\n最近量測回報：\n' + msrs.map(function(m){
+      return '  '+m.reporter+' 回報 '+m.value+' μSv/h'+(m.contamination?' 污染值:'+m.contamination:'');
+    }).join('\n');
   }
   return ctx;
 }
 
-// ── AI 分析目前事件 ──
+// ── 量測異常自動觸發（由 loadMeasurements 呼叫）──
+async function birdCheckAlert(measurements) {
+  if (!_loginIsAdmin || !_birdKbLoaded) return;
+  var key = (document.getElementById('birdGroqKey')||{}).value || '';
+  key = key.trim();
+  if (!key) return;
+
+  // 組合目前量測數值摘要
+  var evCtx = _birdGetEvCtx();
+  var msrSummary = measurements.slice(-10).map(function(m){
+    return m.reporter+':'+m.value+'μSv/h'+(m.contamination?' 污染:'+m.contamination:'');
+  }).join('、');
+
+  var kb = _birdKbText.substring(0, 4000);
+  var prompt = '你是輻射災害應變AI助手。根據以下資訊判斷目前量測數值是否異常，需要立即行動。\n\n' +
+    '【目前事件】\n'+evCtx+'\n\n【最新量測】\n'+msrSummary+'\n\n【應變知識庫】\n'+kb+
+    '\n\n請用JSON回答：{"is_alert":true/false,"reason":"判斷原因","actions":["行動1","行動2","行動3"]}'+
+    '\n只輸出JSON，不要其他說明。';
+
+  try {
+    var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,temperature:0.2,
+        messages:[{role:'user',content:prompt}]})
+    });
+    var d = await res.json();
+    if (d.error) return;
+    var text = d.choices[0].message.content || '';
+    var j1=text.indexOf('{'), j2=text.lastIndexOf('}');
+    if (j1<0) return;
+    var result = JSON.parse(text.substring(j1,j2+1));
+    if (result.is_alert) {
+      _birdAlertFired = true;
+      _birdShowAlert(result.reason, result.actions||[]);
+    }
+  } catch(e) { /* 靜默失敗，不影響主流程 */ }
+}
+
+// ── 顯示警報：鳥飛出來 + 面板展開 ──
+function _birdShowAlert(reason, actions) {
+  var wrap = document.getElementById('aiBirdWrap');
+  // 飛出動畫
+  wrap.classList.add('alert-fly');
+  setTimeout(function(){ wrap.classList.remove('alert-fly'); }, 600);
+
+  // 填入警報內容到面板
+  var alertArea = document.getElementById('birdAlertArea');
+  if (alertArea) {
+    alertArea.style.display = '';
+    alertArea.innerHTML =
+      '<div class="bird-alert-hd">⚠️ 系統偵測到異常，建議立即行動</div>' +
+      '<div style="font-size:12px;color:#6b7a92;padding:4px 0">' + _esc(reason) + '</div>' +
+      '<ol style="padding-left:16px;font-size:13px;color:#1e2a3a;line-height:1.7">' +
+      actions.map(function(a){ return '<li>'+_esc(a)+'</li>'; }).join('') +
+      '</ol>';
+  }
+
+  // 自動開啟面板
+  if (!_birdOpen) openBirdPanel();
+
+  // Toast 通知
+  showToast('⚠️ AI 偵測到量測異常，請查看 AI 鳥建議');
+}
+
+// ── AI 分析事件（手動觸發）──
 async function birdAnalyze() {
-  var key = (document.getElementById('birdGroqKey').value || '').trim();
+  var key = (document.getElementById('birdGroqKey')||{}).value || '';
+  key = key.trim();
   if (!key) { showToast('⚠️ 請先輸入 Groq Key'); return; }
 
   var btn = document.getElementById('birdAnalyzeBtn');
   btn.disabled = true; btn.textContent = '⏳ 分析中…';
-
   var resultEl = document.getElementById('birdResult');
-  resultEl.style.display = 'none'; resultEl.textContent = '';
+  resultEl.style.display = 'block'; resultEl.textContent = '⏳ AI 分析中…';
 
-  var knowledge = _birdKbLoaded ? _birdKbText.substring(0, 10000) : '（知識庫未載入，請點擊「載入知識庫」）';
-  var evCtx = _buildBirdContext();
+  var evCtx = _birdGetEvCtx();
+  var kb = _birdGetRelevantKb(evCtx);
 
-  var prompt = '你是核子事故緊急應變決策支援AI，請根據以下資料給出3-5條具體行動建議（繁體中文）。\n\n' +
-    evCtx + '\n\n【應變計畫書】\n' + knowledge +
-    '\n\n請條列式回答，每條指出具體行動、依據章節。';
+  var histMsgs = _birdQaHistory.slice(-6); // 最近3輪
+  var messages = [
+    {role:'system', content:'你是輻射災害應變AI助手，協助分析輻射彈、放射性物質、放射性物料等事件。請根據知識庫給出具體行動建議（繁體中文）。\n\n【應變知識庫】\n'+kb}
+  ].concat(histMsgs).concat([
+    {role:'user', content:'請分析目前事件狀況並給出3-5條具體行動建議：\n'+evCtx}
+  ]);
 
   try {
     var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 1000, temperature: 0.3,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1000,temperature:0.3,messages:messages})
     });
     var d = await res.json();
     if (d.error) throw new Error(d.error.message);
-    var text = d.choices[0].message.content || '無法取得回應';
-    resultEl.textContent = text;
-    resultEl.style.display = 'block';
+    var answer = d.choices[0].message.content || '無法取得回應';
+    resultEl.textContent = answer;
+    // 存歷史
+    _birdQaHistory.push({role:'user',content:'分析目前事件：'+evCtx});
+    _birdQaHistory.push({role:'assistant',content:answer});
+    if (_birdQaHistory.length > 6) _birdQaHistory = _birdQaHistory.slice(-6);
+    try { localStorage.setItem('_birdQaHist', JSON.stringify(_birdQaHistory)); } catch(e) {}
   } catch(e) {
-    showToast('⚠️ AI 呼叫失敗：' + e.message);
+    resultEl.textContent = '⚠️ AI 呼叫失敗：' + e.message;
   }
   btn.disabled = false; btn.textContent = '⚡ AI 分析目前事件狀況';
 }
@@ -8470,47 +8648,50 @@ function birdQuickAsk(q) {
 }
 
 async function birdSendQa() {
-  var key = (document.getElementById('birdGroqKey').value || '').trim();
+  var key = (document.getElementById('birdGroqKey')||{}).value || '';
+  key = key.trim();
   var inp = document.getElementById('birdQaInput');
-  var q = (inp ? inp.value : '').trim();
+  var q = inp ? inp.value.trim() : '';
   if (!key) { showToast('⚠️ 請先輸入 Groq Key'); return; }
   if (!q) return;
   if (inp) inp.value = '';
 
-  var knowledge = _birdKbLoaded ? _birdKbText.substring(0, 8000) : '';
-  var evCtx = _buildBirdContext();
-  var prompt = '你是核子事故應變AI，請簡潔回答（繁體中文）。\n\n' + evCtx +
-    (knowledge ? '\n\n【計畫書】\n' + knowledge : '') +
-    '\n\n問題：' + q;
-
   var resultEl = document.getElementById('birdResult');
-  resultEl.textContent = '⏳ 思考中…';
-  resultEl.style.display = 'block';
+  resultEl.style.display = 'block'; resultEl.textContent = '⏳ 思考中…';
+
+  var kb = _birdGetRelevantKb(q);
+  var evCtx = _birdGetEvCtx();
+
+  // 讀歷史（localStorage）
+  try {
+    var hist = localStorage.getItem('_birdQaHist');
+    if (hist) _birdQaHistory = JSON.parse(hist);
+  } catch(e) {}
+  var histMsgs = _birdQaHistory.slice(-6);
+
+  var messages = [
+    {role:'system', content:'你是輻射災害應變AI助手，協助分析輻射彈、放射性物質、放射性物料等事件（繁體中文）。\n\n【目前事件】\n'+evCtx+'\n\n【相關知識庫段落】\n'+kb}
+  ].concat(histMsgs).concat([{role:'user', content:q}]);
 
   try {
     var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        max_tokens: 600, temperature: 0.3,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:600,temperature:0.3,messages:messages})
     });
     var d = await res.json();
     if (d.error) throw new Error(d.error.message);
-    resultEl.textContent = d.choices[0].message.content || '無法取得回應';
+    var answer = d.choices[0].message.content || '無法取得回應';
+    resultEl.textContent = answer;
+    // 存歷史
+    _birdQaHistory.push({role:'user',content:q});
+    _birdQaHistory.push({role:'assistant',content:answer});
+    if (_birdQaHistory.length > 6) _birdQaHistory = _birdQaHistory.slice(-6);
+    try { localStorage.setItem('_birdQaHist', JSON.stringify(_birdQaHistory)); } catch(e) {}
   } catch(e) {
     resultEl.textContent = '⚠️ AI 呼叫失敗：' + e.message;
   }
 }
-
-// ── 快速問答樣式 ──
-(function() {
-  var style = document.createElement('style');
-  style.textContent = '.bird-quick-pill{font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid #e2e8f0;color:#6b7a92;cursor:pointer;background:#f8fafc;transition:all .12s;font-family:inherit}.bird-quick-pill:hover{border-color:#1a56db;color:#1a56db;background:#eff6ff}';
-  document.head.appendChild(style);
-})();
 </script>
 
 </body>
