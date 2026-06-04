@@ -3287,7 +3287,6 @@ function renderMsrMarkers(eventId) {
   if (!valid.length) return;
 
   // zoom < 13 時：只顯示數值最高的 8 個，避免全台看起來都是輻射
-  if (zoom < 13) {
   var zoom = gMap.getZoom();
   _clusterPixel = zoom >= 18 ? 30 : zoom >= 16 ? 55 : zoom >= 14 ? 80 : 110;
 
@@ -3296,6 +3295,9 @@ function renderMsrMarkers(eventId) {
     var v = parseFloat(msr.value);
     return !isNaN(v) && msr.value !== '' && msr.value !== null;
   });
+
+  // zoom < 13 時：只顯示數值最高的 8 個，避免全台看起來都是輻射
+  if (zoom < 13) {
     valid = valid.slice().sort(function(a, b) {
       return parseFloat(b.value) - parseFloat(a.value);
     }).slice(0, 8);
