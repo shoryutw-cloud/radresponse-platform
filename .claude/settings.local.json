@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"C:\\Users\\ShoRyu\\Documents\\radresponse-platform\" && git add . && git commit -m \"auto: update $(date +%Y-%m-%d\\ %H:%M)\" && git push origin main",
+            "command": "cd \"C:\\Users\\ShoRyu\\Documents\\radresponse-platform\"; $t=Get-Date -Format 'yyyy-MM-dd HH:mm'; git add .; git commit -m \"auto: update $t\"; git push origin main",
             "shell": "powershell",
             "statusMessage": "推送到 GitHub...",
             "async": true
