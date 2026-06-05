@@ -8705,6 +8705,7 @@ function _birdSystemPrompt(evCtx, kb, mode){
       '- 涉及下風向/距離/範圍→用【下風向座標偏移公式】實際計算座標後填入 draw\n'+
       '- 無法畫圖的問題→draw 留空陣列\n'+
       '- actions 按需要給1-5條，內容來自知識庫，簡單問題1條就夠\n\n'+
+      antiHallucination+
       drawRule+
       format+
       '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
