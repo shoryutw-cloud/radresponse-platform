@@ -8229,14 +8229,37 @@ function pickMsrTask(i) {
 .bird-analyze-btn:disabled { opacity:.5; cursor:not-allowed; }
 .bird-alert-hd { background:#dc2626; border-radius:7px; padding:8px 10px; color:white; font-size:13.5px; font-weight:700; animation:birdAlertFlash 1.6s ease infinite; }
 @keyframes birdAlertFlash { 0%,100%{opacity:1}50%{opacity:.68} }
-#birdResult { display:none; font-size:13.5px; color:#3d5070; line-height:1.65; background:#f8fafc; border-radius:8px; padding:9px 11px; border:1px solid #e2e8f0; }
-#birdResult .br-item { display:flex; gap:7px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #f0f2f5; }
-#birdResult .br-item:last-child { border-bottom:none; }
-#birdResult .br-num { min-width:20px; height:20px; border-radius:50%; background:#1a56db; color:white; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
-#birdResult .br-title { font-weight:700; color:#1e2a3a; margin-bottom:2px; }
-#birdResult .br-desc  { color:#3d5070; line-height:1.6; }
-#birdResult .br-src   { font-size:11px; color:#94a3b8; margin-top:2px; }
-#birdResult .br-summary { font-size:13.5px; color:#1e2a3a; line-height:1.7; margin-bottom:6px; padding:8px 10px; background:#eff6ff; border-radius:7px; border-left:3px solid #1a56db; }
+/* ══ 聊天容器 ══ */
+#birdResult {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13.5px;
+}
+/* 用戶訊息（右側） */
+.bc-row-u { display:flex; justify-content:flex-end; }
+.bc-bbl-u {
+  max-width:82%; background:#1a56db; color:#fff;
+  border-radius:16px 4px 16px 16px;
+  padding:9px 13px; font-size:13px; line-height:1.55;
+}
+/* AI 訊息（左側） */
+.bc-row-a { display:flex; justify-content:flex-start; }
+.bc-bbl-a {
+  max-width:92%; background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:4px 16px 16px 16px;
+  padding:10px 13px; color:#1e2a3a; line-height:1.6;
+}
+.bc-loading { color:#94a3b8; font-size:12.5px; font-style:italic; }
+/* AI 泡泡內容樣式 */
+.bc-bbl-a .br-summary { font-size:13px; color:#1e2a3a; line-height:1.7; margin-bottom:7px; padding:7px 10px; background:#eff6ff; border-radius:6px; border-left:3px solid #1a56db; }
+.bc-bbl-a .br-item { display:flex; gap:7px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #f0f2f5; }
+.bc-bbl-a .br-item:last-child { border-bottom:none; }
+.bc-bbl-a .br-num { min-width:20px; height:20px; border-radius:50%; background:#1a56db; color:white; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+.bc-bbl-a .br-title { font-weight:700; color:#1e2a3a; margin-bottom:2px; }
+.bc-bbl-a .br-desc  { color:#3d5070; line-height:1.6; }
+.bc-bbl-a .br-src   { font-size:11px; color:#94a3b8; margin-top:2px; }
 .bird-quick-pill { font-size:12.5px; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0; color:#6b7a92; cursor:pointer; background:#f8fafc; transition:all .12s; font-family:inherit; }
 .bird-quick-pill:hover { border-color:#1a56db; color:#1a56db; background:#eff6ff; }
 
@@ -8636,44 +8659,73 @@ async function _birdGetEvCtxAsync(){
   return ctx;
 }
 
-function _birdSystemPrompt(evCtx,kb){
-  return '你是輻射災害緊急應變顧問。請根據【目前事件】中的資訊直接回答使用者的問題，不要重複套用固定模板。\n\n'+
-    '職責：\n'+
-    '1. 根據事件類型找對應程序書（輻射彈/放射性物質/物料）\n'+
-    '2. 對照知識庫評估嚴重程度並給出可執行的行動建議\n'+
-    '3. 評估是否需要升級應變層級或擴大疏散範圍\n\n'+
-    '【繪圖規則 - 非常重要】\n'+
-    '座標必須使用【目前事件】中標示的「事件GPS座標」，絕對不可以自己假設座標。\n'+
-    '支援三種 draw 類型：\n'+
-    '  marker：{"type":"marker","lat":事件lat,"lng":事件lng,"label":"文字","color":"#顏色"}\n'+
-    '  circle：{"type":"circle","lat":事件lat,"lng":事件lng,"radius":半徑公尺,"label":"文字","color":"#顏色","fillOpacity":0.15}\n'+
-    '  polygon：{"type":"polygon","latlngs":[[lat,lng],...],"label":"文字","color":"#顏色","fillOpacity":0.12}\n'+
-    '顏色：危險區 #dc2626（紅），警戒區 #f97316（橘），量測點 #1a56db（藍），疏散 #16a34a（綠）。\n'+
-    '凡涉及範圍劃定、量測建議、污染擴散方向，都必須填 draw，不可留空陣列。\n\n'+
-    '回傳格式（純JSON，不加 markdown，summary/desc 不用換行符號）：\n'+
-    '{"summary":"情境","actions":[{"title":"","desc":"","ref":""}],"draw":[{"type":"circle","lat":事件lat數字,"lng":事件lng數字,"radius":500,"label":"警戒區","color":"#f97316","fillOpacity":0.15}]}\n\n'+
-    '【目前事件】\n'+evCtx+'\n\n【知識庫相關段落】\n'+kb;
+function _birdSystemPrompt(evCtx, kb, mode){
+  var drawRule =
+    '【繪圖規則】draw 陣列座標必須用【目前事件】中的「事件GPS座標」，禁止假設座標。\n'+
+    '  circle：{"type":"circle","lat":數字,"lng":數字,"radius":公尺,"label":"文字","color":"#色","fillOpacity":0.15}\n'+
+    '  marker：{"type":"marker","lat":數字,"lng":數字,"label":"文字","color":"#色"}\n'+
+    '  polygon：{"type":"polygon","latlngs":[[lat,lng],...],"label":"文字","color":"#色","fillOpacity":0.12}\n'+
+    '  顏色：危險#dc2626 警戒#f97316 量測點#1a56db 疏散#16a34a\n';
+  var format =
+    '回傳純JSON（禁止markdown，summary/desc禁用\\n換行）：\n'+
+    '{"summary":"直接回答","actions":[{"title":"","desc":"","ref":""}],"draw":[]}\n\n';
+
+  if(mode === 'analyze'){
+    return '你是輻射災害應變顧問。根據目前事件資訊做全面分析，給出3-5條具體行動建議。\n\n'+
+      drawRule+
+      '凡涉及範圍劃定、量測點建議、污染擴散，必須填 draw 陣列，不可留空。\n\n'+
+      format+
+      '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
+  } else {
+    return '你是輻射災害應變顧問。請直接回答使用者問的問題。\n\n'+
+      '回答規則：\n'+
+      '- summary 直接回答問題，不套固定模板\n'+
+      '- 問到量測數據→從「最近量測回報」找答案\n'+
+      '- 問到程序→從知識庫找答案\n'+
+      '- 問到地圖範圍→畫 draw 圖形，座標用事件GPS\n'+
+      '- actions 按需要給1-5條，簡單問題1條就夠\n\n'+
+      drawRule+
+      format+
+      '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
+  }
 }
 
-function _birdRenderResult(parsed,srcNames){
-  var el=document.getElementById('birdResult');
-  el.style.display='block';
+// 把 parsed 物件轉成 HTML 字串（不直接操作 DOM）
+function _birdRenderAiHtml(parsed, srcNames){
   var src=(srcNames&&srcNames.length)?srcNames.join('、'):'一般應變原則';
   var html='';
   if(parsed.summary) html+='<div class="br-summary">'+_esc(parsed.summary)+'</div>';
   if(parsed.actions&&parsed.actions.length){
     html+=parsed.actions.map(function(a,i){
       return '<div class="br-item"><div class="br-num">'+(i+1)+'</div>'+
-        '<div class="br-text">'+(a.title?'<div class="br-title">'+_esc(a.title)+'</div>':'')+
-        '<div class="br-desc">'+_esc(a.desc)+'</div>'+
+        '<div><div class="br-title">'+_esc(a.title||'')+'</div>'+
+        '<div class="br-desc">'+_esc(a.desc||'')+'</div>'+
         (a.ref?'<div class="br-src">【依據：'+_esc(a.ref)+'】</div>':'')+
         '</div></div>';
-    }).join('')+'<div class="br-src" style="padding:4px 2px">來源：'+_esc(src)+'</div>';
+    }).join('')+'<div class="br-src" style="padding:4px 2px;margin-top:4px">來源：'+_esc(src)+'</div>';
   } else if(parsed.text){
     html+='<div style="white-space:pre-wrap;line-height:1.7">'+_esc(parsed.text)+'</div>'+
       '<div class="br-src" style="margin-top:6px">【依據：'+_esc(src)+'】</div>';
   }
-  el.innerHTML=html||'<div style="color:#6b7a92">（無回應）</div>';
+  return html||'<div style="color:#6b7a92">（無回應）</div>';
+}
+// 向聊天容器附加一條訊息泡泡，回傳該元素（方便後續替換內容）
+function _birdAppendMsg(role, html) {
+  var chat = document.getElementById('birdResult');
+  chat.style.display = 'flex';
+  var row = document.createElement('div');
+  row.className = role==='user' ? 'bc-row-u' : 'bc-row-a';
+  var bbl = document.createElement('div');
+  bbl.className = role==='user' ? 'bc-bbl-u' : 'bc-bbl-a';
+  bbl.innerHTML = html;
+  row.appendChild(bbl);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return bbl; // 回傳泡泡元素，可後續替換內容
+}
+// 保留舊介面相容（birdCheckAlert 等地方仍用 birdResult 直接寫）
+function _birdRenderResult(parsed,srcNames){
+  _birdAppendMsg('ai', _birdRenderAiHtml(parsed, srcNames));
 }
 
 function _parseBirdResponse(text){
@@ -8779,32 +8831,29 @@ function _birdEnsureHistory(cb) {
 
 async function birdAnalyze(){
   var btn=document.getElementById('birdAnalyzeBtn');
-  var re=document.getElementById('birdResult');
   btn.disabled=true; btn.textContent='⏳ 分析中…';
-  re.style.display='block';
-  re.innerHTML='<div style="color:#6b7a92">⏳ 載入對話紀錄中…</div>';
+  var userMsg='⚡ AI 分析目前事件狀況';
+  _birdAppendMsg('user', _esc(userMsg));
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 載入紀錄並分析中…</span>');
   try{
-    // 先從 Sheets 載入歷史（首次才載）
-    var hist = await new Promise(function(r){ _birdEnsureHistory(r); });
-    re.innerHTML='<div style="color:#6b7a92">⏳ 分析中…</div>';
+    var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
-    var userMsg='請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。';
-    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}]
+    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
       .concat(_birdStripDraw(hist.slice(-6)))
-      .concat([{role:'user',content:userMsg}]);
+      .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
     var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1500);
     var parsed=_parseBirdResponse(text);
-    _birdRenderResult(parsed,_birdKbFileNames);
+    loadBbl.innerHTML=_birdRenderAiHtml(parsed,_birdKbFileNames);
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
-    // 更新本地快取
     _birdQaHistory.push({role:'user',content:userMsg});
     _birdQaHistory.push({role:'assistant',content:text});
     if(_birdQaHistory.length>20) _birdQaHistory=_birdQaHistory.slice(-20);
-    // 存進 Sheets
     _birdSaveMsg('user', userMsg);
     _birdSaveMsg('assistant', text);
-  }catch(e){ re.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>'; }
+  }catch(e){
+    loadBbl.innerHTML='<span style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</span>';
+  }
   btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
 }
 
@@ -8813,39 +8862,27 @@ async function birdSendQa(){
   var inp=document.getElementById('birdQaInput');
   var q=inp?inp.value.trim():''; if(!q)return;
   if(inp)inp.value='';
-  var re=document.getElementById('birdResult');
-  re.style.display='block';
-  // 顯示問題，讓使用者看到自己問了什麼
-  re.innerHTML='<div style="background:#eff6ff;border-left:3px solid #1a56db;border-radius:6px;'+
-    'padding:7px 10px;margin-bottom:8px;font-size:13px;color:#1e2a3a">'+
-    '<span style="color:#1a56db;font-weight:700">問：</span>'+_esc(q)+'</div>'+
-    '<div style="color:#6b7a92">⏳ 思考中…</div>';
+  _birdAppendMsg('user', _esc(q));
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 思考中…</span>');
   try{
-    // 確保歷史已載入
-    var hist = await new Promise(function(r){ _birdEnsureHistory(r); });
+    var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
-    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}]
+    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'qa')}]
       .concat(_birdStripDraw(hist.slice(-6)))
       .concat([{role:'user',content:q}]);
     var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1200);
     var parsed=_parseBirdResponse(text);
-    // 保留問題顯示，再加答案
-    var qHtml='<div style="background:#eff6ff;border-left:3px solid #1a56db;border-radius:6px;'+
-      'padding:7px 10px;margin-bottom:8px;font-size:13px;color:#1e2a3a">'+
-      '<span style="color:#1a56db;font-weight:700">問：</span>'+_esc(q)+'</div>';
-    re.innerHTML=''; // 清空後讓 _birdRenderResult 填入
-    _birdRenderResult(parsed,_birdKbFileNames);
-    re.innerHTML=qHtml+re.innerHTML; // 問題置頂
+    loadBbl.innerHTML=_birdRenderAiHtml(parsed,_birdKbFileNames);
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
-    // 更新本地快取
     _birdQaHistory.push({role:'user',content:q});
     _birdQaHistory.push({role:'assistant',content:text});
     if(_birdQaHistory.length>20) _birdQaHistory=_birdQaHistory.slice(-20);
-    // 存進 Sheets
     _birdSaveMsg('user', q);
     _birdSaveMsg('assistant', text);
-  }catch(e){ re.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>'; }
+  }catch(e){
+    loadBbl.innerHTML='<span style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</span>';
+  }
 }
 
 async function birdCheckAlert(measurements){
