@@ -433,8 +433,8 @@ transition: all .15s;
 
 /* ── 右下角底圖切換按鈕 ── */
 .basemap-btn {
-position: fixed; bottom: 65px; left: 16px; z-index: 1000;
-bottom: calc(65px + env(safe-area-inset-bottom, 0px));
+position: fixed; bottom: 20px; left: 60px; z-index: 1000;
+bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 width: 38px; height: 38px; border-radius: 10px;
 background: white; border: 1px solid #d0d8e4;
 cursor: pointer; display: flex; align-items: center;
@@ -1152,7 +1152,7 @@ cursor: pointer; transition: background .15s;
 <div class="mob-ev-panel" id="mobEvPanel" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;
     padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;position:sticky;top:0;z-index:2">
-    <div style="font-size:14px;font-weight:700;color:#1e2a3a">🚨 事件狀態</div>
+    <div style="font-size:30px;font-weight:700;color:#1e2a3a">🚨 事件狀態</div>
     <button onclick="closeMobEvPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1;padding:4px 8px">✕</button>
   </div>
   <!-- 事件卡片內容由 JS 動態填入 -->
@@ -8138,10 +8138,12 @@ function pickMsrTask(i) {
   /* 尺寸平滑縮放（與群組飛行同步）*/
   transition: width .55s cubic-bezier(.34,1.15,.64,1),
               height .55s cubic-bezier(.34,1.15,.64,1),
-              box-shadow .2s;
+              box-shadow .2s,
+              transform .2s;
 }
 #aiBirdGroup:not(.bird-open):hover #aiBirdCircle {
   box-shadow: 0 8px 28px rgba(0,0,0,.5);
+  transform: scale(1.1);
 }
 #aiBirdCircle img {
   width: 100%; height: 100%;
@@ -8335,7 +8337,7 @@ function _birdCircleClick(e) {
   if (_birdIsOpen) { _birdClose(); } else { _birdOpen(); }
 }
 
-// ── 開啟：鳥縮小 + 飛到右上角 + 面板展開 ──
+// ── 開啟：鳥飛到地圖右側1/3處 + 縮小 + 面板展開 ──
 function _birdOpen() {
   if (_birdIsOpen) return;
   _birdIsOpen = true;
@@ -8343,46 +8345,53 @@ function _birdOpen() {
   var circ = document.getElementById('aiBirdCircle');
   var panel= document.getElementById('aiBirdPanel');
 
-  // 1. 鳥縮小 60px（CSS transition 自動平滑）
-  circ.style.width  = '60px';
-  circ.style.height = '60px';
+  // 計算目標面板寬度（用來算終點 left，確保面板不超出螢幕右緣）
+  var panW;
+  try { var pw = sessionStorage.getItem('_birdPanelW'); panW = pw ? Math.max(240, parseInt(pw)) : BIRD_PANEL_W; }
+  catch(e) { panW = BIRD_PANEL_W; }
+  var circOpenW = 60;
+  var idealLeft = Math.round(window.innerWidth * 2 / 3 - circOpenW / 2);
+  var maxLeft   = window.innerWidth - circOpenW - panW - 8;
+  var targetLeft = Math.max(0, Math.min(idealLeft, maxLeft));
+
+  // 1. 先把定位從 bottom/right 換成等效的 top/left（不觸發動畫）
+  var circSize = circ.offsetWidth || 105;
+  var curTop  = window.innerHeight - BIRD_REST_BOTTOM - circSize;
+  var curLeft = window.innerWidth  - BIRD_REST_RIGHT  - circSize;
+  grp.style.transition = 'none';
+  grp.style.bottom = 'auto'; grp.style.right = 'auto';
+  grp.style.top  = curTop  + 'px';
+  grp.style.left = curLeft + 'px';
+  // 強制 reflow，讓瀏覽器確認起始位置
+  void grp.offsetHeight;
+
+  // 2. 啟動移動動畫，同時縮小鳥
+  grp.style.transition = 'top .55s cubic-bezier(.34,1.15,.64,1), left .55s cubic-bezier(.34,1.15,.64,1)';
+  grp.style.top  = '8px';
+  grp.style.left = targetLeft + 'px';
+  circ.style.width  = circOpenW + 'px';
+  circ.style.height = circOpenW + 'px';
   circ.style.cursor = 'default';
 
-  // 2. 群組飛到右上角（右邊留面板寬度）
-  grp.style.bottom = 'auto'; grp.style.left = 'auto';
-  grp.style.top    = '8px';
-  grp.style.right  = '0';
-
-  // 3. 面板從寬度 0 展開（略微延遲，讓鳥先開始飛）
+  // 3. 面板從寬度 0 展開（稍微延遲讓鳥先飛一段）
   panel.style.display    = 'flex';
   panel.style.width      = '0';
   panel.style.overflow   = 'hidden';
   panel.style.transition = 'width .4s cubic-bezier(.34,1.15,.64,1)';
-
-  // 恢復上次面板高度
-  try {
-    var ph = sessionStorage.getItem('_birdPanelH');
-    if (ph) panel.style.height = parseInt(ph)+'px';
-  } catch(e) {}
+  try { var ph = sessionStorage.getItem('_birdPanelH'); if (ph) panel.style.height = parseInt(ph) + 'px'; } catch(e) {}
 
   setTimeout(function() {
-    // 展開到記憶寬度或預設寬度
-    try {
-      var pw = sessionStorage.getItem('_birdPanelW');
-      panel.style.width = (pw ? Math.max(240, parseInt(pw)) : BIRD_PANEL_W) + 'px';
-    } catch(e) {
-      panel.style.width = BIRD_PANEL_W + 'px';
-    }
-  }, 180); // 延遲讓鳥先飛一段
+    panel.style.width = panW + 'px';
+  }, 200);
 
   setTimeout(function() {
-    // 展開完成後啟用 resize
+    // 展開完成後啟用 resize（從右下角拖曳，往右/往下延伸）
     panel.style.overflow = 'auto';
     panel.style.resize   = 'both';
     panel.style.transition = '';
-    // 監聽 resize
+    grp.style.transition = '';
     _initPanelResizeObserver();
-  }, 620);
+  }, 660);
 
   // 讀 Key
   try {
@@ -8392,7 +8401,7 @@ function _birdOpen() {
   } catch(e) {}
 }
 
-// ── 關閉：面板縮回 + 鳥回右下角變大 ──
+// ── 關閉：面板與鳥同步動畫，鳥飛回右下角時面板剛好消失 ──
 function _birdClose() {
   if (!_birdIsOpen) return;
   _birdIsOpen = false;
@@ -8405,26 +8414,37 @@ function _birdClose() {
     sessionStorage.setItem('_birdPanelW', panel.offsetWidth);
     sessionStorage.setItem('_birdPanelH', panel.offsetHeight);
   } catch(e) {}
+  if (_birdResizeObs) { _birdResizeObs.disconnect(); _birdResizeObs = null; }
 
-  // 1. 面板縮回
-  panel.style.overflow = 'hidden';
-  panel.style.resize   = 'none';
-  panel.style.transition = 'width .35s cubic-bezier(.64,0,.34,1)';
-  panel.style.width    = '0';
+  // 計算飛回的終點（top/left 換算）
+  var circRestSize = 105;
+  var tgtTop  = window.innerHeight - BIRD_REST_BOTTOM - circRestSize;
+  var tgtLeft = window.innerWidth  - BIRD_REST_RIGHT  - circRestSize;
+
+  // 同步：面板縮回 + 鳥變大 + 群組飛回
+  panel.style.overflow   = 'hidden';
+  panel.style.resize     = 'none';
+  panel.style.transition = 'width .55s cubic-bezier(.64,0,.34,1)';
+  panel.style.width      = '0';
+
+  circ.style.width  = circRestSize + 'px';
+  circ.style.height = circRestSize + 'px';
+  circ.style.cursor = 'pointer';
+
+  grp.style.transition = 'top .55s cubic-bezier(.64,0,.34,1), left .55s cubic-bezier(.64,0,.34,1)';
+  grp.style.top  = tgtTop  + 'px';
+  grp.style.left = tgtLeft + 'px';
 
   setTimeout(function() {
-    panel.style.display = 'none';
+    panel.style.display    = 'none';
     panel.style.transition = '';
-    panel.style.height = '';
-
-    // 2. 鳥變大 + 飛回右下角
-    circ.style.width  = '105px';
-    circ.style.height = '105px';
-    circ.style.cursor = 'pointer';
-    grp.style.top   = 'auto'; grp.style.left  = 'auto';
+    panel.style.height     = '';
+    grp.style.transition   = '';
+    // 切回 bottom/right 定位（讓待機拖曳正常運作）
+    grp.style.top  = 'auto'; grp.style.left  = 'auto';
     grp.style.bottom = BIRD_REST_BOTTOM + 'px';
     grp.style.right  = BIRD_REST_RIGHT  + 'px';
-  }, 360);
+  }, 570);
 }
 
 // ── 面板 resize 記憶 ──
