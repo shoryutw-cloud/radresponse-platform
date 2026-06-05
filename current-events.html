@@ -8700,27 +8700,87 @@ function _birdAiLayerToggle(on){ _birdAiLayerOn=on; if(!_birdAiLayerGroup||!gMap
 async function _birdGroqCall(messages,model,maxTokens){
   var key=''; try{key=(document.getElementById('birdGroqKey').value||'').trim();}catch(e){}
   if(!key) throw new Error('請先輸入 Groq Key');
-  var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||'llama-3.3-70b-versatile',max_tokens:maxTokens||1000,temperature:0.1,messages:messages})});
+  var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({
+      model:       model||'llama-3.3-70b-versatile',
+      max_tokens:  maxTokens||1500,
+      temperature: 0.1,
+      response_format: {type:'json_object'},
+      messages:    messages
+    })
+  });
   var d=await res.json(); if(d.error) throw new Error(d.error.message);
   return d.choices[0].message.content||'';
+}
+
+// ── 儲存對話到 Sheets（fire-and-forget）──
+function _birdSaveMsg(role, content) {
+  var ev = (_events && _curIdx >= 0) ? _events[_curIdx] : null;
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify({
+      action:  'saveBirdMsg',
+      eventId: ev ? ev.id : '',
+      role:    role,
+      content: String(content).substring(0, 3000)
+    })
+  }).catch(function(){});
+}
+
+// ── 從 Sheets 載入對話紀錄（首次開啟時）──
+var _birdHistoryLoaded = false;
+function _birdLoadHistory(cb) {
+  var ev = (_events && _curIdx >= 0) ? _events[_curIdx] : null;
+  if (!ev) { cb([]); return; }
+  _jsonpGet(
+    SHEETS_URL + '?action=getBirdHistory&eventId=' + encodeURIComponent(ev.id) + '&limit=20',
+    function(data) {
+      if (!data || !data.history) { cb([]); return; }
+      cb(data.history.map(function(h){ return {role: h.role, content: h.content}; }));
+    }
+  );
+}
+
+// ── 確保歷史已從 Sheets 載入（只做一次）──
+function _birdEnsureHistory(cb) {
+  if (_birdHistoryLoaded) { cb(_birdQaHistory); return; }
+  _birdLoadHistory(function(hist) {
+    _birdHistoryLoaded = true;
+    if (hist && hist.length) _birdQaHistory = hist;
+    cb(_birdQaHistory);
+  });
 }
 
 async function birdAnalyze(){
   var btn=document.getElementById('birdAnalyzeBtn');
   var re=document.getElementById('birdResult');
   btn.disabled=true; btn.textContent='⏳ 分析中…';
-  re.style.display='block'; re.innerHTML='<div style="color:#6b7a92">⏳ 分析中…</div>';
+  re.style.display='block';
+  re.innerHTML='<div style="color:#6b7a92">⏳ 載入對話紀錄中…</div>';
   try{
+    // 先從 Sheets 載入歷史（首次才載）
+    var hist = await new Promise(function(r){ _birdEnsureHistory(r); });
+    re.innerHTML='<div style="color:#6b7a92">⏳ 分析中…</div>';
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
-    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}].concat(_birdQaHistory.slice(-6)).concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
-    var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1200);
+    var userMsg='請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。';
+    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}]
+      .concat(hist.slice(-10))
+      .concat([{role:'user',content:userMsg}]);
+    var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1500);
     var parsed=_parseBirdResponse(text);
     _birdRenderResult(parsed,_birdKbFileNames);
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
-    _birdQaHistory.push({role:'user',content:'分析事件'}); _birdQaHistory.push({role:'assistant',content:JSON.stringify(parsed)});
-    if(_birdQaHistory.length>6) _birdQaHistory=_birdQaHistory.slice(-6);
-    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
+    // 更新本地快取
+    _birdQaHistory.push({role:'user',content:userMsg});
+    _birdQaHistory.push({role:'assistant',content:text});
+    if(_birdQaHistory.length>20) _birdQaHistory=_birdQaHistory.slice(-20);
+    // 存進 Sheets
+    _birdSaveMsg('user', userMsg);
+    _birdSaveMsg('assistant', text);
   }catch(e){ re.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>'; }
   btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
 }
@@ -8728,20 +8788,40 @@ async function birdAnalyze(){
 function birdQuickAsk(q){ var inp=document.getElementById('birdQaInput'); if(inp)inp.value=q; birdSendQa(); }
 async function birdSendQa(){
   var inp=document.getElementById('birdQaInput');
-  var q=inp?inp.value.trim():''; if(!q)return; if(inp)inp.value='';
+  var q=inp?inp.value.trim():''; if(!q)return;
+  if(inp)inp.value='';
   var re=document.getElementById('birdResult');
-  re.style.display='block'; re.innerHTML='<div style="color:#6b7a92">⏳ 思考中…</div>';
+  re.style.display='block';
+  // 顯示問題，讓使用者看到自己問了什麼
+  re.innerHTML='<div style="background:#eff6ff;border-left:3px solid #1a56db;border-radius:6px;'+
+    'padding:7px 10px;margin-bottom:8px;font-size:13px;color:#1e2a3a">'+
+    '<span style="color:#1a56db;font-weight:700">問：</span>'+_esc(q)+'</div>'+
+    '<div style="color:#6b7a92">⏳ 思考中…</div>';
   try{
+    // 確保歷史已載入
+    var hist = await new Promise(function(r){ _birdEnsureHistory(r); });
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
-    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}].concat(_birdQaHistory.slice(-6)).concat([{role:'user',content:q}]);
-    var text=await _birdGroqCall(msgs,'llama-3.1-8b-instant',800);
+    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb)}]
+      .concat(hist.slice(-10))
+      .concat([{role:'user',content:q}]);
+    var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1200);
     var parsed=_parseBirdResponse(text);
+    // 保留問題顯示，再加答案
+    var qHtml='<div style="background:#eff6ff;border-left:3px solid #1a56db;border-radius:6px;'+
+      'padding:7px 10px;margin-bottom:8px;font-size:13px;color:#1e2a3a">'+
+      '<span style="color:#1a56db;font-weight:700">問：</span>'+_esc(q)+'</div>';
+    re.innerHTML=''; // 清空後讓 _birdRenderResult 填入
     _birdRenderResult(parsed,_birdKbFileNames);
+    re.innerHTML=qHtml+re.innerHTML; // 問題置頂
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
-    _birdQaHistory.push({role:'user',content:q}); _birdQaHistory.push({role:'assistant',content:JSON.stringify(parsed)});
-    if(_birdQaHistory.length>6) _birdQaHistory=_birdQaHistory.slice(-6);
-    try{localStorage.setItem('_birdQaHist',JSON.stringify(_birdQaHistory));}catch(e){}
+    // 更新本地快取
+    _birdQaHistory.push({role:'user',content:q});
+    _birdQaHistory.push({role:'assistant',content:text});
+    if(_birdQaHistory.length>20) _birdQaHistory=_birdQaHistory.slice(-20);
+    // 存進 Sheets
+    _birdSaveMsg('user', q);
+    _birdSaveMsg('assistant', text);
   }catch(e){ re.innerHTML='<div style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</div>'; }
 }
 
