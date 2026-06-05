@@ -1152,7 +1152,7 @@ cursor: pointer; transition: background .15s;
 <div class="mob-ev-panel" id="mobEvPanel" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;
     padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;position:sticky;top:0;z-index:2">
-    <div style="font-size:30px;font-weight:700;color:#1e2a3a">🚨 事件狀態</div>
+    <div style="font-size:14px;font-weight:700;color:#1e2a3a">🚨 事件狀態</div>
     <button onclick="closeMobEvPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;line-height:1;padding:4px 8px">✕</button>
   </div>
   <!-- 事件卡片內容由 JS 動態填入 -->
@@ -8151,7 +8151,7 @@ function pickMsrTask(i) {
   pointer-events: none;
 }
 
-/* ══ AI badge（圓圈外，完整顯示）══ */
+/* ══ AI badge（群組右上角，circle 外，不被 overflow:hidden 裁切）══ */
 #aiBirdBadge {
   position: absolute;
   top: -8px; right: -8px;
@@ -8163,6 +8163,19 @@ function pickMsrTask(i) {
   z-index: 3; pointer-events: none;
 }
 @keyframes birdBadgePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.86)} }
+/* 開啟時隱藏 badge */
+#aiBirdGroup.bird-open #aiBirdBadge { display: none; }
+
+/* ══ Header 內的小鳥圖（開啟狀態才顯示）══ */
+#aiBirdHeaderImg {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: #0a1628;
+  flex-shrink: 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
 
 /* ══ 面板（初始 width:0，從鳥右側展開）══ */
 #aiBirdPanel {
@@ -8248,14 +8261,16 @@ function pickMsrTask(i) {
 
 <!-- 群組：[鳥圓圈] + [面板]，flex row -->
 <div id="aiBirdGroup">
-  <!-- 鳥圓圈（點擊開關，本身就是面板左側圖示）-->
+  <!-- 鳥圓圈（點擊開關）-->
   <div id="aiBirdCircle" onclick="_birdCircleClick(event)">
     <img src="bird.png" alt="AI鳥">
-    <div id="aiBirdBadge">AI</div>
   </div>
-  <!-- 面板（從鳥右側展開，無多餘鳥圖）-->
+  <!-- badge 移到 circle 外，避免 overflow:hidden 裁切 -->
+  <div id="aiBirdBadge">AI</div>
+  <!-- 面板（展開後鳥圖在 header 內）-->
   <div id="aiBirdPanel">
     <div class="bird-panel-hd" id="aiBirdPanelHd">
+      <img id="aiBirdHeaderImg" src="bird.png" alt="">
       <span class="bird-panel-hd-title">AI 應變助手（管理員）</span>
       <button class="bird-panel-close" onclick="_birdCircleClick(event)" title="關閉">✕</button>
     </div>
@@ -8337,7 +8352,7 @@ function _birdCircleClick(e) {
   if (_birdIsOpen) { _birdClose(); } else { _birdOpen(); }
 }
 
-// ── 開啟：鳥飛到地圖右側1/3處 + 縮小 + 面板展開 ──
+// ── 開啟：鳥圓圈飛到定點 → 淡出 → 面板從同位置展開（鳥進入 header）──
 function _birdOpen() {
   if (_birdIsOpen) return;
   _birdIsOpen = true;
@@ -8345,16 +8360,22 @@ function _birdOpen() {
   var circ = document.getElementById('aiBirdCircle');
   var panel= document.getElementById('aiBirdPanel');
 
-  // 計算目標面板寬度（用來算終點 left，確保面板不超出螢幕右緣）
+  grp.classList.add('bird-open');
+
+  // 計算目標面板寬度
   var panW;
   try { var pw = sessionStorage.getItem('_birdPanelW'); panW = pw ? Math.max(240, parseInt(pw)) : BIRD_PANEL_W; }
   catch(e) { panW = BIRD_PANEL_W; }
+
+  // 飛行目標：鳥圓圈中心落在右邊1/3處；圓圈消失後面板從同位置展開
+  // 面板 header padding=14px，鳥圖在最左側，鳥中心 ≈ group_left+14+15
+  // 故 group_left = 2/3*vw - 29，讓鳥圖中心對齊1/3處
   var circOpenW = 60;
-  var idealLeft = Math.round(window.innerWidth * 2 / 3 - circOpenW / 2);
-  var maxLeft   = window.innerWidth - circOpenW - panW - 8;
+  var idealLeft = Math.round(window.innerWidth * 2 / 3 - 29);
+  var maxLeft   = window.innerWidth - panW - 8;
   var targetLeft = Math.max(0, Math.min(idealLeft, maxLeft));
 
-  // 1. 先把定位從 bottom/right 換成等效的 top/left（不觸發動畫）
+  // 1. 轉換定位（bottom/right → top/left），不觸發動畫
   var circSize = circ.offsetWidth || 105;
   var curTop  = window.innerHeight - BIRD_REST_BOTTOM - circSize;
   var curLeft = window.innerWidth  - BIRD_REST_RIGHT  - circSize;
@@ -8362,10 +8383,9 @@ function _birdOpen() {
   grp.style.bottom = 'auto'; grp.style.right = 'auto';
   grp.style.top  = curTop  + 'px';
   grp.style.left = curLeft + 'px';
-  // 強制 reflow，讓瀏覽器確認起始位置
   void grp.offsetHeight;
 
-  // 2. 啟動移動動畫，同時縮小鳥
+  // 2. 鳥圓圈飛到目標位置並縮小
   grp.style.transition = 'top .55s cubic-bezier(.34,1.15,.64,1), left .55s cubic-bezier(.34,1.15,.64,1)';
   grp.style.top  = '8px';
   grp.style.left = targetLeft + 'px';
@@ -8373,25 +8393,36 @@ function _birdOpen() {
   circ.style.height = circOpenW + 'px';
   circ.style.cursor = 'default';
 
-  // 3. 面板從寬度 0 展開（稍微延遲讓鳥先飛一段）
-  panel.style.display    = 'flex';
-  panel.style.width      = '0';
-  panel.style.overflow   = 'hidden';
-  panel.style.transition = 'width .4s cubic-bezier(.34,1.15,.64,1)';
-  try { var ph = sessionStorage.getItem('_birdPanelH'); if (ph) panel.style.height = parseInt(ph) + 'px'; } catch(e) {}
-
+  // 3. 飛行結束後：圓圈淡出，面板從同位置展開（鳥圖在 header 左側）
   setTimeout(function() {
-    panel.style.width = panW + 'px';
-  }, 200);
+    // 圓圈淡出
+    circ.style.transition = 'opacity .2s';
+    circ.style.opacity = '0';
 
-  setTimeout(function() {
-    // 展開完成後啟用 resize（從右下角拖曳，往右/往下延伸）
-    panel.style.overflow = 'auto';
-    panel.style.resize   = 'both';
-    panel.style.transition = '';
-    grp.style.transition = '';
-    _initPanelResizeObserver();
-  }, 660);
+    setTimeout(function() {
+      // 圓圈隱藏（panel 現在從 group_left 開始，位置對齊）
+      circ.style.transition = 'none';
+      circ.style.display    = 'none';
+      circ.style.opacity    = '1';
+
+      // 面板展開
+      panel.style.display    = 'flex';
+      panel.style.width      = '0';
+      panel.style.overflow   = 'hidden';
+      panel.style.transition = 'width .4s cubic-bezier(.34,1.15,.64,1)';
+      try { var ph = sessionStorage.getItem('_birdPanelH'); if (ph) panel.style.height = parseInt(ph)+'px'; } catch(e) {}
+
+      setTimeout(function() { panel.style.width = panW + 'px'; }, 20);
+
+      setTimeout(function() {
+        panel.style.overflow   = 'auto';
+        panel.style.resize     = 'both';
+        panel.style.transition = '';
+        grp.style.transition   = '';
+        _initPanelResizeObserver();
+      }, 450);
+    }, 220);
+  }, 580);
 
   // 讀 Key
   try {
@@ -8401,13 +8432,15 @@ function _birdOpen() {
   } catch(e) {}
 }
 
-// ── 關閉：面板與鳥同步動畫，鳥飛回右下角時面板剛好消失 ──
+// ── 關閉：面板（含 header 鳥）飛回右下角並同步縮小，到定點後圓圈出現 ──
 function _birdClose() {
   if (!_birdIsOpen) return;
   _birdIsOpen = false;
   var grp  = document.getElementById('aiBirdGroup');
   var circ = document.getElementById('aiBirdCircle');
   var panel= document.getElementById('aiBirdPanel');
+
+  grp.classList.remove('bird-open');
 
   // 記憶面板大小
   try {
@@ -8416,31 +8449,35 @@ function _birdClose() {
   } catch(e) {}
   if (_birdResizeObs) { _birdResizeObs.disconnect(); _birdResizeObs = null; }
 
-  // 計算飛回的終點（top/left 換算）
+  // 飛回的終點（以 panel 左上角的 top/left 表示，圓圈 display:none 所以 group 就是 panel）
   var circRestSize = 105;
   var tgtTop  = window.innerHeight - BIRD_REST_BOTTOM - circRestSize;
   var tgtLeft = window.innerWidth  - BIRD_REST_RIGHT  - circRestSize;
 
-  // 同步：面板縮回 + 鳥變大 + 群組飛回
+  // 面板縮小 + 群組飛回，同步進行
   panel.style.overflow   = 'hidden';
   panel.style.resize     = 'none';
   panel.style.transition = 'width .55s cubic-bezier(.64,0,.34,1)';
   panel.style.width      = '0';
 
-  circ.style.width  = circRestSize + 'px';
-  circ.style.height = circRestSize + 'px';
-  circ.style.cursor = 'pointer';
-
   grp.style.transition = 'top .55s cubic-bezier(.64,0,.34,1), left .55s cubic-bezier(.64,0,.34,1)';
   grp.style.top  = tgtTop  + 'px';
   grp.style.left = tgtLeft + 'px';
 
+  // 動畫結束：面板消失，圓圈在右下角重新出現
   setTimeout(function() {
     panel.style.display    = 'none';
     panel.style.transition = '';
     panel.style.height     = '';
     grp.style.transition   = '';
-    // 切回 bottom/right 定位（讓待機拖曳正常運作）
+
+    // 恢復圓圈
+    circ.style.display = '';
+    circ.style.width   = circRestSize + 'px';
+    circ.style.height  = circRestSize + 'px';
+    circ.style.cursor  = 'pointer';
+
+    // 切回 bottom/right 定位
     grp.style.top  = 'auto'; grp.style.left  = 'auto';
     grp.style.bottom = BIRD_REST_BOTTOM + 'px';
     grp.style.right  = BIRD_REST_RIGHT  + 'px';
