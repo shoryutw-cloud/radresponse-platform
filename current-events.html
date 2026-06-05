@@ -8665,7 +8665,13 @@ function _birdSystemPrompt(evCtx, kb, mode){
     '  circle：{"type":"circle","lat":數字,"lng":數字,"radius":公尺,"label":"文字","color":"#色","fillOpacity":0.15}\n'+
     '  marker：{"type":"marker","lat":數字,"lng":數字,"label":"文字","color":"#色"}\n'+
     '  polygon：{"type":"polygon","latlngs":[[lat,lng],...],"label":"文字","color":"#色","fillOpacity":0.12}\n'+
-    '  顏色：危險#dc2626 警戒#f97316 量測點#1a56db 疏散#16a34a\n';
+    '  顏色：危險#dc2626 警戒#f97316 量測點#1a56db 疏散#16a34a\n'+
+    '【下風向座標偏移公式】風向W度（正北0，順時針），距離D公尺，下風向=風向+180度（mod 360）\n'+
+    '  rad = 下風向 * π/180\n'+
+    '  目標lat = 事件lat + (D/111320)*cos(rad)\n'+
+    '  目標lng = 事件lng + (D/111320)*sin(rad)/cos(事件lat*π/180)\n'+
+    '  範例：事件lat=24.1，lng=120.5，風向213°，距離1000m → 下風向=33°\n'+
+    '    rad=0.5760，目標lat=24.1+0.008076=24.108076，目標lng=120.5+0.005236=120.505236\n';
   var format =
     '回傳純JSON（禁止markdown，summary/desc禁用\\n換行）：\n'+
     '{"summary":"直接回答","actions":[{"title":"","desc":"","ref":""}],"draw":[]}\n\n';
@@ -8683,6 +8689,8 @@ function _birdSystemPrompt(evCtx, kb, mode){
       '- 問到量測數據→從「最近量測回報」找答案\n'+
       '- 問到程序→從知識庫找答案\n'+
       '- 問到地圖範圍→畫 draw 圖形，座標用事件GPS\n'+
+      '- 使用者說「畫」「標」「標示」「地圖上」「顯示」「在哪」→必須計算座標並填 draw 陣列，禁止只回文字\n'+
+      '- 涉及下風向/距離/範圍→用【下風向座標偏移公式】實際計算座標後填入 draw，禁止說「大約」或只描述文字\n'+
       '- actions 按需要給1-5條，簡單問題1條就夠\n\n'+
       drawRule+
       format+
