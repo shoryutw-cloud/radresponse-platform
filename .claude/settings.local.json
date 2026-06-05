@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/ShoRyu/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/06ae1367-85b5-41c6-9a0e-ca0a828e570e/bad31537-4436-4e70-8277-ea9aa0de2d27/skills/xlsx/**)",
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git config *)"
+    ]
+  }
+}

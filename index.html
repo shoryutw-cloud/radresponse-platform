@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>輻射事件資訊網</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☢️</text></svg>">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="資訊網">
+<meta name="theme-color" content="#1e2a3a">
+<style>
+  /* ────── CSS 變數 ────── */
+  :root {
+    --header-h: 40px;
+    --accent: #1a56db;
+    --text: #1e2a3a;
+    --text-muted: #6b7a92;
+    --border: #e2e8f0;
+    --hover: #f1f5ff;
+    --surface: #ffffff;
+    --bg: #f0f2f5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.13);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+    --radius: 6px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei",
+            "PingFang TC", "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+    --ease: cubic-bezier(.4,0,.2,1);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    margin: 0; padding: 0;
+    overflow: hidden;
+  }
+  body {
+    font-family: var(--font); background: var(--bg); color: var(--text);
+    font-size: 14px;
+    display: flex; flex-direction: column;
+  }
+
+  /* ────── TOP BAR：正常流（不用 fixed/sticky，不會被 iOS 捲走）────── */
+  .topbar {
+    height: var(--header-h); background: #1e2a3a;
+    display: flex; align-items: center; padding: 0 24px; gap: 0;
+    flex-shrink: 0; border-bottom: 1px solid #0f1820;
+    z-index: 400;
+  }
+  .topbar-logo {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; flex-shrink: 0;
+  }
+  .logo-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #fff; font-weight: 700; }
+  .logo-text { font-size: 30px; font-weight: 700; color: #e8f0fa; white-space: nowrap; }
+
+  /* ────── TOP NAV（桌機版，橫排）────── */
+  .top-nav {
+    display: flex; align-items: stretch; height: 100%;
+    margin-left: auto;
+  }
+  .tnav-item { position: relative; display: flex; align-items: stretch; }
+  .tnav-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 16px; background: none; border: none;
+    color: #b8cce0; font-family: var(--font); font-size: 19px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
+    border-bottom: 2px solid transparent;
+  }
+  .tnav-btn:hover, .tnav-item.open > .tnav-btn {
+    background: rgba(255,255,255,0.08); color: #e8f0fa;
+    border-bottom-color: #4a9cf5;
+  }
+  .tnav-arrow {
+    font-size: 9px; opacity: .6;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 10px; height: 10px; line-height: 1;
+    transform-origin: center center;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+  }
+  .tnav-item.open > .tnav-btn .tnav-arrow { transform: rotate(-90deg); }
+  /* 後台功能開啟中 */
+  .tnav-item.admin-on > .tnav-btn {
+    background: rgba(26,86,219,.25); color: #93c5fd;
+    border-bottom-color: #60a5fa;
+  }
+
+  /* ────── TOP NAV 下拉選單（桌機版）────── */
+  .top-drop {
+    display: none; position: fixed;
+    min-width: 0; background: #1e2a3a;
+    border: 1px solid #2d3f54; border-radius: var(--radius);
+    box-shadow: var(--shadow-md); z-index: 10000; padding: 4px 0;
+    max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  .top-drop.active { display: block; }
+  .top-drop-btn {
+    display: flex; align-items: center; width: 100%; padding: 9px 16px;
+    background: none; border: none; cursor: pointer; font-family: var(--font);
+    font-size: 15px; color: #b8cce0; text-align: left; gap: 6px; white-space: nowrap;
+    transition: background .12s, color .12s;
+  }
+  .top-drop-btn:hover { background: rgba(255,255,255,0.08); color: #e8f0fa; }
+  .top-drop-btn .drop-arrow { margin-left: auto; font-size: 10px; color: #4a6a8a; }
+
+  /* L3 sub-dropdown（事件管理）*/
+  .top-drop-l3 {
+    display: none; position: fixed;
+    min-width: 0; background: #1e2a3a;
+    border: 1px solid #2d3f54; border-radius: var(--radius);
+    box-shadow: var(--shadow-md); z-index: 10001; padding: 4px 0;
+    max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  .top-drop-l3.active { display: block; }
+  .top-drop-l3-btn {
+    display: block; width: 100%; padding: 9px 16px; background: none; border: none;
+    cursor: pointer; font-family: var(--font); font-size: 15px; color: #b8cce0;
+    text-align: left; white-space: nowrap; transition: background .12s, color .12s;
+  }
+  .top-drop-l3-btn:hover { background: rgba(255,255,255,0.08); color: #e8f0fa; }
+
+  /* ────── 登出按鈕（右側）────── */
+  .topbar-logout {
+    margin-left: 0; flex-shrink: 0;
+    padding: 6px 14px; background: none;
+    border: 1px solid rgba(255,255,255,0.18); border-radius: var(--radius);
+    color: #8da0b8; font-family: var(--font); font-size: 13px; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+  }
+  .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
+
+
+  /* ────── 手機版姓名標籤 ────── */
+  .topbar-name-mobile {
+    display: none; /* 桌機隱藏，手機 media query 才顯示 */
+    flex: 1;
+    text-align: center;
+    color: #e8f0fa;
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 8px;
+  }
+
+  /* ────── 漢堡按鈕 ────── */
+  .hamburger-btn {
+    display: none; flex-direction: column; justify-content: center;
+    gap: 5px; padding: 8px; background: none; border: none;
+    cursor: pointer; margin-left: auto;
+  }
+  .hamburger-btn span {
+    display: block; width: 22px; height: 2px;
+    background: #b8cce0; border-radius: 2px;
+    transition: all .25s;
+  }
+  /* 側邊抽屜 */
+  .drawer-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 5000;
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: -280px; bottom: 0;
+    width: 260px; background: #1e2a3a;
+    z-index: 5001; transition: right .28s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column; overflow-y: auto;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .drawer.open { right: 0; }
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .drawer-title { color: #e8f0fa; font-weight: 700; font-size: 15px; }
+  .drawer-close {
+    background: none; border: none; color: #8da0b8; font-size: 20px;
+    cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  }
+  .drawer-section {
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .drawer-section-title {
+    padding: 8px 18px 4px; font-size: 11px; font-weight: 600;
+    color: #4a6080; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .drawer-item {
+    display: block; width: 100%; padding: 11px 18px;
+    background: none; border: none; text-align: left;
+    color: #b8cce0; font-family: var(--font); font-size: 14px;
+    cursor: pointer; transition: background .12s, color .12s;
+  }
+  .drawer-item:hover, .drawer-item:active {
+    background: rgba(255,255,255,.08); color: #e8f0fa;
+  }
+  .drawer-item.admin-item { color: #93c5fd; }
+  .drawer-logout {
+    margin: 12px 18px; padding: 10px; border-radius: 8px;
+    border: 1px solid rgba(220,38,38,.4); background: none;
+    color: #fca5a5; font-family: var(--font); font-size: 14px;
+    cursor: pointer; text-align: center; transition: all .15s;
+  }
+  .drawer-logout:hover { background: rgba(220,38,38,.15); }
+
+  /* ────── RWD ────── */
+  @media (max-width: 900px) {
+    .topbar { padding: 0 14px; }
+    .tnav-btn { padding: 0 12px; font-size: 13px; }
+    .logo-text { font-size: 18px; }
+    .topbar-logout { padding: 5px 10px; font-size: 12px; }
+  }
+  @media (max-width: 600px) {
+    /* 桌機版 nav 整個隱藏 */
+    .top-nav { display: none !important; }
+    .topbar-logout { display: none !important; }
+    /* 顯示漢堡 */
+    .hamburger-btn { display: flex; }
+    /* 手機版只顯示 logo 圖示，隱藏文字 */
+    .logo-text { display: none !important; }
+    .topbar { padding: 0 14px; overflow: visible; }
+    /* 手機版姓名顯示 */
+    .topbar-name-mobile { display: block; }
+  }
+
+  /* ────── LAYOUT ────── */
+  .layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+
+  /* ────── MAP ────── */
+  .map-area { flex: 1; position: relative; overflow: hidden; isolation: isolate; }
+  .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
+  .leaflet-tile-container, .leaflet-map-pane, .leaflet-overlay-pane,
+  .leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane,
+  .leaflet-popup-pane, .leaflet-control { z-index: 1 !important; }
+  .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
+  #map { width: 100%; height: 100%; background: #e8edf2; }
+  #map-fallback {
+    display: none; width: 100%; height: 100%;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; color: #6b7a92; font-size: 14px;
+  }
+  /* 儀表板卡片 */
+  .dash-card {
+    background: white; border: 2px solid #e2e8f0; border-radius: 16px;
+    padding: 24px 20px; display: flex; flex-direction: column; align-items: center;
+    gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: all .2s;
+  }
+  .dash-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.12); transform: translateY(-2px); }
+  .dash-card-icon { border-radius: 50%; }
+  .dash-card-label { font-size: 13px; font-weight: 600; color: #6b7a92;
+                     letter-spacing: .06em; text-transform: uppercase; }
+  .dash-card-val { font-size: 56px; font-weight: 800; line-height: 1;
+                   font-family: ui-monospace, monospace;
+                   min-height: 60px; display: flex; align-items: center; justify-content: center; }
+  .dash-card-sub { font-size: 12px; color: #94a3b8; }
+
+  .map-badge {
+    position: absolute; top: 14px; right: 14px; background: white;
+    border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 10px 14px;
+    font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column;
+    gap: 6px; min-width: 160px; z-index: 10;
+  }
+  .map-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .map-badge-row .val { font-weight: 600; color: var(--text); font-family: var(--font-mono); font-size: 13px; }
+  .val.green { color: #16a34a; }
+  .map-controls { position: absolute; bottom: 30px; right: 14px; display: flex; flex-direction: column; gap: 2px; z-index: 10; }
+  .map-ctrl-btn {
+    width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
+    border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; color: var(--text-muted);
+    box-shadow: var(--shadow-sm); transition: background .15s; font-weight: 300;
+  }
+  .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
+  .map-compass {
+    position: absolute; bottom: 30px; right: 54px; width: 34px; height: 34px;
+    background: white; border-radius: 50%; box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #dc2626; font-weight: 700; border: 1px solid #d0d8e4; z-index: 10;
+  }
+
+  /* ────── CONTENT PANEL ────── */
+  .content-panel { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; display: none; z-index: 10; }
+  .content-panel.active { display: block; }
+  .panel-header {
+    position: sticky; top: 0; background: white; border-bottom: 1px solid var(--border);
+    padding: 13px 24px; display: flex; align-items: center; gap: 12px; z-index: 1; box-shadow: var(--shadow-sm);
+  }
+  .panel-back {
+    display: flex; align-items: center; gap: 5px; color: var(--accent); cursor: pointer;
+    font-size: 13px; font-weight: 500; background: none; border: none; padding: 4px 0;
+    font-family: var(--font); transition: opacity .15s;
+  }
+  .panel-back:hover { opacity: .7; }
+  .panel-title { font-size: 30px; font-weight: 600; color: var(--text); }
+  .panel-body { padding: 24px; max-width: 900px; }
+  .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+    .logo-text { font-size: 30px; }
+    /* 手機版：logo 左、漢堡右 */
+    .topbar-logo { margin-right: 0; }
+  }
+  @media (max-width: 480px) {
+    .logo-text { font-size: 13px; }
+    .topbar { padding: 0 12px; }
+  }
+
+
+
+
+  /* ────── 登入遮罩 ────── */
+  #loginOverlay {
+    position: fixed; inset: 0; z-index: 99999;
+    background: #0f1820;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #loginOverlay.hide { display: none; }
+  .login-card {
+    background: #1e2a3a; border-radius: 16px;
+    padding: 36px 32px; width: 340px; max-width: 92vw;
+    box-shadow: 0 8px 40px rgba(0,0,0,.5);
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .login-logo { font-size: 48px; line-height: 1; }
+  .login-title { font-size: 20px; font-weight: 700; color: #e8f0fa; text-align: center; line-height: 1.4; }
+  .login-subtitle { font-size: 14px; color: #7aa3cc; margin-top: -10px; }
+  .login-field {
+    width: 100%; padding: 11px 14px; border-radius: 8px;
+    border: 1px solid #2d3f55; background: #0f1820; color: #e8f0fa;
+    font-size: 16px; font-family: var(--font); outline: none;
+    transition: border-color .15s;
+  }
+  .login-field:focus { border-color: #1a56db; }
+  .login-btn {
+    width: 100%; padding: 12px; border-radius: 8px; border: none;
+    background: #1a56db; color: white; font-size: 16px; font-weight: 700;
+    font-family: var(--font); cursor: pointer; transition: background .15s;
+  }
+  .login-btn:hover { background: #1648b8; }
+  .login-btn:disabled { background: #2d3f55; cursor: default; }
+  .login-err {
+    color: #fca5a5; font-size: 14px; text-align: center;
+    min-height: 18px; display: none;
+  }
+  .login-err.show { display: block; }
+
+  /* ────── 未登入時隱藏的元素 ────── */
+  .auth-hidden { display: none !important; }
+
+  /* ────── 登入按鈕（topbar，未登入才顯示）────── */
+  #topbarLoginBtn {
+    margin-left: auto; flex-shrink: 0;
+    padding: 6px 16px; background: #1a56db;
+    border: none; border-radius: var(--radius);
+    color: white; font-family: var(--font); font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: background .15s; white-space: nowrap;
+  }
+  #topbarLoginBtn:hover { background: #1648b8; }
+
+  /* ────── 導航 Banner（iframe 透過 postMessage 觸發）────── */
+  #navBannerBar {
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 9px 20px;
+    font-size: 13px; font-weight: 600; color: white;
+    font-family: var(--font);
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    flex-shrink: 0;
+    z-index: 399;
+    /* 正常流，topbar 下方；不用 fixed 避免 iOS viewport 跳動 */
+  }
+  #navBannerBar.show { display: flex; }
+
+</style>
+</head>
+<body>
+
+
+<!-- ════════════════════════════════════════════════════════
+     頂部導覽列
+     - #menuToggle：☰ 按鈕，點擊呼叫 sidebar.classList.toggle('open')
+     - .topbar-logo：平台名稱 + 圖示
+     - .topbar-status：右側綠色「系統正常」狀態燈
+     ════════════════════════════════════════════════════════ -->
+<!-- TOP BAR -->
+<div class="topbar">
+  <!-- Logo（靠左）-->
+  <a href="https://shoryutw-cloud.github.io/radresponse-platform/" class="topbar-logo" title="回到首頁" onclick="return onLogoClick(event)">
+    <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
+      <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
+    </div>
+    <span class="logo-text">輻射事件資訊網</span>
+  </a>
+
+  <!-- 桌機橫向導覽列（靠右；未登入時隱藏）-->
+  <nav class="top-nav auth-hidden" id="topNav">
+    <!-- 姓名顯示（事件儀表板左邊）-->
+    <div class="tnav-item auth-hidden" id="tnav-user" style="margin-right:4px">
+      <button class="tnav-btn" style="
+        color:#e8f0fa;font-weight:600;font-size:17px;
+        border:1px solid rgba(255,255,255,0.18);border-radius:6px;
+        padding:0 14px;margin:2px 0;height:36px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
+      </button>
+    </div>
+    <div class="tnav-item" id="tnav-dashboard">
+      <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
+    </div>
+    <div class="tnav-item" id="tnav-report">
+      <button class="tnav-btn">
+        <span id="taskBadge" style="display:none"></span>回報 <span class="tnav-arrow">&#9664;</span>
+      </button>
+    </div>
+    <div class="tnav-item auth-hidden" id="tnav-taskview">
+      <button class="tnav-btn" style="position:relative">
+        查看任務
+        <span id="taskViewBadge" style="
+          display:none;position:absolute;top:4px;right:16px;
+          background:#dc2626;color:white;border-radius:10px;
+          font-size:11px;font-weight:700;line-height:1;
+          padding:2px 5px;min-width:16px;text-align:center;
+          pointer-events:none;z-index:1">0</span>
+        <span class="tnav-arrow">&#9664;</span>
+      </button>
+    </div>
+    <!-- 後台功能：僅管理員登入後顯示 -->
+    <div class="tnav-item auth-hidden" id="tnav-admin">
+      <button class="tnav-btn">後台功能 <span class="tnav-arrow">&#9664;</span></button>
+    </div>
+  </nav>
+
+  <!-- 手機版姓名（登入後，手機才顯示）-->
+  <span id="topbarNameMobile" class="auth-hidden topbar-name-mobile"></span>
+
+  <!-- 登入按鈕（未登入才顯示）-->
+  <button id="topbarLoginBtn" onclick="openLoginModal()">&#x2192; 登入</button>
+
+  <!-- 手機漢堡按鈕 -->
+  <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單" style="position:relative">
+    <span></span><span></span><span></span>
+    <div id="hamburgerBadge" style="
+      display:none;position:absolute;top:-2px;right:-2px;
+      background:#dc2626;color:white;border-radius:50%;
+      font-size:10px;font-weight:700;line-height:1;
+      width:18px;height:18px;
+      display:none;align-items:center;justify-content:center;
+      pointer-events:none;z-index:1;
+      box-shadow:0 1px 3px rgba(0,0,0,.3)">0</div>
+  </button>
+</div>
+
+<!-- 手機版側邊抽屜 -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span class="drawer-title">☢️ 輻射事件資訊網</span>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <!-- 未登入：只顯示登入 -->
+  <div id="drawerLoginSection" class="drawer-section">
+    <button class="drawer-item" onclick="closeDrawer();openLoginModal()">→ 登入系統</button>
+  </div>
+
+  <!-- 登入後顯示（auth-hidden，登入後由 JS 移除）-->
+  <div id="drawerAuthContent" class="auth-hidden">
+    <div class="drawer-section">
+      <div class="drawer-section-title">事件儀表板</div>
+      <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">目前事件</button>
+      <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">導航至量測點</button>
+      <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">歷史事件查詢</button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">回報</div>
+      <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
+      <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">回報數值查詢</button>
+      <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">現場其他事情回報</button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
+      <button class="drawer-item" onclick="closeDrawer();openMyTaskModal()">隊別任務 <span id="drawerMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務 <span id="drawerAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">設定</div>
+      <button class="drawer-item" onclick="showIframe('profile.html');closeDrawer()">個人資料維護</button>
+    </div>
+
+    <!-- 後台功能：僅管理員可見 -->
+    <div class="drawer-section auth-hidden" id="drawerAdminSection">
+      <div class="drawer-section-title">後台功能</div>
+<button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
+      <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
+      <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
+      <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">派送任務</button>
+      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">查看任務</button>
+      <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">編組管理</button>
+      <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">儀器管理</button>
+      <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">出勤通知簡訊紀錄</button>
+      <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">事件異動紀錄</button>
+      <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">各帳號異動紀錄</button>
+      <button class="drawer-item" onclick="openPanel('各帳號登入紀錄');closeDrawer()">各帳號登入紀錄</button>
+    </div>
+
+    <button class="drawer-logout" onclick="doLogout()">← 登出</button>
+  </div>
+</div>
+
+
+<!-- 導航 Banner（顯示在 topbar 正下方，由 iframe postMessage 控制）-->
+<div id="navBannerBar"></div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <main class="map-area" id="mapArea" style="position:relative">
+    <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:none;align-items:center;justify-content:center">
+      <div id="dashboard" style="max-width:640px;width:100%;padding:0 32px 24px;display:flex;flex-direction:column;gap:16px">
+        <div style="text-align:center;padding-top:8px">
+          <div style="font-size:48px;line-height:1">☢️</div>
+          <!-- 歡迎文字：登入後顯示 -->
+          <div id="dashWelcome" style="display:none;font-size:15px;font-weight:600;color:#1e2a3a;margin-top:8px">
+            <span id="dashWelcomeName" style="color:#1a56db"></span>，歡迎使用應變資訊平台
+          </div>
+        </div>
+
+        <!-- 統計卡片：固定高度 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+          <!-- 目前事件：卡片固定高度，dashByType固定高度不含skeleton -->
+          <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa;height:340px;justify-content:flex-start;padding:20px 16px;box-sizing:border-box;overflow:hidden">
+            <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">🚨</div>
+            <div class="dash-card-label" style="font-size:14px;margin-top:2px">目前事件數</div>
+            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <span id="dashActiveSpinner" style="display:inline-block;width:48px;height:12px;background:#fed7aa;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
+            </div>
+            <!-- 固定高度容器，初始空白，資料來了填入不撐高 -->
+            <div id="dashByType" style="display:flex;flex-direction:column;gap:4px;width:100%;height:86px;flex-shrink:0;overflow:hidden"></div>
+            <div style="margin-top:auto;padding-top:8px;color:#f97316;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
+          </div>
+
+          <!-- 歷史事件 -->
+          <div class="dash-card" style="border-color:#bbf7d0;height:340px;justify-content:flex-start;padding:20px 16px;cursor:pointer;box-sizing:border-box;overflow:hidden" onclick="openPanel('歷史事件查詢')">
+            <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✅</div>
+            <div class="dash-card-label" style="font-size:14px;margin-top:2px">歷史事件數</div>
+            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <span id="dashClosedSpinner" style="display:inline-block;width:48px;height:12px;background:#bbf7d0;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
+            </div>
+            <!-- 佔位區，與左欄同高 -->
+            <div style="height:86px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:12px;color:#94a3b8">已結束事件</span>
+            </div>
+            <div style="margin-top:auto;padding-top:8px;color:#16a34a;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
+          </div>
+
+        </div>
+
+        <!-- 快捷按鈕 -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button onclick="showIframe('create-event.html')" style="padding:11px;background:white;color:#1e2a3a;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s" onmouseover="this.style.borderColor='#1a56db';this.style.color='#1a56db'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e2a3a'">
+            <span style="font-size:18px">➕</span> 建立新事件
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:block">
+      <iframe id="contentFrame" src="" style="width:100%;height:100%;border:none"></iframe>
+    </div>
+
+    <div class="content-panel" id="contentPanel">
+      <div class="panel-header">
+        <button class="panel-back" onclick="closePanel()">&#8592; 返回地圖</button>
+        <span style="color:#d0d8e4">|</span>
+        <span class="panel-title" id="panelTitle">&#8212;</span>
+      </div>
+      <div class="panel-body" id="panelBody"></div>
+    </div>
+  </main>
+</div>
+
+<!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
+<div class="top-drop" id="drop-dashboard">
+  <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">目前事件</button>
+  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">導航至量測點</button>
+  <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
+</div>
+<div class="top-drop" id="drop-report">
+  <button class="top-drop-btn" id="btnReportActive" onclick="toggleReportFabs();closeAllMenus()">我要回報</button>
+  <button class="top-drop-btn" onclick="openMsrQueryInIframe();closeAllMenus()">回報數值查詢</button>
+  <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
+</div>
+<div class="top-drop" id="drop-settings" style="display:none"></div>
+<div class="top-drop" id="drop-taskview">
+  <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">
+    隊別任務 <span id="dropMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
+  </button>
+  <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">
+    所有任務 <span id="dropAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
+  </button>
+</div>
+<div class="top-drop" id="drop-user">
+  <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
+  <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
+</div>
+<div class="top-drop" id="drop-admin">
+  <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
+  <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">編組管理</button>
+  <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">儀器管理</button>
+  <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">出勤通知簡訊紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">事件異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">各帳號異動紀錄</button>
+  <button class="top-drop-btn" onclick="openPanel('各帳號登入紀錄');closeAllMenus()">各帳號登入紀錄</button>
+</div>
+<div class="top-drop-l3" id="drop-jishi">
+  <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
+  <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">派送任務</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">查看任務</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// JavaScript 區塊
+// ════════════════════════════════════════════════════════════
+
+// ── 全域變數 ──
+var gMap = null;
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var _jsonpCounter = 0;
+
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+// ── 各功能面板的說明文字 ──
+// 格式：'功能名稱': ['標題', '說明文字']
+// openPanel(title) 會讀取這裡的資料顯示在 .content-panel 裡
+var PANELS = {
+  '目前事件':         ['目前無開設事件','若需查詢歷史事件，請至「歷史事件查詢」。'],
+  '事件出勤人員':     ['事件出勤人員','目前無進行中事件，故無出勤人員資料。'],
+  '事件出動儀器':     ['事件出動儀器','目前無進行中事件，故無出動儀器資料。'],
+  '歷史事件查詢':     ['歷史事件查詢','尚無歷史事件紀錄。'],
+  '人工回報量測數值': ['人工回報量測數值','請選擇事件後進行量測數值回報。'],
+  '任務回報':         ['任務回報','目前無指派任務。'],
+  '回報數值查詢':     ['回報數值查詢','尚無回報數值紀錄。'],
+  '現場其他事情回報': ['現場其他事情回報','填寫現場狀況回報表單。'],
+  '個人資料維護':     ['個人資料維護','管理您的帳號資料、聯絡方式及所屬編組。'],
+  '使用說明':         ['使用說明','請參閱操作手冊或聯絡系統管理員。'],
+  '建立事件':         ['建立事件','填寫新事件資訊以開設應變事件。'],
+  '派送任務':         ['派送任務','派送任務至出勤人員。'],
+  '編組管理':         ['編組管理','管理應變編組及人員配置。'],
+  '儀器管理':         ['儀器管理','維護儀器清單及校正紀錄。'],
+  '新增地圖Icon圖示': ['新增地圖 Icon 圖示','在地圖上新增標記或圖示。'],
+  '出勤通知簡訊紀錄': ['出勤通知簡訊紀錄','查詢發送的出勤通知簡訊紀錄。'],
+  '事件異動紀錄':     ['事件異動紀錄','查詢事件建立及修改的歷史紀錄。'],
+  '各帳號異動紀錄':   ['各帳號異動紀錄','查詢帳號資料變更紀錄。'],
+  '各帳號登入紀錄':   ['各帳號登入紀錄','查詢各帳號的登入時間及 IP 紀錄。'],
+};
+
+// ── 開啟功能說明面板 ──
+// 點選沒有子選單的項目時呼叫（個人資料維護、使用說明等）
+// 會在地圖上方顯示 .content-panel，並關閉側欄和所有選單
+// -- 切換右欄顯示 iframe 功能頁面 --
+// src = 要載入的 HTML 檔名（例如 group.html）
+// 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
+function showIframe(src) {
+  // mapLayer 已永久隱藏，不需控制
+  var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
+  hideEls.forEach(function(sel) {
+    var el = document.querySelector(sel);
+    if (el) el.style.visibility = 'hidden';
+  });
+  var layer = document.getElementById('iframeLayer');
+  var frame = document.getElementById('contentFrame');
+  layer.style.display = 'block';
+
+  // 解析 src 中的 idx 參數，存到全域變數，等 iframe ready 後送出
+  var idxMatch = src.match(/[?&]idx=([0-9]+)/);
+  _pendingIframeIdx = idxMatch ? parseInt(idxMatch[1], 10) : null;
+
+  // 去掉 query string，只保留純檔名
+  var cleanSrc = src.split('?')[0];
+  // 加時間戳確保每次重新載入
+  frame.src = cleanSrc + '?_t=' + Date.now();
+
+  // hash 只取檔名
+  var hashBase = cleanSrc.replace('.html', '');
+  window.location.hash = hashBase;
+  closeAllMenus();
+  closeSidebar();
+}
+
+// ── 全域：等待 iframe 回報 ready 的 pending idx ──
+var _pendingIframeIdx = null;
+
+// ── 監聽 iframe 傳來的 ready 和 navigate 訊息 ──
+window.addEventListener('message', function(e) {
+  var frame = document.getElementById('contentFrame');
+  if (!frame) return;
+
+  // iframe 說「我準備好了，請給我 idx」
+  if (e.data && e.data.type === 'iframeReady') {
+    if (_pendingIframeIdx !== null) {
+      try {
+        frame.contentWindow.postMessage({ type: 'setIdx', idx: _pendingIframeIdx }, '*');
+      } catch(err) {}
+      _pendingIframeIdx = null;
+    }
+    // 傳送登入者資訊給 iframe（供回報劑量自動預選人員）
+    try {
+      var _lsAuth = localStorage.getItem('radAuth');
+      if (_lsAuth) {
+        var _lsUser = JSON.parse(_lsAuth);
+        frame.contentWindow.postMessage({
+          type: 'setLoginUser',
+          name: _lsUser.name || '',
+          team: _lsUser.team || '',
+          title: _lsUser.title || '',
+          isAdmin: !!_lsUser.isAdmin,
+        }, '*');
+      }
+    } catch(e2) {}
+    // 若編輯地圖模式開啟中，通知新載入的 iframe
+    if (_mapEditOn) sendMapEditMsg();
+    // 若有待處理的導航指令
+    if (_pendingNav) sendNavMsg();
+    // 若有等待中的導航點位 Modal
+    if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
+    // 若回報 FAB 開啟中，補回浮動按鈕
+    if (_reportFabsVisible) { setTimeout(function(){ sendReportFabMsg(true); }, 300); }
+    if (_pendingReportFab) { _pendingReportFab = false; setTimeout(sendReportFabMsg, 400); }
+    if (_pendingTaskDispatch) {
+      _pendingTaskDispatch = false;
+      setTimeout(function() {
+        try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
+      }, 400);
+    }
+    if (_pendingTaskView) {
+      _pendingTaskView = false;
+      setTimeout(function() {
+        try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
+      }, 400);
+    }
+    if (_pendingMyTask) {
+      _pendingMyTask = false;
+      var fKey = _getMyTaskFilterKey();
+      var fGrp = _getMyGroup(); var fTm = _getMyTeam();
+      var fLbl = fGrp === '技術組' ? (fTm ? fGrp+'-'+fTm : fGrp) : fGrp;
+      setTimeout(function() {
+        try { frame.contentWindow.postMessage({ type: 'openMyTask', team: fKey, label: fLbl }, '*'); } catch(e) {}
+      }, 400);
+    }
+  }
+
+  // iframe FAB 的「回報任務」按鈕 → 開啟隊別任務 Modal
+  if (e.data && e.data.type === 'openMyTaskFromFab') {
+    openMyTaskModal();
+    return;
+  }
+
+  // iframe 要求導覽到另一個頁面（帶 idx）
+  if (e.data && e.data.type === 'navigate') {
+    showIframe(e.data.src + '?idx=' + e.data.idx);
+  }
+
+  // ── current-events 回傳點位清單，填入選擇格子 ──
+  // iframe 通知有新量測點，重新取最新導航點位
+  if (e.data && e.data.type === 'requestNavPointsRefresh') {
+    try {
+      var frame2 = document.getElementById('contentFrame');
+      if (frame2) frame2.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
+    } catch(e2) {}
+    return;
+  }
+  if (e.data && e.data.type === 'navPoints') {
+    _navPointsCache = e.data.points || [];
+    _navSelectedLabel = null;
+    var grid = document.getElementById('navPointGrid');
+    if (!grid) return;
+    if (!_navPointsCache.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:8px">目前事件無風向資料，無法計算點位</div>';
+      return;
+    }
+    grid.innerHTML = _navPointsCache.map(function(p) {
+      return '<button onclick="selectNavPoint(\'' + p.label + '\')" id="navpt_' + p.label + '" style="' +
+        'padding:8px 4px;border:2px solid #e2e8f0;border-radius:8px;background:white;' +
+        'font-family:inherit;font-size:13px;font-weight:600;color:#1e2a3a;cursor:pointer;' +
+        'transition:all .15s;text-align:center;line-height:1.3">' +
+        '<div style="font-size:16px;font-weight:800;color:#8b5cf6">' + p.label + '</div>' +
+        '<div style="font-size:10px;color:#94a3b8;margin-top:2px">' + p.shortTip + '</div>' +
+        '</button>';
+    }).join('');
+    return;
+  }
+
+  // ── 導航 Banner（來自 current-events.html 的 postMessage）──
+  if (e.data && e.data.type === 'navBanner') {
+    var bar = document.getElementById('navBannerBar');
+    if (!bar) return;
+    if (!e.data.content) {
+      // 隱藏 banner
+      bar.classList.remove('show');
+      bar.innerHTML = '';
+    } else {
+      // 顯示 banner（content 可含 HTML，例如「結束導航」按鈕）
+      bar.style.background = e.data.bg || '#7c3aed';
+      bar.innerHTML = e.data.content;
+      bar.classList.add('show');
+    }
+  }
+});
+
+// ── 導航點位選擇 ──
+function selectNavPoint(label) {
+  _navSelectedLabel = label;
+  // 更新所有按鈕樣式
+  document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
+    var isSelected = btn.id === 'navpt_' + label;
+    btn.style.borderColor = isSelected ? '#8b5cf6' : '#e2e8f0';
+    btn.style.background  = isSelected ? '#ede9fe' : 'white';
+  });
+  document.getElementById('navStartBtn').style.background = '#8b5cf6';
+}
+
+// ── 手機版抽屜選單 ──
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function drawerToggleAdmin() {
+  toggleMapEdit();
+  var btn = document.getElementById('drawerAdminBtn');
+  if (btn) btn.textContent = _mapEditOn ? '編輯地圖（開啟中）' : '開啟/關閉編輯地圖';
+  closeDrawer();
+}
+
+// -- 切換回儀表板首頁 --
+function showMap() {
+  // dashboard 已移除，直接跳目前事件
+  showIframe('current-events.html');
+}
+
+// ── 載入儀表板統計數字 ──
+function loadDashStats() {
+  _jsonpGet(SHEETS_URL + '?action=eventStats', function(data) {
+    if (!data) return;
+    var actEl = document.getElementById('dashActiveVal');
+    var cloEl = document.getElementById('dashClosedVal');
+    var typeEl = document.getElementById('dashByType');
+    if (actEl) {
+      var sp1 = document.getElementById('dashActiveSpinner');
+      if (sp1) sp1.remove();
+      actEl.textContent = (data.active !== undefined) ? data.active : '—';
+    }
+    if (cloEl) {
+      var sp2 = document.getElementById('dashClosedSpinner');
+      if (sp2) sp2.remove();
+      cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
+    }
+    // 移除 dashByType skeleton rows（固定高度容器保留，只換內容）
+    // 各類型小計
+    if (typeEl && data.byType) {
+      var colors = {
+        '輻射彈事件':     '#dc2626',
+        '放射性物質事件': '#d97706',
+        '放射性物料事件': '#1a56db'
+      };
+      var types = ['輻射彈事件','放射性物質事件','放射性物料事件'];
+      typeEl.innerHTML = types.map(function(t) {
+        var n = data.byType[t] || 0;
+        var col = colors[t] || '#6b7a92';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;' +
+               'padding:3px 10px;background:#fff7f0;border-radius:4px;font-size:12px">' +
+               '<span style="color:#6b7a92">' + t + '</span>' +
+               '<span style="font-weight:700;color:' + col + '">' + n + '</span>' +
+               '</div>';
+      }).join('');
+    }
+  });
+}
+function openPanel(title) {
+  var d = PANELS[title] || [title, '此功能尚未開放。'];
+  document.getElementById('panelTitle').textContent = d[0];
+  document.getElementById('panelBody').innerHTML =
+    '<div class="empty-state"><div class="icon">&#x1F4CB;</div><h3>'+d[0]+'</h3><p>'+d[1]+'</p></div>';
+  document.getElementById('contentPanel').classList.add('active');
+  closeAllMenus();
+  closeSidebar();
+  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
+}
+
+// ── 關閉功能面板、回到地圖 ──
+// 按「← 返回地圖」時呼叫
+// 移除 .content-panel 的 .active，並重新計算地圖大小
+function closePanel() {
+  document.getElementById('contentPanel').classList.remove('active');
+  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
+}
+
+// positionMenu/closeSidebar/closeAllMenus: 定義在 DOMContentLoaded 後方
+
+// ════════════════════════════════════════════════════════════
+// DOMContentLoaded：頁面 HTML 載入完成後執行
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+
+  // ── ① 先檢查 localStorage 的登入狀態（12小時無活動才過期）──
+  var TWELVE_HR = 12 * 60 * 60 * 1000;
+  var _authUser = null;
+  try {
+    var _stored = localStorage.getItem('radAuth');
+    if (_stored) {
+      var _parsed = JSON.parse(_stored);
+      // 有 lastActivity 且未超過 12 小時
+      if (_parsed.lastActivity && (Date.now() - _parsed.lastActivity) < TWELVE_HR) {
+        _authUser = _parsed;
+        // 更新活動時間
+        _parsed.lastActivity = Date.now();
+        localStorage.setItem('radAuth', JSON.stringify(_parsed));
+      } else {
+        localStorage.removeItem('radAuth'); // 已過期，清掉
+      }
+    }
+  } catch(e) {}
+
+  // ── 活動偵測：每次使用者操作都更新 lastActivity ──
+  ['click','keydown','touchstart'].forEach(function(evt) {
+    document.addEventListener(evt, function() {
+      try {
+        var s = localStorage.getItem('radAuth');
+        if (s) {
+          var u = JSON.parse(s);
+          u.lastActivity = Date.now();
+          localStorage.setItem('radAuth', JSON.stringify(u));
+        }
+      } catch(e2) {}
+    }, { passive: true });
+  });
+
+  if (_authUser) {
+    // 已登入：套用 UI 後繼續正常初始化
+    _applyAuthUI(_authUser);
+    // 若沒有 hash，直接進入目前事件
+    if (!window.location.hash || window.location.hash === '#') {
+      showIframe('current-events.html');
+    }
+  } else {
+    // 未登入：清除 hash（防止直接跳頁）、顯示登入遮罩
+    if (window.location.hash) history.replaceState('', document.title, window.location.pathname);
+  }
+
+  // ── 載入儀表板統計（只有登入後才有意義）──
+  if (_authUser) loadDashStats();
+
+  // ── Hash 路由（只有登入後才執行）──
+  function restoreFromHash() {
+    if (!_authUser) return; // 未登入不允許 hash 路由
+    var hash = window.location.hash.replace('#', '');
+    if (hash && hash !== '') showIframe(hash + '.html');
+  }
+  restoreFromHash();
+  window.addEventListener('popstate', function() {
+    if (!_authUser) { history.replaceState('', document.title, window.location.pathname); return; }
+    var hash = window.location.hash.replace('#', '');
+    if (hash && hash !== '') showIframe(hash + '.html'); else showIframe('current-events.html');
+  });
+
+  // ════════════════════════════════════════════
+  // 桌機版：Top-nav 點擊 toggle 下拉選單
+  // ════════════════════════════════════════════
+
+  // tnav-item id → 對應 drop id
+  var NAV_MAP = {
+    'tnav-dashboard': 'drop-dashboard',
+    'tnav-report':    'drop-report',
+    'tnav-settings':  'drop-settings',
+    'tnav-taskview':  'drop-taskview',
+    'tnav-admin':     'drop-admin',
+    'tnav-user':      'drop-user'
+  };
+
+  // ── 定位下拉選單於 trigger 正下方 ──
+  function positionDrop(drop, trigger) {
+    drop.style.left = '-9999px'; drop.style.top = '-9999px';
+    drop.style.display = 'block';
+    var dw = drop.offsetWidth, dh = drop.offsetHeight;
+    drop.style.display = '';
+    var r  = trigger.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var left = r.left;
+    if (left + dw > vw - 8) left = r.right - dw;
+    if (left < 4) left = 4;
+    var top = r.bottom + 1;
+    if (top + dh > vh - 8) top = r.top - dh - 1;
+    if (top < 4) top = 4;
+    drop.style.left = left + 'px';
+    drop.style.top  = top  + 'px';
+  }
+
+  // ── 定位 L3（側邊展開）──
+  function positionL3(l3, parentDrop, triggerBtn) {
+    l3.style.left = '-9999px'; l3.style.top = '-9999px';
+    l3.style.display = 'block';
+    var lw = l3.offsetWidth, lh = l3.offsetHeight;
+    l3.style.display = '';
+    var pr = parentDrop.getBoundingClientRect();
+    var tr = triggerBtn.getBoundingClientRect();
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var left = pr.right + 2;
+    if (left + lw > vw - 8) left = pr.left - lw - 2;
+    if (left < 4) left = 4;
+    var top = tr.top;
+    if (top + lh > vh - 8) top = vh - lh - 8;
+    if (top < 4) top = 4;
+    l3.style.left = left + 'px';
+    l3.style.top  = top  + 'px';
+  }
+
+  // ── 關閉所有下拉（除了指定的）──
+  function closeDrops(except) {
+    document.querySelectorAll('.top-drop').forEach(function(d) {
+      if (d !== except) d.classList.remove('active');
+    });
+    var l3 = document.getElementById('drop-jishi');
+    if (except !== l3) l3.classList.remove('active');
+    // 同步 tnav-item open 狀態和三角形
+    Object.keys(NAV_MAP).forEach(function(navId) {
+      var item = document.getElementById(navId);
+      var drop = document.getElementById(NAV_MAP[navId]);
+      if (item && drop && drop !== except) {
+        item.classList.remove('open');
+      }
+    });
+  }
+
+  var btnJishi  = document.getElementById('btn-jishi');
+  var dropJishi = document.getElementById('drop-jishi');
+  var dropAdmin = document.getElementById('drop-admin');
+
+  function closeL3() { if (dropJishi) dropJishi.classList.remove('active'); }
+
+  // ── 每個 tnav-item 綁定 click toggle ──
+  var leaveTimer = null;
+
+  function isInMenuSystem() {
+    var els = document.querySelectorAll('.tnav-item, .top-drop, .top-drop-l3');
+    return Array.from(els).some(function(el) { return el.matches(':hover'); });
+  }
+
+  Object.keys(NAV_MAP).forEach(function(navId) {
+    var navItem = document.getElementById(navId);
+    var drop    = document.getElementById(NAV_MAP[navId]);
+    if (!navItem || !drop) return;
+
+    // ── 後台功能：改為 hover 彈出（同其他選單），不再 click-toggle mapEditMode ──
+    if (navId === 'tnav-admin') {
+      navItem.addEventListener('mouseenter', function() {
+        clearTimeout(leaveTimer);
+        closeDrops(drop);
+        drop.classList.add('active');
+        positionDrop(drop, navItem);
+        navItem.classList.add('open');
+      });
+      navItem.addEventListener('mouseleave', function() {
+        leaveTimer = setTimeout(function() {
+          if (!isInMenuSystem()) {
+            drop.classList.remove('active');
+            navItem.classList.remove('open');
+            closeL3();
+          }
+        }, 80);
+      });
+      drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+      drop.addEventListener('mouseleave', function() {
+        leaveTimer = setTimeout(function() {
+          drop.classList.remove('active');
+          navItem.classList.remove('open');
+          closeL3();
+        }, 80);
+      });
+      return;
+    }
+
+    // ── 事件儀表板、設定、回報：hover 彈出 ──
+    navItem.addEventListener('mouseenter', function() {
+      clearTimeout(leaveTimer);
+      closeDrops(drop);
+      drop.classList.add('active');
+      positionDrop(drop, navItem);
+      navItem.classList.add('open');
+    });
+    navItem.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!isInMenuSystem()) {
+          drop.classList.remove('active');
+          navItem.classList.remove('open');
+          closeL3();
+        }
+      }, 80);
+    });
+    drop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    drop.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        drop.classList.remove('active');
+        navItem.classList.remove('open');
+        closeL3();
+      }, 80);
+    });
+  });
+
+  // ── tnav-user：手機版 click toggle（hover 仍適用桌機）──
+  var userNav = document.getElementById('tnav-user');
+  var userDrop = document.getElementById('drop-user');
+  if (userNav && userDrop) {
+    userNav.querySelector('.tnav-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = userDrop.classList.contains('active');
+      closeAllMenus();
+      if (!isOpen) {
+        userDrop.classList.add('active');
+        positionDrop(userDrop, userNav);
+        userNav.classList.add('open');
+      }
+    });
+  }
+
+  // ── L3：事件管理 hover（在 drop-admin 內）──
+  if (btnJishi && dropJishi && dropAdmin) {
+    btnJishi.addEventListener('mouseenter', function() {
+      clearTimeout(leaveTimer);
+      dropJishi.classList.add('active');
+      positionL3(dropJishi, dropAdmin, btnJishi);
+    });
+    btnJishi.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!dropJishi.matches(':hover')) dropJishi.classList.remove('active');
+      }, 80);
+    });
+    dropJishi.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    dropJishi.addEventListener('mouseleave', function() {
+      leaveTimer = setTimeout(function() {
+        if (!btnJishi.matches(':hover')) dropJishi.classList.remove('active');
+        if (dropAdmin && !dropAdmin.matches(':hover')) dropAdmin.classList.remove('active');
+      }, 80);
+    });
+    // drop-admin 其他選項 hover 時關閉 L3
+    dropAdmin.querySelectorAll('.top-drop-btn').forEach(function(btn) {
+      if (btn === btnJishi) return;
+      btn.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); closeL3(); });
+    });
+  }
+
+  // ── 點選選單外關閉 ──
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.top-drop,.top-drop-l3,.tnav-item')) {
+      closeAllMenus();
+    }
+  });
+
+  // mousemove 自動關閉已移除（改為點擊模式）
+
+  // ════════════════════════════════════════════
+  // 手機版選單
+  // ════════════════════════════════════════════
+
+});
+
+
+
+// ── closeAllMenus（全站共用：關閉桌機下拉 + 手機選單）──
+function closeAllMenus() {
+  // 清除 tnav-item 的 open / admin-on 狀態
+  document.querySelectorAll('.tnav-item').forEach(function(el) {
+    el.classList.remove('open');
+  });
+  document.querySelectorAll('.top-drop, .top-drop-l3').forEach(function(m) {
+    m.classList.remove('active');
+  });
+}
+
+// ── closeSidebar（openCreateEvent 等地方仍會呼叫，保留空函數避免錯誤）──
+function closeSidebar() {}
+
+// ════════════════════════════════════════════
+// 導航模式詢問
+// ════════════════════════════════════════════
+function isMobile() { return window.innerWidth <= 600; }
+
+// 手機版「回報」按鈕點擊：顯示浮動按鈕；桌機版維持下拉選單
+function onReportBtnClick(e) {
+  if (!isMobile()) return; // 桌機版讓原有下拉選單處理
+  e.stopPropagation(); // 阻止觸發下拉選單
+  closeAllMenus();
+  // 確保目前是地圖（current-events）頁面
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+  if (!isOnMap) {
+    // 先載入地圖，載入後再通知顯示 FAB
+    _pendingReportFab = true;
+    showIframe('current-events.html');
+  } else {
+    sendReportFabMsg();
+  }
+}
+var _pendingReportFab = false;
+// sendReportFabMsg 已在 toggleReportFabs 上方定義
+
+// ── 我要回報：toggle 持續浮動按鈕 ──
+var _reportFabsVisible = false;
+
+function toggleReportFabs() {
+  _reportFabsVisible = !_reportFabsVisible;
+  // 桌機版下拉按鈕
+  var btn = document.getElementById('btnReportActive');
+  if (btn) btn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
+  // 手機版抽屜按鈕
+  var drawerBtn = document.getElementById('drawerReportActive');
+  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
+
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+
+  if (_reportFabsVisible) {
+    if (!isOnMap) {
+      _pendingReportFab = true;
+      showIframe('current-events.html');
+    } else {
+      sendReportFabMsg(true);
+    }
+  } else {
+    if (isOnMap) sendReportFabMsg(false);
+  }
+}
+
+function sendReportFabMsg(show) {
+  var frame = document.getElementById('contentFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: show ? 'showReportBtns' : 'hideReportBtns' }, '*');
+  }
+}
+
+function askNavThenReport() {
+  showIframe('measurement-report.html');
+}
+function navAskNo() {}
+function navAskYes() {}
+
+// ── 導航點位選擇 Modal（兩步驟流程）──
+var _navSelectedLabel = null;
+var _navPointsCache   = null;
+var _pendingNavModal  = false;
+var _navSelCategory   = null;  // 已選類型
+
+// 步驟1：開啟類型選擇
+function openNavSelectModal() {
+  var frame = document.getElementById('contentFrame');
+  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
+  if (!isOnMap) {
+    _pendingNavModal = true;
+    showIframe('current-events.html');
+    return;
+  }
+  _navSelectedLabel = null;
+  _navPointsCache   = null;
+  _navSelCategory   = null;
+  // 先向 iframe 請求點位（在背景準備，讓使用者選類型時快一點）
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
+  }
+  // 顯示類型選擇頁
+  document.getElementById('navTypeStep').style.display  = 'flex';
+  document.getElementById('navPointStep').style.display = 'none';
+  document.getElementById('navSelectModal').style.display = 'flex';
+}
+
+function closeNavSelectModal() {
+  document.getElementById('navSelectModal').style.display = 'none';
+  _navSelectedLabel = null;
+  _navSelCategory   = null;
+}
+
+// 步驟2：選了類型後顯示該類型的點位
+function navChooseCategory(cat) {
+  _navSelCategory = cat;
+  _navSelectedLabel = null;
+  document.getElementById('navTypeStep').style.display  = 'none';
+  document.getElementById('navPointStep').style.display = 'flex';
+
+  // 標題
+  var titles = {
+    manual:      '🔴 人工設定量測點',
+    cross:       '🔵 1km橫切面量測點',
+    area:        '🟢 附近場域量測點',
+    sector:      '🟣 5km十點偵測量測點',
+    mini_cross:  '🔵 模擬1km橫切面量測點',
+    mini_sector: '🟣 模擬5km十點偵測量測點'
+  };
+  document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
+  document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
+
+  _navRenderPoints();
+}
+
+// 返回類型選擇
+function navBackToType() {
+  _navSelCategory   = null;
+  _navSelectedLabel = null;
+  document.getElementById('navTypeStep').style.display  = 'flex';
+  document.getElementById('navPointStep').style.display = 'none';
+}
+
+// 渲染點位格子
+function _navRenderPoints() {
+  var grid = document.getElementById('navPointGrid');
+  if (!_navPointsCache) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:13px;padding:16px">計算點位中…</div>';
+    return;
+  }
+  var filtered = _navPointsCache.filter(function(p){ return p.category === _navSelCategory; });
+  if (!filtered.length) {
+    var emptyMsg = {
+      manual:      '目前尚無人工設定的量測點',
+      cross:       '請先設定風向以產生橫切面量測點',
+      area:        '附近場域量測點尚未設定',
+      sector:      '請先設定風向以產生十點偵測量測點',
+      mini_cross:  '請先開啟「模擬1km橫切面」圖層並設定風向',
+      mini_sector: '請先開啟「模擬5km十點偵測」圖層並設定風向'
+    };
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
+    return;
+  }
+  // 顏色對應
+  var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6', mini_cross:'#3b82f6', mini_sector:'#7c3aed' };
+  var c = colorMap[_navSelCategory] || '#8b5cf6';
+  grid.innerHTML = filtered.map(function(p) {
+    return '<button onclick="selectNavPoint(\u0027' + p.label + '\u0027)" id="navpt_' + p.label + '" style="' +
+      'padding:10px 4px;border:2px solid #e2e8f0;border-radius:8px;background:white;' +
+      'font-family:inherit;font-size:13px;font-weight:600;color:#1e2a3a;cursor:pointer;' +
+      'transition:all .15s;text-align:center;line-height:1.3">' +
+      '<div style="font-size:16px;font-weight:800;color:' + c + '">' + p.label + '</div>' +
+      '<div style="font-size:10px;color:#94a3b8;margin-top:2px">' + p.shortTip + '</div>' +
+      '</button>';
+  }).join('');
+}
+
+function startNavWithSelected() {
+  if (!_navSelectedLabel || !_navPointsCache) return;
+  var target = null;
+  for (var i = 0; i < _navPointsCache.length; i++) {
+    if (_navPointsCache[i].label === _navSelectedLabel) { target = _navPointsCache[i]; break; }
+  }
+  if (!target) return;
+  closeNavSelectModal();
+  var frame = document.getElementById('contentFrame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({
+      type:        'startNavigation',
+      targetLabel: target.label,
+      targetPt:    target.pt
+    }, '*');
+  }
+}
+
+function selectNavPoint(label) {
+  _navSelectedLabel = label;
+  document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
+    var sel = btn.id === 'navpt_' + label;
+    var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6' };
+    var c = colorMap[_navSelCategory] || '#8b5cf6';
+    btn.style.borderColor = sel ? c : '#e2e8f0';
+    btn.style.background  = sel ? (c + '18') : 'white';
+  });
+  document.getElementById('navStartBtn').style.background = '#8b5cf6';
+}
+var _pendingNav = false;
+function sendNavMsg() {
+  try {
+    var frame = document.getElementById('contentFrame');
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage({ type: 'startNavigation' }, '*');
+    }
+  } catch(e) {}
+  _pendingNav = false;
+}
+
+// ── 編輯地圖模式（全域旗標）──
+var _mapEditOn = false;
+
+function toggleMapEdit() {
+  _mapEditOn = !_mapEditOn;
+
+  // 確保目前顯示 current-events.html
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    showIframe('current-events.html');
+    return;
+  }
+  sendMapEditMsg();
+}
+
+function sendMapEditMsg() {
+  try {
+    var frame = document.getElementById('contentFrame');
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage({ type: 'mapEditMode', on: _mapEditOn }, '*');
+    }
+  } catch(e) {}
+}
+
+
+
+
+</script>
+
+<!-- 導航點位選擇 Modal（兩步流程）-->
+<div id="navSelectModal" style="
+  display:none; position:fixed; inset:0; z-index:99999;
+  background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:14px; padding:0;
+    max-width:440px; width:92%; box-shadow:0 8px 32px rgba(0,0,0,.25);
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+    display:flex; flex-direction:column; overflow:hidden; max-height:92vh;">
+
+    <!-- 共用標頭 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+      <div style="font-size:16px;font-weight:700;color:#1e2a3a">導航至量測點</div>
+      <button onclick="closeNavSelectModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1">✕</button>
+    </div>
+
+    <!-- 步驟1：選類型 -->
+    <div id="navTypeStep" style="display:flex;flex-direction:column;gap:0;padding:16px 20px 20px;max-height:70vh;overflow-y:auto">
+      <div style="font-size:13px;color:#6b7a92;margin-bottom:14px">請選擇量測點類型：</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="nav-type-normal" onclick="navChooseCategory('manual')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#dc2626';this.style.background='#fff5f5'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#dc2626;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">人工設定量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">右鍵地圖手動新增的 T01、T02… 等點位</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button class="nav-type-normal" onclick="navChooseCategory('cross')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">1km橫切面量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">A01～A20，需設定風向才可使用</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button class="nav-type-normal" onclick="navChooseCategory('area')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#059669';this.style.background='#f0fdf4'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#059669;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">附近場域量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">附近特定場域的預設量測點位</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button class="nav-type-normal" onclick="navChooseCategory('sector')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#f5f3ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#8b5cf6;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">5km十點偵測量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">編號 1～10，需設定風向才可使用</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button onclick="navChooseCategory('mini_cross')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬1km橫切面量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">B01～B10，需開啟圖層且設定風向</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+        <button onclick="navChooseCategory('mini_sector')" style="
+          display:flex;align-items:center;gap:14px;padding:14px 16px;
+          border:2px solid #e2e8f0;border-radius:10px;background:white;
+          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
+          onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+          <span style="width:24px;height:24px;border-radius:50%;background:#7c3aed;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬5km十點偵測量測點</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">S1～S10，需開啟圖層且設定風向</div>
+          </div>
+          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
+        </button>
+      </div>
+      <button onclick="closeNavSelectModal()" style="
+        margin-top:14px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
+        background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
+        取消
+      </button>
+    </div>
+
+    <!-- 步驟2：選點位 -->
+    <div id="navPointStep" style="display:none;flex-direction:column;gap:0;padding:16px 20px 20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <button onclick="navBackToType()" style="background:none;border:none;cursor:pointer;color:#1a56db;font-size:13px;padding:0;font-family:inherit">‹ 返回</button>
+        <span id="navPointStepTitle" style="font-size:14px;font-weight:700;color:#1e2a3a"></span>
+      </div>
+      <div id="navPointGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:280px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="closeNavSelectModal()" style="
+          flex:1;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
+          background:none;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
+          取消
+        </button>
+        <button onclick="startNavWithSelected()" id="navStartBtn" style="
+          flex:2;padding:9px;border:none;border-radius:8px;
+          background:#d1d5db;color:white;font-family:inherit;
+          font-size:14px;font-weight:700;cursor:pointer">
+          開始導航
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 開啟回報數值查詢（通知 current-events iframe 開 Modal）
+function openMsrQueryInIframe() {
+  closeAllMenus(); closeSidebar();
+  var frame = document.getElementById('contentFrame');
+  var layer = document.getElementById('iframeLayer');
+  if (!frame || !layer) return;
+  var src = frame.src || '';
+  if (src.indexOf('current-events.html') === -1) {
+    showIframe('current-events.html');
+    setTimeout(function() {
+      try { document.getElementById('contentFrame').contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
+    }, 1500);
+  } else {
+    if (layer.style.display === 'none' || !layer.style.display) {
+      layer.style.display = 'block';
+      ['.map-badge','.map-controls','.map-compass','.content-panel'].forEach(function(sel){
+        var el = document.querySelector(sel); if (el) el.style.visibility = 'hidden';
+      });
+    }
+    try { frame.contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
+  }
+}
+</script>
+<!-- ════════════════════════════════════════════
+     登入遮罩（預設顯示；登入成功後隱藏）
+     ════════════════════════════════════════════ -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">☢️</div>
+    <div class="login-title">輻射事件資訊網</div>
+
+    <!-- 帳密登入 -->
+    <div id="normalLoginSection">
+      <input class="login-field" id="loginAcc" type="text"
+        placeholder="帳號" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+      <div style="width:100%;position:relative">
+        <input class="login-field" id="loginPwd" type="password"
+          placeholder="密碼" autocomplete="current-password"
+          style="padding-right:44px"
+          onkeydown="if(event.key==='Enter')submitLogin()">
+        <button id="loginPwdEye" onclick="toggleLoginPwd()" type="button"
+          style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+          background:none;border:none;cursor:pointer;font-size:18px;color:#4a6080;
+          line-height:1;padding:0">👁</button>
+      </div>
+      <div class="login-err" id="loginErr"></div>
+      <button class="login-btn" id="loginSubmitBtn" onclick="submitLogin()">登入</button>
+    </div><!-- end normalLoginSection -->
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// 登入 / 登出 功能
+// ════════════════════════════════════════════════════════════
+
+// ── 開啟登入 Modal（行動版漢堡選單用）──
+function openLoginModal() {
+  document.getElementById('loginOverlay').classList.remove('hide');
+}
+
+// ── 送出登入：向 GAS 查詢帳號密碼 ──
+function submitLogin() {
+  var acc = document.getElementById('loginAcc').value.trim();
+  var pwd = document.getElementById('loginPwd').value.trim();
+  var errEl = document.getElementById('loginErr');
+  var btn   = document.getElementById('loginSubmitBtn');
+
+  if (!acc || !pwd) {
+    _showLoginErr('請輸入帳號和密碼');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '驗證中…';
+  errEl.classList.remove('show');
+
+  _jsonpGet(SHEETS_URL + '?action=login&acc=' + encodeURIComponent(acc) + '&pwd=' + encodeURIComponent(pwd), function(data) {
+    btn.disabled = false;
+    btn.textContent = '登入';
+
+    if (!data || !data.ok) {
+      _showLoginErr(data && data.msg ? data.msg : '帳號或密碼錯誤，請重試');
+      return;
+    }
+
+    // ── 登入成功：存入 localStorage，帶 lastActivity ──
+    var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', group: data.group || '', lastActivity: Date.now() };
+    try { localStorage.setItem('radAuth', JSON.stringify(user)); } catch(e) {}
+
+    _applyAuthUI(user);
+    document.getElementById('loginOverlay').classList.add('hide');
+    loadDashStats();
+    showIframe('current-events.html');
+  });
+}
+
+// ── item7：點測試帳密方塊，自動填入並直接登入 ──
+function fillTest(acc, pwd) {
+  document.getElementById('loginAcc').value = acc;
+  document.getElementById('loginPwd').value = pwd;
+  document.getElementById('loginErr').classList.remove('show');
+  submitLogin(); // 直接送出，不需再按登入
+}
+
+// ── 顯示登入錯誤 ──
+function _showLoginErr(msg) {
+  var el = document.getElementById('loginErr');
+  el.textContent = msg;
+  el.classList.add('show');
+  // 抖動視覺提示
+  var card = el.closest('.login-card');
+  if (card) {
+    card.style.animation = 'none';
+    setTimeout(function(){ card.style.animation = ''; }, 10);
+  }
+}
+
+// ── 套用登入後 UI（可從 sessionStorage 恢復時呼叫）──
+function _applyAuthUI(user) {
+  // 隱藏登入按鈕
+  var loginBtn = document.getElementById('topbarLoginBtn');
+  if (loginBtn) loginBtn.style.display = 'none';
+
+  // 顯示所有 auth-hidden 元素（nav、登出等）
+  document.querySelectorAll('.auth-hidden').forEach(function(el) {
+    el.classList.remove('auth-hidden');
+  });
+
+  // 若非管理員，再次隱藏後台功能
+  var adminNav = document.getElementById('tnav-admin');
+  var adminSec = document.getElementById('drawerAdminSection');
+  if (user.isAdmin === true) {
+    if (adminNav) adminNav.style.display = '';
+    if (adminSec) adminSec.style.display = '';
+  } else {
+    if (adminNav) adminNav.style.display = 'none';
+    if (adminSec) adminSec.style.display = 'none';
+  }
+
+  // 顯示姓名（topbar 姓名下拉）
+  var nameEl = document.getElementById('topbarName');
+  var label = '';
+  if (nameEl) {
+      // 帳密登入：顯示「組別・姓名」
+      var dispGroup = user.group || '';
+      label = dispGroup ? (dispGroup + '・' + user.name) : user.name;
+    
+    nameEl.textContent = label;
+  }
+  // 手機版姓名同步
+  var nameMobileEl = document.getElementById('topbarNameMobile');
+  if (nameMobileEl) nameMobileEl.textContent = label;
+
+  // 隱藏 dashboard 歡迎文字（若還存在）
+  var dashW = document.getElementById('dashWelcome');
+  var dashN = document.getElementById('dashWelcomeName');
+  if (dashW && dashN) { dashN.textContent = user.name; dashW.style.display = 'block'; }
+
+  // 隱藏抽屜中的「登入」區塊
+  var drawerLogin = document.getElementById('drawerLoginSection');
+  if (drawerLogin) drawerLogin.style.display = 'none';
+
+  // 啟動任務角標輪詢（非管理員才需要）
+  _startTaskBadgePolling();
+}
+
+// ── 登出 ──
+function doLogout() {
+  try { localStorage.removeItem('radAuth'); } catch(e) {}
+  history.replaceState('', document.title, window.location.pathname);
+  window.location.reload();
+}
+
+// ════════════════════════════════════════════════════════════
+var _taskBadgeTimer = null;
+
+function _startTaskBadgePolling() {
+  _fetchTaskBadge();
+  clearInterval(_taskBadgeTimer);
+  _taskBadgeTimer = setInterval(_fetchTaskBadge, 30000); // 每 30 秒更新
+}
+
+function _fetchTaskBadge() {
+  var filterKey = _getMyTaskFilterKey(); // e.g. "技術組-北一小隊" or "參謀組"
+
+  _jsonpGet(SHEETS_URL + '?action=tasks', function(data) {
+    if (!data || !data.tasks) return;
+
+    var myCount  = 0;
+    var allSeen  = {};
+    var allCount = 0;
+
+    data.tasks.forEach(function(t) {
+      if (t.status !== 'pending') return;
+      // 所有任務：合併同批（相同 eventId+title+content）只算一筆
+      var key = (t.eventId || '') + '|' + (t.title || '') + '|' + (t.content || '');
+      if (!allSeen[key]) { allSeen[key] = true; allCount++; }
+      // 隊別任務：不合併，照自己那份算
+      if (filterKey) {
+        var tgt = (t.target || '').trim();
+        if (tgt === filterKey || tgt.indexOf(filterKey) === 0) myCount++;
+      }
+    });
+
+    // 回報角標（隊別任務數，只有有 filterKey 才顯示）
+    _updateTaskBadge(filterKey ? myCount : 0);
+
+    // 任務查看 nav 角標（隊別任務數）
+    var tvBadge = document.getElementById('taskViewBadge');
+    if (tvBadge) {
+      if (filterKey && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
+      else { tvBadge.style.display = 'none'; }
+    }
+
+    // 漢堡角標（手機，隊別任務數）
+    var hBadge = document.getElementById('hamburgerBadge');
+    if (hBadge) {
+      if (filterKey && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'flex'; }
+      else { hBadge.style.display = 'none'; }
+    }
+
+    // 下拉選項：隊別任務 badge
+    var myBadge = document.getElementById('dropMyTaskBadge');
+    if (myBadge) {
+      if (filterKey && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
+      else { myBadge.style.display = 'none'; }
+    }
+    // 抽屜：隊別任務 badge
+    var dMyBadge = document.getElementById('drawerMyTaskBadge');
+    if (dMyBadge) {
+      if (filterKey && myCount > 0) { dMyBadge.textContent = myCount; dMyBadge.style.display = 'inline'; }
+      else { dMyBadge.style.display = 'none'; }
+    }
+
+    // 下拉選項：所有任務 badge（橘色）
+    var allBadge = document.getElementById('dropAllTaskBadge');
+    if (allBadge) {
+      if (allCount > 0) { allBadge.textContent = allCount; allBadge.style.display = 'inline'; }
+      else { allBadge.style.display = 'none'; }
+    }
+    var dAllBadge = document.getElementById('drawerAllTaskBadge');
+    if (dAllBadge) {
+      if (allCount > 0) { dAllBadge.textContent = allCount; dAllBadge.style.display = 'inline'; }
+      else { dAllBadge.style.display = 'none'; }
+    }
+  });
+}
+
+function _updateTaskBadge(count) {
+  // taskBadge（回報按鈕）不顯示數字，已整合到任務查看
+  // 手機版
+  var badgeMobile = document.getElementById('taskBadgeMobile');
+  if (badgeMobile) {
+    if (count > 0) {
+      badgeMobile.textContent = count;
+      badgeMobile.style.display = 'inline';
+    } else {
+      badgeMobile.style.display = 'none';
+    }
+  }
+}
+function onLogoClick(e) {
+  try {
+    var s = localStorage.getItem('radAuth');
+    if (s) {
+      e.preventDefault();
+      showIframe('current-events.html');
+      return false;
+    }
+  } catch(err) {}
+  return true; // 未登入：正常跳頁
+}
+
+// ── 編輯事件 → 確保在地圖頁 + 開啟 mapEditMode，不換頁 ──
+function openEditEventPage() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    _mapEditOn = true;
+    _updateEditEventBtn();
+    showIframe('current-events.html');
+    return;
+  }
+  _mapEditOn = !_mapEditOn;
+  _updateEditEventBtn();
+  sendMapEditMsg();
+}
+
+// ── 更新「編輯事件」按鈕文字（桌機 L3 + 手機抽屜）──
+function _updateEditEventBtn() {
+  var btnDesktop = document.getElementById('btnEditEvent');
+  if (btnDesktop) btnDesktop.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
+  var btnDrawer = document.getElementById('drawerEditEventBtn');
+  if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
+}
+
+// ── 任務派送：確保在地圖頁，再通知 iframe 開啟 Modal ──
+var _pendingTaskDispatch = false;
+function openTaskDispatchViaIframe() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (src.indexOf('current-events.html') === -1) {
+    _pendingTaskDispatch = true;
+    showIframe('current-events.html');
+    return;
+  }
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
+  }, 50);
+}
+
+function openTaskViewModal() {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  // 只要 iframe 有載入（src 不是空的），就直接送 postMessage
+  // 如果還沒進地圖頁，先跳過去
+  if (!src || src === '' || src === window.location.href) {
+    _pendingTaskView = true;
+    showIframe('current-events.html');
+    return;
+  }
+  if (src.indexOf('current-events') === -1) {
+    _pendingTaskView = true;
+    showIframe('current-events.html');
+    return;
+  }
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
+  }, 50);
+}
+
+var _pendingMyTask = false;
+function _getMyTeam() {
+  try { var s = localStorage.getItem('radAuth'); if (s) return JSON.parse(s).team || ''; } catch(e) {}
+  return '';
+}
+function _getMyGroup() {
+  try { var s = localStorage.getItem('radAuth'); if (s) return JSON.parse(s).group || ''; } catch(e) {}
+  return '';
+}
+// 依組別決定任務過濾 key：技術組用 group-team，參謀組/新聞組用 group
+function _getMyTaskFilterKey() {
+  var group = _getMyGroup();
+  var team  = _getMyTeam();
+  if (group === '技術組') return team ? group + '-' + team : group; // "技術組-北三小隊"
+  return group; // "參謀組" or "新聞組"
+}
+function openMyTaskModal(team) {
+  var frame = document.getElementById('contentFrame');
+  var src = frame ? (frame.src || '') : '';
+  if (!src || src === '' || src.indexOf('current-events') === -1) {
+    _pendingMyTask = true;
+    showIframe('current-events.html');
+    return;
+  }
+  var filterKey = _getMyTaskFilterKey();
+  var group = _getMyGroup();
+  var myTeam = _getMyTeam();
+  var label = '';
+  if (group === '技術組') label = myTeam ? group + '-' + myTeam : group;
+  else label = group;
+  setTimeout(function() {
+    try { frame.contentWindow.postMessage({ type: 'openMyTask', team: filterKey, label: label }, '*'); } catch(e) {}
+  }, 100);
+}
+function toggleLoginPwd() {
+  var f = document.getElementById('loginPwd');
+  var b = document.getElementById('loginPwdEye');
+  if (!f || !b) return;
+  if (f.type === 'password') { f.type = 'text'; b.textContent = '🙈'; }
+  else { f.type = 'password'; b.textContent = '👁'; }
+}
+
+// ── Enter 鍵支援 ──
+document.getElementById('loginOverlay').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitLogin();
+}, true);
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個人資料維護</title>
+<style>
+  :root {
+    --accent: #1a56db; --text: #1e2a3a; --text-muted: #6b7a92;
+    --border: #e2e8f0; --bg: #f0f2f5; --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 16px; min-height: 100vh; }
+  .page-header {
+    background: white; padding: 14px 28px;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 700; color: #1e2a3a; }
+  /* 桌機：兩欄 */
+  .main {
+    max-width: 960px; margin: 28px auto; padding: 0 24px 40px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+  }
+  .card { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+  .card-title {
+    font-size: 16px; font-weight: 700; color: var(--text);
+    margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .info-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 16px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { width: 72px; flex-shrink: 0; color: var(--text-muted); font-size: 14px; padding-top: 2px; }
+  .info-val { color: var(--text); font-weight: 600; word-break: break-all; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; letter-spacing: .04em; }
+  .field-wrap { position: relative; }
+  .field input {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: var(--radius); font-size: 16px; font-family: var(--font);
+    color: var(--text); background: #f8fafc; outline: none; transition: border-color .15s, background .15s;
+  }
+  .field input:focus { border-color: var(--accent); background: white; }
+  .field input.has-eye { padding-right: 44px; }
+  .eye-btn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; font-size: 18px; color: #94a3b8; line-height: 1; padding: 0;
+  }
+  .eye-btn:hover { color: var(--accent); }
+  .hint { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+  .submit-btn {
+    width: 100%; padding: 12px; border: none; border-radius: var(--radius);
+    background: var(--accent); color: white; font-size: 16px; font-weight: 700;
+    font-family: var(--font); cursor: pointer; transition: background .15s; margin-top: 6px;
+  }
+  .submit-btn:hover { background: #1648b8; }
+  .submit-btn:disabled { background: #93c5fd; cursor: default; }
+  .msg { padding: 10px 14px; border-radius: var(--radius); font-size: 15px; font-weight: 600; text-align: center; margin-top: 12px; display: none; }
+  .msg.ok  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; display: block; }
+  .msg.err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: block; }
+  /* 手機：單欄 */
+  @media (max-width: 640px) {
+    .main { grid-template-columns: 1fr; padding: 0 14px 40px; margin-top: 16px; }
+    .card { padding: 18px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <span style="font-size:20px">🪺</span>
+  <h1>個人資料維護</h1>
+</div>
+<div class="main">
+  <!-- 左欄：唯讀 -->
+  <div class="card">
+    <div class="card-title">👤 帳號資訊（唯讀）</div>
+    <div id="loadingHint" style="color:#94a3b8;font-size:15px;text-align:center;padding:20px 0">載入中…</div>
+    <div id="infoBlock" style="display:none">
+      <div class="info-row"><span class="info-label">姓名</span><span class="info-val" id="dispName">—</span></div>
+      <div class="info-row"><span class="info-label">職稱</span><span class="info-val" id="dispTitle">—</span></div>
+      <div class="info-row"><span class="info-label">隊別</span><span class="info-val" id="dispTeam">—</span></div>
+      <div class="info-row"><span class="info-label">所屬組室</span><span class="info-val" id="dispDept">—</span></div>
+    </div>
+  </div>
+  <!-- 右欄：可編輯 -->
+  <div class="card">
+    <div class="card-title">✏️ 可編輯欄位</div>
+    <div class="field"><label>📱 手機</label><input type="tel" id="fMobile" placeholder="請輸入手機號碼"></div>
+    <div class="field"><label>📞 電話</label><input type="tel" id="fPhone" placeholder="請輸入電話號碼"></div>
+    <div class="field"><label>🔑 帳號</label><input type="text" id="fAcc" placeholder="請輸入新帳號" autocomplete="off"></div>
+    <div class="field">
+      <label>🔒 密碼</label>
+      <div class="field-wrap">
+        <input type="password" id="fPwd" class="has-eye" placeholder="請輸入新密碼（留空不修改）" autocomplete="new-password">
+        <button class="eye-btn" id="pwdEyeBtn" onclick="togglePwd()" type="button">👁</button>
+      </div>
+      <div class="hint">留空則不修改密碼</div>
+    </div>
+    <button class="submit-btn" id="saveBtn" onclick="saveProfile()">儲存變更</button>
+    <div class="msg" id="statusMsg"></div>
+  </div>
+</div>
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+var _jc = 0, _currentUser = null, _sheetRow = null;
+function _jsonpGet(url, cb) {
+  var name = '_cb' + (_jc++);
+  window[name] = function(d) { delete window[name]; document.head.removeChild(s); cb(d); };
+  var s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+function init() {
+  try { var s = localStorage.getItem('radAuth'); if (s) _currentUser = JSON.parse(s); } catch(e) {}
+  if (!_currentUser) { document.getElementById('loadingHint').textContent = '尚未登入，請先登入'; return; }
+  if (_currentUser.acc) document.getElementById('fAcc').value = _currentUser.acc;
+  _jsonpGet(SHEETS_URL + '?action=getUserProfile&acc=' + encodeURIComponent(_currentUser.acc || ''), function(data) {
+    var hint = document.getElementById('loadingHint');
+    var block = document.getElementById('infoBlock');
+    if (!data || data.error) {
+      hint.textContent = '載入失敗：' + (data && data.error ? data.error : '網路錯誤');
+      return;
+    }
+    _sheetRow = data;
+    hint.style.display = 'none'; block.style.display = 'block';
+    document.getElementById('dispName').textContent  = data.name   || '—';
+    document.getElementById('dispTitle').textContent = data.title  || '—';
+    document.getElementById('dispTeam').textContent  = data.team   || '—';
+    document.getElementById('dispDept').textContent  = data.dept   || '—';
+    document.getElementById('fMobile').value = data.mobile || '';
+    document.getElementById('fPhone').value  = data.phone  || '';
+    document.getElementById('fAcc').value    = data.acc    || (_currentUser.acc || '');
+  });
+}
+function togglePwd() {
+  var f = document.getElementById('fPwd'), b = document.getElementById('pwdEyeBtn');
+  if (f.type === 'password') { f.type = 'text'; b.textContent = '🙈'; }
+  else { f.type = 'password'; b.textContent = '👁'; }
+}
+function saveProfile() {
+  if (!_currentUser) { showMsg('err', '尚未登入'); return; }
+  if (!_sheetRow)    { showMsg('err', '資料尚未載入，請稍候'); return; }
+  var mobile = document.getElementById('fMobile').value.trim();
+  var phone  = document.getElementById('fPhone').value.trim();
+  var acc    = document.getElementById('fAcc').value.trim();
+  var pwd    = document.getElementById('fPwd').value.trim();
+  if (!acc) { showMsg('err', '帳號不可為空'); return; }
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '儲存中…'; hideMsg();
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: JSON.stringify({ action:'editUserProfile', groupId:_sheetRow.groupId, rowIndex:_sheetRow.rowIndex, mobile:mobile, phone:phone, acc:acc, pwd:pwd||null })
+  }).then(function() {
+    try { var u = JSON.parse(localStorage.getItem('radAuth')||'{}'); u.acc=acc; u.lastActivity=Date.now(); localStorage.setItem('radAuth',JSON.stringify(u)); _currentUser.acc=acc; } catch(e) {}
+    btn.disabled = false; btn.textContent = '儲存變更';
+    showMsg('ok', '✅ 資料已儲存！');
+  }).catch(function(err) {
+    btn.disabled = false; btn.textContent = '儲存變更';
+    showMsg('err', '儲存失敗：' + err.message);
+  });
+}
+function showMsg(type, text) { var el=document.getElementById('statusMsg'); el.className='msg '+type; el.textContent=text; }
+function hideMsg() { document.getElementById('statusMsg').className='msg'; }
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
