@@ -8890,6 +8890,11 @@ async function birdSendQa(){
   var inp=document.getElementById('birdQaInput');
   var q=inp?inp.value.trim():''; if(!q)return;
   if(inp)inp.value='';
+  // 沒有進行中事件，清空歷史避免用舊資料作答
+  if(!_events||!_events[_curIdx]){
+    _birdQaHistory=[];
+    _birdHistoryLoaded=false;
+  }
   _birdAppendMsg('user', _esc(q));
   var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 思考中…</span>');
   try{
