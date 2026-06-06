@@ -8324,9 +8324,8 @@ function pickMsrTask(i) {
           <span class="bird-key-lbl">Gemini Key</span>
           <input class="bird-key-inp" id="birdGeminiKey" type="password" placeholder="AIza..." oninput="_saveBirdGeminiKey(this.value)">
         </div>
-        <div class="bird-key-row">
-          <span class="bird-key-lbl">Corpus</span>
-          <input class="bird-key-inp" id="birdGeminiCorpus" type="text" placeholder="corpora/rad-kb-xxxxx" oninput="_saveBirdGeminiCorpus(this.value)" style="font-size:10.5px">
+        <div style="display:flex;justify-content:flex-end;margin-top:2px">
+          <button onclick="loadGeminiKb()" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;font-family:inherit">載入知識庫</button>
         </div>
       </div>
       <div class="bird-kb-status" id="birdKbStatus">知識庫未載入（請先「載入知識庫」）</div>
