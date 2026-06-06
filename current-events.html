@@ -8854,6 +8854,12 @@ function _birdEnsureHistory(cb) {
 async function birdAnalyze(){
   var btn=document.getElementById('birdAnalyzeBtn');
   btn.disabled=true; btn.textContent='⏳ 分析中…';
+  // 沒有進行中事件就不分析
+  if(!_events||!_events[_curIdx]){
+    _birdAppendMsg('ai','<span style="color:#f97316">⚠️ 目前無進行中事件，無法分析。</span>');
+    btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
+    return;
+  }
   var userMsg='⚡ AI 分析目前事件狀況';
   _birdAppendMsg('user', _esc(userMsg));
   var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 載入紀錄並分析中…</span>');
