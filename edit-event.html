@@ -765,7 +765,7 @@ function loadInstruments() {
     loadPersonnel();
   }
 
-  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+  _jsonpGet(SHEETS_URL + '?action=instruments', function(data) {
     if (!data || data.error || !data.rows) {
       wrap.innerHTML = '<div class="personnel-loading">⚠️ 無法載入儀器清單</div>';
       return;
