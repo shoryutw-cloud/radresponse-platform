@@ -8702,9 +8702,7 @@ function _birdSystemPrompt(evCtx, kb, mode){
     '  rad = 下風向 * π/180\n'+
     '  目標lat = 事件lat + (D/111320)*cos(rad)\n'+
     '  目標lng = 事件lng + (D/111320)*sin(rad)/cos(事件lat*π/180)\n'+
-    '  ⚠️ 以下僅為公式示意，不是真實數據，禁止引用這些數字回答：\n'+
-    '  示意：事件lat=LL，lng=LG，風向=WW°，距離=DD公尺 → 下風向=(WW+180)%360°\n'+
-    '  ⚠️ 計算時只能用【目前事件】區塊中的真實lat/lng/風向，不可使用以上示意數字\n';
+    '  座標只能用【目前事件】裡的真實 lat/lng，禁止假設或虛構任何數值。\n';
   var format =
     '回傳純JSON（禁止markdown，summary/desc禁用\\n換行）：\n'+
     '{"summary":"直接回答","actions":[{"title":"","desc":"","ref":""}],"draw":[]}\n\n';
