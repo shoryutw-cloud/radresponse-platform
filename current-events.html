@@ -8890,6 +8890,34 @@ function _birdEnsureHistory(cb) {
   });
 }
 
+function _birdRefreshData(idx){
+  return new Promise(function(resolve){
+    var ev=_events?_events[idx]:null;
+    if(!ev){ resolve(); return; }
+    var done=0; var settled=false;
+    function finish(){ done++; if(done>=2&&!settled){ settled=true; resolve(); } }
+    var guard=setTimeout(function(){ if(!settled){ settled=true; resolve(); } }, 5000);
+    _jsonpGet(SHEETS_URL+'?action=events', function(data){
+      if(data&&data.events){
+        data.events.forEach(function(fresh){
+          for(var i=0;i<_events.length;i++){
+            if(_events[i].id===fresh.id){ for(var k in fresh) _events[i][k]=fresh[k]; break; }
+          }
+        });
+      }
+      finish();
+    });
+    _jsonpGet(SHEETS_URL+'?action=measurements&eventId='+encodeURIComponent(ev.id), function(data){
+      _msrCache[ev.id]=(data&&data.measurements)?data.measurements:[];
+      renderMsrMarkers(ev.id);
+      renderMsrDotLayer(idx);
+      renderMsrContamLayer(idx);
+      renderContamDotLayer(idx);
+      finish();
+    });
+  });
+}
+
 async function birdAnalyze(){
   var btn=document.getElementById('birdAnalyzeBtn');
   btn.disabled=true; btn.textContent='⏳ 分析中…';
@@ -8901,9 +8929,11 @@ async function birdAnalyze(){
   }
   var userMsg='⚡ AI 分析目前事件狀況';
   _birdAppendMsg('user', _esc(userMsg));
-  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 載入紀錄並分析中…</span>');
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 讀取最新 Sheet 資料中…</span>');
   try{
     var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
+    await _birdRefreshData(_curIdx);
+    loadBbl.innerHTML='<span class="bc-loading">⏳ AI 分析中…</span>';
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
     var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
