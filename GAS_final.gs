@@ -267,26 +267,51 @@ function doGet(e) {
   if (action === 'instruments') {
     var ss6 = getSheet();
     var sh6 = ss6.getSheetByName('儀器管理');
-    if (!sh6) return respond(e, { instruments: [] });
+    if (!sh6) return respond(e, { columns: ['儀器名稱','型號','序號','狀態','備註','使用者'], rows: [] });
     var rows6 = sh6.getDataRange().getValues();
-    var insts = [];
-    var hdr6  = rows6[0] || [];
-    var ic = {};
-    ['儀器名稱','型號','序號','狀態','備註'].forEach(function(n){
-      var idx = hdr6.indexOf(n); if (idx >= 0) ic[n] = idx;
-    });
+    if (rows6.length < 1) return respond(e, { columns: ['儀器名稱','型號','序號','狀態','備註','使用者'], rows: [] });
+    var hdr6 = rows6[0].map(function(h){ return String(h||''); });
+    // 確保有「使用者」欄
+    if (hdr6.indexOf('使用者') < 0) hdr6.push('使用者');
+    var outRows = [];
     for (var m = 1; m < rows6.length; m++) {
       var ir = rows6[m];
-      if (!ir[ic['儀器名稱']]) continue;
-      insts.push({
-        name:   String(ir[ic['儀器名稱']]||''),
-        model:  String(ir[ic['型號']]    ||''),
-        serial: String(ir[ic['序號']]    ||''),
-        status: String(ir[ic['狀態']]    ||''),
-        note:   String(ir[ic['備註']]    ||'')
-      });
+      if (!ir[0]) continue;
+      var rowArr = hdr6.map(function(_, ci){ return String(ir[ci]||''); });
+      outRows.push(rowArr);
     }
-    return respond(e, { instruments: insts });
+    return respond(e, { columns: hdr6, rows: outRows });
+  }
+
+  // ── group：依 id 取人員名單（前端 create/edit 用）────────────────────
+  if (action === 'group') {
+    var gId   = e.parameter.id || '';
+    var shNameG = GROUP_SHEETS[gId];
+    if (!shNameG) return respond(e, { members: [] });
+    var ssG = getSheet();
+    var shG = ssG.getSheetByName(shNameG);
+    if (!shG) return respond(e, { members: [] });
+    var rowsG = shG.getDataRange().getValues();
+    var hdrsG = rowsG[0] || [];
+    var members = [];
+    for (var gi = 1; gi < rowsG.length; gi++) {
+      var rg = rowsG[gi];
+      if (!rg[0]) continue;
+      var mObj = {};
+      hdrsG.forEach(function(h, ci){ mObj[h] = String(rg[ci]||''); });
+      // 統一欄位名稱
+      mObj.name  = mObj['姓名']  || mObj['name']  || String(rg[0]||'');
+      mObj.team  = mObj['小組']  || mObj['隊別'] || mObj['team']  || '';
+      mObj.phone = mObj['電話']  || mObj['phone'] || '';
+      mObj.rank  = mObj['職稱']  || mObj['rank']  || '';
+      members.push(mObj);
+    }
+    return respond(e, { members: members });
+  }
+
+  // ── getSquads：取小組清單 ────────────────────────────────────────────
+  if (action === 'getSquads') {
+    return respond(e, { squads: Object.keys(GROUP_SHEETS) });
   }
 
   // ── groupData ────────────────────────────────────────────────────
