@@ -2827,7 +2827,7 @@ function buildEventLayers(idx) {
 
   // (1.5) 附近場域：矩形，從 100m 圓邊緣到 1km 橫切面，寬 ±500m
   var hasWind = ev.windDir && ev.windDir !== '';
-  if (showNearby && hasWind) {
+  if (showNearby) {
     var nbCircleEdge = destPoint(la, lo, wd, 100);
     var nbNearL = destPoint(nbCircleEdge[0], nbCircleEdge[1], (wd + 90) % 360, 500);
     var nbNearR = destPoint(nbCircleEdge[0], nbCircleEdge[1], (wd - 90 + 360) % 360, 500);
