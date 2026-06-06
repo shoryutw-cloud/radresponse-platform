@@ -3029,7 +3029,7 @@ function buildEventLayers(idx) {
       fillColor: '#16a34a', fillOpacity: 0.12, dashArray: '5 3'
     }).addTo(gMap);
   }
-  if (showMiniSector && hasWind) {
+  if (showMiniSector) {
     var msPts = [[la, lo]];
     for (var msi = 0; msi <= 40; msi++) {
       msPts.push(destPoint(la, lo, (wd - 22.5) + 45 * msi / 40, 90)); // 90m（100*0.9）
