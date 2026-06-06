@@ -8321,11 +8321,12 @@ function pickMsrTask(i) {
           <button class="bird-quick-pill" onclick="birdQuickAsk('儀器量測程序？')">量測程序</button>
         </div>
       </div>
-      <div style="display:flex;gap:6px">
-        <input id="birdQaInput" type="text" placeholder="輸入問題…"
-          style="flex:1;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:16px;outline:none;"
-          onkeydown="if(event.key==='Enter')birdSendQa()">
-        <button onclick="birdSendQa()" style="padding:7px 12px;border:none;border-radius:8px;background:#1a56db;color:white;font-family:inherit;font-size:13.5px;cursor:pointer;white-space:nowrap">送出</button>
+      <div style="display:flex;gap:6px;align-items:flex-end">
+        <textarea id="birdQaInput" placeholder="輸入問題…" rows="1"
+          style="flex:1;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:16px;outline:none;resize:none;overflow:hidden;line-height:1.45;min-height:34px;max-height:160px;box-sizing:border-box;"
+          oninput="_birdInputResize(this)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();birdSendQa();}"></textarea>
+        <button onclick="birdSendQa()" style="padding:7px 12px;border:none;border-radius:8px;background:#1a56db;color:white;font-family:inherit;font-size:13.5px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-bottom:0">送出</button>
       </div>
     </div>
   </div>
