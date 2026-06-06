@@ -278,7 +278,7 @@ function doGet(e) {
       var ir = rows6[m];
       if (!ir[0]) continue;
       var rowArr = hdr6.map(function(_, ci){ return String(ir[ci]||''); });
-      outRows.push(rowArr);
+      outRows.push({ values: rowArr });
     }
     return respond(e, { columns: hdr6, rows: outRows });
   }
