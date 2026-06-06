@@ -612,9 +612,10 @@ function doPost(e) {
     var lat           = m.lat           || payload.lat           || '';
     var lng           = m.lng           || payload.lng           || '';
     var time          = m.time          || payload.time          || new Date().toLocaleString('zh-TW');
-    var pending       = m.pending       || payload.pending       || '';
     var note          = m.note          || payload.note          || payload.instrument || '';
-    sh2.appendRow([eventId, reporter, value, contamination, lat, lng, time, pending, note]);
+    var msrId         = 'M-' + String(Date.now());
+    // 欄位順序對應工作表標題：回報編號 事件編號 回報人員 數值 使用儀器 緯度 經度 回報時間 污染值
+    sh2.appendRow([msrId, eventId, reporter, value, note, lat, lng, time, contamination]);
     return jsonResp({ ok: true });
   }
 
