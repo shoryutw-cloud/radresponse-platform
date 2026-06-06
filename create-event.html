@@ -734,6 +734,7 @@ function ceAttachChange(input) {
     fetch(SHEETS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
       body: JSON.stringify({ action: 'uploadFile', fileName: file.name, mimeType: file.type, data: base64 })
     })
     .then(function(r) { return r.json(); })
