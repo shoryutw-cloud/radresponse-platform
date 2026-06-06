@@ -2746,8 +2746,8 @@ function flyToEvent(idx) {
   // 智慧縮放：依開啟的圖層決定合適的縮放
   var zoom = 16; // 預設只有 100m 範圍
   var hasWind = ev.windDir && ev.windDir !== '';
-  if (hasWind && isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
-  else if (hasWind && isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
+  if (isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
+  else if (isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
   gMap.flyTo([lat, lng], zoom, { duration: 0.8 });
   // 無風向時停止動畫；有風向且圖層已開就繼續（不自動開關，由使用者手動控制）
   if (!hasWind && _windLayerOn) {
