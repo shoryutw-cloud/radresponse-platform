@@ -9051,13 +9051,22 @@ async function birdAnalyze(){
     await _birdRefreshData(_curIdx);
     loadBbl.innerHTML='<span class="bc-loading">⏳ AI 分析中…</span>';
     var evCtx=await _birdGetEvCtxAsync();
-    var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
-    var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
-      .concat(_birdStripDraw(hist.slice(-6)))
-      .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
-    var text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1500);
-    var parsed=_parseBirdResponse(text);
-    loadBbl.innerHTML=_birdRenderAiHtml(parsed,_birdKbFileNames);
+    var text, parsed, kbSources=[], webSources=[];
+    if (_birdMode === 'gemini') {
+      var gr = await _birdGeminiCall('請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。', evCtx, 'analyze');
+      text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
+    } else {
+      var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
+      var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
+        .concat(_birdStripDraw(hist.slice(-6)))
+        .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
+      text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1500);
+    }
+    parsed=_parseBirdResponse(text);
+    var html=_birdRenderAiHtml(parsed,_birdKbFileNames);
+    if(kbSources.length) html+='<div class="br-src" style="margin-top:6px">📚 知識庫：'+_esc(kbSources.join('、'))+'</div>';
+    else if(webSources.length) html+='<div class="br-src" style="margin-top:6px">🌐 網路來源：'+_esc(webSources.slice(0,3).join('、'))+'</div>';
+    loadBbl.innerHTML=html;
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
     _birdQaHistory.push({role:'user',content:userMsg});
     _birdQaHistory.push({role:'assistant',content:text});
