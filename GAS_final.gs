@@ -488,6 +488,23 @@ function doPost(e) {
 
   var ss = getSheet();
 
+  // ── uploadFile：上傳附件到 Drive ────────────────────────────────────
+  if (action === 'uploadFile') {
+    try {
+      var fileName = payload.fileName || ('attachment_' + Date.now());
+      var mimeType = payload.mimeType || 'application/octet-stream';
+      var base64   = payload.data || '';
+      var decoded  = Utilities.base64Decode(base64);
+      var blob     = Utilities.newBlob(decoded, mimeType, fileName);
+      var folder   = DriveApp.getRootFolder();
+      var file     = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      return jsonResp({ ok: true, url: file.getUrl(), id: file.getId() });
+    } catch(ue) {
+      return jsonResp({ ok: false, error: ue.message });
+    }
+  }
+
   // ── saveEvent ─────────────────────────────────────────────────────
   if (action === 'saveEvent') {
     var sh = ss.getSheetByName('事件紀錄');
