@@ -8983,6 +8983,8 @@ async function birdSendQa(){
     _birdQaHistory.push({role:'user',content:q});
     _birdQaHistory.push({role:'assistant',content:text});
     if(_birdQaHistory.length>20) _birdQaHistory=_birdQaHistory.slice(-20);
+    _birdSaveMsg('user', q);
+    _birdSaveMsg('assistant', text);
   }catch(e){
     loadBbl.innerHTML='<span style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</span>';
   }
