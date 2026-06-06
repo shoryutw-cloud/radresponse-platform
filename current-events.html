@@ -3012,7 +3012,7 @@ function buildEventLayers(idx) {
   }
 
   // (5.5) 模擬附近場域：矩形，從 20m（圓前緣）到 36m（橫切面），寬 ±20m
-  if (showMiniArea && hasWind) {
+  if (showMiniArea) {
     var maFront = 36;  // 到橫切面
     var maBack  = 20;  // 圓前緣
     var maHalf  = 20;  // 對齊 100m 圓半徑
