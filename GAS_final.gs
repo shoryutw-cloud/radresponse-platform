@@ -47,7 +47,7 @@ function doGet(e) {
     if (isNaN(evLat) || isNaN(evLng)) return respond(e, { error: '缺少座標參數' });
     try {
       var apiUrl = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001' +
-        '?Authorization=CWA-YOUR-KEY&format=JSON&limit=200';
+        '?Authorization=' + CWA_API_KEY + '&format=JSON&limit=200';
       var resp = UrlFetchApp.fetch(apiUrl, { muteHttpExceptions: true });
       var raw  = JSON.parse(resp.getContentText());
       var stations = raw.records && raw.records.Station ? raw.records.Station : [];
