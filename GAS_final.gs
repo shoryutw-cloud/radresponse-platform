@@ -309,9 +309,23 @@ function doGet(e) {
     return respond(e, { members: members });
   }
 
-  // ── getSquads：取小組清單 ────────────────────────────────────────────
+  // ── getSquads：從技術組頁籤收集所有隊別名稱，供前端排序用 ─────────────
   if (action === 'getSquads') {
-    return respond(e, { squads: Object.keys(GROUP_SHEETS) });
+    var ssq = getSheet();
+    var squadSet = {};
+    ['技術組-輻射彈','技術組-放射性物料','技術組-放射性物質'].forEach(function(shName) {
+      var shq = ssq.getSheetByName(shName);
+      if (!shq) return;
+      var rowsq = shq.getDataRange().getValues();
+      var hdrq  = rowsq[0] || [];
+      var teamIdx = hdrq.indexOf('隊別');
+      if (teamIdx < 0) return;
+      for (var qi = 1; qi < rowsq.length; qi++) {
+        var t = String(rowsq[qi][teamIdx] || '').trim();
+        if (t) squadSet[t] = true;
+      }
+    });
+    return respond(e, { squads: Object.keys(squadSet) });
   }
 
   // ── groupData ────────────────────────────────────────────────────
