@@ -517,11 +517,11 @@ function doPost(e) {
     }
     var row = [
       ev.id, ev.name, ev.type, ev.date, ev.time, ev.address,
-      ev.lat, ev.lng, ev.note, ev.created, ev.status,
+      ev.lat, ev.lng, ev.note, ev.createdAt || ev.created || '', ev.status,
       ev.personnelStr || ev.personnel || '',
       ev.instrumentStr || ev.instrument || '',
-      ev.windDir, ev.windSpeed,
-      ev.doseMax, ev.impactRange, ev.attachments,
+      ev.windDir || '', ev.windSpeed || '',
+      ev.doseMax || '', ev.impactRange || '', ev.attachmentUrl || ev.attachments || '',
       ev.windLocked ? 'V' : ''
     ];
     if (found > 0) {

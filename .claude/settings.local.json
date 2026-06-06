@@ -1,20 +1,4 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd \"C:\\Users\\ShoRyu\\Documents\\radresponse-platform\"; $t=Get-Date -Format 'yyyy-MM-dd HH:mm'; git add .; git commit -m \"auto: update $t\"; git push origin main",
-            "shell": "powershell",
-            "statusMessage": "推送到 GitHub...",
-            "async": true
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Read(//c/Users/ShoRyu/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/06ae1367-85b5-41c6-9a0e-ca0a828e570e/bad31537-4436-4e70-8277-ea9aa0de2d27/skills/xlsx/**)",
@@ -31,7 +15,24 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(git config *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\('utf-8', errors='replace'\\)\\)\")"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"C:\\Users\\ShoRyu\\Documents\\radresponse-platform\"; $t=Get-Date -Format 'yyyy-MM-dd HH:mm'; git add .; git commit -m \"auto: update $t\"; git push origin main",
+            "shell": "powershell",
+            "statusMessage": "推送到 GitHub...",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
