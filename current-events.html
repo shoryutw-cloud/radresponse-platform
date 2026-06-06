@@ -8675,7 +8675,7 @@ async function _birdGetEvCtxAsync(){
   var ctx='事件名稱：'+(ev.name||'—')+'\n事件類型：'+(ev.type||'—')+
     '\n確切地點：'+loc+
     '\n【事件GPS座標（畫圖必須用這個）lat='+(!isNaN(evLat)?evLat.toFixed(6):'未知')+' lng='+(!isNaN(evLng)?evLng.toFixed(6):'未知')+'】'+
-    '\n最大劑量率：'+(ev.doseMax&&ev.doseMax!==''?ev.doseMax+' μSv/h':'未知')+
+    '\n最大劑量率：'+(function(){var _mv=(_msrCache&&_msrCache[ev.id]||[]).map(function(m){return parseFloat(m.value);}).filter(function(v){return !isNaN(v);});var _mm=_mv.length?Math.max.apply(null,_mv):null;var _sm=parseFloat(ev.doseMax);_sm=isNaN(_sm)?null:_sm;var _fm=(_mm!==null&&_sm!==null)?Math.max(_mm,_sm):(_mm!==null?_mm:_sm);return _fm!==null?_fmtDoseStr(_fm)+' μSv/h':'未知（尚無量測回報）';}())+
     '\n風向：'+(ev.windDir||'—')+'°（正北為0度，順時針）\n風速：'+(ev.windSpeed||'—')+' m/s';
   if(_msrCache&&_msrCache[ev.id]&&_msrCache[ev.id].length){
     var msrs=_msrCache[ev.id].slice(-8);
