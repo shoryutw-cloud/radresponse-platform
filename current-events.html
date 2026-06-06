@@ -2217,7 +2217,7 @@ function _renderInstrView(ev) {
     return;
   }
   if (_imCache) { _doRenderInstrView(body, instruments, _imCache.rows||[]); return; }
-  _jsonpGet(SHEETS_URL + '?action=instrument', function(data) {
+  _jsonpGet(SHEETS_URL + '?action=instruments', function(data) {
     if (data && data.rows) _imCache = data;
     _doRenderInstrView(body, instruments, (data&&data.rows)?data.rows:[]);
   });
@@ -2631,7 +2631,7 @@ function _renderInstrModal(ev){
   });
 
   if(_imCache){ _doRenderInstruments(body,_imCache,curInstrs,personnelNames); return; }
-  _jsonpGet(SHEETS_URL+'?action=instrument', function(data){
+  _jsonpGet(SHEETS_URL+'?action=instruments', function(data){
     if(!data||!data.rows){ body.innerHTML='<div class="ce-instr-empty">⚠️ 無法載入儀器清單</div>'; return; }
     _imCache=data;
     _doRenderInstruments(body,data,curInstrs,personnelNames);
