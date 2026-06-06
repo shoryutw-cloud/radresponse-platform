@@ -5366,6 +5366,21 @@ function loadEvents() {
             if (_events[j].id === gotoId) { found2 = j; break; }
           }
           _curIdx = found2 >= 0 ? found2 : 0;
+          // 從建立事件頁跳回 → 自動開啟 Bird 並執行分析
+          (function(targetIdx) {
+            setTimeout(function() {
+              if (!_loginIsAdmin) return;
+              // 嘗試還原知識庫快取（若 _initBirdBtn 尚未還原）
+              if (!_birdKbLoaded) {
+                try {
+                  var c = sessionStorage.getItem('_birdKbCache');
+                  if (c && c.length > 100) { _birdKbText = c; _birdKbLoaded = true; }
+                } catch(e2) {}
+              }
+              _birdOpen();
+              if (_birdKbLoaded) { setTimeout(birdAnalyze, 600); }
+            }, 1800);
+          })(_curIdx);
         } else {
           _curIdx = 0;
         }
