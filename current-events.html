@@ -2873,8 +2873,8 @@ function buildEventLayers(idx) {
     _evLayers[idx].crossMks = crossMks;
   }
 
-  // (3) 5km 扇形（需有風向才顯示）
-  if (showSector && hasWind) {
+  // (3) 5km 扇形
+  if (showSector) {
     var pts = [[la, lo]];
     for (var i = 0; i <= 40; i++) {
       pts.push(destPoint(la, lo, (wd - 22.5) + 45 * i / 40, 5000));
