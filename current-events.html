@@ -8858,12 +8858,20 @@ function _birdLoadHistory(cb) {
   );
 }
 
-// ── 把 assistant 訊息裡的 draw 陣列移除（避免歷史太長導致鬼打牆）──
+// ── 把 assistant 訊息裡的 draw 陣列座標移除，但保留文字摘要讓 GROQ 記得畫了什麼 ──
 function _birdStripDraw(messages) {
   return messages.map(function(m) {
     if (m.role !== 'assistant') return m;
     try {
       var j = JSON.parse(m.content);
+      if (!j.draw || !j.draw.length) { delete j.draw; return { role: 'assistant', content: JSON.stringify(j) }; }
+      // 保留摘要而非刪除，讓 AI 知道上回畫了什麼
+      j.drewSummary = j.draw.map(function(d) {
+        if (d.type === 'circle') return 'circle label="'+(d.label||'')+'", radius='+(d.radius||'?')+'m, color='+(d.color||'');
+        if (d.type === 'marker') return 'marker label="'+(d.label||'')+'"';
+        if (d.type === 'polygon') return 'polygon label="'+(d.label||'')+'"';
+        return d.type+' label="'+(d.label||'')+'"';
+      }).join('; ');
       delete j.draw;
       return { role: 'assistant', content: JSON.stringify(j) };
     } catch(e) { return m; }
