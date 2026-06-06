@@ -623,16 +623,18 @@ function doPost(e) {
   if (action === 'addMeasurement') {
     var sh2b = ss.getSheetByName('量測回報');
     if (!sh2b) return jsonResp({ ok:false, error:'量測回報工作表不存在' });
+    var msrId2 = 'M-' + String(Date.now());
+    // 欄位順序對應工作表標題：回報編號 事件編號 回報人員 數值 使用儀器 緯度 經度 回報時間 污染值
     sh2b.appendRow([
+      msrId2,
       payload.eventId       || '',
       payload.reporter      || '',
       payload.value         !== undefined ? payload.value : '',
-      payload.contamination || '',
+      payload.note          || payload.instrument || '',
       payload.lat           || '',
       payload.lng           || '',
-      new Date().toLocaleString('zh-TW'),
-      '',
-      payload.instrument    || ''
+      payload.time          || new Date().toLocaleString('zh-TW'),
+      payload.contamination || ''
     ]);
     return jsonResp({ ok: true });
   }
