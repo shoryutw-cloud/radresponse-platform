@@ -1,13 +1,12 @@
 """
-一次性執行：讀取 3 個 .docx 知識庫文件，建立 Gemini Corpus。
-執行完後會產生 gemini_corpus.json，前端用這個來查詢。
-用法：python setup_gemini_kb.py <你的GeminiKey>
+一次性執行：把 3 個 .docx 知識庫文件萃取成 gemini_kb.json
+前端直接讀這個 JSON，不需要 Corpus API。
+用法：python setup_gemini_kb.py
+（不需要 API Key）
 """
-import json, sys, time, requests
+import json, sys
 from pathlib import Path
 from docx import Document as DocxDoc
-
-BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 DOCS = [
     ("1051107應變技術隊輻射彈事件現場應變作業程序書(正式版)-0630改封面.docx",         "應變程序書（正式版）"),
@@ -15,38 +14,6 @@ DOCS = [
     ("輻射彈事件(已爆彈)偵測區域作業導則0730核定版.docx",                             "偵測區域作業導則"),
 ]
 
-# ── 取得 Key（優先從命令列參數，否則互動輸入）──────────────────────────────
-if len(sys.argv) > 1:
-    KEY = sys.argv[1].strip()
-else:
-    KEY = input("請輸入 Gemini API Key：").strip()
-if not KEY:
-    print("未輸入 Key，結束。"); sys.exit(1)
-
-def gem(method, path, **kw):
-    url = f"{BASE}/{path}"
-    r = getattr(requests, method)(url, params={"key": KEY}, **kw)
-    if not r.ok:
-        print(f"  !! API 錯誤 {r.status_code}: {r.text[:600]}")
-        return {}
-    try:
-        return r.json()
-    except Exception:
-        print(f"  !! 無法解析回應：{r.text[:300]}")
-        return {}
-
-# ── 建立或沿用 Corpus ─────────────────────────────────────────────────────
-REUSE = "corpora/9suii6kzaxc9-71i2f6qau03p"  # 已建立的 Corpus，直接沿用
-if Path("gemini_corpus.json").exists():
-    try:
-        cfg = json.loads(Path("gemini_corpus.json").read_text(encoding="utf-8"))
-        REUSE = cfg.get("corpusName", REUSE)
-    except: pass
-
-print(f"\n[1/4] 沿用已存在的 Corpus：{REUSE}")
-corpus_name = REUSE
-
-# ── 提取並分塊 ─────────────────────────────────────────────────────────────
 def extract_text(path):
     doc = DocxDoc(path)
     blocks, buf = [], []
@@ -69,31 +36,29 @@ def make_chunks(blocks, max_ch=1800):
     if cur: chunks.append("\n".join(cur))
     return chunks
 
-# ── 上傳文件 ───────────────────────────────────────────────────────────────
-for step, (fname, display) in enumerate(DOCS, 2):
+output = {"documents": [], "totalChars": 0}
+all_text = ""
+
+for fname, display in DOCS:
     fpath = Path(fname)
     if not fpath.exists():
-        print(f"  找不到 {fname}，跳過"); continue
-    print(f"\n[{step}/4] 處理「{display}」…")
+        print(f"找不到 {fname}，跳過"); continue
     blocks = extract_text(fpath)
     chunks = make_chunks(blocks)
-    print(f"  {len(blocks)} 個段落 → {len(chunks)} 個 chunks")
+    doc_text = "\n\n".join(chunks)
+    output["documents"].append({
+        "name":   display,
+        "chunks": chunks,
+        "text":   doc_text
+    })
+    all_text += f"\n\n===【{display}】===\n{doc_text}"
+    chars = sum(len(c) for c in chunks)
+    output["totalChars"] += chars
+    print(f"  {display}：{len(chunks)} chunks，{chars} 字")
 
-    doc_json = gem("post", f"{corpus_name}/documents", json={"displayName": display})
-    doc_name = doc_json.get("name", "")
-    if not doc_name:
-        print("  建立 Document 失敗：", doc_json); continue
-
-    for i in range(0, len(chunks), 100):
-        batch = chunks[i:i+100]
-        payload = {"requests": [{"chunk": {"data": {"stringValue": c}}} for c in batch]}
-        gem("post", f"{doc_name}/chunks:batchCreate", json=payload)
-        print(f"  上傳 chunks {i+1}–{i+len(batch)} / {len(chunks)}")
-        time.sleep(0.5)
-
-# ── 儲存設定 ───────────────────────────────────────────────────────────────
-cfg = {"corpusName": corpus_name, "displayName": "輻射應變知識庫"}
-Path("gemini_corpus.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f"\n✅ 完成！Corpus 已建立。")
-print(f"   名稱：{corpus_name}")
-print(f"   設定已存到 gemini_corpus.json，請把 corpusName 填入網頁設定。")
+output["combinedText"] = all_text.strip()
+out_path = Path("gemini_kb.json")
+out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"\n完成！總計 {output['totalChars']} 字")
+print(f"已存到 gemini_kb.json（{out_path.stat().st_size//1024} KB）")
+print("請重新部署（git push），前端就能讀到新知識庫。")
