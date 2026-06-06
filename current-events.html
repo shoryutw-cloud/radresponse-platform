@@ -8919,7 +8919,7 @@ function birdQuickAsk(q){ var inp=document.getElementById('birdQaInput'); if(inp
 async function birdSendQa(){
   var inp=document.getElementById('birdQaInput');
   var q=inp?inp.value.trim():''; if(!q)return;
-  if(inp)inp.value='';
+  if(inp){inp.value='';inp.style.height='auto';}
   // 沒有進行中事件，清空歷史避免用舊資料作答
   if(!_events||!_events[_curIdx]){
     _birdQaHistory=[];
