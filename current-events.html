@@ -8305,10 +8305,29 @@ function pickMsrTask(i) {
       <button class="bird-panel-close" onclick="_birdCircleClick(event)" title="關閉">✕</button>
     </div>
     <div class="bird-panel-body" id="aiBirdPanelBody">
-      <div class="bird-key-row">
+      <!-- 模式切換 -->
+      <div style="display:flex;gap:5px;margin-bottom:6px">
+        <button id="birdModeGroqBtn" onclick="_birdSetMode('groq')"
+          style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #1a56db;background:#1a56db;color:white;font-size:11.5px;font-family:inherit;cursor:pointer;font-weight:600">GROQ</button>
+        <button id="birdModeGeminiBtn" onclick="_birdSetMode('gemini')"
+          style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#6b7a92;font-size:11.5px;font-family:inherit;cursor:pointer">Gemini 知識庫</button>
+      </div>
+      <!-- GROQ 模式設定 -->
+      <div id="birdGroqSection" class="bird-key-row">
         <span class="bird-key-lbl">Groq Key</span>
         <input class="bird-key-inp" id="birdGroqKey" type="password" placeholder="gsk_..." oninput="saveBirdKey(this.value)">
         <button onclick="loadBirdKnowledge()" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;white-space:nowrap;font-family:inherit">載入知識庫</button>
+      </div>
+      <!-- Gemini 模式設定 -->
+      <div id="birdGeminiSection" style="display:none;flex-direction:column;gap:4px">
+        <div class="bird-key-row">
+          <span class="bird-key-lbl">Gemini Key</span>
+          <input class="bird-key-inp" id="birdGeminiKey" type="password" placeholder="AIza..." oninput="_saveBirdGeminiKey(this.value)">
+        </div>
+        <div class="bird-key-row">
+          <span class="bird-key-lbl">Corpus</span>
+          <input class="bird-key-inp" id="birdGeminiCorpus" type="text" placeholder="corpora/rad-kb-xxxxx" oninput="_saveBirdGeminiCorpus(this.value)" style="font-size:10.5px">
+        </div>
       </div>
       <div class="bird-kb-status" id="birdKbStatus">知識庫未載入（請先「載入知識庫」）</div>
       <div id="birdAlertArea" style="display:none"></div>
