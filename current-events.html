@@ -8479,9 +8479,6 @@ function _birdOpen() {
     var gk = localStorage.getItem('_birdGeminiKey');
     var ginp = document.getElementById('birdGeminiKey');
     if (gk && ginp && !ginp.value) ginp.value = gk;
-    var gc = localStorage.getItem('_birdGeminiCorpus');
-    var gcInp = document.getElementById('birdGeminiCorpus');
-    if (gc && gcInp && !gcInp.value) gcInp.value = gc;
   } catch(e) {}
   // 套用儲存的模式
   _birdSetMode(_birdMode);
