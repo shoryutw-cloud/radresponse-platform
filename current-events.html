@@ -8914,7 +8914,8 @@ async function birdAnalyze(){
   btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
 }
 
-function birdQuickAsk(q){ var inp=document.getElementById('birdQaInput'); if(inp)inp.value=q; birdSendQa(); }
+function _birdInputResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px'; }
+function birdQuickAsk(q){ var inp=document.getElementById('birdQaInput'); if(inp){inp.value=q;_birdInputResize(inp);} birdSendQa(); }
 async function birdSendQa(){
   var inp=document.getElementById('birdQaInput');
   var q=inp?inp.value.trim():''; if(!q)return;
