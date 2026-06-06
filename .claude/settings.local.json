@@ -21,7 +21,8 @@
       "Bash(node -e ' *)",
       "Bash(dir \"C:\\\\Users\\\\ShoRyu\\\\Documents\\\\radresponse-platform\")",
       "Bash(python -c \"import docx; print\\('ok'\\)\")",
-      "Bash(python setup_gemini_kb.py)"
+      "Bash(python setup_gemini_kb.py)",
+      "Bash(python setup_gemini_kb.py AIzaSyAolwv4zMJRJUAwVpTJxCUbCfgPCb01jhY)"
     ]
   },
   "hooks": {

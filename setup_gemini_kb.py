@@ -27,8 +27,13 @@ def gem(method, path, **kw):
     url = f"{BASE}/{path}"
     r = getattr(requests, method)(url, params={"key": KEY}, **kw)
     if not r.ok:
-        print(f"  !! API 錯誤 {r.status_code}: {r.text[:300]}")
-    return r.json()
+        print(f"  !! API 錯誤 {r.status_code}: {r.text[:600]}")
+        return {}
+    try:
+        return r.json()
+    except Exception:
+        print(f"  !! 無法解析回應：{r.text[:300]}")
+        return {}
 
 # ── 建立 Corpus ────────────────────────────────────────────────────────────
 print("\n[1/4] 建立 Corpus …")
