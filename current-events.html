@@ -2840,8 +2840,8 @@ function buildEventLayers(idx) {
     }).addTo(gMap);
   }
 
-  // (2) 1km 橫切面（需有風向才顯示）
-  if (showLine && hasWind) {
+  // (2) 1km 橫切面
+  if (showLine) {
     var lineCenter = destPoint(la, lo, wd, 1000);
     var perpA = destPoint(lineCenter[0], lineCenter[1], (wd + 90) % 360, 500);
     var perpB = destPoint(lineCenter[0], lineCenter[1], (wd - 90 + 360) % 360, 500);
