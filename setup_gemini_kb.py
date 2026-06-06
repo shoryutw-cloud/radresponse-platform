@@ -1,7 +1,7 @@
 """
 一次性執行：讀取 3 個 .docx 知識庫文件，建立 Gemini Corpus。
 執行完後會產生 gemini_corpus.json，前端用這個來查詢。
-用法：python setup_gemini_kb.py
+用法：python setup_gemini_kb.py <你的GeminiKey>
 """
 import json, sys, time, requests
 from pathlib import Path
@@ -15,8 +15,11 @@ DOCS = [
     ("輻射彈事件(已爆彈)偵測區域作業導則0730核定版.docx",                             "偵測區域作業導則"),
 ]
 
-# ── 輸入 Key ──────────────────────────────────────────────────────────────
-KEY = input("請輸入 Gemini API Key：").strip()
+# ── 取得 Key（優先從命令列參數，否則互動輸入）──────────────────────────────
+if len(sys.argv) > 1:
+    KEY = sys.argv[1].strip()
+else:
+    KEY = input("請輸入 Gemini API Key：").strip()
 if not KEY:
     print("未輸入 Key，結束。"); sys.exit(1)
 
