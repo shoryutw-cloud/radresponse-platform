@@ -3123,13 +3123,12 @@ function removeEventLayers(idx) {
 }
 
 // ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
-// 預設全部為 true（全開），使用者勾選後自動記憶
 var _layerPrefs = {};
+// 從 localStorage 還原（跨頁面重載保持偏好）
+try { var _lp0 = localStorage.getItem('_layerPrefs'); if (_lp0) _layerPrefs = JSON.parse(_lp0); } catch(e) {}
 
-// 取得指定事件+圖層的記憶狀態
-// 預設：circle（100m範圍）和 msr（量測數值）為 true，其餘為 false
-// 預設：全部關閉
-var _LAYER_DEFAULTS = {};
+// 預設：circle（100m範圍）開啟，其餘依使用者勾選
+var _LAYER_DEFAULTS = { circle: true };
 function getLayerPref(eventId, type) {
   if (!_layerPrefs[eventId]) {
     return (_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false;
