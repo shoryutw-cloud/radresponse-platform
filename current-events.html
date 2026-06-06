@@ -3141,6 +3141,7 @@ function getLayerPref(eventId, type) {
 function saveLayerPref(eventId, type, checked) {
   if (!_layerPrefs[eventId]) _layerPrefs[eventId] = {};
   _layerPrefs[eventId][type] = checked;
+  try { localStorage.setItem('_layerPrefs', JSON.stringify(_layerPrefs)); } catch(e) {}
 }
 
 // checkbox 狀態（先查記憶，再查 DOM）
