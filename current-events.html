@@ -2979,7 +2979,7 @@ function buildEventLayers(idx) {
   }
 
   // (5) 20m 橫切面（模擬 1km，縮小50倍）+ 5個量測點
-  if (showMiniLine && hasWind) {
+  if (showMiniLine) {
     var mlCenter = destPoint(la, lo, wd, 36);  // 36m（40*0.9）
     var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 18);  // 18m（20*0.9）
     var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 18);
