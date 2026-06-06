@@ -492,7 +492,7 @@ function doPost(e) {
   if (action === 'saveEvent') {
     var sh = ss.getSheetByName('事件紀錄');
     if (!sh) return jsonResp({ ok:false, error:'工作表不存在' });
-    var ev = payload.event || {};
+    var ev = payload.event || payload;
     var data = sh.getDataRange().getValues();
     var found = -1;
     for (var i = 1; i < data.length; i++) {
