@@ -8348,6 +8348,18 @@ function _initBirdBtn() {
       var h = localStorage.getItem('_birdQaHist');
       if (h) _birdQaHistory = JSON.parse(h);
     } catch(e) {}
+    // 頁面重載時自動從 sessionStorage 還原知識庫，不需重新「載入知識庫」
+    try {
+      if (!_birdKbLoaded) {
+        var c = sessionStorage.getItem('_birdKbCache');
+        if (c && c.length > 100) {
+          _birdKbText = c;
+          _birdKbLoaded = true;
+          var se = document.getElementById('birdKbStatus');
+          if (se) { se.className = 'bird-kb-status ok'; se.textContent = '✅ 已從快取還原（' + Math.round(c.length/1000) + 'k 字）'; }
+        }
+      }
+    } catch(e) {}
     _initBirdRestDrag();
     _initBirdPanelDrag();
   } else {
