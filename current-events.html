@@ -8966,9 +8966,11 @@ async function birdSendQa(){
     _birdHistoryLoaded=false;
   }
   _birdAppendMsg('user', _esc(q));
-  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 思考中…</span>');
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 讀取最新 Sheet 資料中…</span>');
   try{
     var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
+    if(_events&&_events[_curIdx]) await _birdRefreshData(_curIdx);
+    loadBbl.innerHTML='<span class="bc-loading">⏳ 思考中…</span>';
     var evCtx=await _birdGetEvCtxAsync();
     var kb=_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
     var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'qa')}]
