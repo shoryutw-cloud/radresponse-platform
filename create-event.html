@@ -1445,6 +1445,7 @@ function ceDo() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ce-spin"></span> 建立中…'; }
 
   var ev = {
+    action:        'saveEvent',
     id:            document.getElementById('ceEvId').textContent,
     name:          document.getElementById('ceName').value.trim(),
     type:          document.getElementById('ceType').value,
