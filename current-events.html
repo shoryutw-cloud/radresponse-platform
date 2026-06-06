@@ -8472,12 +8472,20 @@ function _birdOpen() {
     }, 450);
   }, 580);
 
-  // 讀 Key
+  // 讀 Key & 還原模式
   try {
     var sk = localStorage.getItem('_birdGroqKey');
     var inp = document.getElementById('birdGroqKey');
     if (sk && inp && !inp.value) inp.value = sk;
+    var gk = localStorage.getItem('_birdGeminiKey');
+    var ginp = document.getElementById('birdGeminiKey');
+    if (gk && ginp && !ginp.value) ginp.value = gk;
+    var gc = localStorage.getItem('_birdGeminiCorpus');
+    var gcInp = document.getElementById('birdGeminiCorpus');
+    if (gc && gcInp && !gcInp.value) gcInp.value = gc;
   } catch(e) {}
+  // 套用儲存的模式
+  _birdSetMode(_birdMode);
 }
 
 // ── 關閉：panel 縮回 + circle 變大 + 群組飛回右下角，同步進行 ──
