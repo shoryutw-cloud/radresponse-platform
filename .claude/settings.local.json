@@ -16,7 +16,9 @@
       "Bash(git push *)",
       "Bash(git config *)",
       "Bash(git pull *)",
-      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\('utf-8', errors='replace'\\)\\)\")"
+      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\('utf-8', errors='replace'\\)\\)\")",
+      "Bash(node --input-type=module)",
+      "Bash(node -e ' *)"
     ]
   },
   "hooks": {
