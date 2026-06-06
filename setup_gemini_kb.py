@@ -35,13 +35,16 @@ def gem(method, path, **kw):
         print(f"  !! 無法解析回應：{r.text[:300]}")
         return {}
 
-# ── 建立 Corpus ────────────────────────────────────────────────────────────
-print("\n[1/4] 建立 Corpus …")
-corpus_json = gem("post", "corpora", json={"displayName": "輻射應變知識庫"})
-corpus_name = corpus_json.get("name", "")
-if not corpus_name:
-    print("建立 Corpus 失敗：", corpus_json); sys.exit(1)
-print(f"  Corpus: {corpus_name}")
+# ── 建立或沿用 Corpus ─────────────────────────────────────────────────────
+REUSE = "corpora/9suii6kzaxc9-71i2f6qau03p"  # 已建立的 Corpus，直接沿用
+if Path("gemini_corpus.json").exists():
+    try:
+        cfg = json.loads(Path("gemini_corpus.json").read_text(encoding="utf-8"))
+        REUSE = cfg.get("corpusName", REUSE)
+    except: pass
+
+print(f"\n[1/4] 沿用已存在的 Corpus：{REUSE}")
+corpus_name = REUSE
 
 # ── 提取並分塊 ─────────────────────────────────────────────────────────────
 def extract_text(path):
