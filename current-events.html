@@ -8859,7 +8859,9 @@ async function _birdGroqCall(messages,model,maxTokens){
 
 // ══ Gemini 知識庫模式 ══════════════════════════════════════════════════════
 var _birdMode = (function(){ try{return localStorage.getItem('_birdMode')||'groq';}catch(e){return 'groq';} })();
-var _geminiDocNames = {};   // corpus doc path → displayName
+var _geminiKbText = '';      // gemini_kb.json 的 combinedText（載入後快取）
+var _geminiKbNames = [];     // 文件名稱列表
+var _geminiKbLoaded = false;
 
 function _birdSetMode(m) {
   _birdMode = m;
@@ -8874,8 +8876,7 @@ function _birdSetMode(m) {
     if (gemBtn)  { gemBtn.style.background='#1a56db';  gemBtn.style.color='white';    gemBtn.style.borderColor='#1a56db'; }
     if (groqSec) groqSec.style.display = 'none';
     if (gemSec)  { gemSec.style.display = 'flex'; }
-    var corpus = (localStorage.getItem('_birdGeminiCorpus')||'').trim();
-    if (st) { st.textContent = corpus ? '✅ 知識庫：'+corpus : '⚠️ 請輸入 Corpus Name（執行 setup_gemini_kb.py 取得）'; st.className = 'bird-kb-status'+(corpus?' ok':''); }
+    if (st) { st.textContent = _geminiKbLoaded ? '✅ Gemini 知識庫已載入（'+_geminiKbNames.join('、')+')' : '⚠️ 請按「載入知識庫」'; st.className = 'bird-kb-status'+(_geminiKbLoaded?' ok':''); }
   } else {
     if (groqBtn) { groqBtn.style.background='#1a56db'; groqBtn.style.color='white';    groqBtn.style.borderColor='#1a56db'; }
     if (gemBtn)  { gemBtn.style.background='#f8fafc';  gemBtn.style.color='#6b7a92';   gemBtn.style.borderColor='#e2e8f0'; }
@@ -8885,57 +8886,39 @@ function _birdSetMode(m) {
   }
 }
 function _saveBirdGeminiKey(v){ try{localStorage.setItem('_birdGeminiKey',v);}catch(e){} }
-function _saveBirdGeminiCorpus(v){
-  try{localStorage.setItem('_birdGeminiCorpus',v);}catch(e){}
-  var st=document.getElementById('birdKbStatus');
-  if(st&&_birdMode==='gemini'){ st.textContent=v?'✅ 知識庫：'+v:'⚠️ 請輸入 Corpus Name'; st.className='bird-kb-status'+(v?' ok':''); }
+
+async function loadGeminiKb() {
+  var st = document.getElementById('birdKbStatus');
+  if (st) { st.textContent = '⏳ 載入 Gemini 知識庫中…'; st.className = 'bird-kb-status loading'; }
+  try {
+    var r = await fetch('gemini_kb.json?t='+Date.now());
+    if (!r.ok) throw new Error('找不到 gemini_kb.json（請先執行 setup_gemini_kb.py）');
+    var data = await r.json();
+    _geminiKbText = data.combinedText || '';
+    _geminiKbNames = (data.documents||[]).map(function(d){ return d.name; });
+    _geminiKbLoaded = true;
+    if (st) { st.textContent = '✅ Gemini 知識庫已載入（'+_geminiKbNames.join('、')+')'; st.className = 'bird-kb-status ok'; }
+  } catch(e) {
+    if (st) { st.textContent = '❌ '+e.message; st.className = 'bird-kb-status'; }
+  }
 }
 
 async function _birdGeminiCall(question, evCtx, callMode) {
-  var key    = (function(){ try{return (document.getElementById('birdGeminiKey')||{}).value||localStorage.getItem('_birdGeminiKey')||'';}catch(e){return '';} })().trim();
-  var corpus = (function(){ try{return (document.getElementById('birdGeminiCorpus')||{}).value||localStorage.getItem('_birdGeminiCorpus')||'';}catch(e){return '';} })().trim();
-  if (!key)    throw new Error('請先輸入 Gemini API Key');
-  if (!corpus) throw new Error('請先輸入 Corpus Name（執行 setup_gemini_kb.py 取得）');
+  var key = (function(){ try{return (document.getElementById('birdGeminiKey')||{}).value||localStorage.getItem('_birdGeminiKey')||'';}catch(e){return '';} })().trim();
+  if (!key) throw new Error('請先輸入 Gemini API Key');
+  if (!_geminiKbLoaded) throw new Error('請先按「載入知識庫」');
   var BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-  // 1. 若 doc 名稱快取是空的，先載入
-  if (!Object.keys(_geminiDocNames).length) {
-    try {
-      var dr = await fetch(BASE+'/'+corpus+'/documents?key='+key);
-      var dd = await dr.json();
-      if (dd.documents) dd.documents.forEach(function(d){ _geminiDocNames[d.name] = d.displayName||d.name; });
-    } catch(e) {}
-  }
+  // 系統提示：沿用既有函數，把全文知識庫傳入
+  var sysPrompt = _birdSystemPrompt(evCtx, _geminiKbText, callMode);
 
-  // 2. 查詢知識庫
-  var qr = await fetch(BASE+'/'+corpus+':query?key='+key, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({query: evCtx+' '+question, resultsCount: 6})
-  });
-  var qd = await qr.json();
-  var kbText = '', kbSources = [];
-  if (qd.relevantChunks && qd.relevantChunks.length) {
-    qd.relevantChunks.forEach(function(rc, i){
-      var txt  = rc.chunk&&rc.chunk.data&&rc.chunk.data.stringValue||'';
-      var cname= rc.chunk&&rc.chunk.name||'';
-      var docPath = cname.replace(/\/chunks\/[^\/]*$/, '');
-      var docLabel= _geminiDocNames[docPath] || docPath.split('/').pop();
-      if (kbSources.indexOf(docLabel) < 0) kbSources.push(docLabel);
-      kbText += '【知識庫參考'+(i+1)+'｜'+docLabel+'】\n'+txt+'\n\n';
-    });
-  }
-  var useWebSearch = !kbText;
-
-  // 3. 組 system prompt（沿用現有函數，把知識庫換成 Corpus 取回的內容）
-  var sysPrompt = _birdSystemPrompt(evCtx, kbText||'（知識庫無相關段落，改用網路搜尋）', callMode);
-
-  // 4. 呼叫 generateContent
+  // 呼叫 generateContent（加 Google Search 做網路補充）
   var body = {
     systemInstruction: {parts:[{text:sysPrompt}]},
     contents: [{role:'user', parts:[{text:question}]}],
+    tools: [{googleSearch:{}}],
     generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25, responseMimeType:'application/json'}
   };
-  if (useWebSearch) body.tools = [{googleSearch:{}}];
   var gr = await fetch(BASE+'/models/gemini-2.0-flash:generateContent?key='+key, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
@@ -8943,14 +8926,14 @@ async function _birdGeminiCall(question, evCtx, callMode) {
   if (gd.error) throw new Error('Gemini API: '+gd.error.message);
   var text = (gd.candidates&&gd.candidates[0]&&gd.candidates[0].content&&gd.candidates[0].content.parts&&gd.candidates[0].content.parts[0]&&gd.candidates[0].content.parts[0].text)||'{}';
 
-  // 5. 網路來源（如有）
+  // 網路來源（如有）
   var webSrcs = [];
   try {
     var gm = gd.candidates[0].groundingMetadata;
     if (gm&&gm.groundingChunks) gm.groundingChunks.forEach(function(gc){ if(gc.web&&gc.web.title) webSrcs.push(gc.web.title); });
   } catch(e) {}
 
-  return {text:text, kbSources:kbSources, webSources:webSrcs};
+  return {text:text, kbSources:_geminiKbNames, webSources:webSrcs};
 }
 // ══ end Gemini ══════════════════════════════════════════════════════════════
 
