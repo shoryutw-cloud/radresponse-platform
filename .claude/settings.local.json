@@ -18,7 +18,9 @@
       "Bash(git pull *)",
       "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\('utf-8', errors='replace'\\)\\)\")",
       "Bash(node --input-type=module)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(dir \"C:\\\\Users\\\\ShoRyu\\\\Documents\\\\radresponse-platform\")",
+      "Bash(python -c \"import docx; print\\('ok'\\)\")"
     ]
   },
   "hooks": {
