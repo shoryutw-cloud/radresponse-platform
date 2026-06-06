@@ -3606,12 +3606,16 @@ function renderLayerPanel() {
   }
   var i  = _curIdx;
   var ev = _events[i];
-  // 從記憶取各圖層狀態，預設全開
+  // 從記憶取各圖層狀態
   var chk = {
-    circle: getLayerPref(ev.id, 'circle'),
-    line:   getLayerPref(ev.id, 'line'),
-    sector: getLayerPref(ev.id, 'sector'),
-    msr:    getLayerPref(ev.id, 'msr'),
+    circle:     getLayerPref(ev.id, 'circle'),
+    line:       getLayerPref(ev.id, 'line'),
+    nearby:     getLayerPref(ev.id, 'nearby'),
+    sector:     getLayerPref(ev.id, 'sector'),
+    msr:        getLayerPref(ev.id, 'msr'),
+    msr_contam: getLayerPref(ev.id, 'msr_contam'),
+    msrdot:     getLayerPref(ev.id, 'msrdot'),
+    contamdot:  getLayerPref(ev.id, 'contamdot'),
     mini_circle: getLayerPref(ev.id, 'mini_circle'),
     mini_line:   getLayerPref(ev.id, 'mini_line'),
     mini_sector: getLayerPref(ev.id, 'mini_sector')
