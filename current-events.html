@@ -9089,7 +9089,7 @@ async function birdSendQa(){
       var gr = await _birdGeminiCall(q, evCtx, 'qa');
       text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
     } else {
-      var kb=_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
+      var kb=_birdKbText||_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
       var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'qa')}]
         .concat(_birdStripDraw(hist.slice(-6)))
         .concat([{role:'user',content:q}]);
