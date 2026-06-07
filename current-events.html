@@ -8914,7 +8914,6 @@ async function _birdGeminiCall(question, evCtx, callMode) {
   var body = {
     systemInstruction: {parts:[{text:sysPrompt}]},
     contents: [{role:'user', parts:[{text:question}]}],
-    tools: [{googleSearch:{}}],
     generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25}
   };
   var gr = await fetch(BASE+'/models/gemini-2.0-flash-lite:generateContent?key='+key, {
