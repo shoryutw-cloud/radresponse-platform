@@ -8641,12 +8641,31 @@ function _initBirdPanelDrag() {
   }
 }
 
-// ── 知識庫 JSONP ──
+// ── 知識庫載入（優先讀 gemini_kb.json，找不到退回 GAS JSONP）──
 function loadBirdKnowledge() {
   if (_birdKbLoading) return;
   _birdKbLoading=true;
   var se=document.getElementById('birdKbStatus');
   se.className='bird-kb-status loading'; se.textContent='⏳ 讀取知識庫中…';
+  // 先嘗試 gemini_kb.json
+  fetch('gemini_kb.json?t='+Date.now())
+    .then(function(r){ return r.ok ? r.json() : Promise.reject('not found'); })
+    .then(function(data){
+      _birdKbLoading=false;
+      if(data&&data.documents&&data.documents.length){
+        _birdKbText = data.combinedText||'';
+        _birdKbFileNames = data.documents.map(function(d){return d.name;});
+        _birdKbLoaded=true;
+        try{sessionStorage.setItem('_birdKbCache',_birdKbText);}catch(e){}
+        se.className='bird-kb-status ok';
+        se.textContent='✅ 已載入：'+_birdKbFileNames.join('、')+'（'+Math.round(_birdKbText.length/1000)+'k 字）';
+        return;
+      }
+      _loadBirdKnowledgeGas(se);
+    })
+    .catch(function(){ _loadBirdKnowledgeGas(se); });
+}
+function _loadBirdKnowledgeGas(se) {
   var cb='_birdKbCb_'+Date.now();
   var timer=setTimeout(function(){
     try{delete window[cb];}catch(e){} _birdKbLoading=false;
