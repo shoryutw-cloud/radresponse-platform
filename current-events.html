@@ -8805,19 +8805,26 @@ function _birdRenderResult(parsed,srcNames){
 }
 
 function _parseBirdResponse(text){
-  // 找第一個完整配對的 JSON 物件（避免 Gemini 回傳兩段 JSON 拼接的情況）
+  // 1. 移除 markdown 圍欄（Gemini 有時會加 ```json ... ```）
+  var clean=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // 2. 嘗試直接解析整段
+  try{ var r=JSON.parse(clean); if(r&&typeof r==='object') return r; }catch(e){}
+  // 3. 取第一個 { 到最後一個 } 之間
   try{
-    var j1=text.indexOf('{');
-    if(j1>=0){
-      var depth=0, j2=-1;
-      for(var i=j1;i<text.length;i++){
-        if(text[i]==='{') depth++;
-        else if(text[i]==='}'){depth--;if(depth===0){j2=i;break;}}
-      }
-      if(j2>j1) return JSON.parse(text.substring(j1,j2+1));
-    }
+    var j1=clean.indexOf('{'),j2=clean.lastIndexOf('}');
+    if(j1>=0&&j2>j1){ var r2=JSON.parse(clean.substring(j1,j2+1)); if(r2&&typeof r2==='object') return r2; }
   }catch(e){}
-  return {text:text,actions:[],draw:[]};
+  // 4. 從最後一個 } 往前縮短，找最長合法 JSON
+  var s=clean.indexOf('{');
+  if(s>=0){
+    for(var e2=clean.length-1;e2>s;e2--){
+      if(clean[e2]==='}'){
+        try{ var r3=JSON.parse(clean.substring(s,e2+1)); if(r3&&typeof r3==='object') return r3; }catch(e){}
+      }
+    }
+  }
+  // 5. 全部失敗，純文字顯示（把 \n 轉換為實際換行）
+  return {text:clean.replace(/\\n/g,'\n'),actions:[],draw:[]};
 }
 
 var _birdAiLayerGroup=null,_birdAiLayerOn=false;
