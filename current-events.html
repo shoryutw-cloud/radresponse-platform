@@ -8910,13 +8910,14 @@ async function _birdGeminiCall(question, evCtx, callMode) {
   var sysPrompt = _birdSystemPrompt(evCtx, _geminiKbText, callMode);
 
   // 呼叫 generateContent（加 Google Search 做網路補充）
+  // gemini-1.5-flash 有免費配額；grounding 啟用時不能用 responseMimeType:'application/json'
   var body = {
     systemInstruction: {parts:[{text:sysPrompt}]},
     contents: [{role:'user', parts:[{text:question}]}],
-    tools: [{googleSearch:{}}],
-    generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25, responseMimeType:'application/json'}
+    tools: [{googleSearchRetrieval:{dynamicRetrievalConfig:{mode:'MODE_DYNAMIC',dynamicThreshold:0.3}}}],
+    generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25}
   };
-  var gr = await fetch(BASE+'/models/gemini-2.0-flash:generateContent?key='+key, {
+  var gr = await fetch(BASE+'/models/gemini-1.5-flash:generateContent?key='+key, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
   var gd = await gr.json();
