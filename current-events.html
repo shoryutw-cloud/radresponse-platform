@@ -9043,7 +9043,7 @@ async function birdAnalyze(){
       var gr = await _birdGeminiCall('請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。', evCtx, 'analyze');
       text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
     } else {
-      var kb=_birdKbText||_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
+      var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
       var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
         .concat(_birdStripDraw(hist.slice(-6)))
         .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
