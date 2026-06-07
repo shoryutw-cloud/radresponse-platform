@@ -8925,7 +8925,7 @@ async function _birdGeminiCall(question, evCtx, callMode) {
     contents: [{role:'user', parts:[{text:question}]}],
     generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25}
   };
-  var gr = await fetch(BASE+'/models/gemini-2.0-flash-lite:generateContent?key='+key, {
+  var gr = await fetch(BASE+'/models/gemini-2.5-flash-lite:generateContent?key='+key, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
   var gd = await gr.json();
