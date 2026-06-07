@@ -8805,7 +8805,18 @@ function _birdRenderResult(parsed,srcNames){
 }
 
 function _parseBirdResponse(text){
-  try{ var j1=text.indexOf('{'),j2=text.lastIndexOf('}'); if(j1>=0&&j2>j1) return JSON.parse(text.substring(j1,j2+1)); }catch(e){}
+  // 找第一個完整配對的 JSON 物件（避免 Gemini 回傳兩段 JSON 拼接的情況）
+  try{
+    var j1=text.indexOf('{');
+    if(j1>=0){
+      var depth=0, j2=-1;
+      for(var i=j1;i<text.length;i++){
+        if(text[i]==='{') depth++;
+        else if(text[i]==='}'){depth--;if(depth===0){j2=i;break;}}
+      }
+      if(j2>j1) return JSON.parse(text.substring(j1,j2+1));
+    }
+  }catch(e){}
   return {text:text,actions:[],draw:[]};
 }
 
