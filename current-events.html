@@ -5383,7 +5383,7 @@ function loadEvents() {
                 } catch(e2) {}
               }
               _birdOpen();
-              if (_birdKbLoaded) { setTimeout(birdAnalyze, 600); }
+              (function(){ var _gk=(localStorage.getItem('_birdGeminiKey')||'').trim(); if(_gk&&_geminiKbLoaded){setTimeout(function(){birdAnalyze('gemini');},600);}else if(_birdKbLoaded){setTimeout(birdAnalyze,600);} })();
             }, 1800);
           })(_curIdx);
         } else {
