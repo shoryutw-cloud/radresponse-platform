@@ -8770,12 +8770,12 @@ function _birdSystemPrompt(evCtx, kb, mode){
 function _birdRenderAiHtml(parsed, srcNames){
   var src=(srcNames&&srcNames.length)?srcNames.join('、'):'一般應變原則';
   var html='';
-  if(parsed.summary) html+='<div class="br-summary">'+_esc(parsed.summary)+'</div>';
+  if(parsed.summary) html+='<div class="br-summary" style="white-space:pre-wrap">'+_esc(parsed.summary)+'</div>';
   if(parsed.actions&&parsed.actions.length){
     html+=parsed.actions.map(function(a,i){
       return '<div class="br-item"><div class="br-num">'+(i+1)+'</div>'+
         '<div><div class="br-title">'+_esc(a.title||'')+'</div>'+
-        '<div class="br-desc">'+_esc(a.desc||'')+'</div>'+
+        '<div class="br-desc" style="white-space:pre-wrap">'+_esc(a.desc||'')+'</div>'+
         (a.ref?'<div class="br-src">【依據：'+_esc(a.ref)+'】</div>':'')+
         '</div></div>';
     }).join('')+'<div class="br-src" style="padding:4px 2px;margin-top:4px">來源：'+_esc(src)+'</div>';
