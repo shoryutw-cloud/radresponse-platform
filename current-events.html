@@ -6926,13 +6926,6 @@ function toggleBasemap() {
     if (_isSatellite) { btn.classList.add('satellite'); }
     else              { btn.classList.remove('satellite'); }
   }
-  // 更新手機版按鈕狀態
-  var mbtn = document.getElementById('mobBasemapBtn');
-  if (mbtn) {
-    mbtn.innerHTML = _isSatellite ? '🗺️' : '🛰️';
-    mbtn.style.background = _isSatellite ? '#1e2a3a' : 'white';
-    mbtn.style.borderColor = _isSatellite ? '#4a6080' : 'var(--border)';
-  }
 }
 
 // ════════════════════════════════════════════
