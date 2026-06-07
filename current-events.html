@@ -3193,7 +3193,8 @@ function loadMeasurements(idx, force) {
     renderContamDotLayer(idx);
     if (idx === _curIdx) renderCard(idx);
     // AI 鳥：自動偵測異常（每次拉到新資料就判斷）
-    if (_loginIsAdmin && _birdKbLoaded && _msrCache[ev.id] && _msrCache[ev.id].length) {
+    var _bca_gk=(localStorage.getItem('_birdGeminiKey')||'').trim();
+    if (_loginIsAdmin && (_birdKbLoaded||(_geminiKbLoaded&&_bca_gk)) && _msrCache[ev.id] && _msrCache[ev.id].length) {
       birdCheckAlert(_msrCache[ev.id]);
     }
   });
