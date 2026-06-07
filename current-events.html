@@ -8906,8 +8906,17 @@ async function _birdGeminiCall(question, evCtx, callMode) {
   if (!_geminiKbLoaded) throw new Error('請先按「載入知識庫」');
   var BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-  // 系統提示：沿用既有函數，把全文知識庫傳入
-  var sysPrompt = _birdSystemPrompt(evCtx, _geminiKbText, callMode);
+  // 從全文知識庫用關鍵字篩出最相關段落（最多 8000 字，節省 token）
+  var _geminiKbFiltered = (function(){
+    if(!_geminiKbText) return '';
+    var paras=_geminiKbText.split(/\n{2,}/);
+    var kws=(evCtx+' '+question).replace(/[？?！!。，,、]/g,'').split(/\s+/).filter(function(k){return k.length>1;});
+    var sc=paras.map(function(p){var s=0;kws.forEach(function(k){if(p.indexOf(k)>=0)s++;});return{p:p,s:s};}).sort(function(a,b){return b.s-a.s;});
+    var out='',i=0;
+    while(i<sc.length&&out.length<8000){out+=sc[i].p+'\n\n';i++;}
+    return out.trim()||_geminiKbText.substring(0,8000);
+  })();
+  var sysPrompt = _birdSystemPrompt(evCtx, _geminiKbFiltered, callMode);
 
   // 呼叫 generateContent（加 Google Search 做網路補充）
   // gemini-1.5-flash 有免費配額；grounding 啟用時不能用 responseMimeType:'application/json'
