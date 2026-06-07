@@ -9049,7 +9049,7 @@ function _birdRefreshData(idx){
   });
 }
 
-async function birdAnalyze(){
+async function birdAnalyze(forceMode){
   var btn=document.getElementById('birdAnalyzeBtn');
   btn.disabled=true; btn.textContent='⏳ 分析中…';
   // 沒有進行中事件就不分析
@@ -9067,7 +9067,8 @@ async function birdAnalyze(){
     loadBbl.innerHTML='<span class="bc-loading">⏳ AI 分析中…</span>';
     var evCtx=await _birdGetEvCtxAsync();
     var text, parsed, kbSources=[], webSources=[];
-    if (_birdMode === 'gemini') {
+    var effectiveMode=forceMode||_birdMode;
+    if (effectiveMode === 'gemini') {
       var gr = await _birdGeminiCall('請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。', evCtx, 'analyze');
       text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
     } else {
