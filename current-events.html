@@ -4183,7 +4183,10 @@ var _kmzLayerOn   = false;
 var _kmzOverlay   = null;
 var _kmzLegendEl  = null;
 var _KMZ_OVERLAY_B64 = null; // 上傳後填入
-var _KMZ_BOUNDS   = null;    // 上傳後填入
+var _KMZ_BOUNDS      = null;    // 上傳後填入
+var _kmzSimData      = null;    // KMZ 像素採樣後的污染摘要（供 AI 鳥使用）
+var _kmzFileName     = '';      // 上傳的 KMZ 檔名
+var _kmzSimVariable  = 'surf_conc_sum100'; // 從 KML 解析的模擬變數名稱
 function onKmzChk(checked) {
   _kmzLayerOn = checked;
   if (checked) {
@@ -4260,6 +4263,11 @@ function _doParseKmz(arrayBuf, fileName) {
       var imgFile = zip.file(imgPath);
       if (!imgFile) { showToast('⚠️ 找不到圖片：' + imgPath); return; }
 
+      // ── 記錄 KMZ 元資訊供 AI 鳥使用 ──
+      _kmzFileName = fileName;
+      var _kvEl = kmlDoc.querySelector('Folder > name') || kmlDoc.querySelector('name');
+      _kmzSimVariable = _kvEl ? _kvEl.textContent.trim().replace(/\s+Analysis\s*$/i, '') : 'surf_conc_sum100';
+
       imgFile.async('base64').then(function(b64) {
         var ext = imgPath.split('.').pop().toLowerCase();
         var mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
@@ -4314,6 +4322,129 @@ function _applyKmzOverlay(dataUrl, bounds, zip) {
   }
   gMap.fitBounds(bounds);
   showToast('✅ KMZ 疊加層已載入');
+  // ── 觸發像素採樣，產生污染摘要供 AI 鳥使用 ──
+  _kmzSampleOverlay(dataUrl, bounds);
+}
+
+// ── KMZ 像素採樣 → 污染摘要（供 AI 鳥 context 使用）──
+// 色階來源：surf_conc_sum100 標準輸出（若使用不同模擬軟體可在此調整）
+function _kmzSampleOverlay(dataUrl, bounds) {
+  var img = new Image();
+  img.onload = function() {
+    // 20×20 網格採樣（400 點，兼顧精度與效能）
+    var GW = 20, GH = 20;
+    var canvas = document.createElement('canvas');
+    canvas.width = GW; canvas.height = GH;
+    var ctx2d = canvas.getContext('2d');
+    ctx2d.drawImage(img, 0, 0, GW, GH);
+    var px;
+    try { px = ctx2d.getImageData(0, 0, GW, GH).data; }
+    catch(e) { return; } // 跨域圖片無法讀取像素則略過
+
+    // 色階對照表 [R, G, B, 代表中值(Bq/m²)]
+    // 對應 legend 的 11 刻度：1e1~1e6，每段取幾何中點
+    var CT = [
+      [242,  79,  76, 7.5e5],  // 5e5 ~ 1e6
+      [255, 138,  76, 3.0e5],  // 1e5 ~ 5e5
+      [255, 198,  76, 7.5e4],  // 5e4 ~ 1e5
+      [240, 255,  84, 3.0e4],  // 1e4 ~ 5e4
+      [188, 255, 136, 7.5e3],  // 5e3 ~ 1e4
+      [ 82, 245, 243, 3.0e3],  // 1e3 ~ 5e3
+      [ 76, 180, 255, 7.5e2],  // 5e2 ~ 1e3
+      [ 76, 116, 255, 3.0e2],  // 1e2 ~ 5e2
+      [ 76,  76, 238, 7.5e1]   // 5e1 ~ 1e2
+    ];
+    var COLOR_DIST_THRESH = 65; // RGB 歐式距離閾值，超過視為背景
+
+    var south = bounds[0][0], west  = bounds[0][1];
+    var north = bounds[1][0], east  = bounds[1][1];
+    var results = [];
+
+    for (var py = 0; py < GH; py++) {
+      for (var qx = 0; qx < GW; qx++) {
+        var idx4 = (py * GW + qx) * 4;
+        var r = px[idx4], g = px[idx4+1], b = px[idx4+2], a = px[idx4+3];
+        if (a < 50) continue; // 透明格點跳過
+
+        // 找最近色階
+        var bestDist = Infinity, bestVal = 0;
+        for (var ci = 0; ci < CT.length; ci++) {
+          var dr = r - CT[ci][0], dg = g - CT[ci][1], db = b - CT[ci][2];
+          var dist = Math.sqrt(dr*dr + dg*dg + db*db);
+          if (dist < bestDist) { bestDist = dist; bestVal = CT[ci][3]; }
+        }
+        if (bestDist > COLOR_DIST_THRESH) continue; // 不匹配任何色階（背景）
+
+        var lat = north - (py + 0.5) / GH * (north - south);
+        var lng = west  + (qx + 0.5) / GW * (east  - west);
+        results.push({ lat: lat, lng: lng, val: bestVal });
+      }
+    }
+
+    if (!results.length) {
+      _kmzSimData = { variable: _kmzSimVariable, unit: 'Bq/m²', maxConc: 0, hotZoneCount: 0, hotZoneCenter: null, topPoints: [] };
+      _kmzUpdateBirdStatus();
+      return;
+    }
+
+    // 排序（高→低）
+    results.sort(function(a, b) { return b.val - a.val; });
+    var maxConc = results[0].val;
+
+    // 熱區定義：≥ 1e4 Bq/m²（= 1 Bq/cm²，常見管制下限）
+    var HOT_THRESH = 1e4;
+    var hot = results.filter(function(p) { return p.val >= HOT_THRESH; });
+    var hotCenter = null;
+    if (hot.length) {
+      var slat = 0, slng = 0;
+      hot.forEach(function(p) { slat += p.lat; slng += p.lng; });
+      hotCenter = [+(slat / hot.length).toFixed(6), +(slng / hot.length).toFixed(6)];
+    }
+
+    _kmzSimData = {
+      variable:     _kmzSimVariable,
+      unit:         'Bq/m²',
+      maxConc:      maxConc,
+      hotZoneCount: hot.length,
+      hotZoneCenter: hotCenter,
+      topPoints:    results.slice(0, 5)
+    };
+
+    _kmzUpdateBirdStatus();
+
+    // POST 到 GAS 寫入「氣象模擬」Sheet（fire & forget）
+    var ev = _events && _events[_curIdx];
+    if (ev) {
+      fetch(SHEETS_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action:           'addSimulation',
+          eventId:          ev.id,
+          fileName:         _kmzFileName,
+          variable:         _kmzSimVariable,
+          unit:             'Bq/m²',
+          maxConc:          maxConc,
+          hotZoneCount:     hot.length,
+          hotZoneCenterLat: hotCenter ? hotCenter[0] : '',
+          hotZoneCenterLng: hotCenter ? hotCenter[1] : '',
+          boundsJSON:       JSON.stringify(bounds),
+          topPointsJSON:    JSON.stringify(_kmzSimData.topPoints)
+        })
+      }).catch(function() {});
+    }
+  };
+  img.src = dataUrl;
+}
+
+function _kmzUpdateBirdStatus() {
+  var el = document.getElementById('birdKmzStatus');
+  if (!el) return;
+  if (!_kmzSimData || !_kmzSimData.maxConc) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.textContent = '🗺️ KMZ 模擬已載入｜最大 ' + _kmzSimData.maxConc.toExponential(1) +
+    ' Bq/m²（' + (_kmzSimData.maxConc / 1e4).toFixed(2) + ' Bq/cm²）｜熱區 ' +
+    _kmzSimData.hotZoneCount + ' 格點';
 }
 
 var _envMarkers   = [];
@@ -8314,6 +8445,7 @@ function pickMsrTask(i) {
         </div>
       </div>
       <div class="bird-kb-status" id="birdKbStatus">知識庫未載入（請先「載入知識庫」）</div>
+      <div id="birdKmzStatus" style="display:none;font-size:11px;padding:3px 7px;margin-top:3px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;color:#15803d;line-height:1.5"></div>
       <div id="birdAlertArea" style="display:none"></div>
       <button class="bird-analyze-btn" id="birdAnalyzeBtn" onclick="birdAnalyze()">⚡ AI 分析目前事件狀況</button>
       <div id="birdResult"></div>
@@ -8696,6 +8828,23 @@ async function _birdGetEvCtxAsync(){
     }));
     ctx+='\n最近量測回報：\n'+lines.join('\n');
   }
+  // ── 注入 KMZ 氣象模擬摘要（若已上傳）──
+  if (_kmzSimData && _kmzSimData.maxConc > 0) {
+    ctx += '\n\n【氣象模擬數據（' + (_kmzFileName || 'KMZ') + '）】\n' +
+      '模擬變數：' + _kmzSimData.variable + '（單位：' + _kmzSimData.unit + '）\n' +
+      '⚠️ 單位換算提示：1 Bq/cm² = 10,000 Bq/m²（知識庫閾值可能以 Bq/cm² 表示）\n' +
+      '最大地表濃度：' + _kmzSimData.maxConc.toExponential(2) + ' Bq/m²' +
+        '（= ' + (_kmzSimData.maxConc / 1e4).toFixed(2) + ' Bq/cm²）\n' +
+      '熱區格點數（≥1×10⁴ Bq/m² = 1 Bq/cm²）：' + _kmzSimData.hotZoneCount + ' 個\n' +
+      (_kmzSimData.hotZoneCenter
+        ? '熱區中心座標：lat=' + _kmzSimData.hotZoneCenter[0] + ' lng=' + _kmzSimData.hotZoneCenter[1] + '\n'
+        : '熱區中心座標：無（未達 1 Bq/cm² 閾值）\n') +
+      '前 5 高濃度採樣點：\n' +
+      (_kmzSimData.topPoints || []).map(function(p) {
+        return '  lat=' + p.lat.toFixed(5) + ' lng=' + p.lng.toFixed(5) +
+          ' 濃度=' + p.val.toExponential(2) + ' Bq/m²（' + (p.val / 1e4).toFixed(3) + ' Bq/cm²）';
+      }).join('\n');
+  }
   return ctx;
 }
 
@@ -8712,8 +8861,18 @@ function _birdSystemPrompt(evCtx, kb, mode){
     '  目標lng = 事件lng + (D/111320)*sin(rad)/cos(事件lat*π/180)\n'+
     '  座標只能用【目前事件】裡的真實 lat/lng，禁止假設或虛構任何數值。\n';
   var format =
-    '回傳純JSON（禁止markdown，summary/desc禁用\\n換行）：\n'+
-    '{"summary":"直接回答","actions":[{"title":"","desc":"","ref":""}],"draw":[]}\n\n';
+    '【回傳格式】純JSON，禁止markdown，所有字串欄位禁用\\n換行符：\n'+
+    '{\n'+
+    '  "summary": "【時間】X年X月X日 HH:MM　【地點】確切地名或地址　【事件】事件類型與目前狀況一句話摘要",\n'+
+    '  "actions": [\n'+
+    '    {\n'+
+    '      "title": "建議作為的短標題",\n'+
+    '      "desc": "建議具體執行內容，並說明原因（格式：建議…；原因是…）",\n'+
+    '      "ref":  "參考資料來源，只能填知識庫實際文件名稱、量測數據、或氣象模擬數據"\n'+
+    '    }\n'+
+    '  ],\n'+
+    '  "draw": []\n'+
+    '}\n\n';
 
   var antiHallucination =
     '【嚴格禁止幻覺】\n'+
@@ -8724,10 +8883,15 @@ function _birdSystemPrompt(evCtx, kb, mode){
 
   if(mode === 'analyze'){
     return '你是輻射災害現場應變顧問，熟讀下方知識庫。你的建議必須來自知識庫的實際內容，不得用通識知識敷衍。\n\n'+
-      '分析要求：\n'+
-      '- 先從知識庫找出與此事件類型最相關的程序、步驟、數值\n'+
-      '- 給出3-5條建議，知識庫有的直接引用具體做法，沒有的明說「知識庫未涵蓋」\n'+
-      '- 有數值就給數值，有步驟就給步驟，禁止說「進行偵測」「啟動應變」等空話\n\n'+
+      '【分析要求】\n'+
+      '1. summary 欄位必須依格式填寫：時間（從事件資訊取得）、確切地點、發生何種輻射事件與目前狀況，讓讀者一眼掌握現場全貌。\n'+
+      '2. 每條 action 的結構：\n'+
+      '   - ref：先指出本條建議所依據的資料（知識庫文件名稱、量測數據、或氣象模擬數據），只能填實際存在的來源\n'+
+      '   - title：建議作為的簡短標題\n'+
+      '   - desc：具體執行方法 + 執行原因（格式：建議…；原因是…）\n'+
+      '3. 給出 3-5 條建議，知識庫有的直接引用具體做法，沒有的明說「知識庫未涵蓋」\n'+
+      '4. 有數值就給數值，有步驟就給步驟，禁止說「進行偵測」「啟動應變」等空話\n'+
+      '5. 若【目前事件】包含【氣象模擬數據】欄位，必須對照知識庫中的污染閾值（Bq/cm²），判斷最大濃度是否達到管制標準；若熱區中心座標存在，在 draw 標記熱區位置；前5高濃度點一併標示\n\n'+
       antiHallucination+
       drawRule+
       '凡涉及範圍劃定、量測點建議、污染擴散，必須填 draw 陣列，不可留空。\n\n'+
@@ -8735,15 +8899,19 @@ function _birdSystemPrompt(evCtx, kb, mode){
       '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
   } else {
     return '你是輻射災害現場應變顧問，熟讀下方知識庫。回答必須來自知識庫的實際內容，不得用通識知識敷衍。\n\n'+
-      '回答規則：\n'+
-      '- 先查知識庫，找到相關段落後引用其內容回答，說明出處\n'+
-      '- 知識庫有具體數值、步驟、程序的，直接給出，禁止模糊帶過\n'+
-      '- 問到量測數據→從「最近量測回報」找答案\n'+
-      '- 問到地圖範圍或解釋地圖圖形→用 summary 說明，視需要補 draw\n'+
-      '- 使用者說「畫」「標」「標示」「地圖上」「顯示」「在哪」→必須計算座標並填 draw 陣列，禁止只回文字\n'+
-      '- 涉及下風向/距離/範圍→用【下風向座標偏移公式】實際計算座標後填入 draw\n'+
-      '- 無法畫圖的問題→draw 留空陣列\n'+
-      '- actions 按需要給1-5條，內容來自知識庫，簡單問題1條就夠\n\n'+
+      '【回答規則】\n'+
+      '1. summary 欄位：先交代時間、地點、事件狀況（從事件資訊取得），再直接回答使用者的問題。\n'+
+      '2. 每條 action 的結構：\n'+
+      '   - ref：本條所依據的資料來源（知識庫文件名稱、量測數據、或氣象模擬數據）\n'+
+      '   - title：建議作為或答覆要點的標題\n'+
+      '   - desc：具體內容 + 說明原因（格式：建議…；原因是…）\n'+
+      '3. 先查知識庫，找到相關段落後引用其內容，說明出處\n'+
+      '4. 知識庫有具體數值、步驟、程序的，直接給出，禁止模糊帶過\n'+
+      '5. 問到量測數據→從「最近量測回報」找答案\n'+
+      '6. 使用者說「畫」「標」「標示」「地圖上」「顯示」「在哪」→必須計算座標並填 draw 陣列，禁止只回文字\n'+
+      '7. 涉及下風向/距離/範圍→用【下風向座標偏移公式】實際計算座標後填入 draw\n'+
+      '8. 無法畫圖的問題→draw 留空陣列\n'+
+      '9. actions 按需要給1-5條，內容來自知識庫，簡單問題1條就夠\n\n'+
       antiHallucination+
       drawRule+
       format+
