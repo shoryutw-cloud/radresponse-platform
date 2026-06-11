@@ -9105,7 +9105,7 @@ async function _birdGeminiCall(question, evCtx, callMode) {
     contents: [{role:'user', parts:[{text:question}]}],
     generationConfig: {maxOutputTokens: callMode==='analyze'?1500:1200, temperature:0.25}
   };
-  var gr = await fetch(BASE+'/models/gemini-2.5-flash-lite:generateContent?key='+key, {
+  var gr = await fetch(BASE+'/models/gemini-2.5-flash:generateContent?key='+key, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
   var gd = await gr.json();
@@ -9319,7 +9319,7 @@ async function birdCheckAlert(measurements){
     try{
       var kbSnip=(function(){var p=_geminiKbText.split(/\n{2,}/);var kws=evCtx.split(/\s+/).filter(function(k){return k.length>1;});var sc=p.map(function(x){return {p:x,s:kws.filter(function(k){return x.includes(k);}).length};}).sort(function(a,b){return b.s-a.s;});var out='',i=0;while(i<sc.length&&out.length<4000){out+=sc[i].p+'\n\n';i++;}return out.trim()||_geminiKbText.substring(0,4000);})();
       var gbody={contents:[{role:'user',parts:[{text:'【知識庫】\n'+kbSnip+'\n\n'+alertPrompt}]}],generationConfig:{maxOutputTokens:400,temperature:0.1}};
-      var gr=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key='+geminiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gbody)});
+      var gr=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gbody)});
       var gd=await gr.json();
       if(!gd.error){var txt=gd.candidates[0].content.parts[0].text||'';var j1=txt.indexOf('{'),j2=txt.lastIndexOf('}');if(j1>=0&&j2>j1)result=JSON.parse(txt.substring(j1,j2+1));}
     }catch(e){}
