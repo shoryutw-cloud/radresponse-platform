@@ -501,6 +501,7 @@
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">查看任務</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">儀器管理</button>
+      <button class="drawer-item" onclick="closeDrawer();openThresholdModal()">閾值設定</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">出勤通知簡訊紀錄</button>
       <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">事件異動紀錄</button>
       <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">各帳號異動紀錄</button>
@@ -610,6 +611,7 @@
   <button class="top-drop-btn" id="btn-jishi">事件管理 <span class="drop-arrow">&#9664;</span></button>
   <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">編組管理</button>
   <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">儀器管理</button>
+  <button class="top-drop-btn" onclick="closeAllMenus();openThresholdModal()">閾值設定</button>
   <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">出勤通知簡訊紀錄</button>
   <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">事件異動紀錄</button>
   <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">各帳號異動紀錄</button>
@@ -1941,6 +1943,244 @@ document.getElementById('loginOverlay').addEventListener('keydown', function(e) 
 }, true);
 </script>
 
+
+<!-- ════════════════════════════════════════════════════════════
+     閾值設定 Modal（後台功能）
+     劑量率顏色分界：綠 < 暖區閾值 ≤ 橘 < 熱區閾值 ≤ 紅
+     存試算表「系統設定」分頁（GAS: getThresholds / saveThresholds，一律以 μSv/h 儲存）
+════════════════════════════════════════════════════════════ -->
+<style>
+  #thModal { display:none; position:fixed; inset:0; z-index:99999;
+    background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
+  #thModal .th-box { background:white; border-radius:14px; max-width:440px; width:92%;
+    box-shadow:0 8px 32px rgba(0,0,0,.25); display:flex; flex-direction:column;
+    overflow:hidden; max-height:92vh;
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei','PingFang TC',sans-serif; }
+  #thModal .th-head { display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
+  #thModal .th-title { font-size:16px; font-weight:700; color:#1e2a3a; }
+  #thModal .th-x { background:none; border:none; font-size:18px; cursor:pointer; color:#94a3b8; line-height:1; }
+  #thModal .th-body { padding:16px 20px 20px; overflow-y:auto; }
+  #thModal .th-lv { display:flex; align-items:center; gap:10px; padding:8px 0;
+    border-bottom:1px solid #f1f5f9; font-size:14px; color:#1e2a3a; }
+  #thModal .th-lv:last-child { border-bottom:none; }
+  #thModal .th-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+  #thModal .th-lvname { font-weight:700; width:76px; flex-shrink:0; }
+  #thModal .th-lvrange { font-family:ui-monospace,'Cascadia Mono',monospace; font-size:13px; }
+  #thModal .th-field { margin-top:14px; }
+  #thModal .th-field label { display:block; font-size:13px; font-weight:600; color:#1e2a3a; margin-bottom:6px; }
+  #thModal .th-field .th-hint { font-weight:400; color:#94a3b8; }
+  #thModal .th-inrow { display:flex; gap:8px; }
+  #thModal .th-inrow input { flex:1; min-width:0; padding:8px 12px; border:1px solid #e2e8f0;
+    border-radius:8px; font-size:16px; font-family:ui-monospace,'Cascadia Mono',monospace; outline:none; }
+  #thModal .th-inrow input:focus { border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.1); }
+  #thModal .th-inrow input.th-bad { border-color:#dc2626; }
+  #thModal .th-inrow select { width:104px; padding:8px; border:1px solid #e2e8f0; border-radius:8px;
+    font-size:16px; font-family:inherit; background:white; color:#1e2a3a; }
+  #thModal .th-def { font-size:12px; color:#94a3b8; margin-top:4px; }
+  #thModal .th-err { color:#dc2626; font-size:13px; margin-top:10px; min-height:18px; }
+  #thModal .th-meta { font-size:12px; color:#6b7a92; margin-top:10px; line-height:1.6; }
+  #thModal .th-btns { display:flex; gap:8px; margin-top:14px; }
+  #thModal .th-btn { padding:9px; border-radius:8px; font-family:inherit; font-size:14px; cursor:pointer; }
+  #thModal .th-btn-reset { flex:1; border:1px solid #e2e8f0; background:white; color:#1e2a3a; }
+  #thModal .th-btn-cancel { flex:1; border:1px solid #e2e8f0; background:none; color:#6b7a92; }
+  #thModal .th-btn-save { flex:1.4; border:none; background:#1a56db; color:white; font-weight:700; }
+  #thModal .th-btn:disabled { opacity:.5; cursor:not-allowed; }
+  #thModal .th-tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; margin-left:6px; font-weight:400; }
+  #thModal .th-tag-def { background:#ecfdf5; color:#15803d; border:1px solid #bbf7d0; }
+  #thModal .th-tag-cus { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+</style>
+
+<div id="thModal" onclick="if(event.target===this)closeThresholdModal()">
+  <div class="th-box">
+    <div class="th-head">
+      <div class="th-title">閾值設定<span id="thTag"></span></div>
+      <button class="th-x" onclick="closeThresholdModal()">✕</button>
+    </div>
+    <div class="th-body">
+      <div style="font-size:13px;color:#6b7a92;margin-bottom:8px;line-height:1.6">
+        地圖量測點、量測查詢表與事件「最大劑量率」的顏色分界：
+      </div>
+      <div class="th-lv"><span class="th-dot" style="background:#16a34a"></span><span class="th-lvname">冷區（綠）</span><span class="th-lvrange" id="thRgG">—</span></div>
+      <div class="th-lv"><span class="th-dot" style="background:#f97316"></span><span class="th-lvname">暖區（橘）</span><span class="th-lvrange" id="thRgO">—</span></div>
+      <div class="th-lv"><span class="th-dot" style="background:#dc2626"></span><span class="th-lvname">熱區（紅）</span><span class="th-lvrange" id="thRgR">—</span></div>
+
+      <div class="th-field">
+        <label for="thInWarm">暖區閾值 <span class="th-hint">（≥ 此值顯示橘色）</span></label>
+        <div class="th-inrow">
+          <input type="number" id="thInWarm" step="any" min="0" inputmode="decimal" oninput="thOnInput()">
+          <select id="thUnitWarm" onchange="thOnInput()"><option value="u">μSv/h</option><option value="m">mSv/h</option></select>
+        </div>
+        <div class="th-def">預設值：0.5 μSv/h</div>
+      </div>
+      <div class="th-field">
+        <label for="thInHot">熱區閾值 <span class="th-hint">（≥ 此值顯示紅色）</span></label>
+        <div class="th-inrow">
+          <input type="number" id="thInHot" step="any" min="0" inputmode="decimal" oninput="thOnInput()">
+          <select id="thUnitHot" onchange="thOnInput()"><option value="u">μSv/h</option><option value="m">mSv/h</option></select>
+        </div>
+        <div class="th-def">預設值：100 μSv/h（= 0.1 mSv/h）</div>
+      </div>
+
+      <div class="th-err" id="thErr"></div>
+      <div class="th-btns">
+        <button class="th-btn th-btn-reset" id="thBtnReset" onclick="thResetDefault()">還原預設值</button>
+        <button class="th-btn th-btn-cancel" onclick="closeThresholdModal()">取消</button>
+        <button class="th-btn th-btn-save" id="thBtnSave" onclick="thSave()">儲存</button>
+      </div>
+      <div class="th-meta" id="thMeta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var TH_DEFAULT = { warm: 0.5, hot: 100 };   // μSv/h
+
+function openThresholdModal() {
+  document.getElementById('thModal').style.display = 'flex';
+  document.getElementById('thErr').textContent = '';
+  document.getElementById('thMeta').textContent = '讀取中…';
+  // 先用快取值顯示，再向 GAS 取最新值
+  try {
+    var c = JSON.parse(localStorage.getItem('radDoseTh') || 'null');
+    if (c && c.warm > 0 && c.hot > c.warm) thSetInputs(c.warm, c.hot);
+    else thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot);
+  } catch(e) { thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot); }
+  thLoad();
+}
+
+function closeThresholdModal() {
+  document.getElementById('thModal').style.display = 'none';
+}
+
+// 數值格式化（去掉浮點尾數）
+function thFmt(v) { return String(parseFloat(v.toPrecision(10))); }
+// μSv/h 數值 → 顯示字串（≥1000 自動用 mSv/h）
+function thFmtDose(u) { return u >= 1000 ? thFmt(u / 1000) + ' mSv/h' : thFmt(u) + ' μSv/h'; }
+
+// 填入輸入框：≥1000 μSv/h 自動切成 mSv/h 顯示
+function thSetOne(inId, selId, u) {
+  var useM = u >= 1000;
+  document.getElementById(selId).value = useM ? 'm' : 'u';
+  document.getElementById(inId).value  = thFmt(useM ? u / 1000 : u);
+}
+function thSetInputs(w, h) {
+  thSetOne('thInWarm', 'thUnitWarm', w);
+  thSetOne('thInHot',  'thUnitHot',  h);
+  thOnInput();
+}
+
+// 讀取輸入並換算成 μSv/h
+function thRead() {
+  var w = parseFloat(document.getElementById('thInWarm').value);
+  var h = parseFloat(document.getElementById('thInHot').value);
+  if (document.getElementById('thUnitWarm').value === 'm') w = w * 1000;
+  if (document.getElementById('thUnitHot').value  === 'm') h = h * 1000;
+  if (!isNaN(w)) w = parseFloat(w.toPrecision(10));
+  if (!isNaN(h)) h = parseFloat(h.toPrecision(10));
+  var wBad = isNaN(w) || w <= 0;
+  var hBad = isNaN(h) || h <= 0 || (!wBad && h <= w);
+  var err = wBad ? '暖區閾值必須是大於 0 的數字'
+          : (isNaN(h) || h <= 0) ? '熱區閾值必須是大於 0 的數字'
+          : hBad ? '熱區閾值必須大於暖區閾值' : '';
+  return { warm: w, hot: h, wBad: wBad, hBad: hBad, err: err };
+}
+
+function thOnInput() {
+  var r = thRead();
+  document.getElementById('thInWarm').classList.toggle('th-bad', r.wBad);
+  document.getElementById('thInHot').classList.toggle('th-bad', r.hBad);
+  document.getElementById('thErr').textContent = r.err;
+  if (!r.err) {
+    // 預覽與地圖數值顯示規則一致：< 1000 μSv/h 用 μSv/h，≥ 1000 μSv/h 自動改 mSv/h
+    var wS = thFmtDose(r.warm);
+    var hS = thFmtDose(r.hot);
+    document.getElementById('thRgG').textContent = '< ' + wS;
+    document.getElementById('thRgO').textContent = wS + ' ～ < ' + hS;
+    document.getElementById('thRgR').textContent = '≥ ' + hS;
+  }
+  document.getElementById('thBtnSave').disabled = !!r.err;
+}
+
+function thRenderMeta(d) {
+  var isDef = (d.warm === TH_DEFAULT.warm && d.hot === TH_DEFAULT.hot);
+  document.getElementById('thTag').innerHTML = isDef
+    ? '<span class="th-tag th-tag-def">預設值</span>'
+    : '<span class="th-tag th-tag-cus">自訂值</span>';
+  var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var m = '目前生效：暖區 ' + thFmtDose(d.warm) + '、熱區 ' + thFmtDose(d.hot);
+  if (d.updatedAt) m += '<br>最後更新：' + esc(d.updatedAt) + (d.updatedBy ? '（' + esc(d.updatedBy) + '）' : '');
+  document.getElementById('thMeta').innerHTML = m;
+}
+
+function thLoad(cb) {
+  _jsonpGet(SHEETS_URL + '?action=getThresholds', function(d) {
+    if (!d || !d.ok) {
+      document.getElementById('thMeta').textContent = '讀取失敗，請確認 GAS 已加入 getThresholds 並重新部署。';
+      if (cb) cb(null);
+      return;
+    }
+    d.warm = parseFloat(d.warm); d.hot = parseFloat(d.hot);
+    thSetInputs(d.warm, d.hot);
+    thRenderMeta(d);
+    try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: d.warm, hot: d.hot })); } catch(e) {}
+    if (cb) cb(d);
+  });
+}
+
+// 通知地圖 iframe 立即套用新閾值
+function thNotifyFrame(w, h) {
+  try {
+    var f = document.getElementById('contentFrame');
+    if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'doseThresholds', warm: w, hot: h }, '*');
+  } catch(e) {}
+}
+
+function thPost(w, h, okMsg, btn, label) {
+  var bS = document.getElementById('thBtnSave'), bR = document.getElementById('thBtnReset');
+  bS.disabled = true; bR.disabled = true;
+  btn.textContent = '儲存中…';
+  var who = '';
+  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
+
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify({ action: 'saveThresholds', warm: w, hot: h, updatedBy: who })
+  })
+  .then(function() {
+    setTimeout(function() {
+      thLoad(function(d) {
+        btn.textContent = label; bR.disabled = false; thOnInput();
+        if (d && d.warm === w && d.hot === h) {
+          thNotifyFrame(w, h);
+          document.getElementById('thErr').style.color = '#15803d';
+          document.getElementById('thErr').textContent = '✓ ' + okMsg;
+          setTimeout(function(){ document.getElementById('thErr').style.color = ''; closeThresholdModal(); }, 900);
+        } else {
+          document.getElementById('thErr').textContent = '儲存後讀回的數值不一致，請稍後再試';
+        }
+      });
+    }, 800);
+  })
+  .catch(function() {
+    btn.textContent = label; bR.disabled = false; thOnInput();
+    document.getElementById('thErr').textContent = '儲存失敗，請確認網路連線';
+  });
+}
+
+function thSave() {
+  var r = thRead();
+  if (r.err) return;
+  thPost(r.warm, r.hot, '閾值已儲存', document.getElementById('thBtnSave'), '儲存');
+}
+
+function thResetDefault() {
+  thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot);
+  thPost(TH_DEFAULT.warm, TH_DEFAULT.hot, '已還原預設值', document.getElementById('thBtnReset'), '還原預設值');
+}
+</script>
 
 </body>
 </html>

@@ -1208,6 +1208,56 @@ function _esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ════════════════════════════════════════════════════════════
+// 劑量率顏色閾值（後台「閾值設定」可修改，存試算表「系統設定」分頁）
+//   綠（冷區）：< warm
+//   橘（暖區）：warm ≤ 值 < hot
+//   紅（熱區）：≥ hot
+// ════════════════════════════════════════════════════════════
+var DOSE_TH_DEFAULT = { warm: 0.5, hot: 100 };   // 預設值（μSv/h）
+var DOSE_TH = { warm: DOSE_TH_DEFAULT.warm, hot: DOSE_TH_DEFAULT.hot };
+
+// 先套用上次快取的閾值，避免畫面先用預設色再跳色
+try {
+  var _thCached = JSON.parse(localStorage.getItem('radDoseTh') || 'null');
+  if (_thCached && _thCached.warm > 0 && _thCached.hot > _thCached.warm) {
+    DOSE_TH.warm = _thCached.warm; DOSE_TH.hot = _thCached.hot;
+  }
+} catch(e) {}
+
+// 從 GAS 讀取最新閾值；若與目前不同就重繪卡片與量測點
+function _loadDoseThresholds() {
+  _jsonpGet(SHEETS_URL + '?action=getThresholds', function(d) {
+    if (!d || !d.ok) return;
+    var w = parseFloat(d.warm), h = parseFloat(d.hot);
+    if (!(w > 0) || !(h > w)) return;
+    var changed = (w !== DOSE_TH.warm || h !== DOSE_TH.hot);
+    DOSE_TH.warm = w; DOSE_TH.hot = h;
+    try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: w, hot: h })); } catch(e) {}
+    if (changed) _refreshDoseColors();
+  });
+}
+
+function _refreshDoseColors() {
+  try {
+    if (!_events || !_events[_curIdx]) return;
+    renderCard(_curIdx);
+    if (gMap && _msrCache[_events[_curIdx].id] && _anyMsrLayerOn(_curIdx)) loadMeasurements(_curIdx, false);
+  } catch(e) {}
+}
+
+_loadDoseThresholds();
+
+// 父頁面（index.html 閾值設定 Modal）儲存後即時通知
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'doseThresholds') return;
+  var w = parseFloat(e.data.warm), h = parseFloat(e.data.hot);
+  if (!(w > 0) || !(h > w)) return;
+  DOSE_TH.warm = w; DOSE_TH.hot = h;
+  try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: w, hot: h })); } catch(err) {}
+  _refreshDoseColors();
+});
+
 // 格式化日期時間 → 2026年3月15日 14時34分
 // GAS 可能回傳：
 //   日期："2026-03-15" 或 "Sun Mar 15 2026 00:00:00 GMT+0800..."
@@ -1760,7 +1810,7 @@ function renderCard(idx) {
   var doseMaxDisplay = _finalMax !== null ? _fmtDoseStr(_finalMax) : '—';
   html += '<div class="ev-row ev-row-dose">';
   html += '<span class="ev-lbl">最大劑量率</span>';
-  var _doseColor = _finalMax === null ? '#6b7a92' : _finalMax >= 100 ? '#dc2626' : _finalMax >= 0.5 ? '#d97706' : '#16a34a';
+  var _doseColor = _finalMax === null ? '#6b7a92' : _finalMax >= DOSE_TH.hot ? '#dc2626' : _finalMax >= DOSE_TH.warm ? '#d97706' : '#16a34a';
   html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
   html += '</div>';
 
@@ -1873,8 +1923,8 @@ function _renderMsrQuery() {
 function _mqValueLevel(val) {
   var v = parseFloat(val);
   if (isNaN(v)) return 'unknown';
-  if (v >= 100) return 'red';
-  if (v >= 0.5) return 'orange';
+  if (v >= DOSE_TH.hot) return 'red';
+  if (v >= DOSE_TH.warm) return 'orange';
   return 'green';
 }
 
@@ -3304,7 +3354,7 @@ function renderMsrMarkers(eventId) {
     if (grp.members.length <= 1) return; // 單點走原本流程
     var rep = grp.rep;
     var val = parseFloat(rep.value);
-    var col = isNaN(val) ? '#94a3b8' : (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a');
+    var col = isNaN(val) ? '#94a3b8' : (val >= DOSE_TH.hot ? '#dc2626' : val >= DOSE_TH.warm ? '#f97316' : '#16a34a');
     var ll  = L.latLng(parseFloat(rep.lat), parseFloat(rep.lng));
     var sz  = grp.members.length > 5 ? 44 : 36;
     var clusterIcon = L.divIcon({
@@ -3528,7 +3578,7 @@ function renderMsrMarkers(eventId) {
     var msr = pt.msr;
     var val = parseFloat(msr.value);
     var hasVal = !isNaN(val) && String(msr.value).trim() !== '' && String(msr.value).trim() !== 'NaN';
-    var col = !hasVal ? '#94a3b8' : (val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a');
+    var col = !hasVal ? '#94a3b8' : (val >= DOSE_TH.hot ? '#dc2626' : val >= DOSE_TH.warm ? '#f97316' : '#16a34a');
     var offLL = pt.offLL;
 
     // 圓點
@@ -3933,7 +3983,7 @@ function renderMsrDotLayer(idx) {
     if (isNaN(lat) || isNaN(lng)) return;
     var val = parseFloat(msr.value);
     // value 空時用灰點（位置標記），有值才用顏色
-    var col = isNaN(val) ? '#94a3b8' : (val < 0.5 ? '#16a34a' : val < 100 ? '#f97316' : '#dc2626');
+    var col = isNaN(val) ? '#94a3b8' : (val < DOSE_TH.warm ? '#16a34a' : val < DOSE_TH.hot ? '#f97316' : '#dc2626');
     var icon = L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';' +
@@ -4595,8 +4645,8 @@ function renderEnvMarkers(stations) {
   pts.forEach(function(pt) {
     var st  = pt.st;
     var val = parseFloat(st.value);
-    // 顏色分界與量測回報相同（>=100 紅、>=0.5 橘、<0.5 綠）
-    var col = val >= 100 ? '#dc2626' : val >= 0.5 ? '#f97316' : '#16a34a';
+    // 顏色分界與量測回報相同（依 DOSE_TH 閾值：>=hot 紅、>=warm 橘、<warm 綠）
+    var col = val >= DOSE_TH.hot ? '#dc2626' : val >= DOSE_TH.warm ? '#f97316' : '#16a34a';
     var offLL = pt.offLL;
 
     // 菱形圓點（旋轉 45° 的正方形，區別於量測回報的圓點）
