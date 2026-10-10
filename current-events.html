@@ -8252,6 +8252,7 @@ function _initBirdBtn() {
   if (!grp) return;
   if (_loginIsAdmin) {
     grp.style.display = 'flex';
+    setTimeout(_scaleAvoidBird, 300);
     try {
       var sk = localStorage.getItem('_birdGroqKey');
       if (sk) { var inp = document.getElementById('birdGroqKey'); if(inp) inp.value = sk; }
@@ -8287,6 +8288,7 @@ function _birdCircleClick(e) {
 
 // ── 開啟：circle 飛到定點並縮小 → 停在 panel 左側 → panel 從 circle 右側展開 ──
 function _birdOpen() {
+  setTimeout(_scaleAvoidBird, 0);   // 展開時比例尺回原位
   if (_birdIsOpen) return;
   _birdIsOpen = true;
   var grp  = document.getElementById('aiBirdGroup');
@@ -8401,6 +8403,7 @@ function _birdClose() {
     grp.style.top  = 'auto'; grp.style.left  = 'auto';
     grp.style.bottom = BIRD_REST_BOTTOM + 'px';
     grp.style.right  = BIRD_REST_RIGHT  + 'px';
+    _scaleAvoidBird();
   }, 570);
 }
 
@@ -8482,7 +8485,25 @@ function _birdSnapToEdge() {
   BIRD_REST_RIGHT  = window.innerWidth -tL-bW;
   grp.style.left='auto'; grp.style.top='auto';
   grp.style.bottom=BIRD_REST_BOTTOM+'px'; grp.style.right=BIRD_REST_RIGHT+'px';
+  _scaleAvoidBird();
 }
+
+// ── 比例尺避開 AI 鳥：鳥停在右下角時，比例尺自動往左移到鳥的左邊 ──
+function _scaleAvoidBird() {
+  var sc = document.querySelector('.leaflet-control-scale');
+  if (!sc) return;
+  if (sc._baseMR === undefined) sc._baseMR = sc.style.marginRight || '';
+  sc.style.marginRight = sc._baseMR;
+  var grp  = document.getElementById('aiBirdGroup');
+  var circ = document.getElementById('aiBirdCircle') || grp;
+  if (!grp || !circ || _birdIsOpen || getComputedStyle(grp).display === 'none') return;
+  var r = sc.getBoundingClientRect(), q = circ.getBoundingClientRect();
+  var overlap = !(r.right <= q.left || r.left >= q.right || r.bottom <= q.top || r.top >= q.bottom);
+  if (!overlap) return;
+  var box = sc.parentElement.getBoundingClientRect();   // Leaflet 右下角控制區
+  sc.style.marginRight = Math.max(0, Math.round(box.right - q.left + 8)) + 'px';
+}
+window.addEventListener('resize', function() { setTimeout(_scaleAvoidBird, 200); });
 
 // ── 展開時面板 header 拖曳（整個群組移動）──
 function _initBirdPanelDrag() {

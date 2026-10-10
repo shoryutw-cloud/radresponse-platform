@@ -1673,6 +1673,10 @@ function _showLoginErr(msg) {
 
 // ── 套用登入後 UI（可從 sessionStorage 恢復時呼叫）──
 function _applyAuthUI(user) {
+  // 已登入（含 F5 重新整理後從 localStorage 還原）→ 關掉登入遮罩
+  var _ov = document.getElementById('loginOverlay');
+  if (_ov) _ov.classList.add('hide');
+
   // 隱藏登入按鈕
   var loginBtn = document.getElementById('topbarLoginBtn');
   if (loginBtn) loginBtn.style.display = 'none';
