@@ -822,16 +822,6 @@ window.addEventListener('message', function(e) {
 });
 
 // ── 導航點位選擇 ──
-function selectNavPoint(label) {
-  _navSelectedLabel = label;
-  // 更新所有按鈕樣式
-  document.querySelectorAll('[id^="navpt_"]').forEach(function(btn) {
-    var isSelected = btn.id === 'navpt_' + label;
-    btn.style.borderColor = isSelected ? '#8b5cf6' : '#e2e8f0';
-    btn.style.background  = isSelected ? '#ede9fe' : 'white';
-  });
-  document.getElementById('navStartBtn').style.background = '#8b5cf6';
-}
 
 // ── 手機版抽屜選單 ──
 function openDrawer() {
