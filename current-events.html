@@ -3901,7 +3901,7 @@ function renderMsrDotLayer(idx) {
       iconSize: [14, 14], iconAnchor: [7, 7]
     });
     var mk = L.marker([lat, lng], { icon: icon }).addTo(gMap);
-    var tipVal = val >= 1000 ? (val/1000).toFixed(3)+' mSv/h' : val.toFixed(3)+' μSv/h';
+    var tipVal = _fmtDoseStr(val);
     mk.bindTooltip(tipVal, { sticky: true, direction: 'top', offset: [0, -8] });
     _msrDotMarkers.push(mk);
   });
@@ -6248,9 +6248,13 @@ function _fmtDose(usvVal) {
   var v = parseFloat(usvVal);
   if (isNaN(v)) return { val: '—', unit: 'μSv/h' };
   if (v >= 1000) {
-    return { val: (v / 1000).toFixed(3), unit: 'mSv/h' };
+    return { val: _trimZero3(v / 1000), unit: 'mSv/h' };
   }
-  return { val: v.toFixed(3), unit: 'μSv/h' };
+  return { val: _trimZero3(v), unit: 'μSv/h' };
+}
+// 小數三位；小數點後全是 0 時只顯示整數（212.000 → 212，2.233 不變）
+function _trimZero3(n) {
+  return n.toFixed(3).replace(/\.000$/, '');
 }
 function _fmtDoseStr(usvVal) {
   var d = _fmtDose(usvVal);
