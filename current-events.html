@@ -1728,6 +1728,7 @@ function parseDetectorTypes(instrStr) {
 
 // ── 渲染卡片 ──
 function renderCard(idx) {
+  _onCurEventShown(idx);   // 切換事件時：載入該事件的標註與 KMZ 模擬摘要（同一事件不重複載入）
   // 每次切換事件都寫入 sessionStorage，讓其他頁面知道目前是哪筆
   try { sessionStorage.setItem('currentEventIdx', idx); } catch(e) {}
   var body   = document.getElementById('evCardBody');
@@ -2126,9 +2127,6 @@ function mqExportCSV() {
 // ════════════════════════════════════════════════════════
 // 工具：HTML 跳脫（避免 XSS）
 // ════════════════════════════════════════════════════════
-function _esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
 
 // ════════════════════════════════════════════════════════
 // 出勤人員 唯讀檢視 Modal
@@ -2409,97 +2407,6 @@ function _pmBuildLookup(techId) {
     });
   });
   return { lookup: lookup, nameToSquad: nameToSquad };
-}
-
-// ════════════════════════════════════════════════════════
-// 出勤人員 唯讀檢視 Modal
-// ════════════════════════════════════════════════════════
-function openPersonnelViewModal() {
-  var ev = _events[_curIdx]; if (!ev) return;
-  document.getElementById('personnelViewModal').classList.add('show');
-  _renderPersonnelView(ev);
-}
-function closePersonnelViewModal() {
-  document.getElementById('personnelViewModal').classList.remove('show');
-}
-
-function _renderPersonnelView(ev) {
-  var body = document.getElementById('personnelViewBody');
-  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員資料中…</div>';
-
-  var personnel = [];
-  (ev.personnelStr || '').split(',').forEach(function(item) {
-    item = item.trim(); if (!item) return;
-    var colon = item.indexOf(':');
-    var squad = colon >= 0 ? item.slice(0, colon).trim() : '未分配';
-    var name  = colon >= 0 ? item.slice(colon + 1).trim() : item;
-    if (name) personnel.push({ name: name, squad: squad });
-  });
-
-  if (!personnel.length) {
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無出勤人員紀錄</div>';
-    return;
-  }
-
-  _pmLoadAll(ev, function(techId) {
-    var maps = _pmBuildLookup(techId);
-    var lookup = maps.lookup, nameToSquad = maps.nameToSquad;
-
-    var squads = {}, squadOrder = [];
-    personnel.forEach(function(p) {
-      // 若 personnelStr 是舊格式（無隊別），從 nameToSquad 反查
-      var key = (p.squad && p.squad !== '未分配') ? p.squad : (nameToSquad[p.name] || '未分配');
-      // 同步更新 p.squad，讓後續 lookup 能用複合 key
-      p.squad = key;
-      if (!squads[key]) { squads[key] = []; squadOrder.push(key); }
-      squads[key].push(p);
-    });
-
-    // 依 squadOrder 排列，確保順序跟 personnelStr 一致
-    var allGroups = squadOrder;
-    var total = personnel.length;
-
-    var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
-    html += _viewStatCard('出動總人數', total);
-    allGroups.forEach(function(s) {
-      if (squads[s] && squads[s].length && s !== '未分配') html += _viewStatCard(s, squads[s].length);
-    });
-    if (squads['未分配'] && squads['未分配'].length) html += _viewStatCard('未分配', squads['未分配'].length);
-    html += '</div>';
-
-    html += '<table style="width:100%;border-collapse:collapse">';
-    html += '<thead><tr style="background:#f1f5f9">';
-    ['職稱','姓名','手機','電話','所屬組室'].forEach(function(h) {
-      html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
-    });
-    html += '</tr></thead><tbody>';
-
-    allGroups.forEach(function(sname) {
-      if (!squads[sname] || !squads[sname].length) return;
-      html += '<tr><td colspan="5" style="padding:10px 14px 4px;font-size:13px;font-weight:700;color:#1e2a3a;background:#f8fafc;border-bottom:1px solid #e2e8f0">'
-            + _esc(sname)
-            + ' <span style="font-size:11px;font-weight:400;color:#6b7a92;background:#e2e8f0;padding:1px 7px;border-radius:10px">' + squads[sname].length + ' 人</span></td></tr>';
-      squads[sname].forEach(function(p) {
-        var info = lookup[(p.squad ? p.squad + ':' + p.name : p.name)] || lookup[p.name] || {};
-        html += '<tr style="border-bottom:1px solid #f0f4f8">';
-        html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(info.title||'—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(p.name) + '</td>';
-        html += '<td style="padding:9px 12px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.mobile||'—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:13px;font-family:monospace;color:#3d5070">' + _esc(info.phone||'—') + '</td>';
-        html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(info.dept||'—') + '</td>';
-        html += '</tr>';
-      });
-    });
-    html += '</tbody></table>';
-    body.innerHTML = html;
-  });
-}
-
-function _viewStatCard(label, value) {
-  return '<div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">'
-    + '<div style="font-size:11px;color:#6b7a92;font-weight:600;letter-spacing:.05em;text-transform:uppercase">' + _esc(String(label)) + '</div>'
-    + '<div style="font-size:22px;font-weight:700;color:#1a56db;font-family:monospace">' + _esc(String(value)) + '</div>'
-    + '</div>';
 }
 
 // ════════════════════════════════════════════════════════
@@ -4451,7 +4358,9 @@ function _kmzSampleOverlay(dataUrl, bounds) {
       hotCenter = [+(slat / hot.length).toFixed(6), +(slng / hot.length).toFixed(6)];
     }
 
+    _kmzSimEventId = (_events && _events[_curIdx]) ? _events[_curIdx].id : null;
     _kmzSimData = {
+      fileName:     _kmzFileName,
       variable:     _kmzSimVariable,
       unit:         'Bq/m²',
       maxConc:      maxConc,
@@ -4485,6 +4394,46 @@ function _kmzSampleOverlay(dataUrl, bounds) {
     }
   };
   img.src = dataUrl;
+}
+
+// ── 從試算表「氣象模擬」載回本事件最新一筆模擬摘要（讓 AI 鳥換頁、換裝置仍記得）──
+var _kmzSimEventId = null;   // _kmzSimData 屬於哪個事件
+function _loadSimForEvent(ev) {
+  if (!ev || ev.id === _kmzSimEventId) return;
+  _kmzSimEventId = ev.id;
+  _kmzSimData = null;        // 先清掉前一個事件的模擬，避免 AI 鳥拿錯事件的資料
+  _kmzUpdateBirdStatus();
+  var reqId = ev.id;
+  _jsonpGet(SHEETS_URL + '?action=getSimulation&eventId=' + encodeURIComponent(reqId), function(data) {
+    if (_kmzSimEventId !== reqId) return;                 // 期間已切換事件
+    if (_kmzSimData) return;                               // 期間已在本機上傳新 KMZ
+    var sim = data && data.simulations && data.simulations[0];   // GAS 已依時間新→舊排序
+    if (!sim) return;
+    var maxConc = parseFloat(sim.maxConc);
+    if (!(maxConc > 0)) return;
+    var cLat = parseFloat(sim.hotCenterLat), cLng = parseFloat(sim.hotCenterLng);
+    var top = [];
+    try { top = JSON.parse(sim.topPointsJSON || '[]') || []; } catch(e) {}
+    _kmzSimData = {
+      fileName:      sim.fileName || '',
+      uploadTime:    sim.uploadTime || '',
+      variable:      sim.variable || '',
+      unit:          sim.unit || 'Bq/m²',
+      maxConc:       maxConc,
+      hotZoneCount:  parseInt(sim.hotZoneCount, 10) || 0,
+      hotZoneCenter: (!isNaN(cLat) && !isNaN(cLng)) ? [cLat, cLng] : null,
+      topPoints:     top.filter(function(p) { return p && !isNaN(p.lat) && !isNaN(p.lng) && !isNaN(p.val); })
+    };
+    _kmzUpdateBirdStatus();
+  });
+}
+
+function _onCurEventShown(idx) {
+  if (idx !== _curIdx) return;
+  var ev = _events && _events[idx];
+  if (!ev) return;
+  if (ev.id !== _drawEventId) loadDrawings();
+  _loadSimForEvent(ev);
 }
 
 function _kmzUpdateBirdStatus() {
@@ -4712,304 +4661,6 @@ function onPendingChk(checked) {
     if (checked) t.mk.addTo(gMap);
     else t.mk.remove();
   });
-}
-
-function onWindChk(checked) {
-  _windLayerOn = checked;
-  if (checked) {
-    var ev = _events[_curIdx];
-    if (!ev || !ev.windDir || ev.windDir === '') {
-      showToast('⚠️ 請先設定風向');
-      document.getElementById('lyr_wind').checked = false;
-      _windLayerOn = false;
-      return;
-    }
-    _startWindLayer();
-  } else {
-    _stopWindLayer();
-  }
-}
-
-function _startWindLayer() {
-  if (!gMap) return;
-  var ev = _events[_curIdx];
-  var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
-  if (isNaN(ws) || ws <= 0) {
-    _windLayerOn = false;
-    var cb = document.getElementById('lyr_wind');
-    if (cb) cb.checked = false;
-    return;
-  }
-  var mapEl = document.getElementById('map');
-  if (!_windCanvas) {
-    _windCanvas = document.createElement('canvas');
-    _windCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:500';
-    mapEl.style.position = 'relative';
-    mapEl.appendChild(_windCanvas);
-    _windCtx = _windCanvas.getContext('2d');
-  }
-  _resizeWindCanvas();
-  _windFieldStations = null;
-  _initWindParticles();
-  _animateWind();
-  gMap.on('moveend zoomend', _onMapMoveWind);
-  _fetchWindField();
-}
-
-// ── 風場：多站資料 & IDW 插值 ──
-var _windFieldStations = null;
-var _windFieldGrid = null;
-var _windFieldGridW = 0;
-var _windFieldGridH = 0;
-var _WIND_GRID_STEP = 40;
-
-function _fetchWindField() {
-  var ev = _events[_curIdx];
-  if (!ev || !ev.lat || !ev.lng) return;
-  var url = SHEETS_URL + '?action=fetchWindField&lat=' + ev.lat + '&lng=' + ev.lng + '&n=30';
-  _jsonpGet(url, function(data) {
-    if (!data || !data.stations || !data.stations.length) return;
-    _windFieldStations = data.stations;
-    _rebuildWindFieldGrid();
-  });
-}
-
-function _rebuildWindFieldGrid() {
-  if (!_windCanvas || !_windFieldStations || !_windFieldStations.length) return;
-  var W = _windCanvas.width, H = _windCanvas.height;
-  var step = _WIND_GRID_STEP;
-  var cols = Math.ceil(W / step) + 1;
-  var rows = Math.ceil(H / step) + 1;
-  _windFieldGridW = cols;
-  _windFieldGridH = rows;
-  _windFieldGrid = new Array(cols * rows);
-  for (var gy = 0; gy < rows; gy++) {
-    for (var gx = 0; gx < cols; gx++) {
-      var px = gx * step, py = gy * step;
-      var ll = gMap.containerPointToLatLng([px, py]);
-      var sumW = 0, sumVx = 0, sumVy = 0;
-      _windFieldStations.forEach(function(s) {
-        var dLat = s.lat - ll.lat, dLng = s.lng - ll.lng;
-        var dist2 = dLat*dLat + dLng*dLng;
-        if (dist2 < 1e-10) dist2 = 1e-10;
-        var w = 1 / (dist2 * dist2);
-        var goDir = ((s.wd + 180) % 360);
-        var rad = (goDir - 90) * Math.PI / 180;
-        var spd = Math.max(0.5, Math.min(10, s.ws));
-        sumVx += Math.cos(rad) * spd * w;
-        sumVy += Math.sin(rad) * spd * w;
-        sumW  += w;
-      });
-      _windFieldGrid[gy * cols + gx] = {
-        vx: sumVx / sumW,
-        vy: sumVy / sumW
-      };
-    }
-  }
-}
-
-function _getWindVec(px, py) {
-  if (!_windFieldGrid || !_windFieldGridW) {
-    var ev = _events[_curIdx];
-    var wd = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
-    var rad = (wd - 90) * Math.PI / 180;
-    var spd = ev && ev.windSpeed ? Math.max(0.5, parseFloat(ev.windSpeed)) : 2;
-    return { vx: Math.cos(rad) * spd, vy: Math.sin(rad) * spd };
-  }
-  var step = _WIND_GRID_STEP;
-  var gx = px / step, gy = py / step;
-  var x0 = Math.max(0, Math.min(Math.floor(gx), _windFieldGridW - 1));
-  var y0 = Math.max(0, Math.min(Math.floor(gy), _windFieldGridH - 1));
-  var x1 = Math.min(x0 + 1, _windFieldGridW - 1);
-  var y1 = Math.min(y0 + 1, _windFieldGridH - 1);
-  var tx = gx - Math.floor(gx), ty = gy - Math.floor(gy);
-  var cols = _windFieldGridW;
-  var v00 = _windFieldGrid[y0*cols+x0] || {vx:0,vy:0};
-  var v10 = _windFieldGrid[y0*cols+x1] || {vx:0,vy:0};
-  var v01 = _windFieldGrid[y1*cols+x0] || {vx:0,vy:0};
-  var v11 = _windFieldGrid[y1*cols+x1] || {vx:0,vy:0};
-  return {
-    vx: v00.vx*(1-tx)*(1-ty)+v10.vx*tx*(1-ty)+v01.vx*(1-tx)*ty+v11.vx*tx*ty,
-    vy: v00.vy*(1-tx)*(1-ty)+v10.vy*tx*(1-ty)+v01.vy*(1-tx)*ty+v11.vy*tx*ty
-  };
-}
-
-// 風速→顏色（Windy 漸層：靜風=藍→低速=青→中速=綠→高速=黃→強風=橘紅）
-function _windSpeedColor(spd, alpha) {
-  // spd 單位 m/s，0~20
-  var t = Math.min(1, spd / 15);
-  var r, g, b;
-  if (t < 0.25) {
-    // 藍→青
-    var f = t / 0.25;
-    r = Math.round(30  + f * (0   - 30));
-    g = Math.round(100 + f * (200 - 100));
-    b = Math.round(200 + f * (230 - 200));
-  } else if (t < 0.5) {
-    // 青→綠
-    var f = (t - 0.25) / 0.25;
-    r = Math.round(0   + f * (60  - 0));
-    g = Math.round(200 + f * (220 - 200));
-    b = Math.round(230 + f * (60  - 230));
-  } else if (t < 0.75) {
-    // 綠→黃
-    var f = (t - 0.5) / 0.25;
-    r = Math.round(60  + f * (240 - 60));
-    g = Math.round(220 + f * (220 - 220));
-    b = Math.round(60  + f * (0   - 60));
-  } else {
-    // 黃→橘紅
-    var f = (t - 0.75) / 0.25;
-    r = Math.round(240 + f * (255 - 240));
-    g = Math.round(220 + f * (60  - 220));
-    b = 0;
-  }
-  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-}
-
-function _stopWindLayer() {
-  if (_windAnimId) { cancelAnimationFrame(_windAnimId); _windAnimId = null; }
-  if (_windCtx && _windCanvas) _windCtx.clearRect(0, 0, _windCanvas.width, _windCanvas.height);
-  if (_windCanvas) { _windCanvas.remove(); _windCanvas = null; _windCtx = null; }
-  gMap.off('moveend zoomend', _onMapMoveWind);
-}
-
-function _onMapMoveWind() {
-  if (!_windLayerOn) return;
-  _resizeWindCanvas();
-  _rebuildWindFieldGrid();
-  _initWindParticles();
-}
-
-function _resizeWindCanvas() {
-  if (!_windCanvas) return;
-  var mapEl = document.getElementById('map');
-  var w = mapEl.offsetWidth, h = mapEl.offsetHeight;
-  _windCanvas.width = w; _windCanvas.height = h;
-  _windCanvas.style.width = w + 'px'; _windCanvas.style.height = h + 'px';
-}
-
-function _initWindParticles() {
-  if (!_windCanvas) return;
-  var W = _windCanvas.width, H = _windCanvas.height;
-  _windParticles = [];
-  for (var i = 0; i < _WIND_COUNT; i++) {
-    _windParticles.push(_makeWindParticle(W, H));
-  }
-}
-
-function _makeWindParticle(W, H) {
-  var x = Math.random() * W;
-  var y = Math.random() * H;
-  var vec = _getWindVec(x, y);
-  var spd = Math.sqrt(vec.vx*vec.vx + vec.vy*vec.vy);
-  var pxSpeed = Math.max(0.4, Math.min(5, spd * 0.4));
-  var angle = Math.atan2(vec.vy, vec.vx);
-  return {
-    x: x, y: y,
-    vx: Math.cos(angle) * pxSpeed,
-    vy: Math.sin(angle) * pxSpeed,
-    speed: spd,
-    age: Math.random() * 150,
-    maxAge: 120 + Math.random() * 120,
-    // 拖尾長度跟風速成正比
-    trailLen: Math.round(20 + spd * 6),
-    // 儲存歷史軌跡
-    trail: []
-  };
-}
-
-function _animateWind() {
-  if (!_windLayerOn || !_windCtx || !_windCanvas) return;
-  var _curEv = _events[_curIdx];
-  if (!_curEv || !_curEv.windDir || _curEv.windDir === '') {
-    _windCtx.clearRect(0, 0, _windCanvas.width, _windCanvas.height);
-    return;
-  }
-  var W = _windCanvas.width, H = _windCanvas.height;
-
-  // 半透明覆蓋拖尾效果（不完全清除，讓舊軌跡慢慢消退）
-  _windCtx.fillStyle = 'rgba(0,0,0,0.04)';
-  _windCtx.fillRect(0, 0, W, H);
-
-  _windParticles.forEach(function(p) {
-    // 更新速度向量（平滑插值跟隨風場）
-    var vec = _getWindVec(p.x, p.y);
-    var spd = Math.sqrt(vec.vx*vec.vx + vec.vy*vec.vy);
-    if (spd > 0.01) {
-      var angle = Math.atan2(vec.vy, vec.vx);
-      var curSpd = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-      var targetSpd = Math.max(0.4, Math.min(5, spd * 0.4));
-      p.vx = p.vx * 0.9 + Math.cos(angle) * targetSpd * 0.1;
-      p.vy = p.vy * 0.9 + Math.sin(angle) * targetSpd * 0.1;
-      p.speed = spd;
-    }
-
-    p.x += p.vx;
-    p.y += p.vy;
-    p.age++;
-
-    // 儲存軌跡點（最多 trailLen 個）
-    p.trail.push({ x: p.x, y: p.y });
-    if (p.trail.length > p.trailLen) p.trail.shift();
-
-    // 超出邊界或壽命到 → 重生
-    if (p.x < -5 || p.x > W+5 || p.y < -5 || p.y > H+5 || p.age > p.maxAge) {
-      p.x = Math.random() * W;
-      p.y = Math.random() * H;
-      p.age = 0;
-      p.maxAge = 120 + Math.random() * 120;
-      p.trail = [];
-      var v2 = _getWindVec(p.x, p.y);
-      var s2 = Math.sqrt(v2.vx*v2.vx + v2.vy*v2.vy);
-      p.speed = s2;
-      var a2 = Math.atan2(v2.vy, v2.vx);
-      var ps2 = Math.max(0.4, Math.min(5, s2 * 0.4));
-      p.vx = Math.cos(a2)*ps2; p.vy = Math.sin(a2)*ps2;
-      p.trailLen = Math.round(20 + s2 * 6);
-      return;
-    }
-
-    // 畫拖尾流線（從最舊到最新，透明度漸增）
-    if (p.trail.length < 2) return;
-    var lifeRatio = p.age / p.maxAge;
-    var lifeFade = lifeRatio < 0.05 ? lifeRatio / 0.05 :
-                   lifeRatio > 0.85 ? (1 - lifeRatio) / 0.15 : 1;
-
-    for (var i = 1; i < p.trail.length; i++) {
-      var t = i / p.trail.length;
-      var alpha = t * t * 0.7 * lifeFade; // 尾部透明，頭部較亮
-      _windCtx.beginPath();
-      _windCtx.moveTo(p.trail[i-1].x, p.trail[i-1].y);
-      _windCtx.lineTo(p.trail[i].x,   p.trail[i].y);
-      _windCtx.strokeStyle = _windSpeedColor(p.speed, alpha);
-      _windCtx.lineWidth = 1.2;
-      _windCtx.lineCap = 'round';
-      _windCtx.stroke();
-    }
-  });
-
-  _windAnimId = requestAnimationFrame(_animateWind);
-}
-
-// 事件切換或風向更新時重新初始化粒子
-function _refreshWindIfOn() {
-  if (!_windLayerOn) return;
-  var ev = _events[_curIdx];
-  var ws = ev && ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
-  if (isNaN(ws) || ws <= 0) {
-    _stopWindLayer();
-    _windLayerOn = false;
-    var cb = document.getElementById('lyr_wind');
-    if (cb) cb.checked = false;
-    return;
-  }
-  if (_windCanvas) {
-    _windFieldStations = null;
-    _windFieldGrid = null;
-    _initWindParticles();
-    _fetchWindField();
-  }
 }
 
 function onWindChk(checked) {
@@ -5721,18 +5372,12 @@ function setDrawColor(el) {
 
 // ── 清除所有筆跡（同步刪除 Sheets）──
 function clearAllDrawings() {
-  if (!confirm('確定清除所有標註？此操作將同步刪除雲端資料。')) return;
-  _drawLines.forEach(function(l) { l.remove(); });
+  if (!confirm('確定清除本事件所有標註？所有人的畫面都會一起清除。')) return;
+  _drawLines.forEach(function(l) { if (l._drawId) _drawDeleted[l._drawId] = Date.now(); l.remove(); });
   _drawLines = [];
-  _savePending = true; // 清除進行中，暫停同步避免舊資料被拉回
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'clearDrawings' })
-  }).finally(function() {
-    // GAS 寫入需要時間，2 秒後才開放同步
-    setTimeout(function() { _savePending = false; }, 2000);
-  });
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  _drawPost({ action: 'clearDrawings', eventId: ev.id });
 }
 
 // ── 抹除：判斷是否與某筆跡足夠接近，完成後同步存檔 ──
@@ -5747,6 +5392,7 @@ function eraseNear(latlng) {
       var dx = pt.x - clickPx.x, dy = pt.y - clickPx.y;
       if (Math.sqrt(dx*dx + dy*dy) < ERASE_PX) {
         line.remove();
+        if (line._drawId) { _drawDeleteQueue.push(line._drawId); _drawDeleted[line._drawId] = Date.now(); }
         changed = true;
         return false;
       }
@@ -5756,66 +5402,126 @@ function eraseNear(latlng) {
   if (changed) scheduleDrawingSave();
 }
 
-// ── 延遲批次存檔（300ms 防抖）──
-var _drawSaveTimer = null;
-var _savePending   = false; // 存檔進行中旗標，防止同步覆蓋未存資料
+// ════════════════════════════════════════════
+// 標註雲端同步（存試算表「標註圖層」，依事件分開，所有裝置共享）
+//   畫完一筆 → addDrawing（只送這一筆）
+//   抹除     → deleteDrawings（只送被擦掉的筆跡 ID）
+//   全部清除 → clearDrawings（本事件）
+//   每 10 秒 → getDrawings 比對差異，只增減有變動的筆跡（不整片重畫）
+// ════════════════════════════════════════════
+var DRAW_SYNC_MS     = 10000;
+var _drawEventId     = null;  // 目前畫面上的標註屬於哪個事件
+var _drawUnsynced    = {};    // 本機剛畫的筆跡 { id: 寫入完成時間（0 = 還在送）}
+var _drawDeleted     = {};    // 本機剛刪、伺服器可能還沒刪的筆跡 { id: 時間 }
+var _drawDeleteQueue = [];
+var _drawDelTimer    = null;
+var DRAW_GRACE_MS    = 20000; // 刪除後 20 秒內，伺服器若還回傳該筆仍視為已刪
 
-function scheduleDrawingSave() {
-  if (_drawSaveTimer) clearTimeout(_drawSaveTimer);
-  _drawSaveTimer = setTimeout(saveAllDrawings, 300);
-}
-
-// ── 將所有筆跡序列化後送至 Sheets ──
-function saveAllDrawings() {
-  _savePending = true; // 標記存檔進行中，暫停同步
-  var payload = _drawLines.map(function(line) {
-    var opts = line.options;
-    return {
-      pts:    line.getLatLngs().map(function(ll) { return { lat: ll.lat, lng: ll.lng }; }),
-      color:  opts.color,
-      weight: opts.weight
-    };
-  });
-  fetch(SHEETS_URL, {
+function _drawPost(body) {
+  try { body.by = _loginUserName || ''; } catch(e) {}
+  return fetch(SHEETS_URL, {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'saveDrawings', drawings: payload })
-  }).finally(function() {
-    // 存檔完成（或失敗）後 2 秒才允許同步，確保 GAS 寫入完畢
-    setTimeout(function() { _savePending = false; }, 2000);
+    body: JSON.stringify(body)
+  }).catch(function() {});
+}
+
+function _drawNewId() {
+  return 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// 抹除後 300ms 批次送出刪除
+function scheduleDrawingSave() {
+  if (_drawDelTimer) clearTimeout(_drawDelTimer);
+  _drawDelTimer = setTimeout(function() {
+    if (!_drawDeleteQueue.length) return;
+    var ids = _drawDeleteQueue.slice(); _drawDeleteQueue = [];
+    _drawPost({ action: 'deleteDrawings', ids: ids });
+  }, 300);
+}
+
+// 畫完一筆後呼叫：把還沒有 ID 的筆跡送上雲端
+function saveAllDrawings() {
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  _drawLines.forEach(function(line) {
+    if (line._drawId) return;
+    var id = line._drawId = _drawNewId();
+    _drawUnsynced[id] = 0;
+    _drawPost({
+      action:  'addDrawing',
+      eventId: ev.id,
+      id:      line._drawId,
+      color:   line.options.color,
+      weight:  line.options.weight,
+      pts:     line.getLatLngs().map(function(ll) { return [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]; })
+    }).then(function() { if (id in _drawUnsynced) _drawUnsynced[id] = Date.now(); });
   });
 }
 
-// ── 從 Sheets 載入已有標註 ──
+function _drawMakeLine(d) {
+  var lls = (d.pts || []).map(function(p) { return L.latLng(p[0], p[1]); });
+  var line = L.polyline(lls, {
+    color:       d.color  || '#dc2626',
+    weight:      d.weight || 4,
+    opacity:     0.85,
+    lineCap:     'round',
+    lineJoin:    'round',
+    interactive: false  // 不攔截滑鼠事件，避免干擾畫筆操作
+  }).addTo(gMap);
+  line._drawId = d.id;
+  return line;
+}
+
+// 從試算表載入本事件標註，與畫面比對差異
 function loadDrawings() {
-  _jsonpGet(SHEETS_URL + '?action=getDrawings', function(data) {
-    if (!data || !data.drawings) return;
-    // 畫線中或存檔未完成時跳過，避免覆蓋本機未存資料
-    if (_isDrawing || _savePending) return;
+  if (!gMap) return;
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  // 切換事件 → 先清掉畫面上前一個事件的標註
+  if (_drawEventId !== ev.id) {
     _drawLines.forEach(function(l) { l.remove(); });
-    _drawLines = [];
+    _drawLines = []; _drawUnsynced = {}; _drawDeleted = {};
+    _drawEventId = ev.id;
+  }
+  var reqEvId = ev.id;
+  var issuedAt = Date.now();   // 這次查詢送出的時間：只有在「寫入完成之後」才送出的查詢，才能判斷筆跡已被別人刪除
+  _jsonpGet(SHEETS_URL + '?action=getDrawings&eventId=' + encodeURIComponent(reqEvId), function(data) {
+    if (!data || !data.drawings) return;
+    if (_drawEventId !== reqEvId || _isDrawing) return;  // 期間已切換事件或正在畫
+    var now = Date.now();
+    var server = {};
+    data.drawings.forEach(function(d) { server[d.id] = d; });
+    Object.keys(_drawUnsynced).forEach(function(id) {
+      var doneAt = _drawUnsynced[id];
+      if (server[id] || (doneAt && issuedAt > doneAt)) delete _drawUnsynced[id];
+    });
+    Object.keys(_drawDeleted).forEach(function(id) {
+      if (!server[id] || now - _drawDeleted[id] > DRAW_GRACE_MS) delete _drawDeleted[id];
+    });
+    // 移除：別人刪掉的（本機有、伺服器沒有，且不是自己剛畫還沒存好的）
+    var local = {};
+    _drawLines = _drawLines.filter(function(line) {
+      if (!line._drawId) return true;                 // 正在送出中的新筆跡
+      if (server[line._drawId] || _drawUnsynced[line._drawId]) { local[line._drawId] = true; return true; }
+      line.remove();
+      return false;
+    });
+    // 新增：別人畫的（伺服器有、本機沒有，且不是自己剛刪掉的）
     data.drawings.forEach(function(d) {
+      if (local[d.id] || _drawDeleted[d.id]) return;
       if (!d.pts || d.pts.length < 2) return;
-      var lls = d.pts.map(function(p) { return L.latLng(p.lat, p.lng); });
-      var line = L.polyline(lls, {
-        color:       d.color  || '#dc2626',
-        weight:      d.weight || 4,
-        opacity:     0.85,
-        lineCap:     'round',
-        lineJoin:    'round',
-        interactive: false  // 不攔截滑鼠事件，避免干擾畫筆操作
-      }).addTo(gMap);
-      _drawLines.push(line);
+      _drawLines.push(_drawMakeLine(d));
     });
   });
 }
 
-// ── 每 5 秒自動從 Sheets 同步標註 ──
+// 每 10 秒同步一次；畫面不在前景時暫停
 function startDrawingSyncTimer() {
   setInterval(function() {
-    if (_isDrawing || _savePending) return;
+    if (_isDrawing || document.hidden) return;
     loadDrawings();
-  }, 5000);
+  }, DRAW_SYNC_MS);
 }
 
 // ════════════════════════════════════════════
@@ -7068,8 +6774,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     loadEvents();
     initDrawTools();
-    loadDrawings();
-    startDrawingSyncTimer();
+    startDrawingSyncTimer();          // 標註每 10 秒同步（首次載入在 renderCard 觸發）
     initUserLocation(); // 初始化使用者位置藍點
   }
 
@@ -8880,7 +8585,7 @@ async function _birdGetEvCtxAsync(){
   }
   // ── 注入 KMZ 氣象模擬摘要（若已上傳）──
   if (_kmzSimData && _kmzSimData.maxConc > 0) {
-    ctx += '\n\n【氣象模擬數據（' + (_kmzFileName || 'KMZ') + '）】\n' +
+    ctx += '\n\n【氣象模擬數據（' + (_kmzSimData.fileName || _kmzFileName || 'KMZ') + (_kmzSimData.uploadTime ? '，上傳於 ' + _kmzSimData.uploadTime : '') + '）】\n' +
       '模擬變數：' + _kmzSimData.variable + '（單位：' + _kmzSimData.unit + '）\n' +
       '⚠️ 單位換算提示：1 Bq/cm² = 10,000 Bq/m²（知識庫閾值可能以 Bq/cm² 表示）\n' +
       '最大地表濃度：' + _kmzSimData.maxConc.toExponential(2) + ' Bq/m²' +
