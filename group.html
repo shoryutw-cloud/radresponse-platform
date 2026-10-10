@@ -488,6 +488,8 @@ var groupSortAsc = true; // true=升冪 false=降冪
 
 // ── 待刪除的列號 ──
 var deleteRowIndex = null;
+var editOrigName = '';    // 編輯前的姓名（GAS 確認是同一人）
+var deleteName = '';      // 要刪除的姓名（GAS 確認是同一人）
 
 
 // ── 搜尋相關：快取目前顯示的成員資料 ──
@@ -851,6 +853,7 @@ function openAddModal() {
 function openEditModal(rowIndex, title, name, mobile, phone, dept, team) {
   editMode = 'edit';
   editRowIndex = rowIndex;
+  editOrigName = name;
   document.getElementById('modalTitle').textContent = '編輯成員';
   document.getElementById('fTitle').value  = title;
   document.getElementById('fName').value   = name;
@@ -903,7 +906,7 @@ function saveMember() {
     dept:     dept,
     team:     team
   };
-  if (editMode === 'edit') payload.rowIndex = editRowIndex;
+  if (editMode === 'edit') { payload.rowIndex = editRowIndex; payload.origName = editOrigName; }
 
   fetch(SHEETS_URL, {
     method:  'POST',
@@ -929,6 +932,7 @@ function saveMember() {
 // ════════════════════════════════════════════════════════════
 function openDeleteConfirm(rowIndex, name) {
   deleteRowIndex = rowIndex;
+  deleteName = name;
   document.getElementById('confirmDesc').textContent =
     '確定要刪除「' + name + '」？此操作無法復原。';
   document.getElementById('confirmModal').classList.add('show');
@@ -952,7 +956,8 @@ function confirmDelete() {
     body:    JSON.stringify({
       action:   'deleteMember',
       groupId:  currentGroup,
-      rowIndex: deleteRowIndex
+      rowIndex: deleteRowIndex,
+      name:     deleteName
     })
   })
   .then(function() {

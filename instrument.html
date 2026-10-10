@@ -367,6 +367,7 @@ var sortAsc = true;
 var editMode     = 'add';
 var editRowIndex = null;
 var deleteRowIndex = null;
+var deleteName = '';      // 要刪除的儀器名稱（GAS 確認是同一筆）
 
 // ════════════════════════════════════════════════════════════
 // 頁面載入：從試算表讀取儀器資料
@@ -590,6 +591,7 @@ function saveMember() {
 // ════════════════════════════════════════════════════════════
 function openDeleteConfirm(rowIndex, name) {
   deleteRowIndex = rowIndex;
+  deleteName = name;
   document.getElementById('confirmDesc').textContent =
     '確定要刪除「' + name + '」？此操作無法復原。';
   document.getElementById('confirmModal').classList.add('show');
@@ -613,7 +615,8 @@ function confirmDelete() {
     body:    JSON.stringify({
       action:    'deleteInstrument',
       sheetName: SHEET_NAME,
-      rowIndex:  deleteRowIndex
+      rowIndex:  deleteRowIndex,
+      name:      deleteName
     })
   })
   .then(function() {
