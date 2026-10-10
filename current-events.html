@@ -8482,9 +8482,23 @@ function _birdSnapToEdge() {
   else             { tT=mR.bottom-bH-mg; tL=Math.max(mR.left+mg,Math.min(mR.right-bW-mg,wr.left)); }
   BIRD_REST_BOTTOM = window.innerHeight-tT-bH;
   BIRD_REST_RIGHT  = window.innerWidth -tL-bW;
-  grp.style.left='auto'; grp.style.top='auto';
-  grp.style.bottom=BIRD_REST_BOTTOM+'px'; grp.style.right=BIRD_REST_RIGHT+'px';
+  // 放開後「飛」到邊緣：先用 top/left 做明顯的滑動 + 回彈動畫，結束後再切回 bottom/right 定位
+  grp.style.bottom='auto'; grp.style.right='auto';
+  grp.style.left=wr.left+'px'; grp.style.top=wr.top+'px';
+  void grp.offsetWidth;   // 讓瀏覽器先套用起點，動畫才會播放
+  grp.style.transition='top .6s cubic-bezier(.25,1.25,.5,1), left .6s cubic-bezier(.25,1.25,.5,1)';
+  grp.style.left=tL+'px'; grp.style.top=tT+'px';
+  clearTimeout(_birdSnapTimer);
+  _birdSnapTimer = setTimeout(function() {
+    if (_birdDragging || _birdIsOpen) return;   // 動畫期間又被拖曳或展開，就不切換
+    grp.style.transition='none';
+    grp.style.left='auto'; grp.style.top='auto';
+    grp.style.bottom=BIRD_REST_BOTTOM+'px'; grp.style.right=BIRD_REST_RIGHT+'px';
+    void grp.offsetWidth;
+    grp.style.transition='';
+  }, 650);
 }
+var _birdSnapTimer = null;
 
 // ── 展開時面板 header 拖曳（整個群組移動）──
 function _initBirdPanelDrag() {
