@@ -3539,6 +3539,7 @@ function renderMsrMarkers(eventId) {
       '<div class="msr-popup">' +
       '<span class="msr-popup-val" style="color:' + col + '">' + _fmtDose(val).val + '</span>' +
       '<span class="msr-popup-unit">' + _fmtDose(val).unit + '</span>' +
+      (msr.source === 'auto' ? '<div class="msr-popup-info" style="color:#1a56db;font-weight:700">🤖 自動量測（無人載具）</div>' : '') +
       '<div class="msr-popup-info">' + (msr.reporter||'') + (dtStr ? ' · '+dtStr : '') + '</div>' +
       (msr.instrument ? '<div class="msr-popup-info">'+msr.instrument+'</div>' : '') +
       '</div>'
