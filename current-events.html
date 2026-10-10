@@ -28,6 +28,8 @@
 #map { width: 100%; height: 100%; background: #e8edf2; }
 /* ★ 不對 tile/pane 強制 z-index，讓 Leaflet 自行管理圖層堆疊（地名/設施才能正常顯示）*/
 .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
+/* 右下角（比例尺、圖資來源）要高於地圖圖磚層（Leaflet 地圖層 z-index 400），否則圖磚載入後會把比例尺蓋掉；仍低於事件卡(1000)、AI鳥(2200) */
+.leaflet-bottom.leaflet-right { z-index: 800 !important; }
 
 /* ── 懸浮卡片（左上角）── */
 .ev-card {

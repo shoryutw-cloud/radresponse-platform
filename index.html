@@ -1856,6 +1856,7 @@ function _updateEditEventBtn() {
 
 // ── 任務派送：確保在地圖頁，再通知 iframe 開啟 Modal ──
 var _pendingTaskDispatch = false;
+var _pendingTaskView = false;   // 原本未宣告，iframe 載入時會出現 ReferenceError
 function openTaskDispatchViaIframe() {
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
