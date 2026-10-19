@@ -401,6 +401,17 @@ transition: all .12s; flex-shrink: 0;
 .msr-cluster:hover { transform: scale(1.15); }
 /* ── 量測標記 popup ── */
 .msr-popup { font-family: var(--font); min-width: 140px; }
+/* ── 最新 3 筆量測的 new 標記（標籤左上角）── */
+.msr-new {
+  position: absolute; top: -10px; left: -8px; z-index: 1;
+  font: italic 900 10px/1 ui-monospace, monospace; letter-spacing: .5px;
+  padding: 2px 5px; border-radius: 4px; color: #fff; pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+}
+.msr-new-1, .msr-new-2 { background: linear-gradient(90deg,#ef4444,#f59e0b,#22c55e,#3b82f6,#a855f7); }
+.msr-new-1 { animation: msrNewBlink 1s ease-in-out infinite; }   /* 最新：彩色＋閃爍 */
+.msr-new-3 { background: #1e2a3a; }                               /* 第三新：黑白 */
+@keyframes msrNewBlink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .2; transform: scale(.9); } }
 .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
 font-family: var(--font-mono); }
 .msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
@@ -1249,6 +1260,76 @@ function _refreshDoseColors() {
 }
 
 _loadDoseThresholds();
+
+// ════════════════════════════════════════════════════════════
+// 量測數值設定：地圖只顯示最近 N 筆（手動＋自動合計，依回報時間），0 = 全部
+// 最新 3 筆的數值標籤左上角加「new」
+// ════════════════════════════════════════════════════════════
+var MSR_LIMIT_DEFAULT = 15;
+var MSR_MAP_LIMIT = MSR_LIMIT_DEFAULT;
+try {
+  var _mlCached = parseInt(localStorage.getItem('radMsrLimit'), 10);
+  if (!isNaN(_mlCached) && _mlCached >= 0) MSR_MAP_LIMIT = _mlCached;
+} catch(e) {}
+
+function _loadMsrLimit() {
+  _jsonpGet(SHEETS_URL + '?action=getMsrLimit', function(d) {
+    if (!d || !d.ok) return;
+    _applyMsrLimit(parseInt(d.limit, 10));
+  });
+}
+function _applyMsrLimit(n) {
+  if (isNaN(n) || n < 0) return;
+  var changed = n !== MSR_MAP_LIMIT;
+  MSR_MAP_LIMIT = n;
+  try { localStorage.setItem('radMsrLimit', String(n)); } catch(e) {}
+  if (changed) _refreshDoseColors();   // 重繪卡片與量測圖層
+}
+_loadMsrLimit();
+
+// 父頁面（index.html 量測數值設定 Modal）儲存後即時通知
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'msrLimit') _applyMsrLimit(parseInt(e.data.limit, 10));
+});
+
+// 回報時間 → 毫秒（支援「2026/5/20 下午 3:14:52」、「2026-10-10 14:30:05」、Date 字串）
+function _msrTimeMs(v) {
+  var s = String(v || '').trim();
+  if (!s) return NaN;
+  var m = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})[ T]*(上午|下午)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    var h = parseInt(m[5], 10);
+    if (m[4] === '下午' && h < 12) h += 12;
+    if (m[4] === '上午' && h === 12) h = 0;
+    return new Date(+m[1], +m[2] - 1, +m[3], h, +m[6], +(m[7] || 0)).getTime();
+  }
+  var t = Date.parse(s);
+  return isNaN(t) ? NaN : t;
+}
+
+var _msrNewRank = new Map();   // 量測紀錄 → 1（最新）/ 2 / 3
+
+// 取地圖要顯示的量測資料：依回報時間取最近 N 筆（保留原本順序），同時算出最新 3 筆
+function _msrForMap(eventId) {
+  var list = _msrCache[eventId] || [];
+  var arr = list.map(function(m, i) { var t = _msrTimeMs(m.time); return { m: m, i: i, t: isNaN(t) ? -Infinity : t }; });
+  arr.sort(function(a, b) { return (b.t - a.t) || (b.i - a.i); });   // 新 → 舊；同時間以後寫入者為新
+  _msrNewRank = new Map();
+  arr.slice(0, 3).forEach(function(x, k) { _msrNewRank.set(x.m, k + 1); });
+  if (!MSR_MAP_LIMIT || MSR_MAP_LIMIT >= arr.length) return list;
+  var keep = new Set(arr.slice(0, MSR_MAP_LIMIT).map(function(x) { return x.m; }));
+  return list.filter(function(m) { return keep.has(m); });
+}
+
+// 數值標籤左上角的 new 標記
+function _msrNewBadge(msrs) {
+  var best = 0;
+  (Array.isArray(msrs) ? msrs : [msrs]).forEach(function(m) {
+    var r = _msrNewRank.get(m);
+    if (r && (!best || r < best)) best = r;
+  });
+  return best ? '<span class="msr-new msr-new-' + best + '">new</span>' : '';
+}
 
 // 父頁面（index.html 閾值設定 Modal）儲存後即時通知
 window.addEventListener('message', function(e) {
@@ -3235,7 +3316,7 @@ function renderMsrMarkers(eventId) {
     (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return ii; return -1; })();
   if (evIdx >= 0 && !isLayerOn(evIdx, 'msr')) return;
 
-  var list = _msrCache[eventId] || [];
+  var list = _msrForMap(eventId);   // 只取最近 N 筆（量測數值設定）
   var valid = list.filter(function(msr) {
     return !isNaN(parseFloat(msr.lat)) && !isNaN(parseFloat(msr.lng));
   });
@@ -3268,7 +3349,8 @@ function renderMsrMarkers(eventId) {
     var sz  = grp.members.length > 5 ? 44 : 36;
     var clusterIcon = L.divIcon({
       className: '',
-      html: '<div class="msr-cluster" style="width:'+sz+'px;height:'+sz+'px;background:'+col+';color:white;box-shadow:0 2px 10px rgba(0,0,0,.4)">' +
+      html: '<div class="msr-cluster" style="position:relative;width:'+sz+'px;height:'+sz+'px;background:'+col+';color:white;box-shadow:0 2px 10px rgba(0,0,0,.4)">' +
+            _msrNewBadge(grp.members) +
             '<div style="font-size:10px;font-weight:900;line-height:1.1">' + _fmtDose(val).val + '</div>' +
             '<div style="font-size:9px;opacity:.85">' + _fmtDose(val).unit + '</div>' +
             '<div style="font-size:8px;opacity:.7">×'+grp.members.length+'</div>' +
@@ -3513,11 +3595,11 @@ function renderMsrMarkers(eventId) {
       : ('<span style="font-size:12px;color:#94a3b8;font-family:inherit">' + (msr.reporter||'回報') + '</span>');
     var labelIcon = L.divIcon({
       className: '',
-      html: '<div style="background:white;border-left:4px solid ' + col + ';' +
+      html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
             'white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;">' +
-            labelContent +
+            _msrNewBadge(msr) + labelContent +
             '</div>',
       iconAnchor: [LW/2, LH/2]
     });
@@ -3638,7 +3720,7 @@ function renderMsrContamLayer(idx) {
   if (!isLayerOn(idx, 'msr_contam')) return;
   var ev = _events[idx];
   if (!ev) return;
-  var measurements = _msrCache[ev.id];
+  var measurements = _msrForMap(ev.id);   // 只取最近 N 筆（量測數值設定）
   if (!measurements || !measurements.length) return;
 
   // 只保留有污染值且座標合法的點
@@ -3812,13 +3894,13 @@ function renderMsrContamLayer(idx) {
     // 標籤：用 display:inline-flex 讓白框自動包住文字（同劑量率標籤的做法）
     var labelIcon = L.divIcon({
       className: '',
-      html: '<div style="background:white;border-left:4px solid ' + col + ';' +
+      html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
             'box-shadow:0 2px 8px rgba(0,0,0,.22);' +
             'white-space:nowrap;display:inline-flex;align-items:center;' +
             'font-size:11px;font-weight:800;color:' + col + ';' +
             'font-family:ui-monospace,monospace">' +
-            _esc(contam) + '</div>',
+            _msrNewBadge(msr) + _esc(contam) + '</div>',
       iconAnchor: [LW/2, LH/2]
     });
     var mk = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
@@ -3845,7 +3927,7 @@ function renderContamDotLayer(idx) {
   if (!isLayerOn(idx, 'contamdot')) return;
   var ev = _events[idx];
   if (!ev) return;
-  var measurements = _msrCache[ev.id];
+  var measurements = _msrForMap(ev.id);   // 只取最近 N 筆（量測數值設定）
   if (!measurements || !measurements.length) return;
 
   measurements.forEach(function(msr) {
@@ -3885,7 +3967,7 @@ function renderMsrDotLayer(idx) {
   if (!isLayerOn(idx, 'msrdot')) return;
   var ev = _events[idx];
   if (!ev) return;
-  var measurements = _msrCache[ev.id];
+  var measurements = _msrForMap(ev.id);   // 只取最近 N 筆（量測數值設定）
   if (!measurements || !measurements.length) return;
 
   measurements.forEach(function(msr) {

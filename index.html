@@ -502,6 +502,7 @@
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">編組管理</button>
       <button class="drawer-item" onclick="showIframe('instrument.html');closeDrawer()">儀器管理</button>
       <button class="drawer-item" onclick="closeDrawer();openThresholdModal()">閾值設定</button>
+      <button class="drawer-item" onclick="closeDrawer();openMsrLimitModal()">量測數值設定</button>
       <button class="drawer-item" onclick="openPanel('出勤通知簡訊紀錄');closeDrawer()">出勤通知簡訊紀錄</button>
       <button class="drawer-item" onclick="openPanel('事件異動紀錄');closeDrawer()">事件異動紀錄</button>
       <button class="drawer-item" onclick="openPanel('各帳號異動紀錄');closeDrawer()">各帳號異動紀錄</button>
@@ -612,6 +613,7 @@
   <button class="top-drop-btn" onclick="showIframe('group.html');closeAllMenus()">編組管理</button>
   <button class="top-drop-btn" onclick="showIframe('instrument.html');closeAllMenus()">儀器管理</button>
   <button class="top-drop-btn" onclick="closeAllMenus();openThresholdModal()">閾值設定</button>
+  <button class="top-drop-btn" onclick="closeAllMenus();openMsrLimitModal()">量測數值設定</button>
   <button class="top-drop-btn" onclick="openPanel('出勤通知簡訊紀錄');closeAllMenus()">出勤通知簡訊紀錄</button>
   <button class="top-drop-btn" onclick="openPanel('事件異動紀錄');closeAllMenus()">事件異動紀錄</button>
   <button class="top-drop-btn" onclick="openPanel('各帳號異動紀錄');closeAllMenus()">各帳號異動紀錄</button>
@@ -2174,6 +2176,188 @@ function thSave() {
 function thResetDefault() {
   thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot);
   thPost(TH_DEFAULT.warm, TH_DEFAULT.hot, '已還原預設值', document.getElementById('thBtnReset'), '還原預設值');
+}
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     量測數值設定 Modal（後台功能）
+     地圖只顯示最近 N 筆量測（手動＋自動合計，依回報時間），0 = 全部
+     存試算表「系統設定」分頁（GAS: getMsrLimit / saveMsrLimit）
+════════════════════════════════════════════════════════════ -->
+<style>
+  #msModal { display:none; position:fixed; inset:0; z-index:99999;
+    background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
+  #msModal .ms-box { background:white; border-radius:14px; max-width:420px; width:92%;
+    box-shadow:0 8px 32px rgba(0,0,0,.25); display:flex; flex-direction:column; overflow:hidden; max-height:92vh;
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei','PingFang TC',sans-serif; }
+  #msModal .ms-head { display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
+  #msModal .ms-title { font-size:16px; font-weight:700; color:#1e2a3a; }
+  #msModal .ms-x { background:none; border:none; font-size:18px; cursor:pointer; color:#94a3b8; line-height:1; }
+  #msModal .ms-body { padding:16px 20px 20px; overflow-y:auto; }
+  #msModal .ms-desc { font-size:13px; color:#6b7a92; line-height:1.7; margin-bottom:14px; }
+  #msModal .ms-opt { display:flex; align-items:center; gap:10px; padding:10px 12px; border:2px solid #e2e8f0;
+    border-radius:10px; margin-bottom:10px; cursor:pointer; font-size:14px; color:#1e2a3a; }
+  #msModal .ms-opt.sel { border-color:#1a56db; background:#eff6ff; }
+  #msModal .ms-opt input[type=radio] { width:18px; height:18px; margin:0; accent-color:#1a56db; }
+  #msModal .ms-opt input[type=number] { width:90px; padding:6px 10px; border:1px solid #e2e8f0; border-radius:8px;
+    font-size:16px; font-family:ui-monospace,'Cascadia Mono',monospace; outline:none; }
+  #msModal .ms-opt input[type=number]:focus { border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.1); }
+  #msModal .ms-def { font-size:12px; color:#94a3b8; margin:-2px 0 4px 2px; }
+  #msModal .ms-err { color:#dc2626; font-size:13px; margin-top:10px; min-height:18px; }
+  #msModal .ms-meta { font-size:12px; color:#6b7a92; margin-top:10px; line-height:1.6; }
+  #msModal .ms-btns { display:flex; gap:8px; margin-top:14px; }
+  #msModal .ms-btn { padding:9px; border-radius:8px; font-family:inherit; font-size:14px; cursor:pointer; }
+  #msModal .ms-btn-reset { flex:1; border:1px solid #e2e8f0; background:white; color:#1e2a3a; }
+  #msModal .ms-btn-cancel { flex:1; border:1px solid #e2e8f0; background:none; color:#6b7a92; }
+  #msModal .ms-btn-save { flex:1.4; border:none; background:#1a56db; color:white; font-weight:700; }
+  #msModal .ms-btn:disabled { opacity:.5; cursor:not-allowed; }
+</style>
+
+<div id="msModal" onclick="if(event.target===this)closeMsrLimitModal()">
+  <div class="ms-box">
+    <div class="ms-head">
+      <div class="ms-title">量測數值設定</div>
+      <button class="ms-x" onclick="closeMsrLimitModal()">✕</button>
+    </div>
+    <div class="ms-body">
+      <div class="ms-desc">
+        設定地圖上顯示的量測數值筆數。手動與自動量測合併計算，依回報時間取最近的筆數。<br>
+        「回報數值查詢」表格仍顯示全部資料。
+      </div>
+      <label class="ms-opt" id="msOptN">
+        <input type="radio" name="msMode" id="msModeN" value="n" onchange="msOnInput()">
+        <span>只顯示最近</span>
+        <input type="number" id="msInN" min="1" step="1" inputmode="numeric" oninput="msPick('n')">
+        <span>筆</span>
+      </label>
+      <div class="ms-def">預設值：最近 15 筆</div>
+      <label class="ms-opt" id="msOptAll" style="margin-top:10px">
+        <input type="radio" name="msMode" id="msModeAll" value="all" onchange="msOnInput()">
+        <span>顯示全部筆數</span>
+      </label>
+      <div class="ms-err" id="msErr"></div>
+      <div class="ms-btns">
+        <button class="ms-btn ms-btn-reset" id="msBtnReset" onclick="msResetDefault()">還原預設值</button>
+        <button class="ms-btn ms-btn-cancel" onclick="closeMsrLimitModal()">取消</button>
+        <button class="ms-btn ms-btn-save" id="msBtnSave" onclick="msSave()">儲存</button>
+      </div>
+      <div class="ms-meta" id="msMeta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var MS_DEFAULT = 15;
+
+function openMsrLimitModal() {
+  document.getElementById('msModal').style.display = 'flex';
+  document.getElementById('msErr').textContent = '';
+  document.getElementById('msMeta').textContent = '讀取中…';
+  var c = MS_DEFAULT;
+  try { var v = parseInt(localStorage.getItem('radMsrLimit'), 10); if (!isNaN(v) && v >= 0) c = v; } catch(e) {}
+  msSetInputs(c);
+  msLoad();
+}
+function closeMsrLimitModal() {
+  document.getElementById('msModal').style.display = 'none';
+}
+
+function msSetInputs(n) {
+  if (n === 0) {
+    document.getElementById('msModeAll').checked = true;
+    if (!document.getElementById('msInN').value) document.getElementById('msInN').value = MS_DEFAULT;
+  } else {
+    document.getElementById('msModeN').checked = true;
+    document.getElementById('msInN').value = n;
+  }
+  msOnInput();
+}
+function msPick(mode) {
+  document.getElementById(mode === 'all' ? 'msModeAll' : 'msModeN').checked = true;
+  msOnInput();
+}
+// 讀取目前選擇：回傳筆數（0 = 全部）或錯誤
+function msRead() {
+  if (document.getElementById('msModeAll').checked) return { limit: 0, err: '' };
+  var raw = document.getElementById('msInN').value.trim();
+  var n = parseInt(raw, 10);
+  if (!/^\d+$/.test(raw) || !(n >= 1)) return { limit: NaN, err: '請輸入 1 以上的整數' };
+  return { limit: n, err: '' };
+}
+function msOnInput() {
+  var all = document.getElementById('msModeAll').checked;
+  document.getElementById('msOptAll').classList.toggle('sel', all);
+  document.getElementById('msOptN').classList.toggle('sel', !all);
+  var r = msRead();
+  document.getElementById('msErr').style.color = '';
+  document.getElementById('msErr').textContent = r.err;
+  document.getElementById('msBtnSave').disabled = !!r.err;
+}
+function msDesc(n) { return n === 0 ? '顯示全部筆數' : '最近 ' + n + ' 筆'; }
+
+function msLoad(cb) {
+  _jsonpGet(SHEETS_URL + '?action=getMsrLimit', function(d) {
+    if (!d || !d.ok) {
+      document.getElementById('msMeta').textContent = '讀取失敗，請確認 GAS 已更新並重新部署。';
+      if (cb) cb(null);
+      return;
+    }
+    var n = parseInt(d.limit, 10);
+    msSetInputs(n);
+    var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var m = '目前生效：' + msDesc(n) + (n === MS_DEFAULT ? '（預設值）' : '');
+    if (d.updatedAt) m += '<br>最後更新：' + esc(d.updatedAt) + (d.updatedBy ? '（' + esc(d.updatedBy) + '）' : '');
+    document.getElementById('msMeta').innerHTML = m;
+    try { localStorage.setItem('radMsrLimit', String(n)); } catch(e) {}
+    if (cb) cb(n);
+  });
+}
+
+function msPost(n, okMsg, btn, label) {
+  var bS = document.getElementById('msBtnSave'), bR = document.getElementById('msBtnReset');
+  bS.disabled = true; bR.disabled = true;
+  btn.textContent = '儲存中…';
+  var who = '';
+  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
+  fetch(SHEETS_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify({ action: 'saveMsrLimit', limit: n, updatedBy: who })
+  })
+  .then(function() {
+    setTimeout(function() {
+      msLoad(function(got) {
+        btn.textContent = label; bR.disabled = false; msOnInput();
+        if (got === n) {
+          // 通知地圖 iframe 立即套用
+          try {
+            var f = document.getElementById('contentFrame');
+            if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'msrLimit', limit: n }, '*');
+          } catch(e) {}
+          document.getElementById('msErr').style.color = '#15803d';
+          document.getElementById('msErr').textContent = '✓ ' + okMsg;
+          setTimeout(function(){ document.getElementById('msErr').style.color = ''; closeMsrLimitModal(); }, 900);
+        } else {
+          document.getElementById('msErr').textContent = '儲存後讀回的數值不一致，請稍後再試';
+        }
+      });
+    }, 800);
+  })
+  .catch(function() {
+    btn.textContent = label; bR.disabled = false; msOnInput();
+    document.getElementById('msErr').textContent = '儲存失敗，請確認網路連線';
+  });
+}
+function msSave() {
+  var r = msRead();
+  if (r.err) return;
+  msPost(r.limit, '已儲存：' + msDesc(r.limit), document.getElementById('msBtnSave'), '儲存');
+}
+function msResetDefault() {
+  msSetInputs(MS_DEFAULT);
+  msPost(MS_DEFAULT, '已還原預設值（最近 15 筆）', document.getElementById('msBtnReset'), '還原預設值');
 }
 </script>
 
