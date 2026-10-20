@@ -4526,9 +4526,15 @@ function _kmzUpdateBirdStatus() {
   if (!el) return;
   if (!_kmzSimData || !_kmzSimData.maxConc) { el.style.display = 'none'; return; }
   el.style.display = '';
+  if (typeof _birdLang !== 'undefined' && _birdLang === 'en') {
+    el.textContent = '🗺️ KMZ simulation loaded | Max ' + _kmzSimData.maxConc.toExponential(1) +
+      ' Bq/m² (' + (_kmzSimData.maxConc / 1e4).toFixed(2) + ' Bq/cm²) | Hot zone ' +
+      _kmzSimData.hotZoneCount + ' grid points';
+  } else {
   el.textContent = '🗺️ KMZ 模擬已載入｜最大 ' + _kmzSimData.maxConc.toExponential(1) +
     ' Bq/m²（' + (_kmzSimData.maxConc / 1e4).toFixed(2) + ' Bq/cm²）｜熱區 ' +
     _kmzSimData.hotZoneCount + ' 格點';
+  }
 }
 
 var _envMarkers   = [];
@@ -8261,22 +8267,23 @@ function pickMsrTask(i) {
   <!-- 面板（展開後鳥圖在 header 內）-->
   <div id="aiBirdPanel">
     <div class="bird-panel-hd" id="aiBirdPanelHd">
-      <span class="bird-panel-hd-title">AI 應變助手（管理員）</span>
-      <button class="bird-panel-close" onclick="_birdCircleClick(event)" title="關閉">✕</button>
+      <span class="bird-panel-hd-title" data-bt="title">AI 應變助手（管理員）</span>
+      <button class="bird-panel-close" id="birdLangBtn" onclick="_birdToggleLang(event)" title="中文 / English" style="width:auto;padding:0 8px;font-size:12px;font-weight:700;color:#e8f0fa">EN</button>
+      <button class="bird-panel-close" onclick="_birdCircleClick(event)" data-bt-title="close" title="關閉">✕</button>
     </div>
     <div class="bird-panel-body" id="aiBirdPanelBody">
       <!-- 模式切換 -->
       <div style="display:flex;gap:5px;margin-bottom:6px">
         <button id="birdModeGroqBtn" onclick="_birdSetMode('groq')"
           style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #1a56db;background:#1a56db;color:white;font-size:11.5px;font-family:inherit;cursor:pointer;font-weight:600">GROQ</button>
-        <button id="birdModeGeminiBtn" onclick="_birdSetMode('gemini')"
+        <button id="birdModeGeminiBtn" data-bt="gemBtn" onclick="_birdSetMode('gemini')"
           style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#6b7a92;font-size:11.5px;font-family:inherit;cursor:pointer">Gemini 知識庫</button>
       </div>
       <!-- GROQ 模式設定 -->
       <div id="birdGroqSection" class="bird-key-row">
         <span class="bird-key-lbl">Groq Key</span>
         <input class="bird-key-inp" id="birdGroqKey" type="password" placeholder="gsk_..." oninput="saveBirdKey(this.value)">
-        <button onclick="loadBirdKnowledge()" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;white-space:nowrap;font-family:inherit">載入知識庫</button>
+        <button onclick="loadBirdKnowledge()" data-bt="loadKb" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;white-space:nowrap;font-family:inherit">載入知識庫</button>
       </div>
       <!-- Gemini 模式設定 -->
       <div id="birdGeminiSection" style="display:none;flex-direction:column;gap:4px">
@@ -8285,31 +8292,31 @@ function pickMsrTask(i) {
           <input class="bird-key-inp" id="birdGeminiKey" type="password" placeholder="AIza..." oninput="_saveBirdGeminiKey(this.value)">
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:2px">
-          <button onclick="loadGeminiKb()" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;font-family:inherit">載入知識庫</button>
+          <button onclick="loadGeminiKb()" data-bt="loadKb" style="font-size:11px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;color:#1e2a3a;cursor:pointer;font-family:inherit">載入知識庫</button>
         </div>
       </div>
       <div class="bird-kb-status" id="birdKbStatus">知識庫未載入（請先「載入知識庫」）</div>
       <div id="birdKmzStatus" style="display:none;font-size:11px;padding:3px 7px;margin-top:3px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;color:#15803d;line-height:1.5"></div>
       <div id="birdAlertArea" style="display:none"></div>
-      <button class="bird-analyze-btn" id="birdAnalyzeBtn" onclick="birdAnalyze()">⚡ AI 分析目前事件狀況</button>
+      <button class="bird-analyze-btn" id="birdAnalyzeBtn" data-bt="analyze" onclick="birdAnalyze()">⚡ AI 分析目前事件狀況</button>
       <div id="birdResult"></div>
       <div style="border-top:1px solid #e2e8f0;padding-top:8px">
-        <div style="font-size:11.4px;color:#6b7a92;margin-bottom:6px;font-weight:600">快速問答</div>
+        <div style="font-size:11.4px;color:#6b7a92;margin-bottom:6px;font-weight:600" data-bt="quick">快速問答</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px">
-          <button class="bird-quick-pill" onclick="birdQuickAsk('目前事件的應變程序為何？')">應變程序</button>
-          <button class="bird-quick-pill" onclick="birdQuickAsk('現場量測數值異常，建議採取什麼行動？')">數值異常</button>
-          <button class="bird-quick-pill" onclick="birdQuickAsk('人員防護措施為何？')">人員防護</button>
-          <button class="bird-quick-pill" onclick="birdQuickAsk('通報程序為何？')">通報程序</button>
-          <button class="bird-quick-pill" onclick="birdQuickAsk('污染管制措施？')">污染管制</button>
-          <button class="bird-quick-pill" onclick="birdQuickAsk('儀器量測程序？')">量測程序</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q1'))" data-bt="p1">應變程序</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q2'))" data-bt="p2">數值異常</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q3'))" data-bt="p3">人員防護</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q4'))" data-bt="p4">通報程序</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q5'))" data-bt="p5">污染管制</button>
+          <button class="bird-quick-pill" onclick="birdQuickAsk(_bt('q6'))" data-bt="p6">量測程序</button>
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:flex-end">
-        <textarea id="birdQaInput" placeholder="輸入問題…" rows="1"
+        <textarea id="birdQaInput" placeholder="輸入問題…" data-bt-ph="ph" rows="1"
           style="flex:1;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:16px;outline:none;resize:none;overflow:hidden;line-height:1.45;min-height:34px;max-height:160px;box-sizing:border-box;"
           oninput="_birdInputResize(this)"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();birdSendQa();}"></textarea>
-        <button onclick="birdSendQa()" style="padding:7px 12px;border:none;border-radius:8px;background:#1a56db;color:white;font-family:inherit;font-size:13.5px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-bottom:0">送出</button>
+        <button onclick="birdSendQa()" data-bt="send" style="padding:7px 12px;border:none;border-radius:8px;background:#1a56db;color:white;font-family:inherit;font-size:13.5px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-bottom:0">送出</button>
       </div>
     </div>
   </div>
@@ -8333,6 +8340,79 @@ var _birdQaHistory = [];
 var _birdKbFileNames = [];
 var _BIRD_FOLDER_ID  = '1XRM7zIkRotFaqX_afKw7ij4PlG-6z5Fq';
 
+// ══ AI鳥 語言切換（只影響 AI鳥：介面 + AI 輸出語言）══════════════════
+var _birdLang = (function(){ try{ return localStorage.getItem('_birdLang')==='en'?'en':'zh'; }catch(e){ return 'zh'; } })();
+var _BIRD_I18N = {
+  zh:{
+    title:'AI 應變助手（管理員）', close:'關閉', gemBtn:'Gemini 知識庫', loadKb:'載入知識庫',
+    analyze:'⚡ AI 分析目前事件狀況', quick:'快速問答',
+    p1:'應變程序', q1:'目前事件的應變程序為何？', p2:'數值異常', q2:'現場量測數值異常，建議採取什麼行動？',
+    p3:'人員防護', q3:'人員防護措施為何？', p4:'通報程序', q4:'通報程序為何？',
+    p5:'污染管制', q5:'污染管制措施？', p6:'量測程序', q6:'儀器量測程序？',
+    ph:'輸入問題…', send:'送出', sep:'、',
+    kbNone:'知識庫未載入（請先「載入知識庫」）', kbOk:'✅ 知識庫已載入', kbReading:'⏳ 讀取知識庫中…',
+    kbRestored:'✅ 已從快取還原（{n}k 字）', kbTimeout:'⚠️ 載入逾時，請重試', kbLoaded:'✅ 已載入：{names}（{n}k 字）',
+    kbNoDoc:'無法取得文件', kbFail:'⚠️ 載入失敗：{msg}', netErr:'⚠️ 網路錯誤',
+    gemLoaded:'✅ Gemini 知識庫已載入（{names}）', gemPress:'⚠️ 請按「載入知識庫」', gemLoading:'⏳ 載入 Gemini 知識庫中…',
+    errNoGemKb:'找不到 gemini_kb.json（請先執行 setup_gemini_kb.py）', errGemKey:'請先輸入 Gemini API Key',
+    errLoadKb:'請先按「載入知識庫」', errGroq:'請先輸入 Groq Key',
+    analyzing:'⏳ 分析中…', noEvent:'⚠️ 目前無進行中事件，無法分析。', readSheet:'⏳ 讀取最新 Sheet 資料中…',
+    aiAnalyzing:'⏳ AI 分析中…', thinking:'⏳ 思考中…', failed:'⚠️ 失敗：',
+    kbSrc:'📚 知識庫：', webSrc:'🌐 網路來源：', defSrc:'一般應變原則', basisL:'【依據：', basisR:'】', source:'來源：',
+    noResp:'（無回應）', layer:'AI 建議圖層', alertHd:'⚠️ AI 偵測到量測異常', alertToast:'⚠️ AI 偵測到量測異常，請查看建議',
+    analyzeAsk:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。', sfx:''
+  },
+  en:{
+    title:'AI Response Assistant (Admin)', close:'Close', gemBtn:'Gemini Knowledge Base', loadKb:'Load KB',
+    analyze:'⚡ AI Analyze Current Incident', quick:'Quick Q&A',
+    p1:'Procedures', q1:'What are the response procedures for the current incident?',
+    p2:'Abnormal readings', q2:'Field dose-rate readings are abnormal. What actions do you recommend?',
+    p3:'Personnel protection', q3:'What personnel protection measures are required?',
+    p4:'Notification', q4:'What are the notification procedures?',
+    p5:'Contamination control', q5:'What contamination control measures apply?',
+    p6:'Measurement', q6:'What are the instrument measurement procedures?',
+    ph:'Type a question…', send:'Send', sep:', ',
+    kbNone:'Knowledge base not loaded (click "Load KB" first)', kbOk:'✅ Knowledge base loaded', kbReading:'⏳ Loading knowledge base…',
+    kbRestored:'✅ Restored from cache ({n}k chars)', kbTimeout:'⚠️ Load timed out, please retry', kbLoaded:'✅ Loaded: {names} ({n}k chars)',
+    kbNoDoc:'Unable to fetch documents', kbFail:'⚠️ Load failed: {msg}', netErr:'⚠️ Network error',
+    gemLoaded:'✅ Gemini knowledge base loaded ({names})', gemPress:'⚠️ Click "Load KB"', gemLoading:'⏳ Loading Gemini knowledge base…',
+    errNoGemKb:'gemini_kb.json not found (run setup_gemini_kb.py first)', errGemKey:'Please enter your Gemini API Key first',
+    errLoadKb:'Please click "Load KB" first', errGroq:'Please enter your Groq Key first',
+    analyzing:'⏳ Analyzing…', noEvent:'⚠️ No active incident to analyze.', readSheet:'⏳ Fetching latest Sheet data…',
+    aiAnalyzing:'⏳ AI is analyzing…', thinking:'⏳ Thinking…', failed:'⚠️ Failed: ',
+    kbSrc:'📚 Knowledge base: ', webSrc:'🌐 Web sources: ', defSrc:'General response principles', basisL:'Basis: ', basisR:'', source:'Source: ',
+    noResp:'(No response)', layer:'AI Suggestion Layer', alertHd:'⚠️ AI detected an abnormal measurement',
+    alertToast:'⚠️ AI detected an abnormal measurement. Please review the recommendations.',
+    analyzeAsk:'Based on the current incident, give recommended response actions and mark suggested measurement points or zones in draw.',
+    sfx:' (Answer in English.)'
+  }
+};
+function _bt(k,v){
+  var d=_BIRD_I18N[_birdLang]||_BIRD_I18N.zh;
+  var t=(d[k]!==undefined)?d[k]:_BIRD_I18N.zh[k];
+  if(t===undefined) return k;
+  if(v) t=t.replace(/\{(\w+)\}/g,function(m,n){ return v[n]!==undefined?v[n]:m; });
+  return t;
+}
+function _birdApplyLang(){
+  var grp=document.getElementById('aiBirdGroup'); if(!grp) return;
+  grp.querySelectorAll('[data-bt]').forEach(function(el){ if(el.disabled) return; el.textContent=_bt(el.getAttribute('data-bt')); });
+  grp.querySelectorAll('[data-bt-title]').forEach(function(el){ el.title=_bt(el.getAttribute('data-bt-title')); });
+  grp.querySelectorAll('[data-bt-ph]').forEach(function(el){ el.placeholder=_bt(el.getAttribute('data-bt-ph')); });
+  var lb=document.getElementById('birdLangBtn'); if(lb) lb.textContent=(_birdLang==='en'?'中':'EN');
+  try{ _birdSetMode(_birdMode); }catch(e){}
+  try{ _kmzUpdateBirdStatus(); }catch(e){}
+  var lyr=document.getElementById('lyr_ai_bird'); // 圖層面板中的 AI 建議圖層名稱
+  if(lyr&&lyr.parentNode){ var tn=lyr.parentNode.lastChild; if(tn&&tn.nodeType===3) tn.nodeValue=_bt('layer'); }
+}
+function _birdToggleLang(e){
+  if(e){ e.stopPropagation(); e.preventDefault(); }
+  _birdLang=(_birdLang==='en')?'zh':'en';
+  try{ localStorage.setItem('_birdLang',_birdLang); }catch(x){}
+  _birdApplyLang();
+}
+
+
 function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── 初始化 ──
@@ -8355,12 +8435,13 @@ function _initBirdBtn() {
           _birdKbText = c;
           _birdKbLoaded = true;
           var se = document.getElementById('birdKbStatus');
-          if (se) { se.className = 'bird-kb-status ok'; se.textContent = '✅ 已從快取還原（' + Math.round(c.length/1000) + 'k 字）'; }
+          if (se) { se.className = 'bird-kb-status ok'; se.textContent = _bt('kbRestored',{n:Math.round(c.length/1000)}); }
         }
       }
     } catch(e) {}
     _initBirdRestDrag();
     _initBirdPanelDrag();
+    _birdApplyLang();
   } else {
     grp.style.display = 'none';
   }
@@ -8621,12 +8702,12 @@ function loadBirdKnowledge() {
   if (_birdKbLoading) return;
   _birdKbLoading=true;
   var se=document.getElementById('birdKbStatus');
-  se.className='bird-kb-status loading'; se.textContent='⏳ 讀取知識庫中…';
+  se.className='bird-kb-status loading'; se.textContent=_bt('kbReading');
   var cb='_birdKbCb_'+Date.now();
   var timer=setTimeout(function(){
     try{delete window[cb];}catch(e){} _birdKbLoading=false;
-    try{ var c=sessionStorage.getItem('_birdKbCache'); if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; se.className='bird-kb-status ok'; se.textContent='✅ 已從快取還原（'+Math.round(c.length/1000)+'k 字）'; return; } }catch(e){}
-    se.className='bird-kb-status'; se.textContent='⚠️ 載入逾時，請重試';
+    try{ var c=sessionStorage.getItem('_birdKbCache'); if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; se.className='bird-kb-status ok'; se.textContent=_bt('kbRestored',{n:Math.round(c.length/1000)}); return; } }catch(e){}
+    se.className='bird-kb-status'; se.textContent=_bt('kbTimeout');
   },30000);
   window[cb]=function(data){
     clearTimeout(timer); try{delete window[cb];}catch(e){} _birdKbLoading=false;
@@ -8637,17 +8718,17 @@ function loadBirdKnowledge() {
         _birdKbLoaded=true; _birdKbFileNames=valid.map(function(d){return d.name;});
         try{sessionStorage.setItem('_birdKbCache',_birdKbText);}catch(e){}
         se.className='bird-kb-status ok';
-        se.textContent='✅ 已載入：'+_birdKbFileNames.join('、')+'（'+Math.round(_birdKbText.length/1000)+'k 字）';
+        se.textContent=_bt('kbLoaded',{names:_birdKbFileNames.join(_bt('sep')),n:Math.round(_birdKbText.length/1000)});
         return;
       }
     }
-    var msg=(data&&data.error)?data.error:'無法取得文件';
-    try{ var c=sessionStorage.getItem('_birdKbCache'); if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; se.className='bird-kb-status ok'; se.textContent='✅ 已從快取還原（'+Math.round(c.length/1000)+'k 字）'; return; } }catch(e){}
-    se.className='bird-kb-status'; se.textContent='⚠️ 載入失敗：'+msg;
+    var msg=(data&&data.error)?data.error:_bt('kbNoDoc');
+    try{ var c=sessionStorage.getItem('_birdKbCache'); if(c&&c.length>100){ _birdKbText=c; _birdKbLoaded=true; se.className='bird-kb-status ok'; se.textContent=_bt('kbRestored',{n:Math.round(c.length/1000)}); return; } }catch(e){}
+    se.className='bird-kb-status'; se.textContent=_bt('kbFail',{msg:msg});
   };
   var s=document.createElement('script');
   s.src=SHEETS_URL+'?action=getKnowledge&folderId='+encodeURIComponent(_BIRD_FOLDER_ID)+'&callback='+encodeURIComponent(cb);
-  s.onerror=function(){ clearTimeout(timer); _birdKbLoading=false; se.className='bird-kb-status'; se.textContent='⚠️ 網路錯誤'; };
+  s.onerror=function(){ clearTimeout(timer); _birdKbLoading=false; se.className='bird-kb-status'; se.textContent=_bt('netErr'); };
   document.head.appendChild(s);
 }
 
@@ -8707,28 +8788,35 @@ async function _birdGetEvCtxAsync(){
 }
 
 function _birdSystemPrompt(evCtx, kb, mode){
+  var EN = (_birdLang === 'en');
+  var LBL = EN ? 'short English text' : '文字';
+  var FB1 = EN ? 'Professional judgment (not in knowledge base)' : '專業判斷（知識庫無此資料）';
+  var FB2a = EN ? 'Not covered by the knowledge base' : '知識庫未涵蓋此項目';
+  var FB2b = EN ? 'Not covered by the knowledge base' : '知識庫未涵蓋';
+  var langRule = EN
+    ? '【OUTPUT LANGUAGE - MANDATORY】Write ALL human-readable text in English: summary, every title, desc, and draw label. The knowledge base and event data are in Traditional Chinese - read them in Chinese but answer in English. Keep JSON keys, numbers and units (μSv/h, Bq/cm², Bq/m²) as is. Translate place names into English and put the original Chinese in parentheses. Keep knowledge-base document and chapter names (the "ref" field) in their original Chinese. Do not answer in Chinese.\n\n'
+    : '';
+  var endRule = EN ? 'Reminder: all text values in the JSON must be in English.\n\n' : '';
   var drawRule =
     '【繪圖規則】draw 陣列座標必須用【目前事件】中的「事件GPS座標」，禁止假設座標。\n'+
-    '  circle：{"type":"circle","lat":數字,"lng":數字,"radius":公尺,"label":"short English text","color":"#色","fillOpacity":0.15}\n'+
-    '  marker：{"type":"marker","lat":數字,"lng":數字,"label":"short English text","color":"#色"}\n'+
-    '  polygon：{"type":"polygon","latlngs":[[lat,lng],...],"label":"short English text","color":"#色","fillOpacity":0.12}\n'+
+    '  circle：{"type":"circle","lat":數字,"lng":數字,"radius":公尺,"label":"'+LBL+'","color":"#色","fillOpacity":0.15}\n'+
+    '  marker：{"type":"marker","lat":數字,"lng":數字,"label":"'+LBL+'","color":"#色"}\n'+
+    '  polygon：{"type":"polygon","latlngs":[[lat,lng],...],"label":"'+LBL+'","color":"#色","fillOpacity":0.12}\n'+
     '  顏色：危險#dc2626 警戒#f97316 量測點#1a56db 疏散#16a34a\n'+
     '【下風向座標偏移公式】風向W度（正北0，順時針），距離D公尺，下風向=風向+180度（mod 360）\n'+
     '  rad = 下風向 * π/180\n'+
     '  目標lat = 事件lat + (D/111320)*cos(rad)\n'+
     '  目標lng = 事件lng + (D/111320)*sin(rad)/cos(事件lat*π/180)\n'+
     '  座標只能用【目前事件】裡的真實 lat/lng，禁止假設或虛構任何數值。\n';
-  var langRule =
-    '【OUTPUT LANGUAGE - MANDATORY】Write ALL human-readable text in English: summary, every title, desc, and draw label. The knowledge base and event data are in Traditional Chinese - read them in Chinese but answer in English. Keep JSON keys, numbers and units (μSv/h, Bq/cm², Bq/m²) as is. Keep proper nouns (place names, document names, chapter names) in their original Chinese, with an English translation in parentheses where helpful. Do not answer in Chinese.\n\n';
   var format =
     '【回傳格式】純JSON，禁止markdown，所有字串欄位禁用\\n換行符：\n'+
     '{\n'+
-    '  "summary": "[Time] YYYY-MM-DD HH:MM  [Location] exact place name or address  [Event] one-sentence summary of the incident type and current situation",\n'+
+    '  "summary": "'+(EN?'[Time] YYYY-MM-DD HH:MM  [Location] exact place name or address (English, with original Chinese in parentheses)  [Event] one-sentence summary of the incident type and current situation':'【時間】X年X月X日 HH:MM　【地點】確切地名或地址　【事件】事件類型與目前狀況一句話摘要')+'",\n'+
     '  "actions": [\n'+
     '    {\n'+
-    '      "title": "short title of the recommended action",\n'+
-    '      "desc": "specific actions to take, with the reason (format: Recommend ...; Reason: ...)",\n'+
-    '      "ref":  "reference source: only actual knowledge-base document names (keep the original Chinese file name verbatim), measurement data, or weather-simulation data"\n'+
+    '      "title": "'+(EN?'short title of the recommended action':'建議作為的短標題')+'",\n'+
+    '      "desc": "'+(EN?'specific actions to take, with the reason (format: Recommend ...; Reason: ...)':'建議具體執行內容，並說明原因（格式：建議…；原因是…）')+'",\n'+
+    '      "ref":  "'+(EN?'reference source: only actual knowledge-base document names (keep the original Chinese file name verbatim), measurement data, or weather-simulation data':'參考資料來源，只能填知識庫實際文件名稱、量測數據、或氣象模擬數據')+'"\n'+
     '    }\n'+
     '  ],\n'+
     '  "draw": []\n'+
@@ -8737,9 +8825,9 @@ function _birdSystemPrompt(evCtx, kb, mode){
   var antiHallucination =
     '【嚴格禁止幻覺】\n'+
     '- ref 欄位只能填知識庫中實際出現的文件名稱，禁止捏造或猜測\n'+
-    '- 如果某條建議在知識庫中找不到對應內容，ref 必須填「Professional judgment (not in knowledge base)」\n'+
+    '- 如果某條建議在知識庫中找不到對應內容，ref 必須填「'+FB1+'」\n'+
     '- 禁止把知識庫沒有的內容說成「依據知識庫」\n'+
-    '- 寧可說「Not covered by the knowledge base」，也不能編造來源\n\n';
+    '- 寧可說「'+FB2a+'」，也不能編造來源\n\n';
 
   if(mode === 'analyze'){
     return langRule+'你是輻射災害現場應變顧問，熟讀下方知識庫。你的建議必須來自知識庫的實際內容，不得用通識知識敷衍。\n\n'+
@@ -8749,14 +8837,14 @@ function _birdSystemPrompt(evCtx, kb, mode){
       '   - ref：先指出本條建議所依據的資料（知識庫文件名稱、量測數據、或氣象模擬數據），只能填實際存在的來源\n'+
       '   - title：建議作為的簡短標題\n'+
       '   - desc：具體執行方法 + 執行原因（格式：建議…；原因是…）\n'+
-      '3. 給出 3-5 條建議，知識庫有的直接引用具體做法，沒有的明說「Not covered by the knowledge base」\n'+
+      '3. 給出 3-5 條建議，知識庫有的直接引用具體做法，沒有的明說「'+FB2b+'」\n'+
       '4. 有數值就給數值，有步驟就給步驟，禁止說「進行偵測」「啟動應變」等空話\n'+
       '5. 若【目前事件】包含【氣象模擬數據】欄位，必須對照知識庫中的污染閾值（Bq/cm²），判斷最大濃度是否達到管制標準；若熱區中心座標存在，在 draw 標記熱區位置；前5高濃度點一併標示\n\n'+
       antiHallucination+
       drawRule+
       '凡涉及範圍劃定、量測點建議、污染擴散，必須填 draw 陣列，不可留空。\n\n'+
       format+
-      'Reminder: all text values in the JSON must be in English.\n\n'+
+      endRule+
       '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
   } else {
     return langRule+'你是輻射災害現場應變顧問，熟讀下方知識庫。回答必須來自知識庫的實際內容，不得用通識知識敷衍。\n\n'+
@@ -8776,14 +8864,14 @@ function _birdSystemPrompt(evCtx, kb, mode){
       antiHallucination+
       drawRule+
       format+
-      'Reminder: all text values in the JSON must be in English.\n\n'+
+      endRule+
       '【目前事件】\n'+evCtx+'\n\n【知識庫】\n'+kb;
   }
 }
 
 // 把 parsed 物件轉成 HTML 字串（不直接操作 DOM）
 function _birdRenderAiHtml(parsed, srcNames){
-  var src=(srcNames&&srcNames.length)?srcNames.join('、'):'一般應變原則';
+  var src=(srcNames&&srcNames.length)?srcNames.join(_bt('sep')):_bt('defSrc');
   var html='';
   if(parsed.summary) html+='<div class="br-summary" style="white-space:pre-wrap">'+_esc(parsed.summary)+'</div>';
   if(parsed.actions&&parsed.actions.length){
@@ -8791,14 +8879,14 @@ function _birdRenderAiHtml(parsed, srcNames){
       return '<div class="br-item"><div class="br-num">'+(i+1)+'</div>'+
         '<div><div class="br-title">'+_esc(a.title||'')+'</div>'+
         '<div class="br-desc" style="white-space:pre-wrap">'+_esc(a.desc||'')+'</div>'+
-        (a.ref?'<div class="br-src">【依據：'+_esc(a.ref)+'】</div>':'')+
+        (a.ref?'<div class="br-src">'+_bt('basisL')+_esc(a.ref)+_bt('basisR')+'</div>':'')+
         '</div></div>';
-    }).join('')+'<div class="br-src" style="padding:4px 2px;margin-top:4px">來源：'+_esc(src)+'</div>';
+    }).join('')+'<div class="br-src" style="padding:4px 2px;margin-top:4px">'+_bt('source')+_esc(src)+'</div>';
   } else if(parsed.text){
     html+='<div style="white-space:pre-wrap;line-height:1.7">'+_esc(parsed.text)+'</div>'+
-      '<div class="br-src" style="margin-top:6px">【依據：'+_esc(src)+'】</div>';
+      '<div class="br-src" style="margin-top:6px">'+_bt('basisL')+_esc(src)+_bt('basisR')+'</div>';
   }
-  return html||'<div style="color:#6b7a92">（無回應）</div>';
+  return html||'<div style="color:#6b7a92">'+_bt('noResp')+'</div>';
 }
 // 向聊天容器附加一條訊息泡泡，回傳該元素（方便後續替換內容）
 function _birdAppendMsg(role, html) {
@@ -8862,7 +8950,7 @@ function _birdDrawLayers(items){
     if(old){var p=old.closest('label')||old;if(p.parentNode)p.parentNode.removeChild(p);}
     if(_birdAiLayerOn){
       var lbl=document.createElement('label'); lbl.className='layer-row';
-      lbl.innerHTML='<input type="checkbox" id="lyr_ai_bird" checked onchange="_birdAiLayerToggle(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#1a56db,#dc2626)"></span>AI 建議圖層';
+      lbl.innerHTML='<input type="checkbox" id="lyr_ai_bird" checked onchange="_birdAiLayerToggle(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#1a56db,#dc2626)"></span>'+_bt('layer');
       var cbs=body.querySelector('.layer-ev-cbs'); if(cbs)cbs.appendChild(lbl);else body.appendChild(lbl);
     }
   }
@@ -8871,7 +8959,7 @@ function _birdAiLayerToggle(on){ _birdAiLayerOn=on; if(!_birdAiLayerGroup||!gMap
 
 async function _birdGroqCall(messages,model,maxTokens){
   var key=''; try{key=(document.getElementById('birdGroqKey').value||'').trim();}catch(e){}
-  if(!key) throw new Error('請先輸入 Groq Key');
+  if(!key) throw new Error(_bt('errGroq'));
   var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
@@ -8906,28 +8994,28 @@ function _birdSetMode(m) {
     if (gemBtn)  { gemBtn.style.background='#1a56db';  gemBtn.style.color='white';    gemBtn.style.borderColor='#1a56db'; }
     if (groqSec) groqSec.style.display = 'none';
     if (gemSec)  { gemSec.style.display = 'flex'; }
-    if (st) { st.textContent = _geminiKbLoaded ? '✅ Gemini 知識庫已載入（'+_geminiKbNames.join('、')+')' : '⚠️ 請按「載入知識庫」'; st.className = 'bird-kb-status'+(_geminiKbLoaded?' ok':''); }
+    if (st) { st.textContent = _geminiKbLoaded ? _bt('gemLoaded',{names:_geminiKbNames.join(_bt('sep'))}) : _bt('gemPress'); st.className = 'bird-kb-status'+(_geminiKbLoaded?' ok':''); }
   } else {
     if (groqBtn) { groqBtn.style.background='#1a56db'; groqBtn.style.color='white';    groqBtn.style.borderColor='#1a56db'; }
     if (gemBtn)  { gemBtn.style.background='#f8fafc';  gemBtn.style.color='#6b7a92';   gemBtn.style.borderColor='#e2e8f0'; }
     if (groqSec) groqSec.style.display = '';
     if (gemSec)  gemSec.style.display = 'none';
-    if (st) { st.textContent = _birdKbLoaded ? '✅ 知識庫已載入' : '知識庫未載入（請先「載入知識庫」）'; st.className = 'bird-kb-status'+(_birdKbLoaded?' ok':''); }
+    if (st) { st.textContent = _birdKbLoaded ? _bt('kbOk') : _bt('kbNone'); st.className = 'bird-kb-status'+(_birdKbLoaded?' ok':''); }
   }
 }
 function _saveBirdGeminiKey(v){ try{localStorage.setItem('_birdGeminiKey',v);}catch(e){} }
 
 async function loadGeminiKb() {
   var st = document.getElementById('birdKbStatus');
-  if (st) { st.textContent = '⏳ 載入 Gemini 知識庫中…'; st.className = 'bird-kb-status loading'; }
+  if (st) { st.textContent = _bt('gemLoading'); st.className = 'bird-kb-status loading'; }
   try {
     var r = await fetch('gemini_kb.json?t='+Date.now());
-    if (!r.ok) throw new Error('找不到 gemini_kb.json（請先執行 setup_gemini_kb.py）');
+    if (!r.ok) throw new Error(_bt('errNoGemKb'));
     var data = await r.json();
     _geminiKbText = data.combinedText || '';
     _geminiKbNames = (data.documents||[]).map(function(d){ return d.name; });
     _geminiKbLoaded = true;
-    if (st) { st.textContent = '✅ Gemini 知識庫已載入（'+_geminiKbNames.join('、')+')'; st.className = 'bird-kb-status ok'; }
+    if (st) { st.textContent = _bt('gemLoaded',{names:_geminiKbNames.join(_bt('sep'))}); st.className = 'bird-kb-status ok'; }
   } catch(e) {
     if (st) { st.textContent = '❌ '+e.message; st.className = 'bird-kb-status'; }
   }
@@ -8935,8 +9023,8 @@ async function loadGeminiKb() {
 
 async function _birdGeminiCall(question, evCtx, callMode) {
   var key = (function(){ try{return (document.getElementById('birdGeminiKey')||{}).value||localStorage.getItem('_birdGeminiKey')||'';}catch(e){return '';} })().trim();
-  if (!key) throw new Error('請先輸入 Gemini API Key');
-  if (!_geminiKbLoaded) throw new Error('請先按「載入知識庫」');
+  if (!key) throw new Error(_bt('errGemKey'));
+  if (!_geminiKbLoaded) throw new Error(_bt('errLoadKb'));
   var BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
   // 從全文知識庫用關鍵字篩出最相關段落（最多 8000 字，節省 token）
@@ -9065,37 +9153,37 @@ function _birdRefreshData(idx){
 
 async function birdAnalyze(forceMode){
   var btn=document.getElementById('birdAnalyzeBtn');
-  btn.disabled=true; btn.textContent='⏳ 分析中…';
+  btn.disabled=true; btn.textContent=_bt('analyzing');
   // 沒有進行中事件就不分析
   if(!_events||!_events[_curIdx]){
-    _birdAppendMsg('ai','<span style="color:#f97316">⚠️ 目前無進行中事件，無法分析。</span>');
-    btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
+    _birdAppendMsg('ai','<span style="color:#f97316">'+_bt('noEvent')+'</span>');
+    btn.disabled=false; btn.textContent=_bt('analyze');
     return;
   }
-  var userMsg='⚡ AI 分析目前事件狀況';
+  var userMsg=_bt('analyze');
   _birdAppendMsg('user', _esc(userMsg));
-  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 讀取最新 Sheet 資料中…</span>');
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">'+_bt('readSheet')+'</span>');
   try{
     var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
     await _birdRefreshData(_curIdx);
-    loadBbl.innerHTML='<span class="bc-loading">⏳ AI 分析中…</span>';
+    loadBbl.innerHTML='<span class="bc-loading">'+_bt('aiAnalyzing')+'</span>';
     var evCtx=await _birdGetEvCtxAsync();
     var text, parsed, kbSources=[], webSources=[];
     var effectiveMode=forceMode||_birdMode;
     if (effectiveMode === 'gemini') {
-      var gr = await _birdGeminiCall('請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。', evCtx, 'analyze');
+      var gr = await _birdGeminiCall((_bt('analyzeAsk')+_bt('sfx')), evCtx, 'analyze');
       text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
     } else {
       var kb=_birdGetRelevantKb(evCtx+' '+(_events[_curIdx]?_events[_curIdx].type:''));
       var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'analyze')}]
         .concat(_birdStripDraw(hist.slice(-6)))
-        .concat([{role:'user',content:'請根據目前事件狀況給出應變行動建議，並在 draw 標出建議量測點或劃定區域。'}]);
+        .concat([{role:'user',content:(_bt('analyzeAsk')+_bt('sfx'))}]);
       text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1500);
     }
     parsed=_parseBirdResponse(text);
     var html=_birdRenderAiHtml(parsed,_birdKbFileNames);
-    if(kbSources.length) html+='<div class="br-src" style="margin-top:6px">📚 知識庫：'+_esc(kbSources.join('、'))+'</div>';
-    else if(webSources.length) html+='<div class="br-src" style="margin-top:6px">🌐 網路來源：'+_esc(webSources.slice(0,3).join('、'))+'</div>';
+    if(kbSources.length) html+='<div class="br-src" style="margin-top:6px">'+_bt('kbSrc')+_esc(kbSources.join(_bt('sep')))+'</div>';
+    else if(webSources.length) html+='<div class="br-src" style="margin-top:6px">'+_bt('webSrc')+_esc(webSources.slice(0,3).join(_bt('sep')))+'</div>';
     loadBbl.innerHTML=html;
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
     _birdQaHistory.push({role:'user',content:userMsg});
@@ -9104,9 +9192,9 @@ async function birdAnalyze(forceMode){
     _birdSaveMsg('user', userMsg);
     _birdSaveMsg('assistant', parsed.summary || parsed.text || '');
   }catch(e){
-    loadBbl.innerHTML='<span style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</span>';
+    loadBbl.innerHTML='<span style="color:#dc2626">'+_bt('failed')+_esc(e.message)+'</span>';
   }
-  btn.disabled=false; btn.textContent='⚡ AI 分析目前事件狀況';
+  btn.disabled=false; btn.textContent=_bt('analyze');
 }
 
 function _birdInputResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px'; }
@@ -9121,27 +9209,27 @@ async function birdSendQa(){
     _birdHistoryLoaded=false;
   }
   _birdAppendMsg('user', _esc(q));
-  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">⏳ 讀取最新 Sheet 資料中…</span>');
+  var loadBbl=_birdAppendMsg('ai','<span class="bc-loading">'+_bt('readSheet')+'</span>');
   try{
     var hist=await new Promise(function(r){ _birdEnsureHistory(r); });
     if(_events&&_events[_curIdx]) await _birdRefreshData(_curIdx);
-    loadBbl.innerHTML='<span class="bc-loading">⏳ 思考中…</span>';
+    loadBbl.innerHTML='<span class="bc-loading">'+_bt('thinking')+'</span>';
     var evCtx=await _birdGetEvCtxAsync();
     var text, parsed, kbSources=[], webSources=[];
     if (_birdMode === 'gemini') {
-      var gr = await _birdGeminiCall(q, evCtx, 'qa');
+      var gr = await _birdGeminiCall(q+_bt('sfx'), evCtx, 'qa');
       text=gr.text; kbSources=gr.kbSources||[]; webSources=gr.webSources||[];
     } else {
       var kb=_birdGetRelevantKb(q+' '+(_events[_curIdx]?_events[_curIdx].type:''));
       var msgs=[{role:'system',content:_birdSystemPrompt(evCtx,kb,'qa')}]
         .concat(_birdStripDraw(hist.slice(-6)))
-        .concat([{role:'user',content:q}]);
+        .concat([{role:'user',content:q+_bt('sfx')}]);
       text=await _birdGroqCall(msgs,'llama-3.3-70b-versatile',1200);
     }
     parsed=_parseBirdResponse(text);
     var html=_birdRenderAiHtml(parsed,_birdKbFileNames);
-    if(kbSources.length) html+='<div class="br-src" style="margin-top:6px">📚 知識庫：'+_esc(kbSources.join('、'))+'</div>';
-    else if(webSources.length) html+='<div class="br-src" style="margin-top:6px">🌐 網路來源：'+_esc(webSources.slice(0,3).join('、'))+'</div>';
+    if(kbSources.length) html+='<div class="br-src" style="margin-top:6px">'+_bt('kbSrc')+_esc(kbSources.join(_bt('sep')))+'</div>';
+    else if(webSources.length) html+='<div class="br-src" style="margin-top:6px">'+_bt('webSrc')+_esc(webSources.slice(0,3).join(_bt('sep')))+'</div>';
     loadBbl.innerHTML=html;
     if(parsed.draw&&parsed.draw.length) _birdDrawLayers(parsed.draw);
     _birdQaHistory.push({role:'user',content:q});
@@ -9150,7 +9238,7 @@ async function birdSendQa(){
     _birdSaveMsg('user', q);
     _birdSaveMsg('assistant', parsed.summary || parsed.text || '');
   }catch(e){
-    loadBbl.innerHTML='<span style="color:#dc2626">⚠️ 失敗：'+_esc(e.message)+'</span>';
+    loadBbl.innerHTML='<span style="color:#dc2626">'+_bt('failed')+_esc(e.message)+'</span>';
   }
 }
 
@@ -9161,7 +9249,7 @@ async function birdCheckAlert(measurements){
   groqKey=(groqKey||'').trim();
   if(!geminiKey&&!groqKey)return;
   var evCtx=await _birdGetEvCtxAsync();
-  var alertPrompt='你是輻射災害應變顧問。根據知識庫判斷量測值是否需要立即處置。\n\n【目前事件】\n'+evCtx+'\n\n只輸出JSON：{"is_alert":true/false,"reason":"理由","actions":["行動1","行動2"],"source":"章節"}\n\nWrite "reason" and every item in "actions" in English. Keep "source" (document/chapter name) in its original Chinese.';
+  var alertPrompt='你是輻射災害應變顧問。根據知識庫判斷量測值是否需要立即處置。\n\n【目前事件】\n'+evCtx+'\n\n只輸出JSON：{"is_alert":true/false,"reason":"理由","actions":["行動1","行動2"],"source":"章節"}'+(_birdLang==='en'?'\n\nWrite "reason" and every item in "actions" in English. Translate place names into English. Keep "source" (document/chapter name) in its original Chinese.':'');
   var result=null;
   // 優先 Gemini
   if(geminiKey&&_geminiKbLoaded){
@@ -9183,9 +9271,9 @@ async function birdCheckAlert(measurements){
   }
   if(result&&result.is_alert){
     var alertArea=document.getElementById('birdAlertArea');
-    if(alertArea){ alertArea.style.display=''; alertArea.innerHTML='<div class="bird-alert-hd">⚠️ AI 偵測到量測異常</div><div style="font-size:12px;color:#64748b;padding:4px">'+_esc(result.reason)+'</div><ol style="margin:4px 0 0;padding-left:18px;font-size:13.5px;color:#1e2a3a;line-height:1.7">'+result.actions.map(function(a){return '<li>'+_esc(a)+'</li>';}).join('')+'</ol>'+(result.source?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">【依據：'+_esc(result.source)+'】</div>':''); }
+    if(alertArea){ alertArea.style.display=''; alertArea.innerHTML='<div class="bird-alert-hd">'+_bt('alertHd')+'</div><div style="font-size:12px;color:#64748b;padding:4px">'+_esc(result.reason)+'</div><ol style="margin:4px 0 0;padding-left:18px;font-size:13.5px;color:#1e2a3a;line-height:1.7">'+result.actions.map(function(a){return '<li>'+_esc(a)+'</li>';}).join('')+'</ol>'+(result.source?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">'+_bt('basisL')+_esc(result.source)+_bt('basisR')+'</div>':''); }
     if(!_birdIsOpen)_birdOpen();
-    else showToast('⚠️ AI 偵測到量測異常，請查看建議');
+    else showToast(_bt('alertToast'));
   }
 }
 </script>
