@@ -3226,7 +3226,7 @@ function loadMeasurements(idx, force) {
     // AI 鳥：自動偵測異常（每次拉到新資料就判斷）
     var _bca_gk=(localStorage.getItem('_birdGeminiKey')||'').trim();
     if (_loginIsAdmin && (_birdKbLoaded||(_geminiKbLoaded&&_bca_gk)) && _msrCache[ev.id] && _msrCache[ev.id].length) {
-      birdCheckAlert(_msrCache[ev.id]);
+      birdCheckAlert(_msrCache[ev.id], ev.id);
     }
   });
 }
@@ -9258,7 +9258,7 @@ async function birdSendQa(){
   }
 }
 
-async function birdCheckAlert(measurements){
+async function _birdCheckAlertCore(){
   if(!_loginIsAdmin)return;
   var geminiKey=(localStorage.getItem('_birdGeminiKey')||'').trim();
   var groqKey=''; try{groqKey=(document.getElementById('birdGroqKey')||{}).value||localStorage.getItem('_birdGroqKey')||'';}catch(e){}
@@ -9290,6 +9290,54 @@ async function birdCheckAlert(measurements){
     if(alertArea){ alertArea.style.display=''; alertArea.innerHTML='<div class="bird-alert-hd">'+_bt('alertHd')+'</div><div style="font-size:12px;color:#64748b;padding:4px">'+_esc(result.reason)+'</div><ol style="margin:4px 0 0;padding-left:18px;font-size:13.5px;color:#1e2a3a;line-height:1.7">'+result.actions.map(function(a){return '<li>'+_esc(a)+'</li>';}).join('')+'</ol>'+(result.source?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">'+_bt('basisL')+_esc(result.source)+_bt('basisR')+'</div>':''); }
     if(!_birdIsOpen)_birdOpen();
     else showToast(_bt('alertToast'));
+  }
+  return result;   // 物件＝AI 已回覆（可能是正常或異常）；null＝呼叫失敗
+}
+
+// ══ 自動異常偵測的防重複機制 ═══════════════════════════════════════════
+//  1. 只有「出現新的量測資料」才會呼叫 AI；同一批資料只判斷一次（沒有新資料 → 不動作）
+//  2. 已判斷過的資料記在 sessionStorage（重新整理頁面也不會重複；關閉分頁後重新計算）
+//  3. 兩次 AI 判斷至少間隔 30 秒（無人載具連續回傳時，新資料會累積到下次一併判斷）
+//  4. AI 呼叫失敗時 5 分鐘內不再重試，避免每 5 秒狂打 API 耗盡額度
+//  5. 只判斷目前顯示的事件；上一次判斷還沒結束時不重疊執行
+var _birdAlertBusy = false;
+var _birdAlertNextOkAt = 0;
+var BIRD_ALERT_MIN_GAP_MS  = 30 * 1000;
+var BIRD_ALERT_FAIL_WAIT_MS = 5 * 60 * 1000;
+
+function _birdMsrSig(m){
+  return [m.source||'', m.reporter||'', m.time||'', m.value, m.contamination, m.lat, m.lng].join('|');
+}
+function _birdSeenGet(evId){
+  try{ return JSON.parse(sessionStorage.getItem('_birdSeen_'+evId)||'[]'); }catch(e){ return []; }
+}
+function _birdSeenSet(evId, arr){
+  try{ sessionStorage.setItem('_birdSeen_'+evId, JSON.stringify(arr.slice(-1000))); }catch(e){}
+}
+
+async function birdCheckAlert(measurements, eventId){
+  if(!_loginIsAdmin) return;
+  if(_birdAlertBusy) return;
+  if(Date.now() < _birdAlertNextOkAt) return;
+  var evNow = _events ? _events[_curIdx] : null;
+  if(!evNow) return;
+  if(eventId && evNow.id !== eventId) return;          // 只判斷目前顯示的事件
+  var seen = _birdSeenGet(evNow.id), seenSet = {};
+  seen.forEach(function(x){ seenSet[x] = 1; });
+  var fresh = (measurements||[]).map(_birdMsrSig).filter(function(x){ return !seenSet[x]; });
+  if(!fresh.length) return;                             // 沒有新資料 → 先不動作
+  _birdAlertBusy = true;
+  try{
+    var r = await _birdCheckAlertCore();
+    if(r === undefined) return;                         // 沒有金鑰等原因，根本沒呼叫 AI
+    if(r){
+      _birdSeenSet(evNow.id, seen.concat(fresh));       // 已判斷 → 這批資料記為看過
+      _birdAlertNextOkAt = Date.now() + BIRD_ALERT_MIN_GAP_MS;
+    } else {
+      _birdAlertNextOkAt = Date.now() + BIRD_ALERT_FAIL_WAIT_MS;  // 失敗 → 稍後再試
+    }
+  } finally {
+    _birdAlertBusy = false;
   }
 }
 </script>
