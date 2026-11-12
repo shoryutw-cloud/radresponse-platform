@@ -1643,7 +1643,7 @@ function submitLogin() {
 
     // ── 登入成功：存入 localStorage，帶 lastActivity ──
     var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', group: data.group || '', lastActivity: Date.now() };
-    try { localStorage.setItem('radAuth', JSON.stringify(user)); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
+    try { localStorage.setItem('radAuth', JSON.stringify(user)); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
 
     _applyAuthUI(user);
     document.getElementById('loginOverlay').classList.add('hide');
@@ -1728,7 +1728,7 @@ function _applyAuthUI(user) {
 
 // ── 登出 ──
 function doLogout() {
-  try { localStorage.removeItem('radAuth'); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
+  try { localStorage.removeItem('radAuth'); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
   history.replaceState('', document.title, window.location.pathname);
   window.location.reload();
 }

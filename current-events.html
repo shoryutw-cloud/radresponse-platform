@@ -696,6 +696,21 @@ cursor: pointer; transition: background .15s;
 
 <!-- 懸浮事件卡片 -->
 
+<style>
+.ev-sel-bar { padding: 8px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; font-size: 12px; }
+.ev-sel-lbl { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #3d5070; font-weight: 600; }
+.ev-sel-lbl input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.ev-sel-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.ev-sel-hint { color: var(--text-muted); }
+.ev-sel-chip { display: inline-flex; align-items: center; background: #e0e9ff; border: 1px solid #bcd0ff; border-radius: 12px; padding: 1px 2px 1px 8px; }
+.ev-sel-chip a { cursor: pointer; color: var(--accent); font-weight: 600; }
+.ev-sel-chip button { border: none; background: none; cursor: pointer; color: #6b7a92; padding: 0 6px; font-size: 12px; }
+.ev-sel-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #1e2a3a; }
+.ev-sel-nav button { width: 34px; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+.ev-sel-nav button:disabled { opacity: .35; cursor: not-allowed; }
+.ev-name-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.92); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.layer-for { font-size: 11px; color: #6b7a92; padding: 0 2px 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+</style>
 <div class="ev-card" id="evCard">
   <div class="ev-card-header">
     <div class="ev-card-title">
@@ -710,6 +725,7 @@ cursor: pointer; transition: background .15s;
     <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯" style="display:none">&#x270F;&#xFE0F; 編輯</button>
     <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
   </div>
+  <div class="ev-sel-bar" id="evSelBar" style="display:none"></div>
   <div class="ev-card-body" id="evCardBody">
     <div class="ev-loading">&#x23F3; 載入中…</div>
   </div>
@@ -1640,6 +1656,8 @@ function fetchCwaWind(autoIdx) {
         _refreshWindIfOn(); // 風速/風向更新，重啟粒子
       }
       _applyEventLayerPrefs();
+    } else if (isEventShown(idx)) {
+      buildEventLayers(idx);   // 選定的事件：風向更新後重畫它的扇形
     }
 
     // 手動模式：更新編輯面板欄位（如果面板是開的）
@@ -1774,6 +1792,8 @@ function navEvent(dir) {
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
   if (_navFollowing) stopNavMode();
   renderCard(_curIdx);
+  refreshShownEvents();   // 地圖只留「目前事件＋選定事件」
+  _refreshMobEvPanel();
   flyToEvent(_curIdx);
 
   // ★ 若切換到無風向的事件，自動關閉風向圖層
@@ -1812,6 +1832,7 @@ function parseDetectorTypes(instrStr) {
 
 // ── 渲染卡片 ──
 function renderCard(idx) {
+  _renderSelBar();
   _onCurEventShown(idx);   // 切換事件時：載入該事件的標註與 KMZ 模擬摘要（同一事件不重複載入）
   // 每次切換事件都寫入 sessionStorage，讓其他頁面知道目前是哪筆
   try { sessionStorage.setItem('currentEventIdx', idx); } catch(e) {}
@@ -2796,11 +2817,8 @@ function flyToEvent(idx) {
   if (ev.windDir && ev.windDir !== '') {
     _windDeg = (parseFloat(ev.windDir) + 180) % 360;
   }
-  // 高亮當前標記
-  _markers.forEach(function(m, i) {
-    var el = m.getElement ? m.getElement() : null;
-    if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
-  });
+  // 圖釘：目前事件加光圈、其他事件稍淡（只在同時顯示多個事件時）
+  _syncEventMarkers();
   // 更新半透明圓形
   buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
   if (window.frLoad) frLoad();
@@ -3249,9 +3267,188 @@ function _applyEventLayerPrefs() {
   });
 }
 
+// ════════════════════════════════════════════════════════════════
+// 事件選定：地圖一次只顯示「目前事件」＋「選定的事件」
+//  · 目前事件 = 事件狀態視窗正在看的那一個（預設：發生時間最近的）；圖層選項、事件編輯都只針對它
+//  · 選定的事件 = 在事件狀態視窗按「選定此事件」的，切換到別的事件後仍留在地圖上
+//  · 選定的事件存在這台電腦的瀏覽器，直到下次登入／登出（由 index.html 清除）
+// ════════════════════════════════════════════════════════════════
+var _selEvents = {};
+try { var _se0 = localStorage.getItem('_selEventsV1'); if (_se0) _selEvents = JSON.parse(_se0) || {}; } catch(e) {}
+function _saveSelEvents() { try { localStorage.setItem('_selEventsV1', JSON.stringify(_selEvents)); } catch(e) {} }
+
+// 事件發生時間（比較用）：YYYYMMDDHHMM。日期讀不出來就改用事件編號裡的日期
+function _evOccurKey(ev) {
+  var y = 0, mo = 0, d = 0, h = 0, mi = 0;
+  var ds = String(ev.date == null ? '' : ev.date);
+  var m = ds.match(/(\d{4})[-\/\u5e74](\d{1,2})[-\/\u6708](\d{1,2})/);
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else {
+    var dt = new Date(ds);
+    if (ds && !isNaN(dt.getTime()) && dt.getFullYear() !== 1899) { y = dt.getFullYear(); mo = dt.getMonth() + 1; d = dt.getDate(); }
+  }
+  if (!y) { var im = String(ev.id || '').match(/(\d{4})(\d{2})(\d{2})/); if (im) { y = +im[1]; mo = +im[2]; d = +im[3]; } }
+  var ts = String(ev.time == null ? '' : ev.time);
+  var tm = ts.match(/(\d{1,2}):(\d{2})/);
+  if (tm) { h = +tm[1]; mi = +tm[2]; }
+  else {
+    var td = new Date(ts);
+    if (ts && !isNaN(td.getTime())) { h = td.getHours(); mi = td.getMinutes(); }
+  }
+  return (((y * 100 + mo) * 100 + d) * 100 + h) * 100 + mi;
+}
+// 發生時間最近的事件（時間相同就取後面的）
+function _newestEventIdx() {
+  var best = 0, bestKey = -1;
+  for (var i = 0; i < _events.length; i++) {
+    var k = _evOccurKey(_events[i]);
+    if (k >= bestKey) { bestKey = k; best = i; }
+  }
+  return best;
+}
+
+function isEventShown(idx) {
+  var ev = _events[idx];
+  if (!ev) return false;
+  if (idx === _curIdx) return true;
+  if (_historyId) return false;
+  return !!_selEvents[ev.id];
+}
+function _evShownById(id) {
+  if (!id) return true;
+  for (var i = 0; i < _events.length; i++) if (String(_events[i].id) === String(id)) return isEventShown(i);
+  return false;
+}
+
+// 每個事件各自一份量測標記（原本是全域一份，只能顯示一個事件）
+var _msrStore = {}, _msrContamStore = {}, _contamDotStore = {}, _msrDotStore = {};
+function _bucketClear(store, id) {
+  (store[id] || []).forEach(function(m) { try { m.remove(); } catch(e) {} });
+  store[id] = [];
+  return store[id];
+}
+function _clearEvMsr(id) {
+  [_msrStore, _msrContamStore, _contamDotStore, _msrDotStore].forEach(function(st) { _bucketClear(st, id); });
+}
+
+// 事件圖釘
+var _evMarkerByIdx = {};
+function _evMarkerIcon(ev, ring) {
+  var typeClass = '#1a56db';
+  if ((ev.type || '').indexOf('\u8f3b\u5c04\u5f48') !== -1) typeClass = '#dc2626';
+  else if ((ev.type || '').indexOf('\u7269\u8cea') !== -1) typeClass = '#d97706';
+  var shadow = ring ? 'box-shadow:0 0 0 4px rgba(26,86,219,.35),0 2px 6px rgba(0,0,0,.4)' : 'box-shadow:0 2px 6px rgba(0,0,0,.4)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;background:' + typeClass + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;' + shadow + '"></div>',
+    iconSize: [18, 18], iconAnchor: [9, 18]
+  });
+}
+// 依「目前事件＋選定事件」決定哪些圖釘在地圖上；同時顯示多個事件時，圖釘旁加事件名稱、目前事件加光圈
+function _syncEventMarkers() {
+  if (!gMap) return;
+  var shown = 0;
+  _events.forEach(function(_, i) { if (isEventShown(i)) shown++; });
+  _events.forEach(function(ev, i) {
+    var m = _evMarkerByIdx[i];
+    if (!m) return;
+    if (isEventShown(i)) {
+      if (!gMap.hasLayer(m)) m.addTo(gMap);
+      var isCur = (i === _curIdx);
+      m.setIcon(_evMarkerIcon(ev, isCur && shown > 1));
+      m.setZIndexOffset(isCur ? 1000 : 0);
+      m.setOpacity(isCur || shown <= 1 ? 1 : 0.75);
+      m.unbindTooltip();
+      if (shown > 1) m.bindTooltip(_esc(ev.name || ev.id), { permanent: true, direction: 'right', offset: [10, -9], className: 'ev-name-tip' });
+    } else {
+      m.unbindTooltip();
+      if (gMap.hasLayer(m)) m.remove();
+    }
+  });
+}
+
+// 待量測點位：只顯示「目前事件＋選定事件」的
+function _applyPendingVisibility() {
+  if (!gMap) return;
+  function sync(mk, evId) {
+    var show = _pendingLayerOn && _evShownById(evId);
+    if (show) { if (!gMap.hasLayer(mk)) mk.addTo(gMap); }
+    else if (gMap.hasLayer(mk)) mk.remove();
+  }
+  _pendingMsrMks.forEach(function(mk) { sync(mk, mk._evId); });
+  _taskMarkers.forEach(function(t) { sync(t.mk, t.eventId); });
+}
+
+// 重新整理地圖上的事件：該顯示的畫出來，不該顯示的全部拿掉（圖釘、圖層、量測點）
+function refreshShownEvents() {
+  if (!gMap) return;
+  _syncEventMarkers();
+  _events.forEach(function(ev, i) {
+    if (isEventShown(i)) {
+      buildEventLayers(i);
+      if (_anyMsrLayerOn(i)) loadMeasurements(i);   // 有快取直接畫，沒有才去抓
+    } else {
+      removeEventLayers(i);
+      _clearEvMsr(ev.id);
+    }
+  });
+  _applyPendingVisibility();
+  if (_anyShownMsrOn()) { if (!_msrTimer) startMsrTimer(_curIdx); } else stopMsrTimer();
+}
+
+// ── 事件狀態視窗：選定此事件、同時顯示的事件 ──
+function _selBarHtml(mobile) {
+  var ev = _events[_curIdx];
+  if (!ev || _events.length < 2 || _historyId) return '';
+  var html = '';
+  if (mobile) {   // 手機的事件面板沒有 ◀ ▶，地圖上又只剩目前事件＋選定事件，所以在這裡切換事件
+    html += '<div class="ev-sel-nav">' +
+      '<button onclick="navEvent(-1)"' + (_curIdx === 0 ? ' disabled' : '') + '>\u25c0</button>' +
+      '<span>' + (_curIdx + 1) + '/' + _events.length + '\u3000' + _esc(ev.name || ev.id) + '</span>' +
+      '<button onclick="navEvent(1)"' + (_curIdx === _events.length - 1 ? ' disabled' : '') + '>\u25b6</button></div>';
+  }
+  html += '<label class="ev-sel-lbl"><input type="checkbox" class="ev-sel-chk" ' + (_selEvents[ev.id] ? 'checked' : '') +
+          ' onchange="toggleSelectEvent(this.checked)"><span>\u9078\u5b9a\u6b64\u4e8b\u4ef6\uff08\u5207\u63db\u5f8c\u4ecd\u986f\u793a\u5728\u5730\u5716\uff09</span></label>';
+  var chips = '';
+  _events.forEach(function(e, i) {
+    if (i === _curIdx || !_selEvents[e.id]) return;
+    chips += '<span class="ev-sel-chip"><a data-i="' + i + '" onclick="gotoEvent(+this.getAttribute(\'data-i\'))" title="\u5207\u63db\u5230\u9019\u500b\u4e8b\u4ef6">' + _esc(e.name || e.id) +
+             '</a><button data-id="' + _esc(e.id) + '" onclick="unselectEvent(this.getAttribute(\'data-id\'))" title="\u53d6\u6d88\u9078\u5b9a">\u2715</button></span>';
+  });
+  if (chips) html += '<div class="ev-sel-chips"><span class="ev-sel-hint">\u5730\u5716\u4e0a\u540c\u6642\u986f\u793a\uff1a</span>' + chips + '</div>';
+  return html;
+}
+function _renderSelBar() {
+  var bar = document.getElementById('evSelBar');
+  if (!bar) return;
+  var html = _selBarHtml(false);
+  bar.innerHTML = html;
+  bar.style.display = html ? '' : 'none';
+}
+function _refreshMobEvPanel() {
+  if (typeof _mobEvPanelOpen !== 'undefined' && _mobEvPanelOpen) _renderMobEvPanel();
+}
+function toggleSelectEvent(checked) {
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  if (checked) _selEvents[ev.id] = true; else delete _selEvents[ev.id];
+  _saveSelEvents();
+  refreshShownEvents();
+  _renderSelBar();
+  _refreshMobEvPanel();
+}
+function unselectEvent(id) {
+  delete _selEvents[id];
+  _saveSelEvents();
+  refreshShownEvents();
+  _renderSelBar();
+  _refreshMobEvPanel();
+}
+function gotoEvent(i) { navEvent(i - _curIdx); }
+
 // ── 重建所有事件的圖層 ──
 function updateLayers(lat, lng) {
-  _events.forEach(function(_, i) { buildEventLayers(i); });
+  refreshShownEvents();
 }
 
 function removeLayers() {
@@ -3290,24 +3487,27 @@ function loadMeasurements(idx, force) {
   });
 }
 
-// ── 任一量測圖層是否有勾 ──
+// ── 這個事件有沒有開任何量測圖層 ──
 function _anyMsrLayerOn(idx) {
-  return ['msr','msr_contam','msrdot','contamdot'].some(function(k) {
-    var cb = document.getElementById('lyr_' + idx + '_' + k);
-    return cb && cb.checked;
-  });
+  return ['msr', 'msr_contam', 'msrdot', 'contamdot'].some(function(k) { return isLayerOn(idx, k); });
+}
+function _anyShownMsrOn() {
+  for (var i = 0; i < _events.length; i++) if (isEventShown(i) && _anyMsrLayerOn(i)) return true;
+  return false;
 }
 
-// ── 啟動定時刷新（5秒）──
+// ── 啟動定時刷新（5秒）：地圖上顯示的每個事件，只要有開量測圖層就更新 ──
 function startMsrTimer(idx) {
-  stopMsrTimer();
+  if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
   _msrTimer = setInterval(function() {
-    if (_anyMsrLayerOn(idx)) loadMeasurements(idx, true);
+    _events.forEach(function(ev, i) {
+      if (isEventShown(i) && _anyMsrLayerOn(i)) loadMeasurements(i, true);
+    });
   }, 5000);
 }
 
 function stopMsrTimer() {
-  if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
+  if (_msrTimer && !_anyShownMsrOn()) { clearInterval(_msrTimer); _msrTimer = null; }
 }
 
 // ── 設定聚合模式 ──
@@ -3321,8 +3521,7 @@ function setClusterMode(mode) {
     });
   });
   // 重繪
-  var ev = _events[_curIdx];
-  if (ev) renderMsrMarkers(ev.id);
+  _events.forEach(function(e, i) { if (isEventShown(i)) renderMsrMarkers(e.id); });
 }
 
 // ── 計算兩點地理距離（m）──
@@ -3368,8 +3567,8 @@ function clusterMsrPoints(valid, mode) {
 }
 
 function renderMsrMarkers(eventId) {
-  _msrMarkers.forEach(function(m) { m.remove(); });
-  _msrMarkers = [];
+  var _msrMarkers = _bucketClear(_msrStore, eventId);   // 這個事件自己的量測標記
+  if (!_evShownById(eventId)) return;                    // 不在地圖上的事件不畫
   // 圖層關閉時不渲染
   var evIdx = _events.findIndex ? _events.findIndex(function(e){return e.id===eventId;}) :
     (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return ii; return -1; })();
@@ -3717,6 +3916,7 @@ function renderLayerPanel() {
   function c(type) { return chk[type] ? 'checked' : ''; }
 
   body.innerHTML =
+    (_events.length > 1 ? '<div class="layer-for">\u8a2d\u5b9a\u5c0d\u8c61\uff1a' + _esc(ev.name || ev.id) + '\uff08\u76ee\u524d\u4e8b\u4ef6\uff09</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m爆炸區域</label>' +
@@ -3778,7 +3978,7 @@ function onMsrContamChk(idx, checked) {
     }
     startMsrTimer(idx);
   } else {
-    _msrContamMarkers.forEach(function(m){ m.remove(); }); _msrContamMarkers = [];
+    if (ev) _bucketClear(_msrContamStore, ev.id);
     if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
@@ -3786,7 +3986,9 @@ function onMsrContamChk(idx, checked) {
 // ── 污染值標籤圖層 ──
 var _msrContamMarkers = [];
 function renderMsrContamLayer(idx) {
-  _msrContamMarkers.forEach(function(m){ m.remove(); }); _msrContamMarkers = [];
+  var _ev0 = _events[idx];
+  var _msrContamMarkers = _ev0 ? _bucketClear(_msrContamStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msr_contam')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -3993,7 +4195,9 @@ function onContamDotChk(idx, checked) {
 // ── 污染值點位圖層 ──
 var _contamDotMarkers = [];
 function renderContamDotLayer(idx) {
-  _contamDotMarkers.forEach(function(m){ m.remove(); }); _contamDotMarkers = [];
+  var _ev0 = _events[idx];
+  var _contamDotMarkers = _ev0 ? _bucketClear(_contamDotStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'contamdot')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -4033,7 +4237,9 @@ function onMsrDotChk(idx, checked) {
 // ── 量測點：只顯示彩色圓點，不顯示數字 ──
 var _msrDotMarkers = [];
 function renderMsrDotLayer(idx) {
-  _msrDotMarkers.forEach(function(m){ m.remove(); }); _msrDotMarkers = [];
+  var _ev0 = _events[idx];
+  var _msrDotMarkers = _ev0 ? _bucketClear(_msrDotStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msrdot')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -4816,14 +5022,7 @@ var _WIND_COUNT   = 1800;  // 高密度粒子（Windy 風格）
 
 function onPendingChk(checked) {
   _pendingLayerOn = checked;
-  _pendingMsrMks.forEach(function(mk) {
-    if (checked) mk.addTo(gMap);
-    else mk.remove();
-  });
-  _taskMarkers.forEach(function(t) {
-    if (checked) t.mk.addTo(gMap);
-    else t.mk.remove();
-  });
+  _applyPendingVisibility();
 }
 
 function onWindChk(checked) {
@@ -4856,7 +5055,8 @@ function _startWindLayer() {
   if (!_windCanvas) {
     _windCanvas = document.createElement('canvas');
     _windCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:500';
-    mapEl.style.position = 'relative';
+    // 地圖區塊已是絕對定位（左側圖示列改版），不可再改成 relative，否則高度會變 0、整張地圖消失
+    if (getComputedStyle(mapEl).position === 'static') mapEl.style.position = 'relative';
     mapEl.appendChild(_windCanvas);
     _windCtx = _windCanvas.getContext('2d');
   }
@@ -5102,8 +5302,8 @@ function toggleMsrLayer(idx) {
     loadMeasurements(idx, true);
     startMsrTimer(idx);
   } else {
-    _msrMarkers.forEach(function(m) { m.remove(); });
-    _msrMarkers = [];
+    var _e1 = _events[idx];
+    if (_e1) _bucketClear(_msrStore, _e1.id);
     if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
@@ -5119,40 +5319,37 @@ function toggleLayerPanel() {
 function placeMarkers() {
   _markers.forEach(function(m) { m.remove(); });
   _markers = [];
+  _evMarkerByIdx = {};
   if (!gMap) return;
 
   _events.forEach(function(ev, i) {
     var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
     if (isNaN(lat) || isNaN(lng)) return;
 
-    var typeClass = '#1a56db';
-    if ((ev.type||'').indexOf('輻射彈') !== -1) typeClass = '#dc2626';
-    else if ((ev.type||'').indexOf('物質') !== -1) typeClass = '#d97706';
-
-    var icon = L.divIcon({
-      className: '',
-      html: '<div style="width:18px;height:18px;background:' + typeClass + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
-      iconSize: [18, 18], iconAnchor: [9, 18]
-    });
-
-    var marker = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    // 不直接加到地圖：由 _syncEventMarkers() 依「目前事件＋選定事件」決定
+    var marker = L.marker([lat, lng], { icon: _evMarkerIcon(ev, false) });
     marker.bindPopup(
       '<b>' + (ev.name || '') + '</b><br>' +
       (ev.type || '') + '<br>' +
       formatDateTime(ev.date, ev.time)
     );
+    marker._evIdx = i;
     marker.on('click', function() {
       _curIdx = i;
       // 切換事件時自動停止導航
       if (_navFollowing) stopNavMode();
       renderCard(i);
       renderLayerPanel();
+      refreshShownEvents();
+      _refreshMobEvPanel();
       var card = document.getElementById('evCard');
       if (card.classList.contains('collapsed')) toggleCollapse();
       if (window.railShow) railShow('ev');
     });
     _markers.push(marker);
+    _evMarkerByIdx[i] = marker;
   });
+  _syncEventMarkers();
 }
 
 // ── 載入事件 ──
@@ -5364,7 +5561,7 @@ function loadEvents() {
       for (var i = 0; i < _events.length; i++) {
         if (_events[i].id === _pendingEventId) { found = i; break; }
       }
-      _curIdx = found >= 0 ? found : 0;
+      _curIdx = found >= 0 ? found : _newestEventIdx();
       _pendingEventId = null;
     } else if (_pendingIdx !== null && _pendingIdx < _events.length) {
       _curIdx = _pendingIdx;
@@ -5378,7 +5575,7 @@ function loadEvents() {
           for (var j = 0; j < _events.length; j++) {
             if (_events[j].id === gotoId) { found2 = j; break; }
           }
-          _curIdx = found2 >= 0 ? found2 : 0;
+          _curIdx = found2 >= 0 ? found2 : _newestEventIdx();
           // 從建立事件頁跳回 → 自動開啟 Bird 並執行分析
           (function(targetIdx) {
             setTimeout(function() {
@@ -5395,11 +5592,17 @@ function loadEvents() {
             }, 1800);
           })(_curIdx);
         } else {
-          _curIdx = 0;
+          _curIdx = _newestEventIdx();   // 預設：發生時間最近的事件
         }
-      } catch(e) { _curIdx = 0; }
+      } catch(e) { _curIdx = _newestEventIdx(); }
     }
     _pendingIdx = null;
+    // 選定的事件：只保留還在進行中的
+    (function() {
+      var keep = {};
+      _events.forEach(function(e) { if (_selEvents[e.id]) keep[e.id] = true; });
+      _selEvents = keep; _saveSelEvents();
+    })();
     renderCard(_curIdx);
     placeMarkers();
     renderLayerPanel();          // 渲染圖層控制面板
@@ -5503,7 +5706,8 @@ function _placePendingMarker(latlng, label, squadStr, eventId) {
     '</div>',
     { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  if (_pendingLayerOn) mk.addTo(gMap);
+  mk._evId = eventId;
+  if (_pendingLayerOn && _evShownById(eventId)) mk.addTo(gMap);
   _pendingMsrMks.push(mk);
 }
 
@@ -6198,7 +6402,7 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
     '</div>',
     { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  if (_pendingLayerOn) mk.addTo(gMap);
+  if (_pendingLayerOn && _evShownById(evId)) mk.addTo(gMap);
   _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label, eventId: evId });
   _refreshNavPoints();
 }
@@ -6754,9 +6958,9 @@ function _renderMobEvPanel() {
     return;
   }
   var cardBody = document.getElementById('evCardBody');
-  if (cardBody) {
-    body.innerHTML = cardBody.innerHTML;
-  }
+  var selHtml = _selBarHtml(true);
+  body.innerHTML = (selHtml ? '<div class="ev-sel-bar" style="margin:-12px -16px 12px;border-top:none">' + selHtml + '</div>' : '') +
+                   (cardBody ? cardBody.innerHTML : '');
 }
 
 // ── 視窗縮放時重設樣式 ──
@@ -6946,11 +7150,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 縮放後像素座標改變，需重新跑碰撞偵測重繪標籤
     gMap.on('moveend', function() {
       if (!_events.length) return;
-      var ev = _events[_curIdx];
-      if (!ev) return;
-      var cb = document.getElementById('lyr_' + _curIdx + '_msr');
-      if (!cb || cb.checked) renderMsrMarkers(ev.id);
-      renderMsrContamLayer(_curIdx);
+      _events.forEach(function(ev, i) {
+        if (!isEventShown(i)) return;
+        renderMsrMarkers(ev.id);
+        renderMsrContamLayer(i);
+      });
       // 環境監測站標籤也要重算
       if (_envLayerOn && _envMarkers.length) loadEnvMonitor();
     });
@@ -9426,7 +9630,7 @@ async function birdCheckAlert(measurements, eventId){
 ════════════════════════════════════════════════════════════ -->
 <style>
 :root { --rail-w: 48px; --pin-off: 0px; --rail-left: 48px; --mobbar-h: 0px; }
-#map { position: absolute; top: 0; right: 0; bottom: 0; left: var(--rail-w); width: auto; height: auto; }
+#map { position: absolute !important; top: 0; right: 0; bottom: 0; left: var(--rail-w); width: auto; height: auto; }
 #railBar {
   position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 1100;
   background: #fff; border-right: 1px solid var(--border);
