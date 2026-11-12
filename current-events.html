@@ -709,6 +709,7 @@ cursor: pointer; transition: background .15s;
 .ev-sel-nav button { width: 34px; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
 .ev-sel-nav button:disabled { opacity: .35; cursor: not-allowed; }
 .ev-name-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.92); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.layer-warn { font-size: 12px; line-height: 1.5; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
 .layer-for { font-size: 11px; color: #6b7a92; padding: 0 2px 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
 </style>
 <div class="ev-card" id="evCard">
@@ -1460,7 +1461,7 @@ function onAngleInput(val) {
   document.getElementById('editWindDir').value = val;
   var ev = _events[_curIdx];
   if (ev) {
-    ev.windDir = val;
+    ev.windDir = val; ev.windDirRaw = val;
     // 清除插值格點，讓風場立即用新方向（不等多站資料）
     _windFieldGrid = null;
     buildEventLayers(_curIdx);
@@ -1585,6 +1586,74 @@ function _onMapClickForLocPick(e) {
   // ★ 不關閉點選模式，讓使用者可繼續點選更新
 }
 
+// ════════════════════════════════════════════════════════════════
+// 風向規則
+//  · 事件的風向在「建立事件」時就記進試算表，之後固定不動：氣象署後來的風向變化，不會讓扇形、橫切面、點位跟著轉
+//  · 風向只有兩種情況會改：
+//      ① 有人在「編輯事件」手動改（或按「從氣象局抓取」再儲存）
+//      ② 事件一直沒有有效風向（建立時抓不到、或記的是異常代碼）時，平台自動補上第一筆有效值並寫入試算表
+//  · 沒有有效風向時，不畫扇形、橫切面、附近場域（只畫 100m 圓），圖層面板會提示
+// ════════════════════════════════════════════════════════════════
+// 風向是否為有效角度（0~360）；氣象署的異常代碼（X 儀器故障、-99 缺值、990 風向不定）與空白都不算。回傳數字或 null
+function _validWindDir(v) {
+  var t = String(v == null ? '' : v).trim();
+  if (t === '' || t === 'X' || t === '-99' || t === '990') return null;
+  var n = parseFloat(t);
+  return (isNaN(n) || n < 0 || n > 360) ? null : n;
+}
+// 整理事件的風向欄位：ev.windDir 只留有效角度（字串，連 0 度也算有效），原始值（含異常代碼）放 ev.windDirRaw 供畫面顯示
+function _normEvWind(ev) {
+  var raw = String(ev.windDir == null ? '' : ev.windDir).trim();
+  ev.windDirRaw = raw;
+  ev.windDir = (_validWindDir(raw) === null) ? '' : raw;
+  ev.windSpeed = String(ev.windSpeed == null ? '' : ev.windSpeed).trim();
+}
+function _windNeedsFill(ev) { return _validWindDir(ev.windDir) === null; }
+
+// 風向改變後，更新畫面
+function _afterWindChanged(idx) {
+  var ev = _events[idx];
+  if (!ev) return;
+  if (idx === _curIdx) {
+    renderCard(idx);
+    buildEventLayers(idx);
+    var wdOk = _validWindDir(ev.windDir) !== null;
+    var cbWind = document.getElementById('lyr_wind');
+    if (!wdOk && _windLayerOn) {
+      _windLayerOn = false;
+      if (cbWind) cbWind.checked = false;
+      _stopWindLayer();
+    } else if (wdOk && _windLayerOn) {
+      _refreshWindIfOn();
+    }
+    _applyEventLayerPrefs();
+    renderLayerPanel();
+  } else if (isEventShown(idx)) {
+    buildEventLayers(idx);
+  }
+}
+
+// 以試算表的風向為準（補風向後，可能已經被別人先補上了）
+function _syncWindFromSheet(idx) {
+  var ev = _events[idx];
+  if (!ev) return;
+  var evId = ev.id;
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (!data || !data.events) return;
+    var fresh = null;
+    data.events.forEach(function(e) { if (String(e.id) === String(evId)) fresh = e; });
+    var cur = _events[idx];
+    if (!fresh || !cur || cur.id !== evId) return;
+    var wd = String(fresh.windDir == null ? '' : fresh.windDir).trim();
+    var ws = String(fresh.windSpeed == null ? '' : fresh.windSpeed).trim();
+    if (_validWindDir(wd) === null) return;
+    if (wd === cur.windDir && ws === cur.windSpeed) return;
+    cur.windDir = wd; cur.windSpeed = ws;
+    _normEvWind(cur);
+    _afterWindChanged(idx);
+  });
+}
+
 function fetchCwaWind(autoIdx) {
   var isAuto = (typeof autoIdx === 'number');
   var idx = isAuto ? autoIdx : _curIdx;
@@ -1593,8 +1662,8 @@ function fetchCwaWind(autoIdx) {
     if (!isAuto) showToast('事件缺少座標，無法查詢');
     return;
   }
-  // ★ 自動輪詢時，若使用者已手動儲存風向，不覆蓋（手動優先於氣象署）
-  if (isAuto && ev.windManual) return;
+  // 自動補抓：事件已經有有效風向（建立事件時記下的）就固定不動；歷史檢視、手動鎖定的事件也不補
+  if (isAuto && (_historyId || ev.windManual || !_windNeedsFill(ev))) return;
 
   if (!isAuto) {
     var btn = document.getElementById('cwaFetchBtn');
@@ -1621,72 +1690,62 @@ function fetchCwaWind(autoIdx) {
 
     if (!data) return;
 
-    // 取得抓取時間
     var now = new Date();
     var pad = function(n){ return String(n).padStart(2,'0'); };
     var fetchTime = pad(now.getHours()) + ':' + pad(now.getMinutes());
 
-    // 更新事件快取
+    // ── 自動補抓：只接受有效風向，寫入試算表後固定 ──
+    if (isAuto) {
+      if (_validWindDir(data.windDir) === null) return;   // 異常代碼不寫入，下一輪再試
+      if (!_windNeedsFill(ev)) return;                    // 等待期間已被補上
+      ev.windDir = String(data.windDir);
+      ev.windSpeed = String(data.windSpeed == null ? '' : data.windSpeed);
+      ev.windFetchTime = fetchTime;
+      _normEvWind(ev);
+      // GAS 只有在試算表裡還沒有有效風向時才會寫入（多人同時開地圖，只有第一個會寫入）
+      fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'setInitialWind', eventId: ev.id, windDir: ev.windDir, windSpeed: ev.windSpeed }) });
+      setTimeout(function() { _syncWindFromSheet(idx); }, 2500);
+      _afterWindChanged(idx);
+      return;
+    }
+
+    // ── 手動按「從氣象局抓取」：先套到畫面預覽，按儲存才會寫入試算表 ──
     ev.windDir       = String(data.windDir   || '');
     ev.windSpeed     = String(data.windSpeed || '');
     ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
-    // 手動按「從氣象局抓取」→ 清除手動旗標，之後自動輪詢可正常更新
-    if (!isAuto) {
-      ev.windManual = false;
-      // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
-      fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
-        body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
-    }
+    _normEvWind(ev);
+    // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
+    ev.windManual = false;
+    fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
+    _afterWindChanged(idx);
 
-    // 判斷是否為有效風向（排除特殊異常值）
-    var _wdNormal = ev.windDir && ev.windDir !== ''
-                    && ev.windDir !== 'X' && ev.windDir !== '-99' && ev.windDir !== '990';
-
-    // 若是目前顯示的事件，更新卡片和圖層
-    if (idx === _curIdx) {
-      renderCard(idx);
-      buildEventLayers(idx);
-      // ★ 若風向失效且目前風向圖層開著，自動關閉
-      var _cbWind = document.getElementById('lyr_wind');
-      if (!_wdNormal && _windLayerOn) {
-        _windLayerOn = false;
-        if (_cbWind) _cbWind.checked = false;
-        _stopWindLayer();
-      } else if (_wdNormal && _windLayerOn) {
-        _refreshWindIfOn(); // 風速/風向更新，重啟粒子
-      }
-      _applyEventLayerPrefs();
-    } else if (isEventShown(idx)) {
-      buildEventLayers(idx);   // 選定的事件：風向更新後重畫它的扇形
-    }
-
-    // 手動模式：更新編輯面板欄位（如果面板是開的）
-    if (!isAuto) {
-      var edi = document.getElementById('editWindDir');
-      var ews = document.getElementById('editWindSpeed');
-      var sts3 = document.getElementById('cwaFetchStatus');
-      if (edi) edi.value = data.windDir   || '';
-      if (ews) ews.value = data.windSpeed || '';
-      var d = parseInt(data.windDir) || 0;
-      var sldr = document.getElementById('editAngle');
-      if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
-      if (sts3) {
-        sts3.style.color = '#16a34a';
-        sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
-                         + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
-      }
+    // 更新編輯面板欄位（如果面板是開的）
+    var edi = document.getElementById('editWindDir');
+    var ews = document.getElementById('editWindSpeed');
+    var sts3 = document.getElementById('cwaFetchStatus');
+    if (edi) edi.value = data.windDir   || '';
+    if (ews) ews.value = data.windSpeed || '';
+    var d = parseInt(data.windDir) || 0;
+    var sldr = document.getElementById('editAngle');
+    if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
+    if (sts3) {
+      sts3.style.color = '#16a34a';
+      sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
+                       + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
     }
   });
 }
 
-// ── 啟動自動輪詢（載入後立即抓一次，之後每 5 分鐘） ──
+// ── 啟動補風向輪詢（載入後立即檢查一次，之後每 5 分鐘）：只處理「還沒有有效風向」的事件 ──
 function startCwaAutoFetch() {
   if (_cwaTimer) clearInterval(_cwaTimer);
   function fetchAll() {
     _events.forEach(function(ev, i) {
       if (!ev.lat || !ev.lng) return;
-      // 只要曾手動儲存過風向，就不自動抓，直到使用者手動按「從氣象局抓取」
       if (ev.windManual) return;
+      if (!_windNeedsFill(ev)) return;   // 已有有效風向 → 固定不動
       fetchCwaWind(i);
     });
   }
@@ -1737,6 +1796,7 @@ function saveEdit() {
     // 更新本地快取
     ev.windDir    = payload.windDir;
     ev.windSpeed  = payload.windSpeed;
+    _normEvWind(ev);
     ev.windManual = true;
     if (payload.name)    ev.name    = payload.name;
     if (payload.type)    ev.type    = payload.type;
@@ -1921,7 +1981,7 @@ function renderCard(idx) {
   html += '</div>';
 
   // 風向 + 風速 + 抓取時間（三欄分開顯示）
-  var _wdRaw = ev.windDir      || '';
+  var _wdRaw = ev.windDirRaw || ev.windDir || '';
   var _wsRaw = ev.windSpeed    || '';
   var _wtRaw = ev.windFetchTime|| '';  // 抓取時間（前端暫存，不存 Sheet）
   function _fmtWind(raw) {
@@ -3037,7 +3097,9 @@ function buildEventLayers(idx) {
   if (isNaN(la) || isNaN(lo)) return;
 
   // 取該事件的風向（有設定用設定值，否則預設270）
-  var wd = (ev.windDir && ev.windDir !== '') ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+  // 風向 = 事件記錄的風向（建立事件時存入，之後固定）。沒有有效風向時不畫需要方向的圖層，只畫 100m 圓
+  var hasDir = !!(ev.windDir && ev.windDir !== '');
+  var wd = hasDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
 
   // 移除舊圖層
   removeEventLayers(idx);
@@ -3048,13 +3110,13 @@ function buildEventLayers(idx) {
 
   // checkbox 狀態
   var showCircle     = isLayerOn(idx, 'circle');
-  var showLine       = isLayerOn(idx, 'line');
-  var showSector     = isLayerOn(idx, 'sector');
-  var showNearby     = isLayerOn(idx, 'nearby');
+  var showLine       = hasDir && isLayerOn(idx, 'line');
+  var showSector     = hasDir && isLayerOn(idx, 'sector');
+  var showNearby     = hasDir && isLayerOn(idx, 'nearby');
   var showMiniCircle = isLayerOn(idx, 'mini_circle');
-  var showMiniLine   = isLayerOn(idx, 'mini_line');
-  var showMiniArea   = isLayerOn(idx, 'mini_area');
-  var showMiniSector = isLayerOn(idx, 'mini_sector');
+  var showMiniLine   = hasDir && isLayerOn(idx, 'mini_line');
+  var showMiniArea   = hasDir && isLayerOn(idx, 'mini_area');
+  var showMiniSector = hasDir && isLayerOn(idx, 'mini_sector');
 
   // (1) 100m 圓
   if (showCircle) {
@@ -4048,6 +4110,7 @@ function renderLayerPanel() {
   function c(type) { return chk[type] ? 'checked' : ''; }
 
   body.innerHTML =
+    (isRddEvent(ev) && !(ev.windDir) ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
     (_events.length > 1 ? '<div class="layer-for">\u8a2d\u5b9a\u5c0d\u8c61\uff1a' + _esc(ev.name || ev.id) + '\uff08\u76ee\u524d\u4e8b\u4ef6\uff09</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
@@ -5688,6 +5751,7 @@ function loadEvents() {
     _events.forEach(function(ev) {
       if (ev.personnelStr === undefined) ev.personnelStr = ev.personnel || '';
       if (ev.instrumentStr === undefined) ev.instrumentStr = ev.instrument || '';
+      _normEvWind(ev);   // 風向只留有效角度；異常代碼放 windDirRaw
     });
     // 套用 pendingIdx（postMessage 比 JSONP 早到的情況）
     if (_pendingEventId !== null) {

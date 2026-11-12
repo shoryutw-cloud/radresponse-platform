@@ -1463,6 +1463,30 @@ function ceDo() {
     attachmentUrl: _attachUrl || ''
   };
 
+  // 建立事件的當下，向氣象署取得最近測站的風向、風速，一併記進試算表；之後事件的風向固定，不再跟著氣象署變動
+  ceFetchWind(ev.lat, ev.lng, function(w) {
+    if (w) { ev.windDir = w.windDir; ev.windSpeed = w.windSpeed; }
+    ceSaveEvent(ev);
+  });
+}
+
+// 取得風向（6 秒內沒回應或回傳異常代碼就當作沒有，事件照樣建立，之後由地圖頁補上）
+function ceFetchWind(lat, lng, cb) {
+  var la = parseFloat(lat), lo = parseFloat(lng);
+  if (isNaN(la) || isNaN(lo)) { cb(null); return; }
+  var done = false;
+  var timer = setTimeout(function() { if (!done) { done = true; cb(null); } }, 6000);
+  _jsonpGet(SHEETS_URL + '?action=fetchCwaWind&lat=' + encodeURIComponent(la) + '&lng=' + encodeURIComponent(lo), function(d) {
+    if (done) return;
+    done = true; clearTimeout(timer);
+    var t = d && !d.error ? String(d.windDir == null ? '' : d.windDir).trim() : '';
+    var n = parseFloat(t);
+    var ok = t !== '' && t !== 'X' && t !== '-99' && t !== '990' && !isNaN(n) && n >= 0 && n <= 360;
+    cb(ok ? { windDir: t, windSpeed: String(d.windSpeed == null ? '' : d.windSpeed) } : null);
+  });
+}
+
+function ceSaveEvent(ev) {
   // localStorage 備份
   try {
     var local = JSON.parse(localStorage.getItem('rad_events') || '[]');
