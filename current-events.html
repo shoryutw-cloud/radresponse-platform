@@ -2848,6 +2848,187 @@ function destPoint(lat, lng, bearingDeg, distM) {
   return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
 }
 
+// ════════════════════════════════════════════════════════════════
+// 量測點位手動調整（5km 扇形的 1~10 號、1km 橫切面的 A01~A20）
+//  · 預設：依事件位置、風向算出來
+//  · 管理員在「編輯地圖」模式下可以把點拖到可抵達的位置；扇形、橫切面的圖形不會跟著動
+//  · 改過的位置存在雲端（GAS「量測點位調整」分頁），所有人、所有裝置看到的都一樣；編號不變
+//  · 導航點位、派送任務也都改用調整後的位置；已經派送出去的任務不會跟著變
+// ════════════════════════════════════════════════════════════════
+var _ptOv = {};          // eventId → { label: {lat, lng, by, time} }
+var _ptOvReady = {};     // eventId → 已讀回（或讀取失敗）
+var _ptOvLoading = {};
+var _ptOvSig = {};
+var _ptDragging = false;
+
+function _ptSig(map) {
+  return Object.keys(map || {}).sort().map(function(k) { return k + ':' + map[k].lat.toFixed(6) + ',' + map[k].lng.toFixed(6); }).join('|');
+}
+function _ptPos(ev, label, def) {
+  var o = _ptOv[ev.id] && _ptOv[ev.id][label];
+  return o ? [o.lat, o.lng] : def;
+}
+function _ptMoved(ev, label) { return !!(_ptOv[ev.id] && _ptOv[ev.id][label]); }
+function _canDragPts() { return !!(_loginIsAdmin && _mapEditOn && !_historyId); }
+
+function _loadPtOverrides(ev, cb) {
+  var evId = ev.id;
+  function apply(map) {
+    var sig = _ptSig(map);
+    var changed = (_ptOvSig[evId] !== sig) || !_ptOvReady[evId];
+    _ptOv[evId] = map; _ptOvSig[evId] = sig; _ptOvReady[evId] = true; _ptOvLoading[evId] = false;
+    if (cb) cb(changed);
+  }
+  // 讀不到（網路或 GAS 尚未更新）時 4 秒後就當作沒有調整，不要讓點位一直不出現
+  var guard = setTimeout(function() { if (!_ptOvReady[evId]) apply(_ptOv[evId] || {}); }, 4000);
+  _jsonpGet(SHEETS_URL + '?action=getPointOverrides&eventId=' + encodeURIComponent(evId), function(data) {
+    clearTimeout(guard);
+    var map = {};
+    ((data && data.points) || []).forEach(function(q) {
+      var la = parseFloat(q.lat), lo = parseFloat(q.lng);
+      if (q.label && !isNaN(la) && !isNaN(lo)) map[String(q.label)] = { lat: la, lng: lo, by: q.by || '', time: q.time || '' };
+    });
+    apply(map);
+  });
+}
+function _ensurePtOverrides(idx) {
+  var ev = _events[idx];
+  if (!ev || _ptOvReady[ev.id] || _ptOvLoading[ev.id]) return;
+  _ptOvLoading[ev.id] = true;
+  _loadPtOverrides(ev, function() { if (isEventShown(idx)) buildEventLayers(idx); });
+}
+// 每 15 秒同步別人調整的位置（拖曳中不更新）
+setInterval(function() {
+  if (document.hidden || _ptDragging) return;
+  _events.forEach(function(ev, i) {
+    if (!isEventShown(i) || !_ptOvReady[ev.id]) return;
+    _loadPtOverrides(ev, function(changed) {
+      if (!changed || _ptDragging) return;
+      buildEventLayers(i); _renderPtResetRow();
+      if (i === _curIdx) _refreshNavPoints();
+    });
+  });
+}, 15000);
+
+function _ptIcon(label, kind, moved) {
+  var bd = moved ? '#f97316' : 'white';
+  if (kind === 'sector') {
+    var sh = moved ? '0 0 0 3px rgba(249,115,22,.6),0 1px 5px rgba(0,0,0,.45)' : '0 1px 5px rgba(0,0,0,.45)';
+    return L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;background:#8b5cf6;border:2px solid ' + bd + ';' +
+            'display:flex;align-items:center;justify-content:center;font-size:' + (label === '10' ? 9 : 11) + 'px;font-weight:700;color:white;' +
+            'box-shadow:' + sh + ';font-family:ui-monospace,monospace">' + label + '</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+  }
+  var sh2 = moved ? '0 0 0 3px rgba(249,115,22,.6),0 1px 4px rgba(0,0,0,.4)' : '0 1px 4px rgba(0,0,0,.4)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:2px solid ' + bd + ';' +
+          'display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white;' +
+          'box-shadow:' + sh2 + ';font-family:ui-monospace,monospace">' + parseInt(label.slice(1), 10) + '</div>',
+    iconSize: [18, 18], iconAnchor: [9, 9]
+  });
+}
+
+function _ptBindInfo(mk, ev, moved) {
+  var km = (gMap.distance([parseFloat(ev.lat), parseFloat(ev.lng)], mk.getLatLng()) / 1000).toFixed(1);
+  mk.unbindTooltip();
+  mk.bindTooltip(mk._ptLabel + '：' + mk._ptTip + (moved ? '（已手動調整・距事發點 ' + km + ' km）' : ''), { permanent: false, direction: 'top' });
+  mk.unbindPopup();
+  if (_canDragPts()) {
+    mk.bindPopup(
+      '<div style="min-width:170px;font-family:var(--font)"><b>' + _esc(mk._ptLabel) + '</b>　' + _esc(mk._ptTip) + '<br>' +
+      '<span style="font-size:12px;color:#6b7a92">距事發點 ' + km + ' km' + (moved ? '｜已手動調整' : '') + '</span>' +
+      (moved
+        ? '<div style="margin-top:8px"><button class="fr-mini" onclick="restorePt(\'' + _esc(ev.id) + '\',\'' + _esc(mk._ptLabel) + '\')">↺ 還原此點</button></div>'
+        : '<div style="margin-top:6px;font-size:12px;color:#94a3b8">可拖曳到可抵達的位置</div>') +
+      '</div>');
+  }
+}
+
+// 建立一個量測點位圖釘（預設位置 def；有調整就用調整後的位置）
+function _mkPtMarker(ev, label, def, kind, tip) {
+  var moved = _ptMoved(ev, label);
+  var mk = L.marker(_ptPos(ev, label, def), { icon: _ptIcon(label, kind, moved), draggable: _canDragPts(), autoPan: true }).addTo(gMap);
+  mk._ptLabel = label; mk._ptEvId = ev.id; mk._ptDef = def; mk._ptKind = kind; mk._ptTip = tip;
+  _ptBindInfo(mk, ev, moved);
+  mk.on('popupopen', function() { mk.closeTooltip(); });   // 點開說明框時，不要同時再顯示提示字
+  mk.on('dragstart', function() { _ptDragging = true; mk.closeTooltip(); mk.closePopup(); });
+  mk.on('dragend', function() { _ptDragging = false; _onPtDragEnd(mk); });
+  return mk;
+}
+
+// 這個點有沒有已經派送給某隊（回傳隊別，沒有就回空字串）
+function _ptDispatchedTo(evId, label) {
+  for (var i = 0; i < _pendingMsrMks.length; i++) {
+    var m = _pendingMsrMks[i];
+    if (m._evId === evId && m._label === label) return m._squad || '某隊';
+  }
+  return '';
+}
+
+function _onPtDragEnd(mk) {
+  var ev = _evById(mk._ptEvId);
+  if (!ev) return;
+  var ll = mk.getLatLng(), label = mk._ptLabel;
+  // 拖回原位附近（畫面上 5 像素內）→ 視為還原
+  if (gMap.latLngToContainerPoint(mk._ptDef).distanceTo(gMap.latLngToContainerPoint(ll)) < 5) { restorePt(ev.id, label); return; }
+  if (!_ptOv[ev.id]) _ptOv[ev.id] = {};
+  _ptOv[ev.id][label] = { lat: ll.lat, lng: ll.lng, by: _loginUserName || '', time: '' };
+  _ptOvSig[ev.id] = _ptSig(_ptOv[ev.id]);
+  mk.setIcon(_ptIcon(label, mk._ptKind, true));
+  _ptBindInfo(mk, ev, true);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'setPointOverride', eventId: ev.id, label: label, lat: ll.lat, lng: ll.lng }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  _refreshNavPoints();
+  _renderPtResetRow();
+  var sq = _ptDispatchedTo(ev.id, label);
+  if (sq) showToast('⚠️ ' + label + ' 號點已派送給「' + sq + '」，任務上的位置不會跟著改，請重新派送');
+}
+
+function restorePt(evId, label) {
+  var ev = _evById(evId);
+  if (!ev) return;
+  if (_ptOv[evId]) delete _ptOv[evId][label];
+  _ptOvSig[evId] = _ptSig(_ptOv[evId]);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'clearPointOverride', eventId: evId, label: label }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  gMap.closePopup();
+  for (var i = 0; i < _events.length; i++) if (_events[i].id === evId) { buildEventLayers(i); break; }
+  _refreshNavPoints();
+  _renderPtResetRow();
+}
+function restoreAllPts() {
+  var ev = _events[_curIdx];
+  if (!ev || !_ptOv[ev.id]) return;
+  var n = Object.keys(_ptOv[ev.id]).length;
+  if (!n || !confirm('確定要把「' + (ev.name || ev.id) + '」手動調整過的 ' + n + ' 個量測點全部還原成預設位置嗎？')) return;
+  _ptOv[ev.id] = {}; _ptOvSig[ev.id] = '';
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'clearPointOverrides', eventId: ev.id }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  buildEventLayers(_curIdx);
+  _refreshNavPoints();
+  _renderPtResetRow();
+}
+// 圖層面板底下的「全部還原」（管理員、編輯地圖模式、有調整過的點才出現）
+function _renderPtResetRow() {
+  var body = document.getElementById('layerPanelBody');
+  if (!body) return;
+  var old = document.getElementById('ptResetRow');
+  if (old) old.remove();
+  var ev = _events[_curIdx];
+  if (!ev || !_canDragPts()) return;
+  var n = Object.keys(_ptOv[ev.id] || {}).length;
+  if (!n) return;
+  var d = document.createElement('div');
+  d.id = 'ptResetRow';
+  d.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border)';
+  d.innerHTML = '<button class="fr-mini" style="width:100%" onclick="restoreAllPts()">↺ 還原手動調整的量測點（' + n + '）</button>';
+  body.appendChild(d);
+}
+
 // ── 建立某個事件的圖層 ──
 function buildEventLayers(idx) {
   var ev = _events[idx];
@@ -2861,6 +3042,9 @@ function buildEventLayers(idx) {
   // 移除舊圖層
   removeEventLayers(idx);
   if (!_evLayers[idx]) _evLayers[idx] = {};
+  // 量測點位要等「手動調整」讀回來才畫（避免先閃一下預設位置）；讀回後會自動重畫
+  var ptReady = !!_ptOvReady[ev.id];
+  if (!ptReady) _ensurePtOverrides(idx);
 
   // checkbox 狀態
   var showCircle     = isLayerOn(idx, 'circle');
@@ -2904,26 +3088,16 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
-    // ── 橫切面 20 等分點（編號 A01~A20，藍色小點）跟隨 1km 橫切面開關 ──
+    // ── 橫切面 20 等分點（編號 A01~A20，藍色小點）跟隨 1km 橫切面開關；管理員可拖曳調整位置（橫切面的線不動）──
     var crossMks = [];
-    for (var ci = 0; ci < 20; ci++) {
-      var t  = ci / 19;
-      var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
-      var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
-      var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
-      var cIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#3b82f6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:8px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + (ci+1) + '</div>',
-        iconSize: [18, 18], iconAnchor: [9, 9]
-      });
-      var cMk = L.marker([cLat, cLng], { icon: cIcon }).addTo(gMap);
-      cMk.bindTooltip(cLabel + '：橫切面', { permanent: false, direction: 'top' });
-      crossMks.push(cMk);
+    if (ptReady) {
+      for (var ci = 0; ci < 20; ci++) {
+        var t  = ci / 19;
+        var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
+        var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
+        var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
+        crossMks.push(_mkPtMarker(ev, cLabel, [cLat, cLng], 'cross', '橫切面'));
+      }
     }
     _evLayers[idx].crossMks = crossMks;
   }
@@ -2954,71 +3128,29 @@ function buildEventLayers(idx) {
     var arc4 = [];
     for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
     _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
-    // ── 編號1：1km 中線點（藍色，跟隨 5km 扇形）──
-    var pt1 = destPoint(la, lo, wd, 1000);
-    var icon1 = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#8b5cf6;border:2px solid white;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'font-size:11px;font-weight:700;color:white;' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-            'font-family:ui-monospace,monospace">1</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
-    var mk1 = L.marker(pt1, { icon: icon1 }).addTo(gMap);
-    mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk1 = mk1;
-
-    // ── 編號2：500m 中線點（橘色，跟隨 5km 扇形）──
-    var pt2 = destPoint(la, lo, wd, 500);
-    var icon2 = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#8b5cf6;border:2px solid white;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'font-size:11px;font-weight:700;color:white;' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-            'font-family:ui-monospace,monospace">2</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
-    var mk2 = L.marker(pt2, { icon: icon2 }).addTo(gMap);
-    mk2.bindTooltip('2：500m × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk2 = mk2;
-
-    // ── 8 個編號交叉點（3~10）──
-    // 越內圈編號越小
-    var crossDefs = [
-      { label: '3',  pt: destPoint(la, lo, wd,        2000), tip: '2km × 中線' },
-      { label: '4',  pt: destPoint(la, lo, wd - 22.5, 3000), tip: '3km × 扇形上緣' },
-      { label: '5',  pt: destPoint(la, lo, wd,        3000), tip: '3km × 中線' },
-      { label: '6',  pt: destPoint(la, lo, wd + 22.5, 3000), tip: '3km × 扇形下緣' },
-      { label: '7',  pt: destPoint(la, lo, wd,        4000), tip: '4km × 中線' },
-      { label: '8',  pt: destPoint(la, lo, wd - 22.5, 5000), tip: '5km × 扇形上緣' },
-      { label: '9',  pt: destPoint(la, lo, wd,        5000), tip: '5km × 中線' },
-      { label: '10', pt: destPoint(la, lo, wd + 22.5, 5000), tip: '5km × 扇形下緣' },
-    ];
-
-    var sectorMks = [];
-    crossDefs.forEach(function(def) {
-      var isDouble = def.label === '10'; // 兩位數字要稍小
-      var icon = L.divIcon({
-        className: '',
-        html: '<div style="' +
-              'width:22px;height:22px;border-radius:50%;' +
-              'background:#8b5cf6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:' + (isDouble ? '9' : '11') + 'px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-              'font-family:ui-monospace,monospace' +
-              '">' + def.label + '</div>',
-        iconSize: [22, 22], iconAnchor: [11, 11]
+    // ── 扇形量測點 1~10：預設依事件位置、風向算出；管理員可拖曳調整位置（扇形本身不動）──
+    if (ptReady) {
+      var secDefs = [
+        { label: '1',  tip: '1km × 中線',     pt: destPoint(la, lo, wd,        1000) },
+        { label: '2',  tip: '500m × 中線',    pt: destPoint(la, lo, wd,         500) },
+        { label: '3',  tip: '2km × 中線',     pt: destPoint(la, lo, wd,        2000) },
+        { label: '4',  tip: '3km × 扇形上緣', pt: destPoint(la, lo, wd - 22.5, 3000) },
+        { label: '5',  tip: '3km × 中線',     pt: destPoint(la, lo, wd,        3000) },
+        { label: '6',  tip: '3km × 扇形下緣', pt: destPoint(la, lo, wd + 22.5, 3000) },
+        { label: '7',  tip: '4km × 中線',     pt: destPoint(la, lo, wd,        4000) },
+        { label: '8',  tip: '5km × 扇形上緣', pt: destPoint(la, lo, wd - 22.5, 5000) },
+        { label: '9',  tip: '5km × 中線',     pt: destPoint(la, lo, wd,        5000) },
+        { label: '10', tip: '5km × 扇形下緣', pt: destPoint(la, lo, wd + 22.5, 5000) }
+      ];
+      var sectorMks = [];
+      secDefs.forEach(function(d) {
+        var mk = _mkPtMarker(ev, d.label, d.pt, 'sector', d.tip);
+        if (d.label === '1') _evLayers[idx].ptMk1 = mk;
+        else if (d.label === '2') _evLayers[idx].ptMk2 = mk;
+        else sectorMks.push(mk);
       });
-      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
-      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
-      sectorMks.push(mk);
-    });
-    _evLayers[idx].sectorMks = sectorMks;
+      _evLayers[idx].sectorMks = sectorMks;
+    }
   }
 
   // ══════════════════════════════════════════════
@@ -3950,6 +4082,7 @@ function renderLayerPanel() {
     });
   }
   _applyEventLayerPrefs();   // 把這個事件的圖層記憶套到風向、待量測、KMZ、環境監測站、現場回報
+  _renderPtResetRow();
 }
 
 // ── checkbox 變更：存入記憶 → 重繪圖層 ──
@@ -5390,6 +5523,7 @@ window.addEventListener('message', function(e) {
     var on = !!e.data.on && !_historyId;
     _mapEditOn = on; // ★ 同步旗標，控制右鍵選單
     if (window.railSetEdit) railSetEdit(on);
+    if (_events.length) { refreshShownEvents(); _renderPtResetRow(); }   // 量測點位只有編輯地圖模式下才能拖
     var editBtn   = document.getElementById('evEditBtn');
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
@@ -5439,7 +5573,7 @@ window.addEventListener('message', function(e) {
         { label:'8',  shortTip:'5km上緣',   pt: destPoint(la, lo, wd - 22.5, 5000) },
         { label:'9',  shortTip:'5km中線',   pt: destPoint(la, lo, wd,        5000) },
         { label:'10', shortTip:'5km下緣',   pt: destPoint(la, lo, wd + 22.5, 5000) }
-      ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.shortTip, pt:p.pt, category:'sector' }); });
+      ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.shortTip, pt:_ptPos(ev, p.label, p.pt), category:'sector' }); });
 
       // 1km 橫切面量測點（A01~A20）
       var lineCenter2 = destPoint(la, lo, wd, 1000);
@@ -5450,7 +5584,7 @@ window.addEventListener('message', function(e) {
         var nLat = perpB2[0] + (perpA2[0] - perpB2[0]) * nt;
         var nLng = perpB2[1] + (perpA2[1] - perpB2[1]) * nt;
         var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
-        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng], category: 'cross' });
+        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: _ptPos(ev, nLabel, [nLat, nLng]), category: 'cross' });
       }
 
       // 20m 橫切面量測點（B01~B10，中心40m，半寬20m）
@@ -5706,7 +5840,7 @@ function _placePendingMarker(latlng, label, squadStr, eventId) {
     '</div>',
     { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  mk._evId = eventId;
+  mk._evId = eventId; mk._label = label; mk._squad = squadStr;
   if (_pendingLayerOn && _evShownById(eventId)) mk.addTo(gMap);
   _pendingMsrMks.push(mk);
 }
@@ -7678,7 +7812,7 @@ function tdSnapshotMsrPts() {
     { label:'9',  tip:'5km中線',  bearing: wd,        dist: 5000 },
     { label:'10', tip:'5km下緣',  bearing: wd + 22.5, dist: 5000 }
   ].forEach(function(d) {
-    var pt = destPoint(la, lo, d.bearing, d.dist);
+    var pt = _ptPos(ev, d.label, destPoint(la, lo, d.bearing, d.dist));
     pts.push({ label: d.label, tip: d.tip, group: 'sector', lat: pt[0], lng: pt[1] });
   });
 
@@ -7691,7 +7825,8 @@ function tdSnapshotMsrPts() {
     var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
     var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
     var cLabel = 'A' + (i + 1 < 10 ? '0' + (i + 1) : '' + (i + 1));
-    pts.push({ label: cLabel, tip: '橫切面第' + (i + 1) + '點', group: 'cross', lat: cLat, lng: cLng });
+    var cPt = _ptPos(ev, cLabel, [cLat, cLng]);
+    pts.push({ label: cLabel, tip: '橫切面第' + (i + 1) + '點', group: 'cross', lat: cPt[0], lng: cPt[1] });
   }
 
   _tdMsrPts = pts;
