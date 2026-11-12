@@ -454,7 +454,7 @@
   <div class="confirm-box">
     <div class="confirm-icon">&#x26A0;&#xFE0F;</div>
     <div class="confirm-title">確定要刪除這位成員？</div>
-    <div class="confirm-desc" id="confirmDesc">此操作無法復原，資料將從試算表中移除。</div>
+    <div class="confirm-desc" id="confirmDesc">刪除後，這位成員將無法登入、也不再出現在名單裡；資料仍保留在試算表（標記為已刪除），要永久刪除請手動到試算表處理。</div>
     <div class="confirm-btns">
       <button class="btn-cancel" onclick="closeConfirm()">取消</button>
       <button class="btn-confirm-del" id="btnConfirmDel" onclick="confirmDelete()">確定刪除</button>
@@ -934,7 +934,7 @@ function openDeleteConfirm(rowIndex, name) {
   deleteRowIndex = rowIndex;
   deleteName = name;
   document.getElementById('confirmDesc').textContent =
-    '確定要刪除「' + name + '」？此操作無法復原。';
+    '確定要刪除「' + name + '」？資料仍保留在試算表，只是不再顯示。';
   document.getElementById('confirmModal').classList.add('show');
 }
 
