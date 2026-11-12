@@ -935,7 +935,7 @@ cursor: pointer; transition: background .15s;
           <span id="mqRefreshDot" style="display:none;width:7px;height:7px;border-radius:50%;background:#16a34a;animation:rfpulse 1.5s ease infinite"></span>
           ↻ 自動刷新
         </button>
-        <button onclick="mqExportCSV()" style="border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">↓ 匯出</button>
+        <button id="mqExportBtn" onclick="mqExportCSV()" style="border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">↓ 匯出</button>
       </div>
       <button class="chg-btn-cancel" onclick="closeMsrQueryModal()">關閉</button>
     </div>
@@ -1971,6 +1971,7 @@ var _mqTimer       = null;
 function openMsrQueryModal() {
   _checkModalConflict('msrQuery', function() {
     document.getElementById('msrQueryModal').classList.add('show');
+    var _xb = document.getElementById('mqExportBtn'); if (_xb) _xb.style.display = _loginIsAdmin ? '' : 'none';
     _setActiveModal('msrQuery');
     _mqFilter   = 'all';
     _mqSortDesc = true;
@@ -2184,6 +2185,7 @@ function mqToggleAutoRefresh() {
   }
 }
 function mqExportCSV() {
+  if (!_loginIsAdmin) { showToast('僅管理員可匯出'); return; }
   var ev = _events[_curIdx];
   if (!ev) { showToast('無可匯出的事件'); return; }
   var rows = _msrCache[ev.id];
@@ -2800,6 +2802,7 @@ function flyToEvent(idx) {
   });
   // 更新半透明圓形
   buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
+  if (window.frLoad) frLoad();
   loadMeasurements(idx, true);
   startMsrTimer(idx);
 }
@@ -3677,8 +3680,9 @@ function renderLayerPanel() {
     // 環境監測站圖層（全域，與事件無關）
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_fr" ' + (_frLayerOn ? 'checked' : '') + ' onchange="onFrChk(this.checked)"><span class="layer-dot" style="background:#ea580c;border:1.5px solid #ea580c;border-radius:50%"></span>現場回報</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>上傳KMZ資料</label>' +
-      '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' +
+      (_loginIsAdmin ? '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' : '') +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
 
     '</div></div>';
@@ -4253,6 +4257,7 @@ function onKmzChk(checked) {
 // ── KMZ 上傳解析 ──
 
 function openKmzUpload() {
+  if (!_loginIsAdmin) { showToast('僅管理員可上傳 KMZ'); return; }
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.kmz,.kml';
   inp.onchange = function(e) {
@@ -4357,7 +4362,7 @@ function _applyKmzOverlay(dataUrl, bounds, zip) {
       var legendUrl = 'data:image/png;base64,' + b64;
       if (!_kmzLegendEl) {
         _kmzLegendEl = document.createElement('img');
-        _kmzLegendEl.style.cssText = 'position:fixed;left:12px;bottom:80px;z-index:900;height:30vh;max-height:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none';
+        _kmzLegendEl.style.cssText = 'position:fixed;left:calc(12px + var(--rail-left, 0px));bottom:calc(80px + var(--mobbar-h, 0px));z-index:900;height:30vh;max-height:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none';
         document.body.appendChild(_kmzLegendEl);
       }
       _kmzLegendEl.src = legendUrl;
@@ -5079,6 +5084,7 @@ function placeMarkers() {
       renderLayerPanel();
       var card = document.getElementById('evCard');
       if (card.classList.contains('collapsed')) toggleCollapse();
+      if (window.railShow) railShow('ev');
     });
     _markers.push(marker);
   });
@@ -5108,13 +5114,20 @@ window.addEventListener('message', function(e) {
     }
     _initBirdBtn();
     _loadTitleMap();
+    if (window.railRefresh) railRefresh();
+    return;
+  }
+  // ── 任務角標（由 index.html 計算後傳入）──
+  if (e.data.type === 'railTaskBadge') {
+    if (window.railSetBadge) railSetBadge(e.data.my, e.data.all);
     return;
   }
 
   // ── 編輯地圖模式開關 ──
   if (e.data.type === 'mapEditMode') {
-    var on = !!e.data.on;
+    var on = !!e.data.on && !_historyId;
     _mapEditOn = on; // ★ 同步旗標，控制右鍵選單
+    if (window.railSetEdit) railSetEdit(on);
     var editBtn   = document.getElementById('evEditBtn');
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
@@ -5256,11 +5269,25 @@ window.addEventListener('message', function(e) {
   }
 });
 
+var _historyId = (function() {
+  var m = location.search.match(/[?&]history=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+})();
+function _isClosedEvStatus(v) {
+  var st = String(v || '').trim().toLowerCase();
+  return st === 'closed' || st === '已結束' || st === '結束' || st === '結案';
+}
 function loadEvents() {
   // 先載入隊別清單，再載入事件（確保 TECH_SQUADS 有值）
   loadSquads(function(squads) { TECH_SQUADS = squads.concat(['未分配']); });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
+    // 已結束事件不列入目前事件；歷史檢視（?history=事件編號）時只顯示該筆
+    _events = _events.filter(function(ev) {
+      return _historyId ? String(ev.id) === _historyId : !_isClosedEvStatus(ev.status);
+    });
+    // 歷史檢視：保留當時記錄的風向，不用現在的氣象署資料覆蓋
+    if (_historyId) _events.forEach(function(ev) { ev.windManual = true; });
     // GAS 欄位名稱對應前端：personnel→personnelStr, instrument→instrumentStr
     _events.forEach(function(ev) {
       if (ev.personnelStr === undefined) ev.personnelStr = ev.personnel || '';
@@ -6157,7 +6184,8 @@ function updateFabPosition() {
   var card = document.getElementById('evCard');
   if (!card) { el.style.bottom = (drawVisible ? drawOffset : 70) + 'px'; return; }
   var cardH = card.getBoundingClientRect().height;
-  el.style.bottom = (cardH + 12 + (drawVisible ? drawBar.offsetHeight + 8 : 0)) + 'px';
+  // 手機：畫筆工具列在 bottom:58px，回報按鈕要排在它上方；兩者都要避開底部圖示列
+  el.style.bottom = ((drawVisible ? 58 + drawBar.offsetHeight + 8 : cardH + 12) + (window._railMobBarH ? _railMobBarH() : 0)) + 'px';
 }
 function showReportFabs() {
   hideReportFabs();
@@ -9324,6 +9352,681 @@ async function birdCheckAlert(measurements, eventId){
     _birdAlertBusy = false;
   }
 }
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     左側圖示列（桌機：左側直排；手機：底部橫排）
+     事件狀態／圖層顯示 可釘住（同時只能釘一個）；其餘為點了才拉出的選單
+     另含：現場其他事情回報、歷史事件檢視橫幅
+════════════════════════════════════════════════════════════ -->
+<style>
+:root { --rail-w: 48px; --pin-off: 0px; --rail-left: 48px; --mobbar-h: 0px; }
+#map { position: absolute; top: 0; right: 0; bottom: 0; left: calc(var(--rail-w) + var(--pin-off)); width: auto; height: auto; }
+#railBar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 1100;
+  background: #fff; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.rail-btn {
+  position: relative; width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  border: 1px solid transparent; background: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-family: var(--font); color: var(--text); transition: background .15s, border-color .15s;
+}
+.rail-btn:hover { background: #f0f4ff; border-color: #d0d8e4; }
+.rail-btn.active { background: #e0e9ff; border-color: var(--accent); }
+.rail-btn.pinned { background: #e0e9ff; border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.rail-btn.on { background: #fff7ed; border-color: #f97316; }
+.rail-btn .rail-lbl { display: none; }
+.rail-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; border-radius: 8px;
+  background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+  text-align: center; padding: 0 4px; display: none; pointer-events: none;
+}
+.rail-sep { width: 26px; border-top: 1px solid var(--border); margin: 4px 0; flex-shrink: 0; }
+.rail-spacer { flex: 1; }
+/* 原本的定位、衛星按鈕搬進圖示列 */
+#railBar .locate-btn, #railBar .basemap-btn {
+  position: relative; left: auto; bottom: auto; box-shadow: none; background: none; border-color: transparent;
+}
+#railBar .locate-btn:hover, #railBar .basemap-btn:hover { background: #f0f4ff; border-color: #d0d8e4; }
+#railBar .locate-btn.nav-active { background: #ede9fe; border-color: #7c3aed; }
+#railBar .basemap-btn.satellite { background: #1e2a3a; border-color: #4a6080; color: #fff; }
+
+/* 拉出的選單 */
+.rail-menu {
+  position: fixed; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px; width: 220px; z-index: 1050;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); display: none; overflow: hidden;
+}
+.rail-menu.rail-open { display: block; }
+.rail-menu-hd { padding: 10px 14px; font-size: 14px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
+.rail-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px;
+  border: none; background: none; font-family: var(--font); font-size: 14px; color: var(--text);
+  cursor: pointer; text-align: left;
+}
+.rail-menu-item:hover { background: #f0f4ff; }
+.rail-menu-item .rail-mbadge {
+  margin-left: auto; min-width: 18px; border-radius: 9px; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 1px 6px; text-align: center; display: none;
+}
+.rail-hd-btn {
+  width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); background: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;
+  color: var(--text-muted); flex-shrink: 0; padding: 0; font-family: var(--font);
+}
+.rail-hd-btn:hover { background: var(--bg); color: var(--accent); }
+.rail-hd-btn.pinned { background: #e0e9ff; border-color: var(--accent); }
+.layer-panel-header .rail-hd-wrap { display: flex; gap: 4px; margin-left: auto; }
+
+/* ── 桌機：面板改為從圖示列拉出；釘住時固定在圖示列右邊、地圖縮窄 ── */
+@media (min-width: 601px) {
+  .rail-btn[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 46px; top: 50%; transform: translateY(-50%);
+    background: #1e2a3a; color: #fff; font-size: 12px; font-weight: 600; line-height: 1.2;
+    padding: 6px 9px; border-radius: 6px; white-space: nowrap; z-index: 5000; pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .ev-card {
+    display: none; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px; width: 330px;
+    max-height: calc(100vh - 16px); z-index: 1050;
+  }
+  .ev-card-title { white-space: nowrap; }
+  .ev-card.rail-open { display: flex; }
+  .ev-card.rail-pinned {
+    display: flex; left: var(--rail-w); top: 0; height: 100vh; max-height: 100vh; z-index: 1040;
+    border-radius: 0; box-shadow: none; border: none; border-right: 1px solid var(--border);
+  }
+  .layer-panel {
+    display: none; right: auto; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px;
+    width: 230px; z-index: 1050;
+  }
+  .layer-panel.rail-open { display: block; }
+  .layer-panel.rail-pinned {
+    display: block; left: var(--rail-w); top: 0; height: 100vh; z-index: 1040;
+    border-radius: 0; box-shadow: none; border: none; border-right: 1px solid var(--border);
+  }
+  .layer-panel .layer-panel-body { max-height: calc(100vh - 60px); }
+  .ev-collapse-btn, .layer-collapse-btn { display: none !important; }
+}
+
+/* ── 手機：圖示列改到底部橫排，圖示下方直接顯示文字；不提供釘住 ── */
+@media (max-width: 600px) {
+  :root { --rail-left: 0px; --mobbar-h: 56px; }
+  #map { left: 0; bottom: calc(var(--mobbar-h) + env(safe-area-inset-bottom, 0px)); }
+  #railBar {
+    top: auto; right: 0; bottom: 0; width: auto;
+    height: calc(var(--mobbar-h) + env(safe-area-inset-bottom, 0px));
+    flex-direction: row; align-items: flex-start; justify-content: space-around; gap: 0;
+    padding: 4px 2px 0; border-right: none; border-top: 1px solid var(--border); overflow-x: auto;
+  }
+  .rail-btn, #railBar .locate-btn, #railBar .basemap-btn {
+    flex: 1 1 0; min-width: 36px; width: auto; height: 48px; flex-direction: column; gap: 1px;
+    font-size: 18px; border-radius: 8px;
+  }
+  .rail-btn .rail-lbl { display: block; font-size: 10px; line-height: 1.1; color: var(--text-muted); white-space: nowrap; }
+  .rail-badge { top: 0; right: 2px; }
+  .rail-sep, .rail-spacer, .rail-hd-btn, .rail-hd-wrap { display: none !important; }
+  .mob-layer-btn, .mob-ev-btn { display: none !important; }
+  .rail-menu {
+    left: 8px; right: 8px; top: auto; width: auto;
+    bottom: calc(var(--mobbar-h) + 8px + env(safe-area-inset-bottom, 0px));    z-index: 3100;
+  }
+  .rail-menu-item { padding: 14px 16px; font-size: 15px; }
+  .layer-panel {
+    top: auto !important; right: 8px !important;
+    bottom: calc(var(--mobbar-h) + 8px + env(safe-area-inset-bottom, 0px));    z-index: 3100;
+  }
+  .draw-toolbar { bottom: calc(58px + var(--mobbar-h)) !important; }
+  #aiBirdGroup { bottom: calc(20px + var(--mobbar-h)) !important; }
+}
+
+/* ── 現場其他事情回報 ── */
+#frModal {
+  display: none; position: fixed; inset: 0; z-index: 6000; background: rgba(15,23,42,.45);
+  align-items: center; justify-content: center; padding: 12px;
+}
+#frModal.show { display: flex; }
+.fr-card {
+  background: #fff; border-radius: 12px; width: 460px; max-width: 100%; max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column; box-shadow: 0 10px 36px rgba(0,0,0,.3); overflow: hidden;
+}
+.fr-hd { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 700; }
+.fr-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.fr-tab { flex: 1; padding: 10px; border: none; background: none; font-family: var(--font); font-size: 14px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.fr-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.fr-body { padding: 14px 16px; overflow-y: auto; }
+.fr-lbl { display: block; font-size: 13px; font-weight: 600; color: #3d5070; margin: 10px 0 5px; }
+.fr-inp { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; font-family: var(--font); font-size: 16px; color: var(--text); background: #fff; }
+.fr-mini { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; background: #f8fafc; font-family: var(--font); font-size: 13px; color: var(--text); cursor: pointer; }
+.fr-mini:hover { border-color: var(--accent); color: var(--accent); }
+.fr-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); }
+.fr-submit { border: none; border-radius: 8px; padding: 9px 20px; background: var(--accent); color: #fff; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; }
+.fr-submit:disabled { opacity: .5; cursor: not-allowed; }
+.fr-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.fr-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+.fr-cat { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+.fr-text { font-size: 14px; color: var(--text); margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+.fr-photo { display: block; max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 8px; border: 1px solid var(--border); }
+.fr-err { color: #dc2626; font-size: 13px; min-height: 18px; margin-top: 8px; }
+
+/* ── 歷史事件檢視橫幅 ── */
+#historyBanner {
+  display: none; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1200;
+  background: #1e2a3a; color: #fff; border-radius: 20px; padding: 7px 8px 7px 16px;
+  font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  align-items: center; gap: 10px; white-space: nowrap; max-width: calc(100vw - 16px);
+}
+#historyBanner button { border: 1px solid rgba(255,255,255,.6); background: none; color: #fff; border-radius: 14px; padding: 4px 12px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+</style>
+
+<div id="railBar">
+  <button class="rail-btn" id="railBtn_ev" data-tip="事件狀態" onclick="railToggle('ev')">🚨<span class="rail-lbl">事件</span></button>
+  <button class="rail-btn" id="railBtn_layers" data-tip="圖層顯示" onclick="railToggle('layers')">🗺️<span class="rail-lbl">圖層</span></button>
+  <button class="rail-btn rail-live" id="railBtn_report" data-tip="回報" onclick="railToggle('report')">📝<span class="rail-lbl">回報</span></button>
+  <button class="rail-btn rail-live" id="railBtn_task" data-tip="任務" onclick="railToggle('task')">📋<span class="rail-lbl">任務</span><span class="rail-badge" id="railTaskBadge">0</span></button>
+  <button class="rail-btn rail-live" id="railBtn_nav" data-tip="導航至量測點" onclick="railAction('nav')">🧭<span class="rail-lbl">導航</span></button>
+  <div class="rail-sep rail-admin"></div>
+  <button class="rail-btn rail-admin rail-live" id="railBtn_edit" data-tip="編輯地圖（關閉中）" onclick="railAction('edit')">✏️<span class="rail-lbl">編輯</span></button>
+  <button class="rail-btn rail-admin" id="railBtn_bird" data-tip="AI 鳥" onclick="railAction('bird')">🐦<span class="rail-lbl">AI鳥</span></button>
+  <div class="rail-spacer"></div>
+</div>
+
+<div class="rail-menu" id="railMenu_report">
+  <div class="rail-menu-hd">回報</div>
+  <button class="rail-menu-item" id="railItemReport" onclick="railAction('reportToggle')">我要回報</button>
+  <button class="rail-menu-item" onclick="railAction('msrQuery')">回報數值查詢</button>
+  <button class="rail-menu-item" onclick="railAction('fieldReport')">現場其他事情回報</button>
+</div>
+<div class="rail-menu" id="railMenu_task">
+  <div class="rail-menu-hd">任務</div>
+  <button class="rail-menu-item" onclick="railAction('myTask')">隊別任務<span class="rail-mbadge" id="railMyBadge" style="background:#dc2626">0</span></button>
+  <button class="rail-menu-item" onclick="railAction('allTask')">所有任務<span class="rail-mbadge" id="railAllBadge" style="background:#1a56db">0</span></button>
+  <button class="rail-menu-item rail-admin" onclick="railAction('dispatch')">派送任務</button>
+</div>
+
+<div id="historyBanner">
+  <span>📁 歷史事件檢視（唯讀）</span>
+  <button onclick="railBackToLive()">返回目前事件</button>
+</div>
+
+<!-- 現場其他事情回報 -->
+<div id="frModal" onclick="if(event.target===this)frClose()">
+  <div class="fr-card">
+    <div class="fr-hd"><span>現場其他事情回報</span><button class="rail-hd-btn" style="margin-left:auto;display:flex !important" onclick="frClose()" title="關閉">✕</button></div>
+    <div class="fr-tabs">
+      <button class="fr-tab active" id="frTab_new" onclick="frTab('new')">新增回報</button>
+      <button class="fr-tab" id="frTab_list" onclick="frTab('list')">回報清單</button>
+    </div>
+    <div class="fr-body" id="frPane_new">
+      <div style="font-size:12px;color:var(--text-muted)" id="frEvName"></div>
+      <label class="fr-lbl" for="frCategory">類別</label>
+      <select class="fr-inp" id="frCategory">
+        <option>人員受傷</option><option>設備故障</option><option>交通管制</option><option>民眾狀況</option><option selected>其他</option>
+      </select>
+      <label class="fr-lbl" for="frText">說明</label>
+      <textarea class="fr-inp" id="frText" rows="4" placeholder="請描述現場狀況" oninput="document.getElementById('frErr').textContent=''"></textarea>
+      <label class="fr-lbl">位置（可不附）</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="fr-mini" onclick="frUseMyLocation()">📍 我的位置</button>
+        <button class="fr-mini" onclick="frUseMapCenter()">🗺️ 地圖中心</button>
+        <button class="fr-mini" onclick="frClearLocation()">不附位置</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:5px" id="frLocText">未附位置</div>
+      <label class="fr-lbl">照片（可不附，一張）</label>
+      <input type="file" id="frPhotoInp" accept="image/*" onchange="frOnPhoto(this)" style="font-size:14px;max-width:100%">
+      <div id="frPhotoPrev"></div>
+      <div class="fr-err" id="frErr"></div>
+    </div>
+    <div class="fr-body" id="frPane_list" style="display:none"></div>
+    <div class="fr-foot" id="frFoot">
+      <button class="fr-mini" onclick="frClose()">取消</button>
+      <button class="fr-submit" id="frSubmitBtn" onclick="frSubmit()">送出回報</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 送往 GAS 的寫入一律自動帶上操作者「姓名(帳號)」，供異動紀錄使用（不影響原本送出的內容）
+(function() {
+  var _f = window.fetch;
+  if (!_f || window.__byShim) return;
+  window.__byShim = true;
+  window.fetch = function(u, o) {
+    try {
+      if (o && o.method === 'POST' && typeof o.body === 'string' && String(u).indexOf('script.google.com') > -1) {
+        var a = JSON.parse(localStorage.getItem('radAuth') || '{}');
+        var b = JSON.parse(o.body);
+        if (b && typeof b === 'object' && !b._by && (a.name || a.acc)) {
+          b._by = (a.name || '') + (a.acc ? '(' + a.acc + ')' : '');
+          o.body = JSON.stringify(b);
+        }
+      }
+    } catch (e) {}
+    return _f.apply(this, arguments);
+  };
+})();
+</script>
+<script>
+// ════════════════════════════════════════════════════════════
+// 左側圖示列
+// ════════════════════════════════════════════════════════════
+var RAIL_PANELS = { ev: 'evCard', layers: 'layerPanel', report: 'railMenu_report', task: 'railMenu_task' };
+var RAIL_PIN_W  = { ev: 330, layers: 230 };   // 可釘住的面板與其寬度（px）
+var _railOpen   = null;   // 目前拉出的（未釘住）面板
+var _railPinned = null;   // 目前釘住的面板（同時只會有一個）
+
+function _railIsMob() { return window.innerWidth <= 600; }
+function _railMobBarH() { return _railIsMob() ? 56 : 0; }
+function _railEl(k) { return document.getElementById(RAIL_PANELS[k]); }
+
+function _railMark() {
+  Object.keys(RAIL_PANELS).forEach(function(k) {
+    var b = document.getElementById('railBtn_' + k);
+    if (!b) return;
+    b.classList.toggle('active', _railOpen === k);
+    b.classList.toggle('pinned', _railPinned === k);
+  });
+  ['ev', 'layers'].forEach(function(k) {
+    var pb = document.getElementById('railPin_' + k);
+    if (pb) { pb.classList.toggle('pinned', _railPinned === k); pb.title = _railPinned === k ? '取消釘住' : '釘住'; }
+  });
+  var it = document.getElementById('railItemReport');
+  if (it) it.textContent = (typeof _reportFabEl !== 'undefined' && _reportFabEl) ? '我要回報（開啟中）' : '我要回報';
+}
+
+function railClose() {
+  if (_railOpen) { var el = _railEl(_railOpen); if (el) el.classList.remove('rail-open'); }
+  _railOpen = null;
+  _railMark();
+}
+
+function railShow(k) {
+  if (_railIsMob() && (k === 'ev' || k === 'layers')) return;   // 手機沿用原本的事件／圖層面板
+  if (_railPinned === k) return;
+  railClose();
+  var el = _railEl(k);
+  if (!el) return;
+  el.classList.remove('collapsed');
+  el.classList.add('rail-open');
+  _railOpen = k;
+  _railMark();
+}
+
+function railToggle(k) {
+  if (_railIsMob()) {
+    var lp = document.getElementById('layerPanel');
+    if (k === 'ev')     { railClose(); if (lp) lp.classList.remove('mob-show'); toggleMobEvPanel(); return; }
+    if (k === 'layers') { railClose(); toggleMobLayer(); return; }
+    if (lp) lp.classList.remove('mob-show');
+  }
+  if (_railPinned === k) { railPin(k); railClose(); return; }   // 已釘住 → 再點圖示：取消釘住並收回
+  if (_railOpen === k) { railClose(); return; }
+  railShow(k);
+}
+
+// 釘住／取消釘住（只有事件狀態、圖層顯示可釘；釘第二個時第一個自動解除）
+function railPin(k) {
+  if (!RAIL_PIN_W[k] || _railIsMob()) return;
+  var el = _railEl(k);
+  if (_railPinned === k) {
+    el.classList.remove('rail-pinned');
+    _railPinned = null;
+    _railApplyPin();
+    railShow(k);
+  } else {
+    if (_railPinned) { var old = _railEl(_railPinned); if (old) old.classList.remove('rail-pinned'); }
+    if (_railOpen === k) { el.classList.remove('rail-open'); _railOpen = null; }
+    el.classList.remove('collapsed');
+    el.classList.add('rail-pinned');
+    _railPinned = k;
+    _railApplyPin();
+  }
+  try { localStorage.setItem('railPinned', _railPinned || ''); } catch (e) {}
+}
+
+function _railApplyPin() {
+  var off = (_railPinned && !_railIsMob()) ? RAIL_PIN_W[_railPinned] : 0;
+  document.documentElement.style.setProperty('--pin-off', off + 'px');
+  document.documentElement.style.setProperty('--rail-left', (_railIsMob() ? 0 : 48 + off) + 'px');
+  _railMark();
+  // 地圖寬度變了，通知 Leaflet 重新計算（否則圖層會錯位）
+  setTimeout(function() { if (gMap) gMap.invalidateSize(); }, 30);
+}
+
+function _railParent(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  try {
+    if (parent && parent !== window && typeof parent[fn] === 'function') { parent[fn].apply(parent, args); return true; }
+  } catch (e) {}
+  showToast('請從平台首頁開啟此功能');
+  return false;
+}
+
+function railAction(a) {
+  if (a !== 'edit' && a !== 'bird') railClose();
+  var lp = document.getElementById('layerPanel');
+  if (_railIsMob() && lp) lp.classList.remove('mob-show');
+  if (a === 'nav')          { _railParent('openNavSelectModal'); return; }
+  if (a === 'reportToggle') { _railParent('toggleReportFabs'); setTimeout(_railMark, 400); return; }
+  if (a === 'msrQuery')     { openMsrQueryModal(); return; }
+  if (a === 'fieldReport')  { frOpen(); return; }
+  if (a === 'myTask')       { _railParent('openMyTaskModal'); return; }
+  if (a === 'allTask')      { openTaskViewModal(); return; }
+  if (a === 'dispatch')     { if (_loginIsAdmin) openTdModal(); return; }
+  if (a === 'edit')         { if (_loginIsAdmin) _railParent('openEditEventPage'); return; }
+  if (a === 'bird') {
+    if (!_loginIsAdmin) return;
+    if (_birdIsOpen) _birdClose(); else _birdOpen();
+    return;
+  }
+}
+
+function railSetEdit(on) {
+  var b = document.getElementById('railBtn_edit');
+  if (!b) return;
+  b.classList.toggle('on', !!on);
+  b.setAttribute('data-tip', on ? '編輯地圖（開啟中）' : '編輯地圖（關閉中）');
+}
+
+function railSetBadge(my, all) {
+  my = parseInt(my, 10) || 0; all = parseInt(all, 10) || 0;
+  var set = function(id, n) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = n; el.style.display = n > 0 ? 'inline-block' : 'none';
+  };
+  set('railTaskBadge', my); set('railMyBadge', my); set('railAllBadge', all);
+}
+
+// 依身分顯示：管理員項目只有管理員看得到；歷史檢視時隱藏回報、任務、導航、編輯
+function railRefresh() {
+  var hist = !!_historyId;
+  document.querySelectorAll('.rail-admin').forEach(function(el) {
+    el.style.display = _loginIsAdmin ? '' : 'none';
+  });
+  document.querySelectorAll('.rail-live').forEach(function(el) {
+    if (hist) el.style.display = 'none';
+  });
+  var hb = document.getElementById('historyBanner');
+  if (hb) hb.style.display = hist ? 'flex' : 'none';
+  if (typeof renderLayerPanel === 'function' && typeof _events !== 'undefined' && _events.length) renderLayerPanel();
+}
+
+function railBackToLive() {
+  if (!_railParent('showIframe', 'current-events.html')) location.href = 'current-events.html';
+}
+
+(function railInit() {
+  // 把原本的定位、衛星按鈕搬進圖示列（保留原本的 id 與行為）
+  var bar = document.getElementById('railBar');
+  [['locateBtn', '回到事件位置／我的位置', '定位'], ['basemapBtn', '切換衛星地圖', '衛星']].forEach(function(d) {
+    var b = document.getElementById(d[0]);
+    if (!b) return;
+    b.classList.add('rail-btn');
+    b.setAttribute('data-tip', d[1]);
+    b.removeAttribute('title');
+    var s = document.createElement('span'); s.className = 'rail-lbl'; s.textContent = d[2];
+    b.appendChild(s);
+    bar.appendChild(b);
+  });
+
+  // 事件狀態、圖層顯示的標題列加上「釘住」與「收回」
+  var mk = function(k, txt, title, fn) {
+    var b = document.createElement('button');
+    b.className = 'rail-hd-btn'; b.textContent = txt; b.title = title;
+    if (k) b.id = 'railPin_' + k;
+    b.onclick = function(ev) { ev.stopPropagation(); fn(); };
+    return b;
+  };
+  var evHd = document.querySelector('#evCard .ev-card-header');
+  if (evHd) {
+    evHd.appendChild(mk('ev', '📌', '釘住', function() { railPin('ev'); }));
+    evHd.appendChild(mk('', '✕', '收回', function() { if (_railPinned === 'ev') railPin('ev'); railClose(); }));
+  }
+  var lyHd = document.querySelector('#layerPanel .layer-panel-header');
+  if (lyHd) {
+    var wrap = document.createElement('span'); wrap.className = 'rail-hd-wrap';
+    wrap.appendChild(mk('layers', '📌', '釘住', function() { railPin('layers'); }));
+    wrap.appendChild(mk('', '✕', '收回', function() { if (_railPinned === 'layers') railPin('layers'); railClose(); }));
+    lyHd.appendChild(wrap);
+  }
+
+  // 初始狀態：上次有釘住就還原，否則先拉出事件狀態
+  if (!_railIsMob()) {
+    var saved = '';
+    try { saved = localStorage.getItem('railPinned') || ''; } catch (e) {}
+    if (RAIL_PIN_W[saved]) railPin(saved); else railShow('ev');
+  }
+  railRefresh();
+
+  // 點地圖 → 收回未釘住的選單（編輯事件面板開著時不收，避免地圖點選地點時被關掉）
+  var tries = 0;
+  var hook = setInterval(function() {
+    if (gMap) {
+      clearInterval(hook);
+      gMap.on('click', function() {
+        if (!_railOpen) return;
+        var ep = document.getElementById('evEditPanel');
+        if (_railOpen === 'ev' && ep && ep.classList.contains('show')) return;
+        railClose();
+      });
+      gMap.invalidateSize();
+    } else if (++tries > 200) { clearInterval(hook); }
+  }, 100);
+
+  // 視窗在桌機／手機寬度間切換時重設
+  var wasMob = _railIsMob();
+  window.addEventListener('resize', function() {
+    var mob = _railIsMob();
+    if (mob !== wasMob) {
+      wasMob = mob;
+      railClose();
+      if (mob && _railPinned) { var el = _railEl(_railPinned); if (el) el.classList.remove('rail-pinned'); _railPinned = null; }
+      _railApplyPin();
+    }
+  });
+})();
+
+// ════════════════════════════════════════════════════════════
+// 現場其他事情回報（所有人可回報、可查看；地圖上以橘色標記顯示）
+// ════════════════════════════════════════════════════════════
+var _frLayerOn = true;
+var _frMarkers = [];
+var _frCache   = [];
+var _frLatLng  = null;   // 本次回報要附的位置
+var _frPhoto   = null;   // 本次回報要附的照片（base64，不含開頭）
+
+function _frEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _frThumb(r, w) { return r.photoId ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(r.photoId) + '&sz=w' + w : ''; }
+
+function frOpen() {
+  var ev = _events[_curIdx];
+  if (!ev) { showToast('目前無進行中事件'); return; }
+  document.getElementById('frEvName').textContent = '事件：' + (ev.name || ev.id);
+  document.getElementById('frText').value = '';
+  document.getElementById('frCategory').value = '其他';
+  document.getElementById('frErr').textContent = '';
+  document.getElementById('frPhotoInp').value = '';
+  document.getElementById('frPhotoPrev').innerHTML = '';
+  _frPhoto = null;
+  frClearLocation();
+  document.getElementById('frModal').classList.add('show');
+  frTab(_historyId ? 'list' : 'new');
+  document.getElementById('frTab_new').style.display = _historyId ? 'none' : '';
+}
+function frClose() { document.getElementById('frModal').classList.remove('show'); }
+
+function frTab(t) {
+  document.getElementById('frTab_new').classList.toggle('active', t === 'new');
+  document.getElementById('frTab_list').classList.toggle('active', t === 'list');
+  document.getElementById('frPane_new').style.display  = t === 'new' ? '' : 'none';
+  document.getElementById('frPane_list').style.display = t === 'list' ? '' : 'none';
+  document.getElementById('frFoot').style.display      = t === 'new' ? '' : 'none';
+  if (t === 'list') { _frRenderList(true); frLoad(); }
+}
+
+function _frSetLoc(ll, label) {
+  _frLatLng = ll;
+  document.getElementById('frLocText').textContent =
+    ll ? label + '：' + ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5) : '未附位置';
+}
+function frClearLocation() { _frSetLoc(null); }
+function frUseMapCenter() { if (gMap) { var c = gMap.getCenter(); _frSetLoc({ lat: c.lat, lng: c.lng }, '地圖中心'); } }
+function frUseMyLocation() {
+  if (!navigator.geolocation) { showToast('此裝置無法定位'); return; }
+  document.getElementById('frLocText').textContent = '定位中…';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    _frSetLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }, '我的位置');
+  }, function() {
+    _frSetLoc(null);
+    showToast('無法取得定位，可改用「地圖中心」');
+  }, { enableHighAccuracy: true, timeout: 8000 });
+}
+
+// 照片先在裝置上縮到長邊 1280px 再上傳，避免檔案太大送不出去
+function frOnPhoto(inp) {
+  _frPhoto = null;
+  var prev = document.getElementById('frPhotoPrev');
+  prev.innerHTML = '';
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { document.getElementById('frErr').textContent = '請選擇圖片檔'; inp.value = ''; return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var img = new Image();
+    img.onload = function() {
+      var max = 1280, w = img.width, h = img.height;
+      var k = Math.min(1, max / Math.max(w, h));
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var url = cv.toDataURL('image/jpeg', 0.8);
+      _frPhoto = url.split(',')[1];
+      prev.innerHTML = '<img class="fr-photo" alt="照片預覽" src="' + url + '">';
+    };
+    img.onerror = function() { document.getElementById('frErr').textContent = '照片讀取失敗，請換一張'; inp.value = ''; };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+
+function frSubmit() {
+  var ev = _events[_curIdx];
+  var text = document.getElementById('frText').value.trim();
+  var err = document.getElementById('frErr');
+  if (!ev) { err.textContent = '目前無進行中事件'; return; }
+  if (!text) { err.textContent = '請填寫說明'; return; }
+  var btn = document.getElementById('frSubmitBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  var body = {
+    action: 'addFieldReport', eventId: ev.id,
+    reporter: _loginUserName || '', team: (typeof _loginUserTeam !== 'undefined' ? _loginUserTeam : '') || '',
+    category: document.getElementById('frCategory').value, text: text
+  };
+  if (_frLatLng) { body.lat = _frLatLng.lat; body.lng = _frLatLng.lng; }
+  if (_frPhoto)  { body.photo = _frPhoto; body.photoType = 'image/jpeg'; }
+  var hadPhoto = !!_frPhoto;
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).then(function() {
+    btn.disabled = false; btn.textContent = '送出回報';
+    showToast('已送出回報');
+    document.getElementById('frText').value = '';
+    document.getElementById('frPhotoInp').value = '';
+    document.getElementById('frPhotoPrev').innerHTML = '';
+    _frPhoto = null;
+    frTab('list');
+    // 寫入試算表（含照片上傳）需要幾秒，稍後再重抓兩次
+    setTimeout(frLoad, 2500);
+    setTimeout(frLoad, hadPhoto ? 8000 : 5000);
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = '送出回報';
+    err.textContent = '送出失敗，請確認網路連線後再試';
+  });
+}
+
+function frLoad() {
+  var ev = _events[_curIdx];
+  if (!ev) { _frCache = []; _frRenderMarkers(); return; }
+  var evId = ev.id;
+  _jsonpGet(SHEETS_URL + '?action=fieldReports&eventId=' + encodeURIComponent(evId), function(data) {
+    var cur = _events[_curIdx];
+    if (!cur || cur.id !== evId) return;   // 期間已切換事件
+    _frCache = (data && data.reports) ? data.reports : [];
+    _frRenderMarkers();
+    _frRenderList(false);
+  });
+}
+
+function _frRenderList(loading) {
+  var pane = document.getElementById('frPane_list');
+  if (!pane || pane.style.display === 'none') return;
+  if (!_frCache.length) {
+    pane.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:24px 0;font-size:13px">' + (loading ? '載入中…' : '此事件尚無現場回報') + '</div>';
+    return;
+  }
+  pane.innerHTML = _frCache.map(function(r, i) {
+    var hasLoc = r.lat !== '' && r.lng !== '' && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lng));
+    return '<div class="fr-item">' +
+      '<div class="fr-item-top"><span class="fr-cat">' + _frEsc(r.category || '其他') + '</span>' +
+      '<span>' + _frEsc(r.time) + '</span><span>' + _frEsc(r.reporter || '未具名') + (r.team ? '（' + _frEsc(r.team) + '）' : '') + '</span>' +
+      (hasLoc ? '<button class="fr-mini" style="margin-left:auto;padding:3px 8px;font-size:12px" onclick="frGoto(' + i + ')">📍 看位置</button>' : '') +
+      '</div>' +
+      '<div class="fr-text">' + _frEsc(r.text) + '</div>' +
+      (r.photoId ? '<a href="' + _frEsc(r.photoUrl) + '" target="_blank" rel="noopener"><img class="fr-photo" alt="現場照片" loading="lazy" src="' + _frThumb(r, 800) + '"></a>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function frGoto(i) {
+  var r = _frCache[i];
+  if (!r || !gMap) return;
+  frClose();
+  if (!_frLayerOn) { _frLayerOn = true; var cb = document.getElementById('lyr_fr'); if (cb) cb.checked = true; _frRenderMarkers(); }
+  gMap.setView([parseFloat(r.lat), parseFloat(r.lng)], Math.max(gMap.getZoom(), 16));
+  var m = _frMarkers.filter(function(x) { return x._frId === r.id; })[0];
+  if (m) m.openPopup();
+}
+
+function _frRenderMarkers() {
+  _frMarkers.forEach(function(m) { m.remove(); });
+  _frMarkers = [];
+  if (!_frLayerOn || !gMap) return;
+  _frCache.forEach(function(r) {
+    var la = parseFloat(r.lat), lo = parseFloat(r.lng);
+    if (r.lat === '' || r.lng === '' || isNaN(la) || isNaN(lo)) return;
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="width:26px;height:26px;border-radius:50%;background:#ea580c;border:2px solid #fff;' +
+            'box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:14px">📣</div>',
+      iconSize: [26, 26], iconAnchor: [13, 13]
+    });
+    var m = L.marker([la, lo], { icon: icon }).addTo(gMap);
+    m._frId = r.id;
+    m.bindPopup(
+      '<div style="min-width:180px;max-width:240px">' +
+      '<b>' + _frEsc(r.category || '現場回報') + '</b><br>' +
+      '<span style="font-size:12px;color:#6b7a92">' + _frEsc(r.time) + '　' + _frEsc(r.reporter || '未具名') + '</span>' +
+      '<div style="margin-top:6px;white-space:pre-wrap;word-break:break-word">' + _frEsc(r.text) + '</div>' +
+      (r.photoId ? '<a href="' + _frEsc(r.photoUrl) + '" target="_blank" rel="noopener"><img alt="現場照片" style="display:block;max-width:100%;border-radius:6px;margin-top:6px" src="' + _frThumb(r, 400) + '"></a>' : '') +
+      '</div>'
+    );
+    _frMarkers.push(m);
+  });
+}
+
+function onFrChk(checked) {
+  _frLayerOn = !!checked;
+  if (_frLayerOn) frLoad(); else _frRenderMarkers();
+}
+
+// 每 30 秒同步一次（圖層有開、且有事件時才抓）
+setInterval(function() {
+  if (_frLayerOn && typeof _events !== 'undefined' && _events.length && !document.hidden) frLoad();
+}, 30000);
 </script>
 
 </body>

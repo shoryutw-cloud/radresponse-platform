@@ -993,5 +993,26 @@ document.addEventListener('DOMContentLoaded', function() {
   loadGroup('tech-rdd');
 });
 </script>
+<script>
+// 送往 GAS 的寫入一律自動帶上操作者「姓名(帳號)」，供異動紀錄使用（不影響原本送出的內容）
+(function() {
+  var _f = window.fetch;
+  if (!_f || window.__byShim) return;
+  window.__byShim = true;
+  window.fetch = function(u, o) {
+    try {
+      if (o && o.method === 'POST' && typeof o.body === 'string' && String(u).indexOf('script.google.com') > -1) {
+        var a = JSON.parse(localStorage.getItem('radAuth') || '{}');
+        var b = JSON.parse(o.body);
+        if (b && typeof b === 'object' && !b._by && (a.name || a.acc)) {
+          b._by = (a.name || '') + (a.acc ? '(' + a.acc + ')' : '');
+          o.body = JSON.stringify(b);
+        }
+      }
+    } catch (e) {}
+    return _f.apply(this, arguments);
+  };
+})();
+</script>
 </body>
 </html>

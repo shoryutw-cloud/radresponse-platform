@@ -153,11 +153,24 @@ function saveProfile() {
   btn.disabled = true; btn.textContent = '儲存中…'; hideMsg();
   fetch(SHEETS_URL, {
     method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({ action:'editUserProfile', groupId:_sheetRow.groupId, rowIndex:_sheetRow.rowIndex, mobile:mobile, phone:phone, acc:acc, pwd:pwd||null })
+    body: JSON.stringify({ action:'editUserProfile', groupId:_sheetRow.groupId, rowIndex:_sheetRow.rowIndex, origAcc:_sheetRow.acc, mobile:mobile, phone:phone, acc:acc, pwd:pwd||null,
+                           _by:(_currentUser.name||'')+'('+(_sheetRow.acc||'')+')' })
   }).then(function() {
-    try { var u = JSON.parse(localStorage.getItem('radAuth')||'{}'); u.acc=acc; u.lastActivity=Date.now(); localStorage.setItem('radAuth',JSON.stringify(u)); _currentUser.acc=acc; } catch(e) {}
-    btn.disabled = false; btn.textContent = '儲存變更';
-    showMsg('ok', '✅ 資料已儲存！');
+    // no-cors 讀不到回應 → 稍後用新帳號重新查詢，確認真的存進去了（帳號重複時 GAS 會拒絕）
+    setTimeout(function() {
+      _jsonpGet(SHEETS_URL + '?action=getUserProfile&acc=' + encodeURIComponent(acc), function(chk) {
+        btn.disabled = false; btn.textContent = '儲存變更';
+        var same = chk && !chk.error && chk.groupId === _sheetRow.groupId && String(chk.rowIndex) === String(_sheetRow.rowIndex);
+        if (!same) {
+          showMsg('err', acc !== _sheetRow.acc ? '儲存失敗：這個帳號已被其他人使用，請換一個。' : '儲存失敗，請稍後再試。');
+          return;
+        }
+        _sheetRow = chk;
+        try { var u = JSON.parse(localStorage.getItem('radAuth')||'{}'); u.acc=acc; u.lastActivity=Date.now(); localStorage.setItem('radAuth',JSON.stringify(u)); _currentUser.acc=acc; } catch(e) {}
+        document.getElementById('fPwd').value = '';
+        showMsg('ok', '✅ 資料已儲存！' + (pwd ? '下次登入請使用新密碼。' : ''));
+      });
+    }, 1800);
   }).catch(function(err) {
     btn.disabled = false; btn.textContent = '儲存變更';
     showMsg('err', '儲存失敗：' + err.message);

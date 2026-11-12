@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-<title>輻災應變資訊平台</title>
+<title>輻災應變決策資訊平台(demo)</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☢️</text></svg>">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -348,6 +348,8 @@
 
   /* ────── 未登入時隱藏的元素 ────── */
   .auth-hidden { display: none !important; }
+  /* 已移到地圖左側圖示列的項目：保留元素（JS 仍會更新角標），只是不顯示 */
+  .rail-moved { display: none !important; }
 
   /* ────── 登入按鈕（topbar，未登入才顯示）────── */
   #topbarLoginBtn {
@@ -391,7 +393,7 @@
     <div class="logo-icon" style="background:none;padding:0;overflow:hidden;width:26px;height:26px;flex-shrink:0">
       <img src="logo.png" style="width:26px;height:26px;object-fit:contain;display:block">
     </div>
-    <span class="logo-text">輻災應變資訊平台</span>
+    <span class="logo-text">輻災應變決策資訊平台(demo)</span>
   </a>
 
   <!-- 桌機橫向導覽列（靠右；未登入時隱藏）-->
@@ -405,15 +407,15 @@
         <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
-    <div class="tnav-item" id="tnav-dashboard">
+    <div class="tnav-item rail-moved" id="tnav-dashboard">
       <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
     </div>
-    <div class="tnav-item" id="tnav-report">
+    <div class="tnav-item rail-moved" id="tnav-report">
       <button class="tnav-btn">
         <span id="taskBadge" style="display:none"></span>回報 <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
-    <div class="tnav-item auth-hidden" id="tnav-taskview">
+    <div class="tnav-item auth-hidden rail-moved" id="tnav-taskview">
       <button class="tnav-btn" style="position:relative">
         查看任務
         <span id="taskViewBadge" style="
@@ -424,6 +426,9 @@
           pointer-events:none;z-index:1">0</span>
         <span class="tnav-arrow">&#9664;</span>
       </button>
+    </div>
+    <div class="tnav-item" id="tnav-history">
+      <button class="tnav-btn" onclick="openPanel('歷史事件查詢')">歷史事件查詢</button>
     </div>
     <!-- 後台功能：僅管理員登入後顯示 -->
     <div class="tnav-item auth-hidden" id="tnav-admin">
@@ -440,7 +445,7 @@
   <!-- 手機漢堡按鈕 -->
   <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單" style="position:relative">
     <span></span><span></span><span></span>
-    <div id="hamburgerBadge" style="
+    <div id="hamburgerBadge" class="rail-moved" style="
       display:none;position:absolute;top:-2px;right:-2px;
       background:#dc2626;color:white;border-radius:50%;
       font-size:10px;font-weight:700;line-height:1;
@@ -455,7 +460,7 @@
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-header">
-    <span class="drawer-title">☢️ 輻災應變資訊平台</span>
+    <span class="drawer-title">☢️ 輻災應變決策資訊平台(demo)</span>
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
 
@@ -469,18 +474,18 @@
     <div class="drawer-section">
       <div class="drawer-section-title">事件儀表板</div>
       <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">目前事件</button>
-      <button class="drawer-item" onclick="openNavSelectModal();closeDrawer()">導航至量測點</button>
+      <button class="drawer-item rail-moved" onclick="openNavSelectModal();closeDrawer()">導航至量測點</button>
       <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">歷史事件查詢</button>
     </div>
 
-    <div class="drawer-section">
+    <div class="drawer-section rail-moved">
       <div class="drawer-section-title">回報</div>
       <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
       <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">回報數值查詢</button>
       <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">現場其他事情回報</button>
     </div>
 
-    <div class="drawer-section">
+    <div class="drawer-section rail-moved">
       <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
       <button class="drawer-item" onclick="closeDrawer();openMyTaskModal()">隊別任務 <span id="drawerMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務 <span id="drawerAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
@@ -497,6 +502,7 @@
 <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
       <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
+      <button class="drawer-item" onclick="closeDrawer();openEndEventModal()" style="color:#dc2626">結束事件</button>
       <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">派送任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">查看任務</button>
       <button class="drawer-item" onclick="showIframe('group.html');closeDrawer()">編組管理</button>
@@ -527,7 +533,7 @@
           <div style="font-size:48px;line-height:1">☢️</div>
           <!-- 歡迎文字：登入後顯示 -->
           <div id="dashWelcome" style="display:none;font-size:15px;font-weight:600;color:#1e2a3a;margin-top:8px">
-            <span id="dashWelcomeName" style="color:#1a56db"></span>，歡迎使用應變資訊平台
+            <span id="dashWelcomeName" style="color:#1a56db"></span>，歡迎使用輻災應變決策資訊平台(demo)
           </div>
         </div>
 
@@ -626,6 +632,7 @@
   <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
   <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">派送任務</button>
   <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">查看任務</button>
+  <button class="top-drop-l3-btn" onclick="closeAllMenus();openEndEventModal()" style="color:#f87171">結束事件</button>
 </div>
 
 <script>
@@ -693,6 +700,8 @@ function showIframe(src) {
   var idxMatch = src.match(/[?&]idx=([0-9]+)/);
   _pendingIframeIdx = idxMatch ? parseInt(idxMatch[1], 10) : null;
 
+  var _cp = document.getElementById('contentPanel');
+  if (_cp) _cp.classList.remove('active');
   // 去掉 query string，只保留純檔名
   var cleanSrc = src.split('?')[0];
   // 加時間戳確保每次重新載入
@@ -737,6 +746,7 @@ window.addEventListener('message', function(e) {
     } catch(e2) {}
     // 若編輯地圖模式開啟中，通知新載入的 iframe
     if (_mapEditOn) sendMapEditMsg();
+    _sendRailBadge();
     // 若有待處理的導航指令
     if (_pendingNav) sendNavMsg();
     // 若有等待中的導航點位 Modal
@@ -895,9 +905,11 @@ function openPanel(title) {
   document.getElementById('panelBody').innerHTML =
     '<div class="empty-state"><div class="icon">&#x1F4CB;</div><h3>'+d[0]+'</h3><p>'+d[1]+'</p></div>';
   document.getElementById('contentPanel').classList.add('active');
+  document.getElementById('contentPanel').style.visibility = 'visible';
   closeAllMenus();
   closeSidebar();
   setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
+  _panelLoad(title);
 }
 
 // ── 關閉功能面板、回到地圖 ──
@@ -1585,7 +1597,7 @@ function openMsrQueryInIframe() {
 <div id="loginOverlay">
   <div class="login-card">
     <div class="login-logo">☢️</div>
-    <div class="login-title">輻災應變資訊平台</div>
+    <div class="login-title">輻災應變決策資訊平台(demo)</div>
 
     <!-- 帳密登入 -->
     <div id="normalLoginSection">
@@ -1768,6 +1780,9 @@ function _fetchTaskBadge() {
 
     // 回報角標（隊別任務數，只有有 filterKey 才顯示）
     _updateTaskBadge(filterKey ? myCount : 0);
+    // 同步給地圖左側圖示列的「任務」角標
+    window._railBadge = { my: filterKey ? myCount : 0, all: allCount };
+    _sendRailBadge();
 
     // 任務查看 nav 角標（隊別任務數）
     var tvBadge = document.getElementById('taskViewBadge');
@@ -2537,5 +2552,250 @@ function closeLiveWin() {
   document.addEventListener('pointercancel', end);
 })();
 </script>
+<!-- ════════════════════════════════════════════════════════════
+     歷史事件查詢／各種紀錄／結束事件（2026-11 新增）
+════════════════════════════════════════════════════════════ -->
+<style>
+  .pn-note { font-size: 13px; color: #6b7a92; margin-bottom: 14px; }
+  .pn-empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 14px; }
+  .pn-err { text-align: center; color: #dc2626; padding: 32px 0; font-size: 14px; line-height: 1.8; }
+  .pn-tablewrap { overflow-x: auto; background: white; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .pn-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pn-table th { text-align: left; padding: 10px 12px; background: #f8fafc; color: #3d5070; font-weight: 700;
+    border-bottom: 1px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; }
+  .pn-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #1e2a3a; vertical-align: top; word-break: break-word; }
+  .pn-table td:first-child { white-space: nowrap; font-family: ui-monospace,'Cascadia Mono',monospace; font-size: 12px; color: #6b7a92; }
+  .pn-table tr:last-child td { border-bottom: none; }
+  .pn-ok { color: #16a34a; font-weight: 700; } .pn-bad { color: #dc2626; font-weight: 700; }
+  .pn-ev { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .pn-ev-main { flex: 1; min-width: 200px; }
+  .pn-ev-name { font-size: 16px; font-weight: 700; color: #1e2a3a; }
+  .pn-ev-meta { font-size: 13px; color: #6b7a92; margin-top: 4px; line-height: 1.6; }
+  .pn-ev-type { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px;
+    background: #f1f5f9; color: #3d5070; margin-left: 8px; vertical-align: 2px; }
+  .pn-btn { border: 1px solid #1a56db; background: white; color: #1a56db; border-radius: 8px; padding: 8px 14px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .pn-btn:hover { background: #eff6ff; }
+
+  #endEvModal { display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.5);
+    align-items: center; justify-content: center; }
+  #endEvModal .ee-box { background: white; border-radius: 14px; max-width: 440px; width: 92%;
+    box-shadow: 0 8px 32px rgba(0,0,0,.25); overflow: hidden;
+    font-family: -apple-system,BlinkMacSystemFont,'Microsoft JhengHei','PingFang TC',sans-serif; }
+  #endEvModal .ee-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0; background: #fef2f2; font-size: 16px; font-weight: 700; color: #991b1b; }
+  #endEvModal .ee-x { background: none; border: none; font-size: 18px; cursor: pointer; color: #94a3b8; line-height: 1; }
+  #endEvModal .ee-body { padding: 16px 20px; font-size: 14px; color: #1e2a3a; }
+  #endEvModal select { width: 100%; padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px;
+    font-family: inherit; margin-top: 6px; background: white; }
+  #endEvModal .ee-warn { margin-top: 12px; padding: 10px 12px; background: #fff7ed; border: 1px solid #fed7aa;
+    border-radius: 8px; font-size: 13px; color: #9a3412; line-height: 1.6; }
+  #endEvModal .ee-chk { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 14px; cursor: pointer; }
+  #endEvModal .ee-msg { min-height: 18px; margin-top: 8px; font-size: 13px; color: #dc2626; }
+  #endEvModal .ee-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px 16px; }
+  #endEvModal .ee-cancel { border: 1px solid #e2e8f0; background: white; border-radius: 8px; padding: 9px 16px;
+    font-size: 14px; cursor: pointer; font-family: inherit; color: #3d5070; }
+  #endEvModal .ee-go { border: none; background: #dc2626; color: white; border-radius: 8px; padding: 9px 18px;
+    font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  #endEvModal .ee-go:disabled { opacity: .45; cursor: not-allowed; }
+</style>
+
+<div id="endEvModal" onclick="if(event.target===this)closeEndEventModal()">
+  <div class="ee-box">
+    <div class="ee-head"><span>結束事件</span><button class="ee-x" onclick="closeEndEventModal()">✕</button></div>
+    <div class="ee-body">
+      <label for="endEvSelect">要結束的事件</label>
+      <select id="endEvSelect" onchange="_endEvReset()"><option value="">載入中…</option></select>
+      <div class="ee-warn">結束後，這個事件會從「目前事件」移到「歷史事件查詢」，只能唯讀檢視，不能再回報或派送任務。</div>
+      <label class="ee-chk"><input type="checkbox" id="endEvConfirm" onchange="_endEvSync()" style="margin-top:3px"><span>我確認要結束這個事件</span></label>
+      <div class="ee-msg" id="endEvMsg"></div>
+    </div>
+    <div class="ee-foot">
+      <button class="ee-cancel" onclick="closeEndEventModal()">取消</button>
+      <button class="ee-go" id="endEvGo" onclick="submitEndEvent()" disabled>結束事件</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 送往 GAS 的寫入一律自動帶上操作者「姓名(帳號)」，供異動紀錄使用（不影響原本送出的內容）
+(function() {
+  var _f = window.fetch;
+  if (!_f || window.__byShim) return;
+  window.__byShim = true;
+  window.fetch = function(u, o) {
+    try {
+      if (o && o.method === 'POST' && typeof o.body === 'string' && String(u).indexOf('script.google.com') > -1) {
+        var a = JSON.parse(localStorage.getItem('radAuth') || '{}');
+        var b = JSON.parse(o.body);
+        if (b && typeof b === 'object' && !b._by && (a.name || a.acc)) {
+          b._by = (a.name || '') + (a.acc ? '(' + a.acc + ')' : '');
+          o.body = JSON.stringify(b);
+        }
+      }
+    } catch (e) {}
+    return _f.apply(this, arguments);
+  };
+})();
+
+function _pnEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _pnIsAdmin() {
+  try { return !!JSON.parse(localStorage.getItem('radAuth') || '{}').isAdmin; } catch (e) { return false; }
+}
+function _pnIsClosed(v) {
+  var st = String(v || '').trim().toLowerCase();
+  return st === 'closed' || st === '已結束' || st === '結束' || st === '結案';
+}
+
+// ── 任務角標 → 地圖左側圖示列 ──
+function _sendRailBadge() {
+  try {
+    var frame = document.getElementById('contentFrame');
+    var b = window._railBadge;
+    if (frame && frame.contentWindow && b) {
+      frame.contentWindow.postMessage({ type: 'railTaskBadge', my: b.my, all: b.all }, '*');
+    }
+  } catch (e) {}
+}
+
+// ── 面板內容載入（歷史事件查詢、三種紀錄）──
+var PANEL_LOG_TYPE = { '各帳號登入紀錄': 'login', '各帳號異動紀錄': 'account', '事件異動紀錄': 'event' };
+var _panelCur = '';
+function _panelLoad(title) {
+  _panelCur = title;
+  if (title === '歷史事件查詢') { _panelLoadHistory(); return; }
+  if (PANEL_LOG_TYPE[title])   { _panelLoadLog(title); return; }
+}
+
+function _panelLoadHistory() {
+  var body = document.getElementById('panelBody');
+  body.innerHTML = '<div class="pn-empty">載入中…</div>';
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (_panelCur !== '歷史事件查詢') return;
+    if (!data || !data.events) { body.innerHTML = '<div class="pn-err">讀取失敗，請確認網路連線後再試。</div>'; return; }
+    var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); });
+    list.reverse();   // 新的在前
+    if (!list.length) { body.innerHTML = '<div class="pn-empty">尚無歷史事件。<br>事件由管理員在「後台功能 → 事件管理 → 結束事件」結束後，會出現在這裡。</div>'; return; }
+    body.innerHTML = '<div class="pn-note">共 ' + list.length + ' 筆已結束事件。點「在地圖檢視」可唯讀查看當時的圖層與量測值。</div>' +
+      list.map(function(ev) {
+        var dt = String(ev.date || '').slice(0, 15) + (ev.time ? ' ' + String(ev.time).slice(0, 8) : '');
+        return '<div class="pn-ev"><div class="pn-ev-main">' +
+          '<div class="pn-ev-name">' + _pnEsc(ev.name || ev.id) + '<span class="pn-ev-type">' + _pnEsc(ev.type || '') + '</span></div>' +
+          '<div class="pn-ev-meta">' + _pnEsc(ev.id) + '　' + _pnEsc(dt) + '<br>' + _pnEsc(ev.address || '') + '</div></div>' +
+          '<button class="pn-btn" data-evid="' + _pnEsc(ev.id) + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button></div>';
+      }).join('');
+  });
+}
+
+function _panelLoadLog(title) {
+  var body = document.getElementById('panelBody');
+  if (!_pnIsAdmin()) { body.innerHTML = '<div class="pn-err">僅管理員可查看此紀錄。</div>'; return; }
+  body.innerHTML = '<div class="pn-empty">載入中…</div>';
+  _jsonpGet(SHEETS_URL + '?action=getLogs&type=' + PANEL_LOG_TYPE[title], function(data) {
+    if (_panelCur !== title) return;
+    if (!data || data.error || !data.ok) {
+      body.innerHTML = '<div class="pn-err">讀取失敗。<br>這個功能需要 GAS v15，請確認已貼上新版並重新部署。</div>';
+      return;
+    }
+    if (!data.rows || !data.rows.length) {
+      body.innerHTML = '<div class="pn-empty">尚無紀錄。<br>紀錄自 GAS v15 上線後開始記錄，之前的操作查不到。</div>';
+      return;
+    }
+    var resCol = data.headers.indexOf('結果');
+    body.innerHTML = '<div class="pn-note">顯示最近 ' + data.rows.length + ' 筆（最新的在最上面，最多 300 筆；完整資料在試算表「' + _pnEsc(title.replace('各帳號', (title.indexOf('登入') > -1 ? '' : '帳號'))) + '」分頁）。</div>' +
+      '<div class="pn-tablewrap"><table class="pn-table"><thead><tr>' +
+      data.headers.map(function(h) { return '<th>' + _pnEsc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      data.rows.map(function(r) {
+        return '<tr>' + r.map(function(c, i) {
+          var cls = (i === resCol) ? (c === '成功' ? ' class="pn-ok"' : ' class="pn-bad"') : '';
+          return '<td' + cls + '>' + _pnEsc(c) + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>';
+  });
+}
+
+// ── 歷史事件：在地圖唯讀檢視 ──
+function showHistoryEvent(id) {
+  if (!id) return;
+  showIframe('current-events.html');   // 沿用原本的切頁流程（關選單、更新 hash）
+  var frame = document.getElementById('contentFrame');
+  frame.src = 'current-events.html?_t=' + Date.now() + '&history=' + encodeURIComponent(id);
+}
+
+// ── 結束事件（管理員）──
+var _endEvStep = 0;
+function openEndEventModal() {
+  if (!_pnIsAdmin()) { alert('僅管理員可結束事件'); return; }
+  var sel = document.getElementById('endEvSelect');
+  sel.innerHTML = '<option value="">載入中…</option>';
+  document.getElementById('endEvConfirm').checked = false;
+  _endEvReset();
+  document.getElementById('endEvModal').style.display = 'flex';
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    var list = (data && data.events ? data.events : []).filter(function(ev) { return !_pnIsClosed(ev.status); });
+    if (!list.length) { sel.innerHTML = '<option value="">目前沒有進行中的事件</option>'; _endEvSync(); return; }
+    var cur = 0;
+    try { cur = parseInt(sessionStorage.getItem('currentEventIdx'), 10) || 0; } catch (e) {}
+    sel.innerHTML = list.map(function(ev, i) {
+      return '<option value="' + _pnEsc(ev.id) + '"' + (i === cur ? ' selected' : '') + '>' + _pnEsc((ev.name || ev.id) + '（' + ev.id + '）') + '</option>';
+    }).join('');
+    _endEvSync();
+  });
+}
+function closeEndEventModal() { document.getElementById('endEvModal').style.display = 'none'; }
+function _endEvReset() {
+  _endEvStep = 0;
+  document.getElementById('endEvMsg').textContent = '';
+  document.getElementById('endEvGo').textContent = '結束事件';
+  _endEvSync();
+}
+function _endEvSync() {
+  var ok = document.getElementById('endEvConfirm').checked && !!document.getElementById('endEvSelect').value;
+  document.getElementById('endEvGo').disabled = !ok;
+  if (!ok) { _endEvStep = 0; document.getElementById('endEvGo').textContent = '結束事件'; }
+}
+function submitEndEvent() {
+  var sel = document.getElementById('endEvSelect');
+  var id = sel.value;
+  var btn = document.getElementById('endEvGo');
+  var msg = document.getElementById('endEvMsg');
+  if (!id || !document.getElementById('endEvConfirm').checked) return;
+  if (_endEvStep === 0) {   // 第一次按：再確認一次
+    _endEvStep = 1;
+    btn.textContent = '再按一次，確定結束';
+    msg.textContent = '即將結束：' + sel.options[sel.selectedIndex].text;
+    return;
+  }
+  btn.disabled = true; btn.textContent = '處理中…'; msg.textContent = '';
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: JSON.stringify({ action: 'updateEvent', eventId: id, status: '已結束' })
+  }).then(function() {
+    // no-cors 讀不到回應 → 等試算表寫入後重新查詢確認
+    setTimeout(function() {
+      _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+        var ev = (data && data.events ? data.events : []).filter(function(x) { return x.id === id; })[0];
+        if (ev && _pnIsClosed(ev.status)) {
+          closeEndEventModal();
+          try { sessionStorage.setItem('currentEventIdx', 0); } catch (e) {}
+          if (typeof loadDashStats === 'function') loadDashStats();
+          showIframe('current-events.html');
+          alert('事件已結束，可在「歷史事件查詢」查看。');
+        } else {
+          btn.disabled = false; _endEvStep = 0; btn.textContent = '結束事件';
+          msg.textContent = '尚未確認結束成功，請稍後再試一次。';
+        }
+      });
+    }, 1800);
+  }).catch(function() {
+    btn.disabled = false; _endEvStep = 0; btn.textContent = '結束事件';
+    msg.textContent = '送出失敗，請確認網路連線。';
+  });
+}
+</script>
+
 </body>
 </html>
