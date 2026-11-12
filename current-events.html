@@ -9361,7 +9361,7 @@ async function birdCheckAlert(measurements, eventId){
 ════════════════════════════════════════════════════════════ -->
 <style>
 :root { --rail-w: 48px; --pin-off: 0px; --rail-left: 48px; --mobbar-h: 0px; }
-#map { position: absolute; top: 0; right: 0; bottom: 0; left: calc(var(--rail-w) + var(--pin-off)); width: auto; height: auto; }
+#map { position: absolute; top: 0; right: 0; bottom: 0; left: var(--rail-w); width: auto; height: auto; }
 #railBar {
   position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 1100;
   background: #fff; border-right: 1px solid var(--border);
@@ -9421,7 +9421,7 @@ async function birdCheckAlert(measurements, eventId){
 .rail-hd-btn.pinned { background: #e0e9ff; border-color: var(--accent); }
 .layer-panel-header .rail-hd-wrap { display: flex; gap: 4px; margin-left: auto; }
 
-/* ── 桌機：面板改為從圖示列拉出；釘住時固定在圖示列右邊、地圖縮窄 ── */
+/* ── 桌機：面板改為從圖示列拉出；事件狀態（左）與圖層顯示（右）可各自釘住 ── */
 @media (min-width: 601px) {
   .rail-btn[data-tip]:hover::after {
     content: attr(data-tip); position: absolute; left: 46px; top: 50%; transform: translateY(-50%);
@@ -9435,20 +9435,12 @@ async function birdCheckAlert(measurements, eventId){
   }
   .ev-card-title { white-space: nowrap; }
   .ev-card.rail-open { display: flex; }
-  .ev-card.rail-pinned {
-    display: flex; left: var(--rail-w); top: 0; height: 100vh; max-height: 100vh; z-index: 1040;
-    border-radius: 0; box-shadow: none; border: none; border-right: 1px solid var(--border);
-  }
-  .layer-panel {
-    display: none; right: auto; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px;
-    width: 230px; z-index: 1050;
-  }
+  /* 釘住：視窗維持原本的懸浮樣子與位置，只是點地圖不會收回；地圖不動 */
+  .ev-card.rail-pinned { display: flex; left: calc(var(--rail-w) + 8px); z-index: 1040; }
+  /* 圖層顯示：維持改版前的位置（地圖右上角），所以和左邊的事件狀態可以同時釘住、不會重疊 */
+  .layer-panel { display: none; z-index: 1050; }
   .layer-panel.rail-open { display: block; }
-  .layer-panel.rail-pinned {
-    display: block; left: var(--rail-w); top: 0; height: 100vh; z-index: 1040;
-    border-radius: 0; box-shadow: none; border: none; border-right: 1px solid var(--border);
-  }
-  .layer-panel .layer-panel-body { max-height: calc(100vh - 60px); }
+  .layer-panel.rail-pinned { display: block; z-index: 1040; }
   .ev-collapse-btn, .layer-collapse-btn { display: none !important; }
 }
 
@@ -9614,9 +9606,9 @@ async function birdCheckAlert(measurements, eventId){
 // 左側圖示列
 // ════════════════════════════════════════════════════════════
 var RAIL_PANELS = { ev: 'evCard', layers: 'layerPanel', report: 'railMenu_report', task: 'railMenu_task' };
-var RAIL_PIN_W  = { ev: 330, layers: 230 };   // 可釘住的面板與其寬度（px）
+var RAIL_PIN_W  = { ev: 330, layers: 158 };   // 可釘住的面板與其寬度（px）
 var _railOpen   = null;   // 目前拉出的（未釘住）面板
-var _railPinned = null;   // 目前釘住的面板（同時只會有一個）
+var _railPinned = {};     // 已釘住的面板：事件狀態（左上）、圖層顯示（右上）可同時釘住
 
 function _railIsMob() { return window.innerWidth <= 600; }
 function _railMobBarH() { return _railIsMob() ? 56 : 0; }
@@ -9627,11 +9619,11 @@ function _railMark() {
     var b = document.getElementById('railBtn_' + k);
     if (!b) return;
     b.classList.toggle('active', _railOpen === k);
-    b.classList.toggle('pinned', _railPinned === k);
+    b.classList.toggle('pinned', !!_railPinned[k]);
   });
   ['ev', 'layers'].forEach(function(k) {
     var pb = document.getElementById('railPin_' + k);
-    if (pb) { pb.classList.toggle('pinned', _railPinned === k); pb.title = _railPinned === k ? '取消釘住' : '釘住'; }
+    if (pb) { pb.classList.toggle('pinned', !!_railPinned[k]); pb.title = _railPinned[k] ? '取消釘住' : '釘住'; }
   });
   var it = document.getElementById('railItemReport');
   if (it) it.textContent = (typeof _reportFabEl !== 'undefined' && _reportFabEl) ? '我要回報（開啟中）' : '我要回報';
@@ -9645,7 +9637,7 @@ function railClose() {
 
 function railShow(k) {
   if (_railIsMob() && (k === 'ev' || k === 'layers')) return;   // 手機沿用原本的事件／圖層面板
-  if (_railPinned === k) return;
+  if (_railPinned[k]) return;
   railClose();
   var el = _railEl(k);
   if (!el) return;
@@ -9662,38 +9654,38 @@ function railToggle(k) {
     if (k === 'layers') { railClose(); toggleMobLayer(); return; }
     if (lp) lp.classList.remove('mob-show');
   }
-  if (_railPinned === k) { railPin(k); railClose(); return; }   // 已釘住 → 再點圖示：取消釘住並收回
+  if (_railPinned[k]) { railPin(k); railClose(); return; }   // 已釘住 → 再點圖示：取消釘住並收回
   if (_railOpen === k) { railClose(); return; }
   railShow(k);
 }
 
-// 釘住／取消釘住（只有事件狀態、圖層顯示可釘；釘第二個時第一個自動解除）
+// 釘住／取消釘住（事件狀態、圖層顯示各自獨立，可以兩個都釘）
 function railPin(k) {
   if (!RAIL_PIN_W[k] || _railIsMob()) return;
   var el = _railEl(k);
-  if (_railPinned === k) {
+  if (_railPinned[k]) {
     el.classList.remove('rail-pinned');
-    _railPinned = null;
+    _railPinned[k] = false;
     _railApplyPin();
     railShow(k);
   } else {
-    if (_railPinned) { var old = _railEl(_railPinned); if (old) old.classList.remove('rail-pinned'); }
     if (_railOpen === k) { el.classList.remove('rail-open'); _railOpen = null; }
     el.classList.remove('collapsed');
     el.classList.add('rail-pinned');
-    _railPinned = k;
+    _railPinned[k] = true;
     _railApplyPin();
   }
-  try { localStorage.setItem('railPinned', _railPinned || ''); } catch (e) {}
+  try {
+    localStorage.setItem('railPinned', Object.keys(RAIL_PIN_W).filter(function(x) { return _railPinned[x]; }).join(','));
+  } catch (e) {}
 }
 
 function _railApplyPin() {
-  var off = (_railPinned && !_railIsMob()) ? RAIL_PIN_W[_railPinned] : 0;
+  // 釘住的視窗不動地圖；--pin-off 只用來把「回報／任務選單」往右推，開在釘住的事件狀態旁邊，避免重疊
+  var off = (_railPinned.ev && !_railIsMob()) ? RAIL_PIN_W.ev + 8 : 0;
   document.documentElement.style.setProperty('--pin-off', off + 'px');
-  document.documentElement.style.setProperty('--rail-left', (_railIsMob() ? 0 : 48 + off) + 'px');
+  document.documentElement.style.setProperty('--rail-left', (_railIsMob() ? 0 : 48) + 'px');
   _railMark();
-  // 地圖寬度變了，通知 Leaflet 重新計算（否則圖層會錯位）
-  setTimeout(function() { if (gMap) gMap.invalidateSize(); }, 30);
 }
 
 function _railParent(fn) {
@@ -9762,7 +9754,7 @@ function railBackToLive() {
 (function railInit() {
   // 把原本的定位、衛星按鈕搬進圖示列（保留原本的 id 與行為）
   var bar = document.getElementById('railBar');
-  [['locateBtn', '回到事件位置／我的位置', '定位'], ['basemapBtn', '切換衛星地圖', '衛星']].forEach(function(d) {
+  [['locateBtn', '回到事件位置', '定位'], ['basemapBtn', '切換衛星地圖', '衛星']].forEach(function(d) {
     var b = document.getElementById(d[0]);
     if (!b) return;
     b.classList.add('rail-btn');
@@ -9771,6 +9763,10 @@ function railBackToLive() {
     var s = document.createElement('span'); s.className = 'rail-lbl'; s.textContent = d[2];
     b.appendChild(s);
     bar.appendChild(b);
+  });
+  var lb = document.getElementById('locateBtn');
+  if (lb) lb.addEventListener('mouseenter', function() {
+    lb.setAttribute('data-tip', (typeof _navModeActive !== 'undefined' && _navModeActive) ? '回到我的位置（導航中）' : '回到事件位置');
   });
 
   // 事件狀態、圖層顯示的標題列加上「釘住」與「收回」
@@ -9784,13 +9780,13 @@ function railBackToLive() {
   var evHd = document.querySelector('#evCard .ev-card-header');
   if (evHd) {
     evHd.appendChild(mk('ev', '📌', '釘住', function() { railPin('ev'); }));
-    evHd.appendChild(mk('', '✕', '收回', function() { if (_railPinned === 'ev') railPin('ev'); railClose(); }));
+    evHd.appendChild(mk('', '✕', '收回', function() { if (_railPinned.ev) railPin('ev'); if (_railOpen === 'ev') railClose(); }));
   }
   var lyHd = document.querySelector('#layerPanel .layer-panel-header');
   if (lyHd) {
     var wrap = document.createElement('span'); wrap.className = 'rail-hd-wrap';
     wrap.appendChild(mk('layers', '📌', '釘住', function() { railPin('layers'); }));
-    wrap.appendChild(mk('', '✕', '收回', function() { if (_railPinned === 'layers') railPin('layers'); railClose(); }));
+    wrap.appendChild(mk('', '✕', '收回', function() { if (_railPinned.layers) railPin('layers'); if (_railOpen === 'layers') railClose(); }));
     lyHd.appendChild(wrap);
   }
 
@@ -9798,7 +9794,9 @@ function railBackToLive() {
   if (!_railIsMob()) {
     var saved = '';
     try { saved = localStorage.getItem('railPinned') || ''; } catch (e) {}
-    if (RAIL_PIN_W[saved]) railPin(saved); else railShow('ev');
+    var any = false;
+    saved.split(',').forEach(function(k) { if (RAIL_PIN_W[k]) { railPin(k); any = true; } });
+    if (!any) railShow('ev');
   }
   railRefresh();
 
@@ -9824,7 +9822,7 @@ function railBackToLive() {
     if (mob !== wasMob) {
       wasMob = mob;
       railClose();
-      if (mob && _railPinned) { var el = _railEl(_railPinned); if (el) el.classList.remove('rail-pinned'); _railPinned = null; }
+      if (mob) Object.keys(RAIL_PIN_W).forEach(function(k) { var el = _railEl(k); if (el) el.classList.remove('rail-pinned'); _railPinned[k] = false; });
       _railApplyPin();
     }
   });
