@@ -9641,7 +9641,7 @@ function _railSetOn(k, on) {
   _railApplyOff();
   _railMark();
   try {
-    localStorage.setItem('railOn', Object.keys(RAIL_TOGGLE).filter(function(x) { return _railOn[x]; }).join(',') || '-');
+    sessionStorage.setItem('railOn', Object.keys(RAIL_TOGGLE).filter(function(x) { return _railOn[x]; }).join(',') || '-');
   } catch (e) {}
 }
 
@@ -9765,11 +9765,11 @@ function railBackToLive() {
     lb.setAttribute('data-tip', (typeof _navModeActive !== 'undefined' && _navModeActive) ? '回到我的位置（導航中）' : '回到事件位置');
   });
 
-  // 初始狀態：還原上次開著的面板；第一次使用時開事件狀態
+  // 初始狀態：同一次登入期間記住開關；每次重新登入預設兩個都開
   if (!_railIsMob()) {
     var saved = null;
-    try { saved = localStorage.getItem('railOn'); } catch (e) {}
-    if (saved === null) saved = 'ev';
+    try { saved = sessionStorage.getItem('railOn'); } catch (e) {}
+    if (saved === null) saved = 'ev,layers';   // 每次登入預設：事件狀態、圖層顯示都開著
     saved.split(',').forEach(function(k) { if (RAIL_TOGGLE[k]) _railSetOn(k, true); });
   }
   railRefresh();
@@ -9793,7 +9793,7 @@ function railBackToLive() {
       railClose();
       if (mob) Object.keys(RAIL_TOGGLE).forEach(function(k) { var el = _railEl(k); if (el) el.classList.remove('rail-on'); _railOn[k] = false; });
       else {
-        var sv = ''; try { sv = localStorage.getItem('railOn') || ''; } catch (e) {}
+        var sv = ''; try { sv = sessionStorage.getItem('railOn') || ''; } catch (e) {}
         sv.split(',').forEach(function(k) { if (RAIL_TOGGLE[k]) _railSetOn(k, true); });
       }
       _railApplyOff();
