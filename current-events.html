@@ -1639,6 +1639,7 @@ function fetchCwaWind(autoIdx) {
       } else if (_wdNormal && _windLayerOn) {
         _refreshWindIfOn(); // 風速/風向更新，重啟粒子
       }
+      _applyEventLayerPrefs();
     }
 
     // 手動模式：更新編輯面板欄位（如果面板是開的）
@@ -3158,41 +3159,94 @@ function removeEventLayers(idx) {
   }
 }
 
-// ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
+// ── 每個事件的圖層偏好記憶（key: eventId）──
+// 規則：
+//  1. 只有「輻射彈事件」才有 100m 爆炸區域、1km 橫切面、附近場域、5km 十點偵測這 4 個圖層，
+//     預設登入就開啟；風向也預設開啟。其餘圖層預設都不勾。
+//  2. 其他類型的事件：沒有上述 4 個圖層，所有圖層預設都不勾。
+//  3. 每個事件各記各的；使用者的勾選存在這台電腦的瀏覽器，直到下次登入（登入／登出時由 index.html 清除）。
 var _layerPrefs = {};
-// 從 localStorage 還原（跨頁面重載保持偏好）
-try { var _lp0 = localStorage.getItem('_layerPrefs'); if (_lp0) _layerPrefs = JSON.parse(_lp0); } catch(e) {}
+try { var _lp0 = localStorage.getItem('_layerPrefsV2'); if (_lp0) _layerPrefs = JSON.parse(_lp0); } catch(e) {}
 
-// 預設：circle（100m範圍）開啟，其餘依使用者勾選
-var _LAYER_DEFAULTS = { circle: true };
+var RDD_ONLY_LAYERS = { circle: true, line: true, nearby: true, sector: true };
+function isRddEvent(ev) { return !!ev && String(ev.type || '').indexOf('輻射彈') !== -1; }
+function _evById(id) {
+  for (var i = 0; i < _events.length; i++) if (String(_events[i].id) === String(id)) return _events[i];
+  return null;
+}
+function layerApplies(ev, type) { return !RDD_ONLY_LAYERS[type] || isRddEvent(ev); }
+function _layerDefault(ev, type) {
+  return isRddEvent(ev) && (type === 'circle' || type === 'line' || type === 'nearby' || type === 'sector' || type === 'wind');
+}
 function getLayerPref(eventId, type) {
-  if (!_layerPrefs[eventId]) {
-    return (_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false;
-  }
-  var val = _layerPrefs[eventId][type];
-  return (val !== undefined) ? val : ((_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false);
+  var ev = _evById(eventId);
+  if (ev && !layerApplies(ev, type)) return false;
+  var p = _layerPrefs[eventId];
+  if (p && p[type] !== undefined) return !!p[type];
+  return _layerDefault(ev, type);
 }
 
 // 儲存使用者勾選狀態
 function saveLayerPref(eventId, type, checked) {
   if (!_layerPrefs[eventId]) _layerPrefs[eventId] = {};
   _layerPrefs[eventId][type] = checked;
-  try { localStorage.setItem('_layerPrefs', JSON.stringify(_layerPrefs)); } catch(e) {}
+  try { localStorage.setItem('_layerPrefsV2', JSON.stringify(_layerPrefs)); } catch(e) {}
 }
 
-// checkbox 狀態（先查記憶，再查 DOM）
+// 圖層是否開啟：一律照「使用者記憶 → 預設規則」判斷（不再看畫面上的勾選框）
 function isLayerOn(idx, type) {
   var ev = _events[idx];
-  // 優先從記憶取值（不受 DOM 重建影響）
-  if (ev) {
-    var pref = getLayerPref(ev.id, type);
-    // 如果記憶有明確的值就用記憶；記憶是空（從未設定）才去查 DOM
-    if (_layerPrefs[ev.id] && _layerPrefs[ev.id][type] !== undefined) return pref;
+  if (!ev) return false;
+  return getLayerPref(ev.id, type);
+}
+
+// ── 全域型圖層（待量測、風向、KMZ、環境監測站、現場回報）：每個事件各自記憶 ──
+function onGlobalChk(type, checked) {
+  var fn = { pending: onPendingChk, wind: onWindChk, kmz: onKmzChk, env: onEnvChk, fr: onFrChk }[type];
+  if (fn) fn(checked);
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var actual = { pending: _pendingLayerOn, wind: _windLayerOn, kmz: _kmzLayerOn, env: _envLayerOn, fr: _frLayerOn }[type];
+  saveLayerPref(ev.id, type, !!actual);   // 被條件擋回（例如沒有風向）時記成不勾
+  if (type === 'wind') _windAppliedEv = ev.id;
+}
+
+var _windAppliedEv = null;
+// 切換事件／事件資料更新後：把目前事件的記憶套到這幾個全域圖層上
+function _applyEventLayerPrefs() {
+  var ev = _events[_curIdx];
+  if (!ev || !gMap) return;
+  var want;
+  // 待量測數值
+  want = getLayerPref(ev.id, 'pending');
+  if (want !== _pendingLayerOn) onPendingChk(want);
+  // 風向：要有有效的風向與風速才會啟動；資料之後補上時再套用一次
+  want = getLayerPref(ev.id, 'wind');
+  var ws = ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
+  var wd = String(ev.windDir == null ? '' : ev.windDir);
+  var hasWind = !isNaN(ws) && ws > 0 && wd !== '' && wd !== 'X' && wd !== '-99' && wd !== '990';
+  if (want && hasWind) {
+    if (!_windLayerOn) { _windLayerOn = true; _windAppliedEv = ev.id; _startWindLayer(); }
+    else if (_windAppliedEv !== ev.id) { _windAppliedEv = ev.id; _refreshWindIfOn(); }
+  } else if (_windLayerOn) {
+    _windLayerOn = false; _stopWindLayer();
   }
-  // 記憶未設定：查 DOM checkbox
-  var cb = document.getElementById('lyr_' + idx + '_' + type);
-  if (cb) return cb.checked;
-  return false;
+  // KMZ：只有這個瀏覽器上傳過 KMZ 才有東西可顯示
+  want = getLayerPref(ev.id, 'kmz');
+  if (want && _kmzOverlay) { if (!_kmzLayerOn) onKmzChk(true); }
+  else if (_kmzLayerOn) onKmzChk(false);
+  // 環境輻射監測站
+  want = getLayerPref(ev.id, 'env');
+  if (want !== _envLayerOn) onEnvChk(want);
+  // 現場回報
+  want = getLayerPref(ev.id, 'fr');
+  if (want !== _frLayerOn) onFrChk(want);
+  // 畫面勾選框跟實際狀態同步
+  [['lyr_pending', _pendingLayerOn], ['lyr_wind', _windLayerOn], ['lyr_kmz', _kmzLayerOn],
+   ['lyr_env', _envLayerOn], ['lyr_fr', _frLayerOn]].forEach(function(x) {
+    var cb = document.getElementById(x[0]);
+    if (cb) cb.checked = !!x[1];
+  });
 }
 
 // ── 重建所有事件的圖層 ──
@@ -3673,19 +3727,29 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr_contam" '   +c('msr_contam') +' onchange="onMsrContamChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #7c3aed"></span>量測污染值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" '       +c('msrdot')     +' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測劑量率(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" '    +c('contamdot')  +' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>量測污染值(不顯示數值)</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'pending\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'wind\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_fr" ' + (_frLayerOn ? 'checked' : '') + ' onchange="onFrChk(this.checked)"><span class="layer-dot" style="background:#ea580c;border:1.5px solid #ea580c;border-radius:50%"></span>現場回報</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>上傳KMZ資料</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_fr" ' + (_frLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'fr\',this.checked)"><span class="layer-dot" style="background:#ea580c;border:1.5px solid #ea580c;border-radius:50%"></span>現場回報</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'kmz\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>上傳KMZ資料</label>' +
       (_loginIsAdmin ? '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' : '') +
-      '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'env\',this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
 
     '</div></div>';
+
+  // 只有輻射彈事件才有這 4 個圖層，其他類型的事件不顯示
+  if (!isRddEvent(ev)) {
+    ['circle', 'line', 'nearby', 'sector'].forEach(function(t) {
+      var cb = document.getElementById('lyr_' + i + '_' + t);
+      var row = cb && cb.closest ? cb.closest('label') : null;
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+    });
+  }
+  _applyEventLayerPrefs();   // 把這個事件的圖層記憶套到風向、待量測、KMZ、環境監測站、現場回報
 }
 
 // ── checkbox 變更：存入記憶 → 重繪圖層 ──
@@ -4354,6 +4418,7 @@ function _applyKmzOverlay(dataUrl, bounds, zip) {
   _kmzLayerOn = true;
   var cb = document.getElementById('lyr_kmz');
   if (cb) cb.checked = true;
+  try { var _ke = _events[_curIdx]; if (_ke) saveLayerPref(_ke.id, 'kmz', true); } catch (e) {}
 
   // 找並顯示圖例
   var legendFile = zip ? zip.file('legend.png') || zip.file('colorbar.png') : null;
@@ -9804,7 +9869,7 @@ function railBackToLive() {
 // ════════════════════════════════════════════════════════════
 // 現場其他事情回報（所有人可回報、可查看；地圖上以橘色標記顯示）
 // ════════════════════════════════════════════════════════════
-var _frLayerOn = true;
+var _frLayerOn = false;   // 預設不勾（依事件記憶）
 var _frMarkers = [];
 var _frCache   = [];
 var _frLatLng  = null;   // 本次回報要附的位置
@@ -9956,7 +10021,7 @@ function frGoto(i) {
   var r = _frCache[i];
   if (!r || !gMap) return;
   frClose();
-  if (!_frLayerOn) { _frLayerOn = true; var cb = document.getElementById('lyr_fr'); if (cb) cb.checked = true; _frRenderMarkers(); }
+  if (!_frLayerOn) { var cb = document.getElementById('lyr_fr'); if (cb) cb.checked = true; onGlobalChk('fr', true); _frRenderMarkers(); }
   gMap.setView([parseFloat(r.lat), parseFloat(r.lng)], Math.max(gMap.getZoom(), 16));
   var m = _frMarkers.filter(function(x) { return x._frId === r.id; })[0];
   if (m) m.openPopup();
