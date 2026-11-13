@@ -1818,7 +1818,6 @@ function saveEdit() {
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
-    if (_contourLayerOn) renderContourLayer(); // 等值線也重繪
     // 先更新原始風向記錄，避免 toggleEditPanel 還原成舊值
     _editOrigWindDir = ev.windDir;
     // 關閉面板，重新渲染卡片
@@ -3113,10 +3112,6 @@ function buildEventLayers(idx) {
   var showLine       = hasDir && isLayerOn(idx, 'line');
   var showSector     = hasDir && isLayerOn(idx, 'sector');
   var showNearby     = hasDir && isLayerOn(idx, 'nearby');
-  var showMiniCircle = isLayerOn(idx, 'mini_circle');
-  var showMiniLine   = hasDir && isLayerOn(idx, 'mini_line');
-  var showMiniArea   = hasDir && isLayerOn(idx, 'mini_area');
-  var showMiniSector = hasDir && isLayerOn(idx, 'mini_sector');
 
   // (1) 100m 圓
   if (showCircle) {
@@ -3215,122 +3210,6 @@ function buildEventLayers(idx) {
     }
   }
 
-  // ══════════════════════════════════════════════
-  // 縮小版圖層（等比例縮小50倍，供室內模擬演練）
-  // ══════════════════════════════════════════════
-
-  // (4) 2m 範圍圓（模擬 100m，縮小50倍）
-  if (showMiniCircle) {
-    _evLayers[idx].miniCircle = L.circle([la, lo], {
-      radius: 20, color: '#f97316', fillColor: '#f97316',
-      fillOpacity: 0.15, weight: 2, dashArray: '4 3', opacity: 0.8
-    }).addTo(gMap);
-  }
-
-  // (5) 20m 橫切面（模擬 1km，縮小50倍）+ 5個量測點
-  if (showMiniLine) {
-    var mlCenter = destPoint(la, lo, wd, 36);  // 36m（40*0.9）
-    var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 18);  // 18m（20*0.9）
-    var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 18);
-    _evLayers[idx].miniLine = L.polyline([mlPerpA, mlPerpB], {
-      color: '#3b82f6', weight: 2, opacity: 0.85, dashArray: '5 3'
-    }).addTo(gMap);
-
-    // 10 個量測點（B01~B10）
-    var miniLineMks = [];
-    for (var mli = 0; mli < 10; mli++) {
-      var mlt = mli / 9;
-      var mlLat = mlPerpB[0] + (mlPerpA[0] - mlPerpB[0]) * mlt;
-      var mlLng = mlPerpB[1] + (mlPerpA[1] - mlPerpB[1]) * mlt;
-      var mlLabel = 'B' + (mli + 1 < 10 ? '0' + (mli + 1) : '' + (mli + 1));
-      var mlIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:16px;height:16px;border-radius:50%;' +
-              'background:#3b82f6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:7px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + (mli+1) + '</div>',
-        iconSize: [16, 16], iconAnchor: [8, 8]
-      });
-      var mlMk = L.marker([mlLat, mlLng], { icon: mlIcon }).addTo(gMap);
-      mlMk.bindTooltip(mlLabel + '：模擬1km橫切面', { permanent: false, direction: 'top' });
-      miniLineMks.push(mlMk);
-    }
-    _evLayers[idx].miniLineMks = miniLineMks;
-  }
-
-  // (5.5) 模擬附近場域：矩形，從 20m（圓前緣）到 36m（橫切面），寬 ±20m
-  if (showMiniArea) {
-    var maFront = 36;  // 到橫切面
-    var maBack  = 20;  // 圓前緣
-    var maHalf  = 20;  // 對齊 100m 圓半徑
-
-    var maFL = destPoint(la, lo, wd, maFront);
-    var maFR = destPoint(maFL[0], maFL[1], (wd + 90) % 360, maHalf);
-    var maFF = destPoint(maFL[0], maFL[1], (wd - 90 + 360) % 360, maHalf);
-    var maBL = destPoint(la, lo, wd, maBack);
-    var maBR = destPoint(maBL[0], maBL[1], (wd + 90) % 360, maHalf);
-    var maBF = destPoint(maBL[0], maBL[1], (wd - 90 + 360) % 360, maHalf);
-
-    _evLayers[idx].miniArea = L.polygon([maFR, maFF, maBF, maBR], {
-      color: '#16a34a', weight: 2.5, opacity: 0.9,
-      fillColor: '#16a34a', fillOpacity: 0.12, dashArray: '5 3'
-    }).addTo(gMap);
-  }
-  if (showMiniSector) {
-    var msPts = [[la, lo]];
-    for (var msi = 0; msi <= 40; msi++) {
-      msPts.push(destPoint(la, lo, (wd - 22.5) + 45 * msi / 40, 90)); // 90m（100*0.9）
-    }
-    msPts.push([la, lo]);
-    _evLayers[idx].miniSector = L.polygon(msPts, {
-      color: '#8b5cf6', fillColor: '#8b5cf6',
-      fillOpacity: 0.12, weight: 2, opacity: 0.7, dashArray: '4 3'
-    }).addTo(gMap);
-
-    // 弧線（70m、80m、90m）
-    var msArc2 = [], msArc3 = [], msArc4 = [];
-    for (var ma = 0; ma <= 24; ma++) {
-      msArc2.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 63));
-      msArc3.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 72));
-      msArc4.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 81));
-    }
-    _evLayers[idx].msArc2 = L.polyline(msArc2, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-    _evLayers[idx].msArc3 = L.polyline(msArc3, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-    _evLayers[idx].msArc4 = L.polyline(msArc4, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-
-    // 10個量測點（間距減半：1=60m, 2=30m, 3=70m, 4/5/6=80m, 7=90m, 8/9/10=100m）
-    var miniSectorDefs = [
-      { label:'S1',  pt: destPoint(la, lo, wd,        54),  tip: '54m × 中線' },
-      { label:'S2',  pt: destPoint(la, lo, wd,        45),  tip: '45m × 中線' },
-      { label:'S3',  pt: destPoint(la, lo, wd,        63),  tip: '63m × 中線' },
-      { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 72),  tip: '72m × 扇形上緣' },
-      { label:'S5',  pt: destPoint(la, lo, wd,        72),  tip: '72m × 中線' },
-      { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 72),  tip: '72m × 扇形下緣' },
-      { label:'S7',  pt: destPoint(la, lo, wd,        81),  tip: '81m × 中線' },
-      { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90), tip: '90m × 扇形上緣' },
-      { label:'S9',  pt: destPoint(la, lo, wd,        90), tip: '90m × 中線' },
-      { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90), tip: '90m × 扇形下緣' },
-    ];
-    var miniSectorMks = [];
-    miniSectorDefs.forEach(function(def) {
-      var icon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#8b5cf6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:7px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + def.label.replace('S','') + '</div>',
-        iconSize: [18, 18], iconAnchor: [9, 9]
-      });
-      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
-      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
-      miniSectorMks.push(mk);
-    });
-    _evLayers[idx].miniSectorMks = miniSectorMks;
-  }
 }
 
 function removeEventLayers(idx) {
@@ -3352,22 +3231,6 @@ function removeEventLayers(idx) {
   if (lyr.crossMks) {
     lyr.crossMks.forEach(function(m) { m.remove(); });
     lyr.crossMks = null;
-  }
-  // 縮小版圖層清除
-  if (lyr.miniCircle)  { lyr.miniCircle.remove();  lyr.miniCircle  = null; }
-  if (lyr.miniArea)    { lyr.miniArea.remove();    lyr.miniArea    = null; }
-  if (lyr.miniLine)    { lyr.miniLine.remove();    lyr.miniLine    = null; }
-  if (lyr.miniLineMks) {
-    lyr.miniLineMks.forEach(function(m) { m.remove(); });
-    lyr.miniLineMks = null;
-  }
-  if (lyr.miniSector)  { lyr.miniSector.remove();  lyr.miniSector  = null; }
-  if (lyr.msArc2)      { lyr.msArc2.remove();      lyr.msArc2      = null; }
-  if (lyr.msArc3)      { lyr.msArc3.remove();      lyr.msArc3      = null; }
-  if (lyr.msArc4)      { lyr.msArc4.remove();      lyr.msArc4      = null; }
-  if (lyr.miniSectorMks) {
-    lyr.miniSectorMks.forEach(function(m) { m.remove(); });
-    lyr.miniSectorMks = null;
   }
 }
 
@@ -4101,10 +3964,7 @@ function renderLayerPanel() {
     msr:        getLayerPref(ev.id, 'msr'),
     msr_contam: getLayerPref(ev.id, 'msr_contam'),
     msrdot:     getLayerPref(ev.id, 'msrdot'),
-    contamdot:  getLayerPref(ev.id, 'contamdot'),
-    mini_circle: getLayerPref(ev.id, 'mini_circle'),
-    mini_line:   getLayerPref(ev.id, 'mini_line'),
-    mini_sector: getLayerPref(ev.id, 'mini_sector')
+    contamdot:  getLayerPref(ev.id, 'contamdot')
   };
 
   function c(type) { return chk[type] ? 'checked' : ''; }
@@ -4461,237 +4321,6 @@ function renderMsrDotLayer(idx) {
   });
 }
 
-// ════════════════════════════════════════════
-// 理論等值線圖層（管理員非教學模式專用）
-// ════════════════════════════════════════════
-var _contourLayerOn  = false;
-var _contourLines    = []; // 存放所有 L.polyline 物件
-var _contour3LayerOn = false;
-var _contour3Lines   = []; // 教學用三圈等值線A（物理版）
-var _contour4LayerOn = false;
-var _contour4Lines   = []; // 教學用三圈等值線B（梯度版）
-
-// 劑量計算（與 sim_index.html 同模型）
-var _DOSE_TABLE = [
-  [0.1,  120    ],
-  [5,    12     ],
-  [15,   1.2    ],
-  [30,   0.12   ],
-  [50,   0.012  ],
-  [70,   0.0012 ],
-  [90,   0.0005 ],
-  [110,  0.00005]
-];
-var _CONTOUR_SIGMA = 7;
-var _SRC_DOSE = 120;
-
-function _ctDeltaAngle(a, b) {
-  var d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
-function _ctIsUpwind(bearing, windDir) {
-  return _ctDeltaAngle(bearing, (windDir + 180) % 360) < 60;
-}
-function _ctTableInterp(distM) {
-  var t = _DOSE_TABLE;
-  if (distM <= t[0][0]) return t[0][1];
-  if (distM >= t[t.length-1][0]) return t[t.length-1][1];
-  for (var i = 0; i < t.length-1; i++) {
-    if (distM <= t[i+1][0]) {
-      var d0 = t[i][0], d1 = t[i+1][0], v0 = t[i][1], v1 = t[i+1][1];
-      var tt = (distM - d0) / (d1 - d0);
-      return Math.exp(Math.log(v0) + tt * (Math.log(v1) - Math.log(v0)));
-    }
-  }
-  return t[t.length-1][1];
-}
-function _ctCalcDose(distM, bearingFromSrc, windDir) {
-  if (distM < 0.5) return _SRC_DOSE;
-  var doseAxis = _ctTableInterp(distM);
-  var angleDiff = _ctDeltaAngle(bearingFromSrc, windDir);
-  var sigmaEff = Math.max(_CONTOUR_SIGMA, _CONTOUR_SIGMA + distM * 0.02);
-  var sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
-  var gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-  var upFactor = _ctIsUpwind(bearingFromSrc, windDir) ? 0.02 : 1.0;
-  var wf = gaussian * upFactor + 0.01;
-  return Math.min(doseAxis * (wf / 1.01), _SRC_DOSE);
-}
-
-// 極座標法：每個角度找等值線距離（二分搜尋）
-function _ctFindDist(targetDoseMsv, angleDeg, windDir) {
-  var lo = 0.5, hi = 115;
-  for (var iter = 0; iter < 30; iter++) {
-    var mid = (lo + hi) / 2;
-    var d = _ctCalcDose(mid, angleDeg, windDir);
-    if (d > targetDoseMsv) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
-// 繪製等值線
-function renderContourLayer() {
-  // 清除舊線
-  _contourLines.forEach(function(l) { l.remove(); });
-  _contourLines = [];
-  if (!_contourLayerOn) return;
-
-  var ev = _events[_curIdx];
-  if (!ev || !ev.lat || !ev.lng || !ev.windDir || ev.windDir === '') {
-    showToast('⚠️ 請先設定事件座標及風向');
-    return;
-  }
-  var la = parseFloat(ev.lat);
-  var lo = parseFloat(ev.lng);
-  // windDir 是風來的方向（氣象慣例），煙羽方向 = windDir + 180°
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 五條等值線（mSv/h）
-  var levels = [
-    { val: 0.0002, color: '#16a34a', label: '0.2μSv/h'  },
-    { val: 0.0012, color: '#4ade80', label: '1.2μSv/h'  },
-    { val: 0.012,  color: '#facc15', label: '12μSv/h'   },
-    { val: 0.12,   color: '#fb923c', label: '120μSv/h'  },
-    { val: 0.25,   color: '#ef4444', label: '250μSv/h'  }
-  ];
-
-  levels.forEach(function(lev) {
-    var pts = [];
-    var steps = 72; // 每 5 度一個點
-    for (var i = 0; i <= steps; i++) {
-      var bearingDeg = (i / steps) * 360;
-      var distM = _ctFindDist(lev.val, bearingDeg, wd);
-      if (distM >= 113) continue; // 超出範圍跳過此角度
-      var pt = destPoint(la, lo, bearingDeg, distM);
-      pts.push(pt);
-    }
-    if (pts.length < 3) return;
-    // 閉合
-    pts.push(pts[0]);
-    var line = L.polyline(pts, {
-      color: lev.color, weight: 2, opacity: 0.85,
-      dashArray: null
-    }).addTo(gMap);
-    line.bindTooltip(lev.label, { permanent: false, direction: 'top' });
-    _contourLines.push(line);
-  });
-}
-
-function onContourChk(checked) {
-  _contourLayerOn = checked;
-  if (checked) renderContourLayer();
-  else { _contourLines.forEach(function(l){ l.remove(); }); _contourLines = []; }
-}
-
-function onContour3Chk(checked) {
-  _contour3LayerOn = checked;
-  if (checked) renderContour3Layer();
-  else { _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = []; }
-}
-
-// 三圈教學用等值線：0.5μSv/h、100μSv/h、250μSv/h
-function renderContour3Layer() {
-  _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = [];
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 等值線A：0.5μSv / 12μSv / 120μSv（值域自然分開，三圈間距均勻）
-  var levels3 = [
-    { val: 0.0012, color: '#0ea5e9', width: 2.5, label: '1.2 μSv/h'  },
-    { val: 0.012,  color: '#f59e0b', width: 2.5, label: '12 μSv/h'   },
-    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
-  ];
-
-  levels3.forEach(function(lev) {
-    var pts = [];
-    for (var deg = 0; deg < 360; deg += 3) {
-      var distM = _ctFindDist(lev.val, deg, wd);
-      if (distM < 113) pts.push(destPoint(la, lo, deg, distM));
-    }
-    if (pts.length > 4) {
-      pts.push(pts[0]);
-      var line = L.polyline(pts, { color: lev.color, weight: lev.width, opacity: 0.9 }).addTo(gMap);
-      line.bindTooltip(lev.label, { sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95, className: 'contour-lbl' });
-      _contour3Lines.push(line);
-    }
-  });
-}
-
-function onContour4Chk(checked) {
-  _contour4LayerOn = checked;
-  if (checked) renderContour4Layer();
-  else { _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = []; }
-}
-
-// 等值線B：0.5μSv / 100μSv / 120μSv，用調整 doseTable 讓三圈分開
-function renderContour4Layer() {
-  _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = [];
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 調整 doseTable 讓 120μSv 在 ~5m，100μSv 在 ~30m
-  var customTable = [
-    [0.1,  150   ],
-    [5,    0.12  ],
-    [30,   0.10  ],
-    [50,   0.012 ],
-    [70,   0.0012],
-    [90,   0.0005],
-    [110,  0.00005]
-  ];
-  function interpB(d) {
-    if (d <= customTable[0][0]) return customTable[0][1];
-    if (d >= customTable[customTable.length-1][0]) return customTable[customTable.length-1][1];
-    for (var i = 0; i < customTable.length-1; i++) {
-      if (d <= customTable[i+1][0]) {
-        var d0=customTable[i][0], d1=customTable[i+1][0];
-        var v0=customTable[i][1], v1=customTable[i+1][1];
-        var r=(d-d0)/(d1-d0);
-        return Math.exp(Math.log(v0)+r*(Math.log(v1)-Math.log(v0)));
-      }
-    }
-    return customTable[customTable.length-1][1];
-  }
-  function findDistB(target, bearingDeg) {
-    var sigma=7;
-    for (var d=0.5; d<=113; d+=0.5) {
-      var axis=interpB(d);
-      var seff=Math.max(sigma,sigma+d*0.02);
-      var sang=(seff/d)*(180/Math.PI);
-      var ad=Math.abs(bearingDeg-wd)%360; if(ad>180)ad=360-ad;
-      var upwind=ad>110;
-      var gaus=Math.exp(-(ad*ad)/(2*sang*sang));
-      var wf=gaus*(upwind?0.02:1.0)+0.01;
-      if(Math.min(axis*(wf/1.01),150)<=target) return d;
-    }
-    return 999;
-  }
-
-  var levels4 = [
-    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h'  },
-    { val: 0.10,   color: '#f59e0b', width: 2.5, label: '100 μSv/h'  },
-    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
-  ];
-  levels4.forEach(function(lev) {
-    var pts = [];
-    for (var deg=0; deg<360; deg+=3) {
-      var distM=findDistB(lev.val,deg);
-      if (distM<113) pts.push(destPoint(la,lo,deg,distM));
-    }
-    if (pts.length>4) {
-      pts.push(pts[0]);
-      var line=L.polyline(pts,{color:lev.color,weight:2.5,opacity:0.9}).addTo(gMap);
-      line.bindTooltip(lev.label,{sticky:true,direction:'top',offset:[0,-8],opacity:0.95});
-      _contour4Lines.push(line);
-    }
-  });
-}
 // ════════════════════════════════════════════
 var _kmzLayerOn   = false;
 var _kmzOverlay   = null;
@@ -5562,8 +5191,6 @@ window.addEventListener('message', function(e) {
   if (e.data.type === 'setLoginUser') {
     _loginUserName = String(e.data.name || '').trim();
     _loginUserTeam = String(e.data.team || '').trim();
-    _loginUserTitle = String(e.data.title || '').trim();
-    _loginTeachMode = !!e.data.teachLogin;
     // isAdmin：優先用 postMessage 傳入值，fallback 讀 localStorage
     if (e.data.isAdmin !== undefined) {
       _loginIsAdmin = !!e.data.isAdmin;
@@ -5571,7 +5198,6 @@ window.addEventListener('message', function(e) {
       _readIsAdmin();
     }
     _initBirdBtn();
-    _loadTitleMap();
     if (window.railRefresh) railRefresh();
     return;
   }
@@ -5650,35 +5276,6 @@ window.addEventListener('message', function(e) {
         pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: _ptPos(ev, nLabel, [nLat, nLng]), category: 'cross' });
       }
 
-      // 20m 橫切面量測點（B01~B10，中心40m，半寬20m）
-      if (isLayerOn(_curIdx, 'mini_line')) {
-        var mlc2 = destPoint(la, lo, wd, 36);
-        var mlpa2 = destPoint(mlc2[0], mlc2[1], (wd + 90) % 360, 18);
-        var mlpb2 = destPoint(mlc2[0], mlc2[1], (wd - 90 + 360) % 360, 18);
-        for (var bi = 0; bi < 10; bi++) {
-          var bt = bi / 9;
-          var bLat = mlpb2[0] + (mlpa2[0] - mlpb2[0]) * bt;
-          var bLng = mlpb2[1] + (mlpa2[1] - mlpb2[1]) * bt;
-          var bLabel = 'B' + (bi + 1 < 10 ? '0' + (bi + 1) : '' + (bi + 1));
-          pts.push({ label: bLabel, shortTip: '模擬橫切面' + (bi+1), pt: [bLat, bLng], category: 'mini_cross' });
-        }
-      }
-
-      // 100m 扇形量測點（S1~S10，間距調整後）
-      if (isLayerOn(_curIdx, 'mini_sector')) {
-        [
-          { label:'S1',  pt: destPoint(la, lo, wd,        54)  },
-          { label:'S2',  pt: destPoint(la, lo, wd,        45)  },
-          { label:'S3',  pt: destPoint(la, lo, wd,        63)  },
-          { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 72)  },
-          { label:'S5',  pt: destPoint(la, lo, wd,        72)  },
-          { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 72)  },
-          { label:'S7',  pt: destPoint(la, lo, wd,        81)  },
-          { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90) },
-          { label:'S9',  pt: destPoint(la, lo, wd,        90) },
-          { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90) }
-        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(模擬5km十點偵測)', pt:p.pt, category:'mini_sector' }); });
-      }
     }
     // 人工設定的量測點（T01, T02...）只取當前事件的
     var curEvId = ev ? ev.id : '';
@@ -6344,9 +5941,7 @@ function isMobile() { return window.innerWidth <= 600; }
 var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
 var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
-var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
 var _loginIsAdmin  = false; // 是否為管理員（讀自 localStorage.radAuth.isAdmin）
-var _titleMap = {};       // 姓名→職稱對照表（教學模式下使用）
 
 // ── 管理員判斷：從 localStorage 讀取（postMessage 沒帶 isAdmin）──
 function _readIsAdmin() {
@@ -6356,16 +5951,6 @@ function _readIsAdmin() {
   } catch(e) { _loginIsAdmin = false; }
 }
 
-// 教學模式時：抓取所有技術組人員職稱，建立姓名→職稱對應表
-function _loadTitleMap() {
-  if (!_loginTeachMode) return;
-  _jsonpGet(SHEETS_URL + '?action=group&id=tech-rdd', function(data) {
-    if (!data || !data.members) return;
-    data.members.forEach(function(m) {
-      if (m.name && m.title) _titleMap[m.name] = m.title;
-    });
-  });
-}
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -6756,12 +6341,9 @@ function openMeasureModal() {
       var name  = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
       if (!name) return;
       var storeVal = squad ? squad + ':' + name : name;
-      // 教學登入：顯示「職稱－姓名」；一般登入：顯示 squad:name
-      var title = _titleMap[name] || '';
-      var displayText = _loginTeachMode ? (title ? title + '－' + name : name) : storeVal;
       var opt = document.createElement('option');
       opt.value = storeVal;
-      opt.textContent = displayText;
+      opt.textContent = storeVal;
       sel.appendChild(opt);
       if (_loginUserName && name === _loginUserName && !_defaultVal) {
         _defaultVal = storeVal;
@@ -6771,13 +6353,10 @@ function openMeasureModal() {
 
   // 若登入者不在出勤名單，仍補上一個選項供選取
   if (_loginUserName && !_defaultVal) {
-    var selfVal = (_loginTeachMode ? '' : (_loginUserTeam ? _loginUserTeam + ':' : '')) + _loginUserName;
-    var selfDisplay = _loginTeachMode
-      ? (_loginUserTitle ? _loginUserTitle + '－' + _loginUserName : _loginUserName) + '（本人）'
-      : selfVal + '（本人）';
+    var selfVal = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
     var selfOpt = document.createElement('option');
-    selfOpt.value = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
-    selfOpt.textContent = selfDisplay;
+    selfOpt.value = selfVal;
+    selfOpt.textContent = selfVal + '（本人）';
     sel.insertBefore(selfOpt, sel.options[1] || null);
     _defaultVal = selfOpt.value;
   }
