@@ -813,6 +813,7 @@ window.addEventListener('message', function(e) {
   }
   if (e.data && e.data.type === 'navPoints') {
     _navPointsCache = e.data.points || [];
+    _navApplyRdd(e.data.rdd !== false);   // 非輻射彈事件：不顯示 1km 橫切面、附近場域、5km 十點偵測
     _navSelectedLabel = null;
     var grid = document.getElementById('navPointGrid');
     if (!grid) return;
@@ -1304,10 +1305,19 @@ function openNavSelectModal() {
   if (frame && frame.contentWindow) {
     frame.contentWindow.postMessage({ type: 'getNavPoints' }, '*');
   }
+  _navApplyRdd(false);   // 先藏起只屬於輻射彈事件的類型，收到地圖頁回覆後再依事件類型顯示
   // 顯示類型選擇頁
   document.getElementById('navTypeStep').style.display  = 'flex';
   document.getElementById('navPointStep').style.display = 'none';
   document.getElementById('navSelectModal').style.display = 'flex';
+}
+
+// 1km 橫切面、附近場域、5km 十點偵測只有輻射彈事件才有
+function _navApplyRdd(rdd) {
+  ['cross', 'area', 'sector'].forEach(function(c) {
+    var b = document.querySelector('#navTypeStep button[onclick="navChooseCategory(\'' + c + '\')"]');
+    if (b) b.style.display = rdd ? '' : 'none';
+  });
 }
 
 function closeNavSelectModal() {

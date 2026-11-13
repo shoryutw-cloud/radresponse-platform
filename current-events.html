@@ -5260,12 +5260,12 @@ window.addEventListener('message', function(e) {
   if (e.data.type === 'getNavPoints') {
     var ev = _events[_curIdx];
     if (!ev || !ev.lat) {
-      try { parent.postMessage({ type: 'navPoints', points: [] }, '*'); } catch(e) {}
+      try { parent.postMessage({ type: 'navPoints', points: [], rdd: !!(ev && isRddEvent(ev)) }, '*'); } catch(e) {}
       return;
     }
     var pts = [];
-    // 風向必要點位（1~10 + 橫切面 A01~A20）只在有風向時加入
-    var hasWind = ev.windDir && ev.windDir !== '';
+    // 風向必要點位（1~10 + 橫切面 A01~A20）只有「輻射彈事件」且有風向時才有
+    var hasWind = isRddEvent(ev) && ev.windDir && ev.windDir !== '';
     if (hasWind) {
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
       var wd = (parseFloat(ev.windDir) + 180) % 360;
@@ -5303,7 +5303,7 @@ window.addEventListener('message', function(e) {
       pts.push({ label: t.label, shortTip: t.squad + '量測點', pt: [t.latlng.lat, t.latlng.lng], category: 'manual' });
     });
     // 附近場域量測點（預留，category:'area'，目前空）
-    try { parent.postMessage({ type: 'navPoints', points: pts }, '*'); } catch(err) {}
+    try { parent.postMessage({ type: 'navPoints', points: pts, rdd: isRddEvent(ev) }, '*'); } catch(err) {}
     return;
   }
 
@@ -9452,6 +9452,7 @@ async function birdCheckAlert(measurements, eventId){
 .rail-btn.active { background: #e0e9ff; border-color: var(--accent); }
 .rail-btn.on { background: #fff7ed; border-color: #f97316; }
 .rail-btn .rail-lbl { display: none; }
+.rail-mobonly { display: none; }
 .rail-badge {
   position: absolute; top: -4px; right: -1px; min-width: 16px; height: 16px; border-radius: 8px;
   background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
@@ -9524,10 +9525,13 @@ async function birdCheckAlert(measurements, eventId){
     padding: 4px 2px 0; border-right: none; border-top: 1px solid var(--border); overflow-x: auto;
   }
   .rail-btn, #railBar .locate-btn, #railBar .basemap-btn {
-    flex: 1 1 0; min-width: 33px; width: auto; height: 48px; flex-direction: column; gap: 1px;
-    font-size: 18px; border-radius: 8px;
+    flex: 1 1 0; min-width: 40px; width: auto; height: 50px; flex-direction: column; gap: 2px;
+    font-size: 21px; border-radius: 8px;
   }
-  .rail-btn .rail-lbl { display: block; font-size: 10px; line-height: 1.1; color: var(--text-muted); white-space: nowrap; }
+  .rail-btn .rail-lbl { display: block; font-size: 12px; line-height: 1.1; color: var(--text-muted); white-space: nowrap; }
+  /* 手機：分享位置、我的位置、事發地、衛星 合併到「📍 位置」選單 */
+  #railBtn_people, #railBtn_myloc, #railBar #locateBtn, #railBar #basemapBtn { display: none !important; }
+  .rail-mobonly { display: flex !important; }
   .rail-badge { top: 0; right: 2px; }
   .rail-sep, .rail-spacer { display: none !important; }
   .mob-layer-btn, .mob-ev-btn { display: none !important; }
@@ -9590,6 +9594,7 @@ async function birdCheckAlert(measurements, eventId){
   <button class="rail-btn rail-live" id="railBtn_task" data-tip="任務" onclick="railToggle('task')">📋<span class="rail-lbl">任務</span><span class="rail-badge" id="railTaskBadge">0</span></button>
   <button class="rail-btn rail-live" id="railBtn_nav" data-tip="導航至量測點" onclick="railAction('nav')">🧭<span class="rail-lbl">導航</span></button>
   <button class="rail-btn" id="railBtn_people" data-tip="人員位置" onclick="railToggle('people')">📡<span class="rail-lbl">位置</span></button>
+  <button class="rail-btn rail-mobonly" id="railBtn_more" data-tip="位置與地圖" onclick="railToggle('more')">📍<span class="rail-lbl">位置</span></button>
   <div class="rail-sep rail-admin"></div>
   <button class="rail-btn rail-admin rail-live" id="railBtn_edit" data-tip="編輯地圖（關閉中）" onclick="railAction('edit')">✏️<span class="rail-lbl">編輯</span></button>
   <button class="rail-btn rail-admin" id="railBtn_bird" data-tip="AI 鳥" onclick="railAction('bird')">🐦<span class="rail-lbl">AI鳥</span></button>
@@ -9604,6 +9609,7 @@ async function birdCheckAlert(measurements, eventId){
   <button class="rail-menu-item" onclick="railAction('fieldReport')">現場其他事情回報</button>
 </div>
 <div class="rail-menu" id="railMenu_people" style="width:250px"></div>
+<div class="rail-menu" id="railMenu_more"></div>
 <div class="rail-menu" id="railMenu_task">
   <div class="rail-menu-hd">任務</div>
   <button class="rail-menu-item" onclick="railAction('myTask')">隊別任務<span class="rail-mbadge" id="railMyBadge" style="background:#dc2626">0</span></button>
@@ -9680,7 +9686,7 @@ try { parent.postMessage({ type: 'pageBuild', page: 'current-events.html', build
 // ════════════════════════════════════════════════════════════
 // 左側圖示列
 // ════════════════════════════════════════════════════════════
-var RAIL_PANELS = { ev: 'evCard', layers: 'layerPanel', report: 'railMenu_report', task: 'railMenu_task', people: 'railMenu_people' };
+var RAIL_PANELS = { ev: 'evCard', layers: 'layerPanel', report: 'railMenu_report', task: 'railMenu_task', people: 'railMenu_people', more: 'railMenu_more' };
 var RAIL_TOGGLE = { ev: 330, layers: 158 };   // 開關型面板（桌機）及其寬度
 var _railOpen = null;    // 目前拉出的選單（回報／任務，點地圖會收回）
 var _railOn   = {};      // 開關型面板目前是否開著：{ ev:true, layers:false }
@@ -9729,6 +9735,7 @@ function railShow(k) {
   if (RAIL_TOGGLE[k]) { _railSetOn(k, true); return; }
   railClose();
   if (k === 'people' && typeof _trkMenuRender === 'function') _trkMenuRender();   // 人員位置選單：依身分與目前狀態重畫
+  if (k === 'more' && typeof _moreMenuRender === 'function') _moreMenuRender();      // 手機「位置」選單
   var el = _railEl(k);
   if (!el) return;
   el.classList.add('rail-open');
@@ -10317,7 +10324,24 @@ function _trkCanView() { return !!(_loginIsAdmin || _trkOpen); }
 function _trkMenuRender() {
   var el = document.getElementById('railMenu_people');
   if (!el) return;
-  var h = '<div class="rail-menu-hd">人員位置</div><div style="padding:6px 14px 12px">';
+  el.innerHTML = '<div class="rail-menu-hd">人員位置</div>' + _trkMenuInner();
+}
+// 手機「📍 位置」選單：我的位置、事發地、衛星切換 ＋ 人員位置
+function _moreMenuRender() {
+  var el = document.getElementById('railMenu_more');
+  if (!el) return;
+  var sat = document.getElementById('basemapBtn');
+  var isSat = sat && sat.classList.contains('satellite');
+  el.innerHTML =
+    '<div class="rail-menu-hd">位置與地圖</div>' +
+    '<button class="rail-menu-item" onclick="railClose();goMyLocation()">🔵 回到我的位置</button>' +
+    '<button class="rail-menu-item" onclick="railClose();document.getElementById(\'locateBtn\').click()">📍 回到事發地</button>' +
+    '<button class="rail-menu-item" onclick="railClose();document.getElementById(\'basemapBtn\').click()">🛰️ ' + (isSat ? '切換為一般地圖' : '切換為衛星地圖') + '</button>' +
+    '<div class="trk-sep" style="margin:0"></div>' +
+    '<div class="rail-menu-hd" style="border-bottom:none;padding-bottom:0">人員位置</div>' + _trkMenuInner();
+}
+function _trkMenuInner() {
+  var h = '<div style="padding:6px 14px 12px">';
   h += '<label class="trk-mrow"><input type="checkbox" id="trk_share" ' + (_trkShare ? 'checked' : '') + ' onchange="trkSetShare(this.checked)"><span>📡 分享我的位置</span></label>';
   h += '<div class="trk-hint">打開後，畫面上方會一直顯示「位置分享中」；每次登入都要重新打開。</div>';
   if (_trkCanView()) {
@@ -10333,16 +10357,22 @@ function _trkMenuRender() {
     h += '<label class="trk-mrow"><input type="checkbox" id="trk_open" ' + (_trkOpen ? 'checked' : '') + ' onchange="trkSetOpen(this.checked)"><span>👥 開放給所有登入者看到彼此</span></label>';
     h += '<div class="trk-hint">未開放時，只有管理員看得到所有人的位置與軌跡。</div>';
   }
-  el.innerHTML = h + '</div>';
+  return h + '</div>';
 }
 // 選單開著時才需要重畫
-function _trkMenuRefresh() { if (typeof _railOpen !== 'undefined' && _railOpen === 'people') _trkMenuRender(); }
+function _trkMenuRefresh() {
+  if (typeof _railOpen === 'undefined') return;
+  if (_railOpen === 'people') _trkMenuRender();
+  if (_railOpen === 'more') _moreMenuRender();
+}
 // 左欄圖示：分享中就亮起橘色底
 function _trkMarkRail() {
   var b = document.getElementById('railBtn_people');
   if (!b) return;
   b.classList.toggle('on', !!_trkShare);
   b.setAttribute('data-tip', _trkShare ? '人員位置（分享中）' : '人員位置');
+  var m = document.getElementById('railBtn_more');   // 手機：分享中時「位置」按鈕也亮起
+  if (m) m.classList.toggle('on', !!_trkShare);
 }
 
 // ── 分享我的位置 ──
