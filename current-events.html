@@ -1015,7 +1015,11 @@ cursor: pointer; transition: background .15s;
       <!-- 定位 -->
       <div>
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📍 定位座標</div>
-        <div id="msrCoordVal" style="font-size:12px;font-family:ui-monospace,monospace;color:#1a56db;background:#f0f4ff;padding:6px 10px;border-radius:6px">取得中…</div>
+        <div style="display:flex;gap:8px;align-items:stretch">
+          <div id="msrCoordVal" style="flex:1;min-width:0;font-size:12px;font-family:ui-monospace,monospace;color:#1a56db;background:#f0f4ff;padding:6px 10px;border-radius:6px;word-break:break-all">取得中…</div>
+          <button id="msrPickBtn" type="button" onclick="msrStartPick()" style="flex-shrink:0;padding:0 10px;border:1px solid #bfdbfe;border-radius:6px;background:#fff;color:#1a56db;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">📌 地圖選點</button>
+        </div>
+        <div id="msrCoordNote" style="display:none;margin-top:4px;font-size:12px;line-height:1.5"></div>
       </div>
       <!-- 回報人員 -->
       <div>
@@ -2172,6 +2176,7 @@ function _drawMsrTable(allRows) {
     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
       gpsHtml = '<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:var(--accent);font-size:11px;font-family:monospace;text-decoration:none;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">'+lat.toFixed(4)+','+lng.toFixed(4)+'</a>';
     }
+    if (row.posMode === '手動選點') gpsHtml += ' <span title="手動選點" style="font-size:10px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 4px">手動</span>';
     html += '<tr style="border-bottom:1px solid #f0f4f8">';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;font-family:monospace;white-space:nowrap">'+(i+1)+'</td>';
     html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;white-space:nowrap;color:#3d5070">'+_esc(_mqFmtTime(row.time))+'</td>';
@@ -6374,22 +6379,22 @@ function openMeasureModal() {
 
   if (_defaultVal) sel.value = _defaultVal;
 
-  // 取目前使用者位置
-  _msrLat = null; _msrLng = null;
+  // 取目前使用者位置（GPS）；GPS 飄移時可用「地圖選點」自己點位置
+  _msrLat = null; _msrLng = null; _msrGps = null; _msrPosMode = 'gps';
+  _msrRenderCoord();
   if (_userMarker) {
     var ll = _userMarker.getLatLng();
-    _msrLat = ll.lat; _msrLng = ll.lng;
-    document.getElementById('msrCoordVal').textContent =
-      _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+    _msrGps = { lat: ll.lat, lng: ll.lng, acc: _userAccCirc ? _userAccCirc.getRadius() : null };
+    _msrUseGps();
   } else if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(function(pos) {
-      _msrLat = pos.coords.latitude;
-      _msrLng = pos.coords.longitude;
-      document.getElementById('msrCoordVal').textContent =
-        _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+      _msrGps = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+      if (_msrPosMode === 'gps') _msrUseGps(); else _msrRenderCoord();
     }, function() {
-      document.getElementById('msrCoordVal').textContent = '（無法取得定位）';
+      _msrRenderCoord();
     });
+  } else {
+    _msrRenderCoord();
   }
 
   modal.style.display       = 'block';
@@ -6413,6 +6418,7 @@ function openMeasureModal() {
 }
 
 function closeMeasureModal() {
+  if (typeof _msrEndPick === 'function') _msrEndPick(true);
   var m = document.getElementById('measureModal');
   m.style.display = 'none';
   m.style.pointerEvents = 'none';
@@ -6498,7 +6504,7 @@ function openMsrConfirm() {
     ['使用儀器', instr || '—'],
     ['備註',     note  || '—'],
     ['照片',     _msrPhoto ? '📷 已附 1 張' : '不附'],
-    ['GPS座標',  gps]
+    ['定位座標', gps + (_msrPosMode === 'manual' ? '（手動選點）' : '')]
   ];
 
   // 加污染值（有數值就顯示，類型可選）
@@ -6563,6 +6569,7 @@ function submitMeasure() {
     }
   };
   if (_msrPhoto) { payload.measurement.photo = _msrPhoto; payload.measurement.photoType = 'image/jpeg'; }
+  if (_msrLat && _msrLng) payload.measurement.posMode = (_msrPosMode === 'manual') ? '手動選點' : 'GPS';
 
   fetch(SHEETS_URL, {
     method:  'POST',
@@ -7930,6 +7937,7 @@ function _closeAllModals() {
   });
   var assign = document.getElementById('assignModal');
   if (assign) assign.style.display = 'none';
+  if (typeof _msrEndPick === 'function') _msrEndPick(true);
   var measure = document.getElementById('measureModal');
   if (measure) measure.style.display = 'none';
   _clearActiveModal();
@@ -10161,6 +10169,115 @@ function submitTaskDone() {
     btn.disabled = false; btn.textContent = '✅ 確認完成';
     document.getElementById('taskDoneErr').textContent = '送出失敗，請確認網路連線後再試';
   });
+}
+</script>
+
+
+<!-- ═══ 回報劑量：地圖選點（視窗暫時收成底部細列）═══ -->
+<div id="msrPickBar" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9300;width:min(560px,calc(100vw - 16px));box-sizing:border-box;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.3);padding:10px 12px;font-family:var(--font)">
+  <div style="font-size:12px;color:#6b7a92">📌 點地圖或拖曳圖釘，選擇回報位置</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+    <div style="flex:1;min-width:150px">
+      <div id="msrPickCoord" style="font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:#1a56db"></div>
+      <div id="msrPickDist" style="font-size:12px;color:#6b7a92;margin-top:2px"></div>
+    </div>
+    <button type="button" onclick="msrPickCancel()" style="padding:9px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">取消</button>
+    <button id="msrPickOk" type="button" onclick="msrPickConfirm()" style="padding:9px 18px;border:none;border-radius:8px;background:#f97316;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">確定</button>
+  </div>
+</div>
+<style>@media (max-width: 600px) { #msrPickBar { bottom: calc(var(--mobbar-h, 56px) + 8px + env(safe-area-inset-bottom, 0px)) !important; } }</style>
+<script>
+var _msrGps = null;          // 最近一次 GPS：{ lat, lng, acc }
+var _msrPosMode = 'gps';     // 'gps' 或 'manual'（手動選點）
+var _msrPickMk = null, _msrPickClickFn = null, _msrPickPrev = null;
+
+function _msrUseGps() {
+  if (!_msrGps) return;
+  _msrLat = _msrGps.lat; _msrLng = _msrGps.lng; _msrPosMode = 'gps';
+  _msrRenderCoord();
+}
+// 更新座標列：GPS（附精度，誤差大時提示）／手動選點（可改回 GPS）／無法定位
+function _msrRenderCoord() {
+  var el = document.getElementById('msrCoordVal'), note = document.getElementById('msrCoordNote'), btn = document.getElementById('msrPickBtn');
+  if (!el) return;
+  var warn = false, noteHtml = '';
+  if (_msrLat && _msrLng) {
+    var txt = _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+    if (_msrPosMode === 'manual') {
+      txt += '　<span style="color:#b45309;font-family:var(--font)">（手動選點）</span>';
+      if (_msrGps) noteHtml = '<a href="javascript:void(0)" onclick="_msrUseGps()" style="color:#1a56db;text-decoration:none">↺ 改回 GPS 位置</a>';
+    } else if (_msrGps && _msrGps.acc != null) {
+      var acc = Math.round(_msrGps.acc);
+      txt += '　<span style="font-family:var(--font);color:#6b7a92">GPS 精度 ±' + acc + 'm</span>';
+      if (acc > 50) { warn = true; noteHtml = '⚠️ GPS 誤差較大，建議按「地圖選點」自己點位置'; }
+    }
+    el.innerHTML = txt;
+  } else {
+    warn = true;
+    el.textContent = '（無法取得定位）';
+    noteHtml = '⚠️ 請按「地圖選點」自己點位置';
+  }
+  el.style.background = warn ? '#fffbeb' : '#f0f4ff';
+  el.style.color = warn ? '#92400e' : '#1a56db';
+  if (note) { note.style.display = noteHtml ? '' : 'none'; note.style.color = warn ? '#92400e' : '#6b7a92'; note.innerHTML = noteHtml; }
+  if (btn) { btn.style.background = warn ? '#1a56db' : '#fff'; btn.style.color = warn ? '#fff' : '#1a56db'; }
+}
+
+function msrStartPick() {
+  if (!gMap || _msrPickMk) return;
+  var modal = document.getElementById('measureModal');
+  _msrPickPrev = { display: modal.style.display, pe: modal.style.pointerEvents };
+  modal.style.display = 'none';
+  // 起點：目前的回報位置 → GPS → 事發點
+  var ev = _events[_curIdx], start = null;
+  if (_msrLat && _msrLng) start = [_msrLat, _msrLng];
+  else if (_msrGps) start = [_msrGps.lat, _msrGps.lng];
+  else if (ev && !isNaN(parseFloat(ev.lat))) start = [parseFloat(ev.lat), parseFloat(ev.lng)];
+  else start = [gMap.getCenter().lat, gMap.getCenter().lng];
+  _msrPickMk = L.marker(start, {
+    draggable: true, autoPan: true, zIndexOffset: 2000,
+    icon: L.divIcon({ className: '', html: '<div style="font-size:32px;line-height:32px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))">📍</div>', iconSize: [32, 32], iconAnchor: [16, 30] })
+  }).addTo(gMap);
+  _msrPickMk.on('drag dragend', _msrPickUpdate);
+  _msrPickClickFn = function(e) { if (_msrPickMk) { _msrPickMk.setLatLng(e.latlng); _msrPickUpdate(); } };
+  gMap.on('click', _msrPickClickFn);
+  gMap.setView(start, Math.max(gMap.getZoom(), 16), { animate: false });
+  document.getElementById('msrPickBar').style.display = 'block';
+  _msrPickUpdate();
+}
+function _msrPickUpdate() {
+  if (!_msrPickMk) return;
+  var ll = _msrPickMk.getLatLng();
+  document.getElementById('msrPickCoord').textContent = ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
+  var d = _msrGps ? gMap.distance([_msrGps.lat, _msrGps.lng], ll) : null;
+  document.getElementById('msrPickDist').textContent = d == null ? '' : (d < 1000 ? '距 GPS 位置約 ' + Math.round(d) + ' 公尺' : '距 GPS 位置約 ' + (d / 1000).toFixed(1) + ' 公里');
+}
+function msrPickConfirm() {
+  if (!_msrPickMk) return;
+  var ll = _msrPickMk.getLatLng();
+  var ev = _events[_curIdx];
+  if (ev && !isNaN(parseFloat(ev.lat))) {
+    var dEv = gMap.distance([parseFloat(ev.lat), parseFloat(ev.lng)], ll);
+    if (dEv > 10000 && !confirm('這個位置距事發點 ' + (dEv / 1000).toFixed(1) + ' 公里，確定嗎？')) return;   // 防止手滑點到很遠的地方
+  }
+  _msrLat = ll.lat; _msrLng = ll.lng; _msrPosMode = 'manual';
+  _msrEndPick();
+  _msrRenderCoord();
+}
+function msrPickCancel() { _msrEndPick(); }
+// 結束選點：拿掉圖釘與底部列；quiet=true 時不把回報視窗再顯示出來（關閉視窗時用）
+function _msrEndPick(quiet) {
+  if (!_msrPickMk) return;
+  try { _msrPickMk.remove(); } catch (e) {}
+  _msrPickMk = null;
+  if (_msrPickClickFn) { gMap.off('click', _msrPickClickFn); _msrPickClickFn = null; }
+  document.getElementById('msrPickBar').style.display = 'none';
+  if (!quiet && _msrPickPrev) {
+    var modal = document.getElementById('measureModal');
+    modal.style.display = _msrPickPrev.display || 'block';
+    modal.style.pointerEvents = _msrPickPrev.pe || 'auto';
+  }
+  _msrPickPrev = null;
 }
 </script>
 
