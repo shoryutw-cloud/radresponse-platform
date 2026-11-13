@@ -3292,11 +3292,11 @@ function isLayerOn(idx, type) {
 
 // ── 全域型圖層（待量測、風向、KMZ、環境監測站、現場回報）：每個事件各自記憶 ──
 function onGlobalChk(type, checked) {
-  var fn = { pending: onPendingChk, wind: onWindChk, kmz: onKmzChk, env: onEnvChk, fr: onFrChk }[type];
+  var fn = { pending: onPendingChk, wind: onWindChk, kmz: onKmzChk, env: onEnvChk, fr: onFrChk, trk: onTrkChk }[type];
   if (fn) fn(checked);
   var ev = _events[_curIdx];
   if (!ev) return;
-  var actual = { pending: _pendingLayerOn, wind: _windLayerOn, kmz: _kmzLayerOn, env: _envLayerOn, fr: _frLayerOn }[type];
+  var actual = { pending: _pendingLayerOn, wind: _windLayerOn, kmz: _kmzLayerOn, env: _envLayerOn, fr: _frLayerOn, trk: _trkLayerOn }[type];
   saveLayerPref(ev.id, type, !!actual);   // 被條件擋回（例如沒有風向）時記成不勾
   if (type === 'wind') _windAppliedEv = ev.id;
 }
@@ -3331,9 +3331,13 @@ function _applyEventLayerPrefs() {
   // 現場回報
   want = getLayerPref(ev.id, 'fr');
   if (want !== _frLayerOn) onFrChk(want);
+  // 人員軌跡：管理員，或管理員開放給所有人時才有；換事件時重新讀取該事件的軌跡
+  want = _trkCanView() && getLayerPref(ev.id, 'trk');
+  if (want !== _trkLayerOn) onTrkChk(want);
+  else if (_trkLayerOn && _trkEvId !== ev.id) _trkRefresh();
   // 畫面勾選框跟實際狀態同步
   [['lyr_pending', _pendingLayerOn], ['lyr_wind', _windLayerOn], ['lyr_kmz', _kmzLayerOn],
-   ['lyr_env', _envLayerOn], ['lyr_fr', _frLayerOn]].forEach(function(x) {
+   ['lyr_env', _envLayerOn], ['lyr_fr', _frLayerOn], ['lyr_trk', _trkLayerOn]].forEach(function(x) {
     var cb = document.getElementById(x[0]);
     if (cb) cb.checked = !!x[1];
   });
@@ -4009,7 +4013,7 @@ function renderLayerPanel() {
       (_loginIsAdmin ? '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' : '') +
       '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'env\',this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
 
-    '</div></div>';
+    '</div></div>' + _trkPanelHtml();
 
   // 只有輻射彈事件才有這 4 個圖層，其他類型的事件不顯示
   if (!isRddEvent(ev)) {
@@ -7054,6 +7058,7 @@ function initUserLocation() {
       var acc = pos.coords.accuracy; // 精確度（公尺）
 
       if (!gMap) return;
+      if (typeof _trkOnPosition === 'function') _trkOnPosition(lat, lng, acc);   // 有開「分享我的位置」才會記錄
 
       // 精確度圓
       if (_userAccCirc) {
@@ -10275,6 +10280,177 @@ function _msrEndPick(quiet) {
     modal.style.pointerEvents = _msrPickPrev.pe || 'auto';
   }
   _msrPickPrev = null;
+}
+</script>
+
+
+<!-- ═══ 人員位置：分享、軌跡（管理員可開放給所有登入者看到彼此）═══ -->
+<div id="trkPill" style="display:none;position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:1200;background:#dc2626;color:#fff;border-radius:20px;padding:6px 8px 6px 14px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.3);align-items:center;gap:10px;white-space:nowrap;max-width:calc(100vw - 16px);font-family:var(--font)">
+  <span style="width:8px;height:8px;border-radius:50%;background:#fff;animation:userPulse 1.6s ease infinite"></span>
+  <span>📡 位置分享中</span>
+  <button type="button" onclick="trkSetShare(false)" style="border:1px solid rgba(255,255,255,.7);background:none;color:#fff;border-radius:14px;padding:3px 12px;font-family:inherit;font-size:12px;cursor:pointer">停止</button>
+</div>
+<style>
+.trk-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.93); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.trk-sel { font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font-family: inherit; }
+</style>
+<script>
+var _trkShare   = false;     // 我是否正在分享位置（每次登入都要自己打開）
+try { _trkShare = sessionStorage.getItem('trkShare') === '1'; } catch (e) {}
+var _trkOpen    = false;     // 管理員是否開放所有登入者看到彼此（讀自試算表設定）
+var _trkLayerOn = false, _trkMinutes = 60, _trkGroup = null, _trkTimer = null, _trkEvId = null;
+var _trkBuf = [], _trkLast = null, _trkFlushTimer = null;
+
+function _trkCanView() { return !!(_loginIsAdmin || _trkOpen); }
+
+// ── 圖層面板的「人員位置」區塊 ──
+function _trkPanelHtml() {
+  var h = '<div class="layer-ev-block"><div class="layer-ev-cbs">';
+  h += '<label class="layer-row"><input type="checkbox" id="trk_share" ' + (_trkShare ? 'checked' : '') + ' onchange="trkSetShare(this.checked)"><span class="layer-dot" style="background:#dc2626;border-radius:50%"></span>分享我的位置</label>';
+  if (_trkCanView()) {
+    h += '<label class="layer-row"><input type="checkbox" id="lyr_trk" ' + (_trkLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'trk\',this.checked)"><span class="layer-dot" style="background:#0ea5e9;border-radius:50%"></span>人員軌跡</label>';
+    h += '<div style="padding:2px 4px 6px 28px"><select id="trk_range" class="trk-sel" onchange="onTrkRange(this.value)">' +
+      [[60, '最近 1 小時'], [180, '最近 3 小時'], [720, '最近 12 小時'], [1440, '最近 24 小時']].map(function(o) {
+        return '<option value="' + o[0] + '"' + (o[0] === _trkMinutes ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select></div>';
+  }
+  if (_loginIsAdmin) {
+    h += '<label class="layer-row"><input type="checkbox" id="trk_open" ' + (_trkOpen ? 'checked' : '') + ' onchange="trkSetOpen(this.checked)"><span class="layer-dot" style="background:#7c3aed;border-radius:50%"></span>開放給所有登入者看到彼此</label>';
+  }
+  return h + '</div></div>';
+}
+
+// ── 分享我的位置 ──
+function trkSetShare(on) {
+  if (on && typeof _historyId !== 'undefined' && _historyId) { showToast('歷史事件檢視不能分享位置'); var cb0 = document.getElementById('trk_share'); if (cb0) cb0.checked = false; return; }
+  if (on && !navigator.geolocation) { showToast('此裝置無法定位'); var cb1 = document.getElementById('trk_share'); if (cb1) cb1.checked = false; return; }
+  _trkShare = !!on;
+  try { sessionStorage.setItem('trkShare', on ? '1' : '0'); } catch (e) {}
+  var cb = document.getElementById('trk_share'); if (cb) cb.checked = _trkShare;
+  var pill = document.getElementById('trkPill'); if (pill) pill.style.display = _trkShare ? 'flex' : 'none';
+  if (_trkShare) {
+    _trkLast = null;
+    if (!_trkFlushTimer) _trkFlushTimer = setInterval(_trkFlush, 30000);
+    showToast(_userMarker ? '📡 已開始分享位置，畫面上方會顯示「位置分享中」' : '📡 已開始分享位置；尚未取得定位，請允許瀏覽器使用位置');
+    if (_userMarker) { var ll = _userMarker.getLatLng(); _trkOnPosition(ll.lat, ll.lng, _userAccCirc ? _userAccCirc.getRadius() : 50); }
+  } else {
+    _trkFlush();
+    if (_trkFlushTimer) { clearInterval(_trkFlushTimer); _trkFlushTimer = null; }
+  }
+}
+// 每次定位更新時呼叫：精度太差的不記；移動超過 15 公尺，或每 60 秒記一筆（讓人知道還在線）
+function _trkOnPosition(lat, lng, acc) {
+  if (!_trkShare) return;
+  if (acc != null && acc > 100) return;
+  var now = Date.now();
+  if (_trkLast) {
+    var dt = now - _trkLast.t;
+    if (dt < 5000) return;
+    var d = L.latLng(_trkLast.lat, _trkLast.lng).distanceTo(L.latLng(lat, lng));
+    if (d < 15 && dt < 60000) return;
+  }
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  _trkBuf.push({ e: ev.id, t: now, lat: lat, lng: lng, acc: acc == null ? '' : Math.round(acc) });
+  _trkLast = { lat: lat, lng: lng, t: now };
+  if (_trkBuf.length >= 40) _trkFlush();
+}
+function _trkFlush() {
+  if (!_trkBuf.length || !_loginUserName) return;
+  var pts = _trkBuf.splice(0, 200);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'addTrackPoints', name: _loginUserName, team: _loginUserTeam || '', points: pts }) })
+    .catch(function() { _trkBuf = pts.concat(_trkBuf).slice(-600); });   // 送失敗就留著，下次再送
+}
+document.addEventListener('visibilitychange', function() { if (document.hidden) _trkFlush(); });
+window.addEventListener('pagehide', _trkFlush);
+
+// ── 管理員：開放給所有登入者看到彼此 ──
+function trkSetOpen(on) {
+  if (!_loginIsAdmin) return;
+  _trkOpen = !!on;
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'setTrackOpen', open: !!on, updatedBy: _loginUserName || '' }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  showToast(on ? '已開放：所有登入者都能看到彼此的位置與軌跡' : '已關閉：只有管理員看得到位置與軌跡');
+}
+function _trkLoadSettings() {
+  _jsonpGet(SHEETS_URL + '?action=getTrackSettings', function(d) {
+    if (!d || d.ok === false) return;
+    var was = _trkOpen;
+    if (!_loginIsAdmin || d.open !== undefined) _trkOpen = !!d.open;
+    if (was !== _trkOpen && _events.length) {
+      if (!_trkCanView() && _trkLayerOn) onTrkChk(false);
+      renderLayerPanel();
+    }
+  });
+}
+
+// ── 軌跡圖層 ──
+function onTrkRange(v) { _trkMinutes = parseInt(v, 10) || 60; if (_trkLayerOn) _trkRefresh(); }
+function onTrkChk(on) {
+  _trkLayerOn = !!on && _trkCanView();
+  if (_trkTimer) { clearInterval(_trkTimer); _trkTimer = null; }
+  if (_trkLayerOn) { _trkRefresh(); _trkTimer = setInterval(_trkRefresh, 15000); }
+  else { _trkEvId = null; if (_trkGroup) _trkGroup.clearLayers(); }
+}
+function _trkRefresh() {
+  if (!_trkLayerOn || !gMap) return;
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var evId = ev.id;
+  _trkEvId = evId;
+  _jsonpGet(SHEETS_URL + '?action=getTracks&eventId=' + encodeURIComponent(evId) + '&minutes=' + _trkMinutes + '&admin=' + (_loginIsAdmin ? 1 : 0), function(d) {
+    if (!_trkLayerOn || !d || d.ok === false) return;
+    var cur = _events[_curIdx];
+    if (!cur || cur.id !== evId) return;           // 期間已切換事件
+    if (d.open !== undefined && !_loginIsAdmin) _trkOpen = !!d.open;
+    if (!_trkCanView()) { onTrkChk(false); renderLayerPanel(); return; }
+    _trkDraw(d.tracks || []);
+  });
+}
+function _trkColor(key) {
+  var pal = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'];
+  var h = 0; for (var i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return pal[h % pal.length];
+}
+function _trkDraw(tracks) {
+  if (!_trkGroup) _trkGroup = L.layerGroup().addTo(gMap);
+  _trkGroup.clearLayers();
+  var nowMs = Date.now();
+  tracks.forEach(function(t) {
+    var pts = t.points || [];
+    if (!pts.length) return;
+    var col = _trkColor((t.name || '') + (t.team || ''));
+    // 相鄰兩點相隔超過 3 分鐘 → 中間畫虛線（代表沒有資料，例如手機鎖屏），實線只畫有連續資料的部分
+    var seg = [[pts[0][1], pts[0][2]]];
+    function flushSeg() { if (seg.length > 1) L.polyline(seg, { color: col, weight: 3, opacity: 0.85 }).addTo(_trkGroup); }
+    for (var i = 1; i < pts.length; i++) {
+      var cur = [pts[i][1], pts[i][2]];
+      if (pts[i][0] - pts[i - 1][0] > 180000) {
+        flushSeg();
+        L.polyline([[pts[i - 1][1], pts[i - 1][2]], cur], { color: col, weight: 2, opacity: 0.5, dashArray: '4 6' }).addTo(_trkGroup);
+        seg = [cur];
+      } else seg.push(cur);
+    }
+    flushSeg();
+    L.circleMarker([pts[0][1], pts[0][2]], { radius: 4, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1 }).addTo(_trkGroup);
+    var last = pts[pts.length - 1];
+    var ageMin = Math.round((nowMs - last[0]) / 60000);
+    var stale = ageMin > 5;
+    var d = new Date(last[0]);
+    var hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    L.circleMarker([last[1], last[2]], { radius: 8, color: '#fff', weight: 2, fillColor: col, fillOpacity: stale ? 0.45 : 1 }).addTo(_trkGroup)
+      .bindTooltip(_esc(t.name || '?') + ' · ' + hhmm + (stale ? '（' + ageMin + ' 分鐘前）' : ''), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
+  });
+}
+
+// 啟動：讀「是否開放」設定；之前已經打開分享（同一次登入內換頁）就恢復顯示與定時傳送
+setTimeout(_trkLoadSettings, 2500);
+setInterval(_trkLoadSettings, 60000);
+if (_trkShare) {
+  var _p0 = document.getElementById('trkPill'); if (_p0) _p0.style.display = 'flex';
+  _trkFlushTimer = setInterval(_trkFlush, 30000);
 }
 </script>
 

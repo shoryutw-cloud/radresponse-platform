@@ -1300,9 +1300,7 @@ function navChooseCategory(cat) {
     manual:      '🔴 人工設定量測點',
     cross:       '🔵 1km橫切面量測點',
     area:        '🟢 附近場域量測點',
-    sector:      '🟣 5km十點偵測量測點',
-    mini_cross:  '🔵 模擬1km橫切面量測點',
-    mini_sector: '🟣 模擬5km十點偵測量測點'
+    sector:      '🟣 5km十點偵測量測點'
   };
   document.getElementById('navPointStepTitle').textContent = titles[cat] || '量測點';
   document.getElementById('navStartBtn').style.background = '#d1d5db'; // 未選時灰色
@@ -1331,15 +1329,13 @@ function _navRenderPoints() {
       manual:      '目前尚無人工設定的量測點',
       cross:       '請先設定風向以產生橫切面量測點',
       area:        '附近場域量測點尚未設定',
-      sector:      '請先設定風向以產生十點偵測量測點',
-      mini_cross:  '請先開啟「模擬1km橫切面」圖層並設定風向',
-      mini_sector: '請先開啟「模擬5km十點偵測」圖層並設定風向'
+      sector:      '請先設定風向以產生十點偵測量測點'
     };
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-size:13px;padding:16px">' + (emptyMsg[_navSelCategory] || '目前無可用點位') + '</div>';
     return;
   }
   // 顏色對應
-  var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6', mini_cross:'#3b82f6', mini_sector:'#7c3aed' };
+  var colorMap = { manual:'#dc2626', cross:'#3b82f6', area:'#059669', sector:'#8b5cf6' };
   var c = colorMap[_navSelCategory] || '#8b5cf6';
   grid.innerHTML = filtered.map(function(p) {
     return '<button onclick="selectNavPoint(\u0027' + p.label + '\u0027)" id="navpt_' + p.label + '" style="' +
@@ -1495,32 +1491,6 @@ function sendMapEditMsg() {
           </div>
           <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
         </button>
-        <button onclick="navChooseCategory('mini_cross')" style="
-          display:flex;align-items:center;gap:14px;padding:14px 16px;
-          border:2px solid #e2e8f0;border-radius:10px;background:white;
-          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
-          onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'"
-          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="width:24px;height:24px;border-radius:50%;background:#3b82f6;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
-          <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬1km橫切面量測點</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:2px">B01～B10，需開啟圖層且設定風向</div>
-          </div>
-          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
-        </button>
-        <button onclick="navChooseCategory('mini_sector')" style="
-          display:flex;align-items:center;gap:14px;padding:14px 16px;
-          border:2px solid #e2e8f0;border-radius:10px;background:white;
-          font-family:inherit;cursor:pointer;transition:all .15s;text-align:left"
-          onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'"
-          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
-          <span style="width:24px;height:24px;border-radius:50%;background:#7c3aed;border:2px dashed white;box-sizing:border-box;display:inline-block;flex-shrink:0"></span>
-          <div>
-            <div style="font-size:15px;font-weight:700;color:#1e2a3a">模擬5km十點偵測量測點</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:2px">S1～S10，需開啟圖層且設定風向</div>
-          </div>
-          <span style="margin-left:auto;color:#d1d5db;font-size:18px">›</span>
-        </button>
       </div>
       <button onclick="closeNavSelectModal()" style="
         margin-top:14px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;
@@ -1643,21 +1613,13 @@ function submitLogin() {
 
     // ── 登入成功：存入 localStorage，帶 lastActivity ──
     var user = { name: data.name, isAdmin: !!data.isAdmin, acc: acc, team: data.team || '', group: data.group || '', lastActivity: Date.now() };
-    try { localStorage.setItem('radAuth', JSON.stringify(user)); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
+    try { localStorage.setItem('radAuth', JSON.stringify(user)); sessionStorage.removeItem('railOn'); sessionStorage.removeItem('trkShare'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
 
     _applyAuthUI(user);
     document.getElementById('loginOverlay').classList.add('hide');
     loadDashStats();
     showIframe('current-events.html');
   });
-}
-
-// ── item7：點測試帳密方塊，自動填入並直接登入 ──
-function fillTest(acc, pwd) {
-  document.getElementById('loginAcc').value = acc;
-  document.getElementById('loginPwd').value = pwd;
-  document.getElementById('loginErr').classList.remove('show');
-  submitLogin(); // 直接送出，不需再按登入
 }
 
 // ── 顯示登入錯誤 ──
@@ -1728,7 +1690,7 @@ function _applyAuthUI(user) {
 
 // ── 登出 ──
 function doLogout() {
-  try { localStorage.removeItem('radAuth'); sessionStorage.removeItem('railOn'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
+  try { localStorage.removeItem('radAuth'); sessionStorage.removeItem('railOn'); sessionStorage.removeItem('trkShare'); localStorage.removeItem('_layerPrefsV2'); localStorage.removeItem('_selEventsV1'); localStorage.removeItem('_layerPrefs'); } catch(e) {}
   history.replaceState('', document.title, window.location.pathname);
   window.location.reload();
 }
