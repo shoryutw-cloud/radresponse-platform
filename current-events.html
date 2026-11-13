@@ -10209,13 +10209,12 @@ function _msrRenderCoord() {
     } else if (_msrGps && _msrGps.acc != null) {
       var acc = Math.round(_msrGps.acc);
       txt += '　<span style="font-family:var(--font);color:#6b7a92">GPS 精度 ±' + acc + 'm</span>';
-      if (acc > 50) { warn = true; noteHtml = '⚠️ GPS 誤差較大，建議按「地圖選點」自己點位置'; }
+      if (acc > 50) warn = true;   // 精度差：座標列變黃、「地圖選點」按鈕變藍底，不另外加文字
     }
     el.innerHTML = txt;
   } else {
     warn = true;
     el.textContent = '（無法取得定位）';
-    noteHtml = '⚠️ 請按「地圖選點」自己點位置';
   }
   el.style.background = warn ? '#fffbeb' : '#f0f4ff';
   el.style.color = warn ? '#92400e' : '#1a56db';
@@ -10228,12 +10227,10 @@ function msrStartPick() {
   var modal = document.getElementById('measureModal');
   _msrPickPrev = { display: modal.style.display, pe: modal.style.pointerEvents };
   modal.style.display = 'none';
-  // 起點：目前的回報位置 → GPS → 事發點
-  var ev = _events[_curIdx], start = null;
-  if (_msrLat && _msrLng) start = [_msrLat, _msrLng];
-  else if (_msrGps) start = [_msrGps.lat, _msrGps.lng];
-  else if (ev && !isNaN(parseFloat(ev.lat))) start = [parseFloat(ev.lat), parseFloat(ev.lng)];
-  else start = [gMap.getCenter().lat, gMap.getCenter().lng];
+  // 圖釘起點：有 GPS 就用 GPS 位置（地圖移過去）；沒有 GPS 就用「目前看到的地圖畫面中心」（地圖不動）
+  var start = null, moveMap = false;
+  if (_msrGps) { start = [_msrGps.lat, _msrGps.lng]; moveMap = true; }
+  else { var c0 = gMap.getCenter(); start = [c0.lat, c0.lng]; }
   _msrPickMk = L.marker(start, {
     draggable: true, autoPan: true, zIndexOffset: 2000,
     icon: L.divIcon({ className: '', html: '<div style="font-size:32px;line-height:32px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))">📍</div>', iconSize: [32, 32], iconAnchor: [16, 30] })
@@ -10241,7 +10238,7 @@ function msrStartPick() {
   _msrPickMk.on('drag dragend', _msrPickUpdate);
   _msrPickClickFn = function(e) { if (_msrPickMk) { _msrPickMk.setLatLng(e.latlng); _msrPickUpdate(); } };
   gMap.on('click', _msrPickClickFn);
-  gMap.setView(start, Math.max(gMap.getZoom(), 16), { animate: false });
+  if (moveMap) gMap.setView(start, Math.max(gMap.getZoom(), 16), { animate: false });
   document.getElementById('msrPickBar').style.display = 'block';
   _msrPickUpdate();
 }
