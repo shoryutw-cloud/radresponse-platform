@@ -2931,14 +2931,14 @@ function flyToEvent(idx) {
   if (!gMap || !ev) return;
   var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
   if (isNaN(lat) || isNaN(lng)) return;
-  // 智慧縮放：依開啟的圖層決定合適的縮放
-  var zoom = 16; // 預設只有 100m 範圍
   var hasWind = ev.windDir && ev.windDir !== '';
-  if (isLayerOn(idx, 'sector')) zoom = 12;      // 5km 扇形
-  else if (isLayerOn(idx, 'line')) zoom = 14;   // 1km 橫切面
+  // 先畫好這個事件的圖層，再依「實際畫出來的範圍」決定縮放：
+  // 剛好把 100m 圓／1km 橫切面／附近場域／5km 扇形放進畫面（扣掉左右兩側開著的視窗）
+  buildEventLayers(idx);
+  var view = _eventFitView(idx, lat, lng);
   // 縮放層級相同時改用平移：flyTo 在頁面忙碌（剛登入）時會漏更新底圖與既有標記，造成圖層與底圖錯位
-  if (gMap.getZoom() === zoom) gMap.setView([lat, lng], zoom, { animate: true, duration: 0.8 });
-  else gMap.flyTo([lat, lng], zoom, { duration: 0.8 });
+  if (gMap.getZoom() === view.zoom) gMap.setView(view.center, view.zoom, { animate: true, duration: 0.8 });
+  else gMap.flyTo(view.center, view.zoom, { duration: 0.8 });
   // 無風向時停止動畫；有風向且圖層已開就繼續（不自動開關，由使用者手動控制）
   if (!hasWind && _windLayerOn) {
     _windLayerOn = false;
@@ -2952,11 +2952,32 @@ function flyToEvent(idx) {
   }
   // 圖釘：目前事件加光圈、其他事件稍淡（只在同時顯示多個事件時）
   _syncEventMarkers();
-  // 更新半透明圓形
-  buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
   if (window.frLoad) frLoad();
   loadMeasurements(idx, true);
   startMsrTimer(idx);
+}
+
+// 依事件已畫出的圖層算出合適的中心與縮放（最大 17 級）；桌機會避開左邊事件狀態、右邊圖層顯示視窗
+function _eventFitView(idx, lat, lng) {
+  var L0 = _evLayers[idx] || {};
+  var b = L.latLngBounds([[lat, lng], [lat, lng]]);
+  ['circle', 'line', 'nearby', 'sector'].forEach(function(k) {
+    var ly = L0[k];
+    if (ly && ly.getBounds && gMap.hasLayer(ly)) b.extend(ly.getBounds());
+  });
+  var mr = document.getElementById('map').getBoundingClientRect();
+  var pl = 24, pr = 24, pt = 24, pb = 24;
+  if (!_railIsMob()) {
+    var ec = document.getElementById('evCard');
+    if (ec && getComputedStyle(ec).display !== 'none') { var r1 = ec.getBoundingClientRect(); pl = Math.max(pl, r1.right - mr.left + 16); }
+    var lp = document.getElementById('layerPanel');
+    if (lp && getComputedStyle(lp).display !== 'none') { var r2 = lp.getBoundingClientRect(); pr = Math.max(pr, mr.right - r2.left + 16); }
+    if (mr.width - pl - pr < 240) { pl = 24; pr = 24; }   // 視窗太窄就不扣
+  }
+  var zoom = gMap.getBoundsZoom(b, false, L.point(pl + pr, pt + pb));
+  zoom = Math.max(3, Math.min(17, zoom));
+  var cpx = gMap.project(b.getCenter(), zoom).subtract(L.point((pl - pr) / 2, (pt - pb) / 2));
+  return { center: gMap.unproject(cpx, zoom), zoom: zoom };
 }
 
 // ── 圖層物件：每個事件獨立存放 ──
