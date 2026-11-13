@@ -7441,8 +7441,8 @@ function tdSetType(type) {
     if (!titleEl.value.trim() || titleEl.value.trim() === '量測任務') titleEl.value = '量測任務';
     // 說明改非必填
     reqStar.style.display = 'none';
-    // 量測點區塊
-    ptsGroup.style.display = '';
+    // 量測點區塊：1km 橫切面、5km 十點偵測只有輻射彈事件才有，其他事件整區不顯示
+    ptsGroup.style.display = isRddEvent(_events[_curIdx]) ? '' : 'none';
     tdSnapshotMsrPts();
     tdRenderMsrPts();
   } else {
@@ -7461,7 +7461,7 @@ function tdSetType(type) {
 function tdSnapshotMsrPts() {
   if (_tdMsrPts.length > 0) return;
   var ev = _events[_curIdx];
-  if (!ev || !ev.windDir || ev.windDir === '') return;
+  if (!ev || !isRddEvent(ev) || !ev.windDir || ev.windDir === '') return;   // 非輻射彈事件沒有這些點位
   var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
   if (isNaN(la) || isNaN(lo)) return;
 
@@ -10226,7 +10226,6 @@ function _msrRenderCoord() {
       if (_msrGps) noteHtml = '<a href="javascript:void(0)" onclick="_msrUseGps()" style="color:#1a56db;text-decoration:none">↺ 改回 GPS 位置</a>';
     } else if (_msrGps && _msrGps.acc != null) {
       var acc = Math.round(_msrGps.acc);
-      txt += '　<span style="font-family:var(--font);color:#6b7a92">GPS 精度 ±' + acc + 'm</span>';
       if (acc > 50) warn = true;   // 精度差：座標列變黃、「地圖選點」按鈕變藍底，不另外加文字
     }
     el.innerHTML = txt;
