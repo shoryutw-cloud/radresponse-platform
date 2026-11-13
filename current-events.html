@@ -3971,7 +3971,7 @@ function renderLayerPanel() {
 
   body.innerHTML =
     (isRddEvent(ev) && !(ev.windDir) ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
-    (_events.length > 1 ? '<div class="layer-for">\u8a2d\u5b9a\u5c0d\u8c61\uff1a' + _esc(ev.name || ev.id) + '\uff08\u76ee\u524d\u4e8b\u4ef6\uff09</div>' : '') +
+    (_events.length > 1 ? '<div class="layer-for">事件名稱：' + _esc(ev.name || ev.id) + '</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m爆炸區域</label>' +
