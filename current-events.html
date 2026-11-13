@@ -624,6 +624,7 @@ cursor: pointer; transition: background .15s;
   .draw-size-wrap .draw-size-label { display: none; }
   .draw-size-range { width: 48px !important; }
   .draw-tool-btn { width: 32px !important; height: 32px !important; font-size: 15px !important; }
+  .draw-toolbar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; border-radius: 18px !important; }
 
   /* ── 桌機版的收合按鈕在手機版隱藏（改用點擊 header 收合）── */
   .ev-collapse-btn { display: none !important; }
@@ -686,6 +687,7 @@ cursor: pointer; transition: background .15s;
 }
 /* 游標：畫筆模式時顯示十字 */
 #map.draw-mode   { cursor: crosshair !important; }
+#map.draw-mode .leaflet-marker-icon, #map.draw-mode .leaflet-interactive { pointer-events: none !important; }
 #map.erase-mode  { cursor: cell !important; }
 </style>
 
@@ -960,9 +962,14 @@ cursor: pointer; transition: background .15s;
 </div>
 
 <!-- 畫筆工具列（底部置中）-->
+<div id="polyBar" style="display:none"></div>
 <div class="draw-toolbar" id="drawToolbar" style="display:none">
   <!-- 畫筆 -->
   <button class="draw-tool-btn" id="btnPen" title="畫筆" onclick="setDrawMode('pen')">✏️</button>
+  <!-- 圖形：圓形（從一角拖到對角）、矩形、多邊形（點頂點，右鍵結束）-->
+  <button class="draw-tool-btn" id="btnCircle" title="圓形：從要圈住範圍的一角，按住拖到對角" onclick="setDrawMode('circle')"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/></svg></button>
+  <button class="draw-tool-btn" id="btnRect" title="矩形：按住從一角拖到對角" onclick="setDrawMode('rect')"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="4" width="13" height="10" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+  <button class="draw-tool-btn" id="btnPoly" title="多邊形：依序點選各頂點，畫完按滑鼠右鍵結束" onclick="setDrawMode('poly')"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><polygon points="9,2 16,7.2 13.4,15.5 4.6,15.5 2,7.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
   <!-- 抹除 -->
   <button class="draw-tool-btn" id="btnErase" title="抹除筆跡" onclick="setDrawMode('erase')">🧹</button>
   <!-- 清除全部 -->
@@ -5543,30 +5550,29 @@ var _isDrawing   = false;
 // ── 切換模式 ──
 function setDrawMode(mode) {
   var mapEl = document.getElementById('map');
-  if (_drawMode === mode) {
-    // 再按一次 = 取消該模式
-    _drawMode = null;
-    mapEl.classList.remove('draw-mode', 'erase-mode');
-    document.getElementById('btnPen').classList.remove('active');
-    document.getElementById('btnErase').classList.remove('active-erase');
-    gMap.dragging.enable();
-    return;
-  }
+  if (_drawMode === mode) mode = null;   // 再按一次 = 取消該模式
+  if (typeof _shpCancelAll === 'function') _shpCancelAll();   // 放棄畫到一半的圖形
   _drawMode = mode;
-  // 清除兩顆按鈕狀態
-  document.getElementById('btnPen').classList.remove('active');
+  ['btnPen', 'btnCircle', 'btnRect', 'btnPoly'].forEach(function(id) {
+    var b = document.getElementById(id); if (b) b.classList.remove('active');
+  });
   document.getElementById('btnErase').classList.remove('active-erase');
   mapEl.classList.remove('draw-mode', 'erase-mode');
-
-  if (mode === 'pen') {
-    document.getElementById('btnPen').classList.add('active');
-    mapEl.classList.add('draw-mode');
-    gMap.dragging.disable(); // 畫筆模式鎖定地圖拖曳
-  } else if (mode === 'erase') {
+  gMap.dragging.enable();
+  if (gMap.doubleClickZoom) gMap.doubleClickZoom.enable();
+  if (mode === 'erase') {
     document.getElementById('btnErase').classList.add('active-erase');
     mapEl.classList.add('erase-mode');
     gMap.dragging.disable();
+  } else if (mode) {
+    var bid = { pen: 'btnPen', circle: 'btnCircle', rect: 'btnRect', poly: 'btnPoly' }[mode];
+    if (bid) document.getElementById(bid).classList.add('active');
+    mapEl.classList.add('draw-mode');
+    if (mode === 'poly') { if (gMap.doubleClickZoom) gMap.doubleClickZoom.disable(); }   // 多邊形用點的，地圖仍可拖動
+    else gMap.dragging.disable();   // 畫筆、圓形、矩形：鎖定地圖拖曳
   }
+  if (typeof _shapeClearDims === 'function') { _shapeClearDims(); gMap.closePopup(); }
+  if (typeof _polyBarUpdate === 'function') _polyBarUpdate();
 }
 
 // ── 設定顏色 ──
@@ -5594,6 +5600,15 @@ function eraseNear(latlng) {
   var clickPx = gMap.latLngToLayerPoint(latlng);
   var changed = false;
   _drawLines = _drawLines.filter(function(line) {
+    if (line._shape) {   // 圖形：點在圖形範圍內（或圓周附近）就整個擦掉
+      if (_shapeHit(line, latlng)) {
+        line.remove();
+        if (line._drawId) { _drawDeleteQueue.push(line._drawId); _drawDeleted[line._drawId] = Date.now(); }
+        changed = true;
+        return false;
+      }
+      return true;
+    }
     var lls = line.getLatLngs();
     for (var i = 0; i < lls.length; i++) {
       var pt = gMap.latLngToLayerPoint(lls[i]);
@@ -5668,6 +5683,7 @@ function saveAllDrawings() {
 }
 
 function _drawMakeLine(d) {
+  if (d.shape && typeof _drawMakeShape === 'function') return _drawMakeShape(d);
   var lls = (d.pts || []).map(function(p) { return L.latLng(p[0], p[1]); });
   var line = L.polyline(lls, {
     color:       d.color  || '#dc2626',
@@ -5711,7 +5727,16 @@ function loadDrawings() {
     var local = {};
     _drawLines = _drawLines.filter(function(line) {
       if (!line._drawId) return true;                 // 正在送出中的新筆跡
-      if (server[line._drawId] || _drawUnsynced[line._drawId]) { local[line._drawId] = true; return true; }
+      if (server[line._drawId] || _drawUnsynced[line._drawId]) {
+        local[line._drawId] = true;
+        var sv = server[line._drawId];
+        if (sv && sv.shape && line._shape) {   // 圖形改名：以雲端為準（自己剛改的名稱 20 秒內先保留）
+          var rn = _drawRenamed[line._drawId];
+          var keep = rn && Date.now() - rn.t < DRAW_GRACE_MS && sv.shape.name !== rn.name;
+          if (!keep && sv.shape.name !== line._shape.name) _shapeSetName(line, sv.shape.name);
+        }
+        return true;
+      }
       line.remove();
       return false;
     });
@@ -6785,7 +6810,7 @@ function initDrawTools() {
 
   // ── 滑鼠按下（在地圖上）：開始畫線 ──
   mapEl.addEventListener('mousedown', function(e) {
-    if (!_drawMode) return;
+    if (!_drawMode || _drawMode === 'poly') return;
     if (e.button !== 0) return;
     e.preventDefault();
     _isDrawing = true;
@@ -6800,6 +6825,8 @@ function initDrawTools() {
         lineJoin:    'round',
         interactive: false  // ★ 不攔截滑鼠事件，畫過自己不會中斷
       }).addTo(gMap);
+    } else if (_drawMode === 'circle' || _drawMode === 'rect') {
+      _shpStart = ll; _shpPreview(_drawMode, ll, ll);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
     }
@@ -6812,6 +6839,8 @@ function initDrawTools() {
     if (_drawMode === 'pen' && _curLine) {
       _curLatLngs.push(ll);
       _curLine.setLatLngs(_curLatLngs);
+    } else if ((_drawMode === 'circle' || _drawMode === 'rect') && _shpStart) {
+      _shpPreview(_drawMode, _shpStart, ll);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
     }
@@ -6821,6 +6850,11 @@ function initDrawTools() {
   document.addEventListener('mouseup', function(e) {
     if (!_isDrawing) return;
     _isDrawing = false;
+    if ((_drawMode === 'circle' || _drawMode === 'rect') && _shpStart) {
+      var p1 = _shpStart; _shpStart = null;
+      _shpFinishDrag(_drawMode, p1, gMap.mouseEventToLatLng(e));
+      return;
+    }
     if (_drawMode === 'pen' && _curLine) {
       if (_curLatLngs.length > 1) {
         _drawLines.push(_curLine);
@@ -6837,7 +6871,7 @@ function initDrawTools() {
 
   // ── 觸控支援（手機/平板）──
   mapEl.addEventListener('touchstart', function(e) {
-    if (!_drawMode) return;
+    if (!_drawMode || _drawMode === 'poly') return;   // 多邊形用點的（由地圖點擊處理）
     e.preventDefault();
     _isDrawing = true;
     var touch = e.touches[0];
@@ -6854,6 +6888,8 @@ function initDrawTools() {
         lineJoin:    'round',
         interactive: false
       }).addTo(gMap);
+    } else if (_drawMode === 'circle' || _drawMode === 'rect') {
+      _shpStart = ll; _shpPreview(_drawMode, ll, ll);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
     }
@@ -6869,6 +6905,8 @@ function initDrawTools() {
     if (_drawMode === 'pen' && _curLine) {
       _curLatLngs.push(ll);
       _curLine.setLatLngs(_curLatLngs);
+    } else if ((_drawMode === 'circle' || _drawMode === 'rect') && _shpStart) {
+      _shpPreview(_drawMode, _shpStart, ll);
     } else if (_drawMode === 'erase') {
       eraseNear(ll);
     }
@@ -6877,6 +6915,11 @@ function initDrawTools() {
   mapEl.addEventListener('touchend', function() {
     if (!_isDrawing) return;
     _isDrawing = false;
+    if ((_drawMode === 'circle' || _drawMode === 'rect') && _shpStart) {
+      var t1 = _shpStart; _shpStart = null;
+      _shpFinishDrag(_drawMode, t1, _shpLast || t1);
+      return;
+    }
     if (_drawMode === 'pen' && _curLine) {
       if (_curLatLngs.length > 1) {
         _drawLines.push(_curLine);
@@ -6919,8 +6962,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── 右鍵選單：顯示暫時圖釘 + context menu ──
     gMap.on('contextmenu', function(e) {
-      // ★ 只有「編輯地圖」模式開啟時才顯示右鍵選單
-      if (!_mapEditOn) return;
+      // ★ 只有「編輯地圖」模式開啟時才顯示右鍵選單；多邊形工具時右鍵是「結束」
+      if (!_mapEditOn || _drawMode === 'poly') return;
       _ctxLatLng = e.latlng;
       showCtxMenu(e.originalEvent.clientX, e.originalEvent.clientY, e.latlng);
     });
@@ -10514,6 +10557,255 @@ if (_trkShare) {
   var _p0 = document.getElementById('trkPill'); if (_p0) _p0.style.display = 'flex';
   _trkFlushTimer = setInterval(_trkFlush, 30000);
 }
+</script>
+
+
+<style>
+.shp-dim { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; background: rgba(255,255,255,.94); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; font-size: 12px; font-weight: 700; color: #1e2a3a; box-shadow: 0 1px 4px rgba(0,0,0,.2); pointer-events: none; }
+.shp-dim.up { transform: translate(-50%, -135%); }
+.shp-name { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 13px; font-weight: 800; color: #1e2a3a; pointer-events: none;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+#polyBar { position: fixed; left: 50%; transform: translateX(-50%); z-index: 1001; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+  background: #1e2a3a; color: #fff; border-radius: 12px; padding: 7px 12px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.3); max-width: calc(100vw - 16px); font-family: var(--font); }
+#polyBar button { border: none; border-radius: 8px; padding: 7px 14px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+</style>
+<script>
+// ════════════════════════════════════════════════════════════════
+// 繪圖工具：圓形、矩形、多邊形（只有管理員在「編輯地圖」模式可畫；同步給所有人）
+//  · 圓形：從要圈住範圍的一角按住拖到對角，兩點就是直徑的兩端（圓心在正中間）
+//  · 矩形：按住從一角拖到對角
+//  · 多邊形：依序點選頂點；桌機按滑鼠右鍵結束、手機按「完成」；Esc 取消
+//  · 畫完可命名，名稱顯示在地圖上；點圖形：圓形顯示半徑（圓心往右到圓周）、矩形與多邊形在各邊標長度，說明框放面積
+// ════════════════════════════════════════════════════════════════
+var _shpStart = null, _shpLast = null, _shpTmp = null;
+var _polyPts = [], _polyTmp = null;
+var _dimGroup = null, _dimOwner = null;
+var _drawRenamed = {};
+
+function _drawWeightNow() { return parseInt(document.getElementById('drawSize').value, 10) || 4; }
+function _fmtLen(m) { return m < 1000 ? Math.round(m) + ' 公尺' : (m / 1000).toFixed(2) + ' 公里'; }
+function _fmtArea(a) { return a < 1e6 ? Math.round(a).toLocaleString('en-US') + ' 平方公尺' : (a / 1e6).toFixed(2) + ' 平方公里'; }
+function _lbl(ll, text, cls) {
+  return L.marker(ll, { interactive: false, keyboard: false,
+    icon: L.divIcon({ className: '', html: '<div class="' + (cls || 'shp-dim') + '">' + _esc(text) + '</div>', iconSize: [0, 0], iconAnchor: [0, 0] }) });
+}
+function _mid(a, b) { return L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2); }
+function _circleOf(p1, p2) { return { c: _mid(p1, p2), r: gMap.distance(p1, p2) / 2 }; }
+function _rectCorners(p1, p2) {
+  var n = Math.max(p1.lat, p2.lat), so = Math.min(p1.lat, p2.lat), w = Math.min(p1.lng, p2.lng), e = Math.max(p1.lng, p2.lng);
+  return [L.latLng(n, w), L.latLng(n, e), L.latLng(so, e), L.latLng(so, w)];
+}
+function _eastOf(c, r) { return L.latLng(c.lat, c.lng + r / (111320 * Math.cos(c.lat * Math.PI / 180))); }   // 同一緯度往右，地圖上是水平線
+function _polyAreaM2(lls) {
+  var lat0 = 0; lls.forEach(function(p) { lat0 += p.lat; }); lat0 /= lls.length;
+  var kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110540, a = 0;
+  for (var i = 0; i < lls.length; i++) {
+    var j = (i + 1) % lls.length;
+    a += (lls[i].lng * kx) * (lls[j].lat * ky) - (lls[j].lng * kx) * (lls[i].lat * ky);
+  }
+  return Math.abs(a) / 2;
+}
+function _edgeLabels(group, lls) {
+  for (var i = 0; i < lls.length; i++) {
+    var a = lls[i], b = lls[(i + 1) % lls.length];
+    group.addLayer(_lbl(_mid(a, b), _fmtLen(gMap.distance(a, b))));
+  }
+}
+
+// ── 拖曳中的預覽（圓形、矩形）──
+function _shpTmpClear() { if (_shpTmp) { _shpTmp.remove(); _shpTmp = null; } }
+function _shpPreview(type, p1, p2) {
+  _shpLast = p2;
+  _shpTmpClear();
+  var g = L.featureGroup();
+  var opt = { color: _drawColor, weight: _drawWeightNow(), fillColor: _drawColor, fillOpacity: 0.15, dashArray: '6 4', interactive: false };
+  if (type === 'circle') {
+    var o = _circleOf(p1, p2), e = _eastOf(o.c, o.r);
+    g.addLayer(L.circle(o.c, L.extend({ radius: o.r }, opt)));
+    g.addLayer(L.circleMarker(o.c, { radius: 3.5, color: '#fff', weight: 1, fillColor: _drawColor, fillOpacity: 1, interactive: false }));
+    g.addLayer(L.polyline([o.c, e], { color: _drawColor, weight: 2, dashArray: '4 4', interactive: false }));
+    g.addLayer(_lbl(_mid(o.c, e), '半徑 ' + _fmtLen(o.r), 'shp-dim up'));
+  } else {
+    var cs = _rectCorners(p1, p2);
+    g.addLayer(L.polygon(cs, opt));
+    _edgeLabels(g, cs);
+  }
+  _shpTmp = g.addTo(gMap);
+}
+function _shpFinishDrag(type, p1, p2) {
+  _shpTmpClear(); _shpLast = null;
+  if (gMap.latLngToContainerPoint(p1).distanceTo(gMap.latLngToContainerPoint(p2)) < 6) return;   // 只是點一下，不算
+  _shapeCreate(type, [p1, p2]);
+}
+
+// ── 多邊形 ──
+function _polyRender(cursor) {
+  if (_polyTmp) { _polyTmp.remove(); _polyTmp = null; }
+  if (!_polyPts.length) return;
+  var g = L.featureGroup(), pts = _polyPts.slice();
+  if (cursor) pts.push(cursor);
+  var opt = { color: _drawColor, weight: _drawWeightNow(), fillColor: _drawColor, fillOpacity: 0.15, dashArray: '6 4', interactive: false };
+  if (pts.length >= 3) g.addLayer(L.polygon(pts, opt));
+  else if (pts.length === 2) g.addLayer(L.polyline(pts, opt));
+  _polyPts.forEach(function(p) { g.addLayer(L.circleMarker(p, { radius: 4, color: '#fff', weight: 1.5, fillColor: _drawColor, fillOpacity: 1, interactive: false })); });
+  if (cursor) { var last = _polyPts[_polyPts.length - 1]; g.addLayer(_lbl(_mid(last, cursor), _fmtLen(gMap.distance(last, cursor)))); }
+  _polyTmp = g.addTo(gMap);
+}
+function _polyAdd(ll) { _polyPts.push(ll); _polyRender(null); _polyBarUpdate(); }
+function _polyCancel() { _polyPts = []; if (_polyTmp) { _polyTmp.remove(); _polyTmp = null; } _polyBarUpdate(); }
+// 結束：游標那一點不算，只用已點的頂點；不到三點就取消
+function _polyFinish() {
+  var pts = _polyPts.slice();
+  _polyCancel();
+  if (pts.length < 3) { if (pts.length) showToast('至少要三個點才能成為多邊形，這次已取消'); return; }
+  _shapeCreate('poly', pts);
+}
+function _shpCancelAll() { _shpTmpClear(); _shpStart = null; _shpLast = null; _polyCancel(); }
+// 多邊形提示列（桌機：右鍵結束；手機：完成／取消按鈕）
+function _polyBarUpdate() {
+  var b = document.getElementById('polyBar');
+  if (!b) return;
+  if (_drawMode !== 'poly') { b.style.display = 'none'; return; }
+  if (_railIsMob()) {
+    b.innerHTML = '<span>依序點選各頂點（已點 ' + _polyPts.length + ' 點）</span>' +
+      '<button onclick="_polyFinish()" style="background:#16a34a;color:#fff">✔ 完成</button>' +
+      '<button onclick="_polyCancel()" style="background:#fff;color:#1e2a3a">✕ 取消</button>';
+  } else {
+    b.innerHTML = '<span>依序點選各頂點，畫完按 <b>滑鼠右鍵</b> 結束（Esc 取消）</span>';
+  }
+  b.style.display = 'flex';
+  if (_railIsMob()) { b.style.top = '8px'; b.style.bottom = 'auto'; return; }
+  var tb = document.getElementById('drawToolbar');
+  var top = tb && tb.offsetParent ? tb.getBoundingClientRect().top : window.innerHeight - 90;
+  b.style.top = 'auto';
+  b.style.bottom = (window.innerHeight - top + 8) + 'px';
+}
+
+// ── 建立圖形：命名 → 畫上地圖 → 存雲端 ──
+function _shapeCreate(type, pts) {
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var nm = prompt('為這個圖形命名（可留空）', '');
+  nm = nm == null ? '' : String(nm).trim().slice(0, 60);
+  var d = { id: _drawNewId(), color: _drawColor, weight: _drawWeightNow(),
+            pts: pts.map(function(ll) { return [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]; }),
+            shape: { type: type, name: nm } };
+  _drawLines.push(_drawMakeShape(d));
+  _drawUnsynced[d.id] = 0;
+  _drawPost({ action: 'addDrawing', eventId: ev.id, id: d.id, color: d.color, weight: d.weight, pts: d.pts, shape: d.shape })
+    .then(function() { if (d.id in _drawUnsynced) _drawUnsynced[d.id] = Date.now(); });
+}
+
+// ── 畫出圖形（自己畫的、雲端載入的都走這裡）──
+function _drawMakeShape(d) {
+  var lls = d.pts.map(function(p) { return L.latLng(p[0], p[1]); });
+  var col = d.color || '#dc2626';
+  var opt = { color: col, weight: d.weight || 4, opacity: 0.9, fillColor: col, fillOpacity: 0.15 };
+  var g = L.featureGroup(), main, center;
+  if (d.shape.type === 'circle') {
+    var o = _circleOf(lls[0], lls[1]);
+    main = L.circle(o.c, L.extend({ radius: o.r }, opt)); center = o.c;
+    g.addLayer(main);
+    g.addLayer(L.circleMarker(o.c, { radius: 3.5, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1, interactive: false }));   // 圓心
+  } else if (d.shape.type === 'rect') {
+    var cs = _rectCorners(lls[0], lls[1]);
+    main = L.polygon(cs, opt); center = _mid(cs[0], cs[2]); g.addLayer(main);
+  } else {
+    main = L.polygon(lls, opt); center = main.getBounds().getCenter(); g.addLayer(main);
+  }
+  g._drawId = d.id; g._pts = lls; g._center = center;
+  g._shape = { type: d.shape.type, name: d.shape.name || '' };
+  _shapeSetName(g, g._shape.name);
+  main.on('click', function(e) {
+    if (_drawMode) return;   // 使用繪圖工具時，點到圖形照常交給工具（例如多邊形加頂點）
+    L.DomEvent.stopPropagation(e);
+    _shapeShowDims(g, e.latlng);
+  });
+  g.addTo(gMap);
+  return g;
+}
+function _shapeSetName(g, name) {
+  g._shape.name = name || '';
+  if (g._nameMk) { g.removeLayer(g._nameMk); g._nameMk = null; }
+  if (g._shape.name) { g._nameMk = _lbl(g._center, g._shape.name, 'shp-name'); g.addLayer(g._nameMk); }
+}
+
+// ── 點圖形：顯示尺寸（圓形：半徑線；矩形、多邊形：各邊長），說明框放面積 ──
+function _shapeClearDims() { if (_dimGroup) { _dimGroup.remove(); _dimGroup = null; } _dimOwner = null; }
+function _shapeShowDims(g, at) {
+  _shapeClearDims();
+  var dg = L.featureGroup(), t = g._shape.type, lls = g._pts, area = 0, extra = '';
+  if (t === 'circle') {
+    var o = _circleOf(lls[0], lls[1]), e = _eastOf(o.c, o.r);
+    dg.addLayer(L.polyline([o.c, e], { color: '#1e2a3a', weight: 2, dashArray: '5 4', interactive: false }));
+    dg.addLayer(_lbl(_mid(o.c, e), '半徑 ' + _fmtLen(o.r), 'shp-dim up'));
+    area = Math.PI * o.r * o.r;
+  } else if (t === 'rect') {
+    var cs = _rectCorners(lls[0], lls[1]);
+    _edgeLabels(dg, cs);
+    area = gMap.distance(cs[0], cs[1]) * gMap.distance(cs[1], cs[2]);
+  } else {
+    _edgeLabels(dg, lls);
+    area = _polyAreaM2(lls);
+    var per = 0; lls.forEach(function(p, i) { per += gMap.distance(p, lls[(i + 1) % lls.length]); });
+    extra = '<br>周長：' + _fmtLen(per);
+  }
+  _dimGroup = dg.addTo(gMap); _dimOwner = g;
+  var canEdit = _loginIsAdmin && _mapEditOn && !_historyId;
+  var html = '<div style="min-width:150px;font-family:var(--font)"><b>' + _esc(g._shape.name || '（未命名）') + '</b><br>' +
+    '<span style="font-size:13px">面積：' + _fmtArea(area) + extra + '</span>' +
+    (canEdit ? '<div style="margin-top:8px"><button class="fr-mini" onclick="_shapeRename(\'' + g._drawId + '\')">✏️ 改名</button></div>' : '') + '</div>';
+  // 說明框放在圖形正上方（不蓋住半徑線、邊長標示）
+  var anchor;
+  if (t === 'circle') { var oc = _circleOf(lls[0], lls[1]); anchor = L.latLng(oc.c.lat + oc.r / 110540, oc.c.lng); }
+  else { var bb = L.latLngBounds(t === 'rect' ? _rectCorners(lls[0], lls[1]) : lls); anchor = L.latLng(bb.getNorth(), bb.getCenter().lng); }
+  var pop = L.popup({ autoPan: true, autoPanPadding: [20, 20] }).setLatLng(anchor).setContent(html);
+  pop.on('remove', function() { if (_dimOwner === g) _shapeClearDims(); });   // 點地圖其他地方或另一個圖形就收起來
+  pop.openOn(gMap);
+}
+function _shapeRename(id) {
+  var g = null;
+  _drawLines.forEach(function(l) { if (l._drawId === id) g = l; });
+  if (!g) return;
+  var nm = prompt('圖形名稱（可留空）', g._shape.name || '');
+  if (nm == null) return;
+  nm = String(nm).trim().slice(0, 60);
+  gMap.closePopup();
+  if (nm === g._shape.name) return;
+  _shapeSetName(g, nm);
+  _drawRenamed[id] = { name: nm, t: Date.now() };
+  var ev = _events[_curIdx];
+  _drawPost({ action: 'renameDrawing', eventId: ev ? ev.id : '', id: id, name: nm });
+}
+// 抹除判斷：點在圖形內（圓形含圓周附近）
+function _shapeHit(g, ll) {
+  var t = g._shape.type;
+  if (t === 'circle') {
+    var o = _circleOf(g._pts[0], g._pts[1]);
+    var c = gMap.latLngToContainerPoint(o.c), e = gMap.latLngToContainerPoint(_eastOf(o.c, o.r));
+    return gMap.latLngToContainerPoint(ll).distanceTo(c) <= c.distanceTo(e) + 12;
+  }
+  var pts = t === 'rect' ? _rectCorners(g._pts[0], g._pts[1]) : g._pts, inside = false;
+  for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    var xi = pts[i].lng, yi = pts[i].lat, xj = pts[j].lng, yj = pts[j].lat;
+    if (((yi > ll.lat) !== (yj > ll.lat)) && (ll.lng < (xj - xi) * (ll.lat - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+// 多邊形：地圖點擊加頂點、移動滑鼠拉預覽、右鍵結束；Esc 取消
+(function waitMapForShapes() {
+  if (!window.gMap) { setTimeout(waitMapForShapes, 200); return; }
+  gMap.on('click', function(e) { if (_drawMode === 'poly') _polyAdd(e.latlng); });
+  gMap.on('mousemove', function(e) { if (_drawMode === 'poly' && _polyPts.length) _polyRender(e.latlng); });
+  gMap.on('contextmenu', function(e) { if (_drawMode === 'poly') _polyFinish(); });
+})();
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (_polyPts.length) _polyCancel();
+  if (_shpStart) { _shpTmpClear(); _shpStart = null; _isDrawing = false; }
+});
+window.addEventListener('resize', function() { if (_drawMode === 'poly') _polyBarUpdate(); });
 </script>
 
 </body>
