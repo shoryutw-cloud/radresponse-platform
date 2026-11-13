@@ -692,6 +692,7 @@ function showIframe(src) {
   var cleanSrc = src.split('?')[0];
   // 加時間戳確保每次重新載入
   frame.src = cleanSrc + '?_t=' + Date.now();
+  _verCheckStart(cleanSrc);   // 檢查載入的頁面是不是最新版
 
   // hash 只取檔名
   var hashBase = cleanSrc.replace('.html', '');
@@ -700,12 +701,39 @@ function showIframe(src) {
   closeSidebar();
 }
 
+// ── 版本防呆：地圖頁載入後會回報自己的版本；沒回報（舊檔案）或版本太舊，就在畫面上方提示 ──
+// 地圖頁新增「首頁一定要搭配」的功能時，才需要把這裡的數字調高
+var NEED_BUILD = { 'current-events.html': 1 };
+var _pageBuild = {}, _verTimer = null;
+function _verCheckStart(file) {
+  if (!NEED_BUILD[file]) return;
+  _pageBuild[file] = 0;
+  if (_verTimer) clearTimeout(_verTimer);
+  var b = document.getElementById('verBanner'); if (b) b.style.display = 'none';
+  _verTimer = setTimeout(function() {
+    if ((_pageBuild[file] || 0) < NEED_BUILD[file]) _verBanner(file);
+  }, 8000);
+}
+function _verBanner(file) {
+  var b = document.getElementById('verBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'verBanner';
+    b.style.cssText = 'position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:99998;max-width:min(640px,calc(100vw - 16px));background:#b91c1c;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px;line-height:1.6;box-shadow:0 6px 24px rgba(0,0,0,.35);display:flex;gap:10px;align-items:flex-start';
+    document.body.appendChild(b);
+  }
+  b.innerHTML = '<div>⚠️ 地圖頁檔案（' + file + '）不是最新版本，部分功能會缺少或異常。<br>請確認 GitHub 上的 ' + file + ' 已更新成最新版，再按 Ctrl+F5 強制重新整理。</div>' +
+                '<button onclick="this.parentNode.style.display=\'none\'" style="border:none;background:none;color:#fff;font-size:18px;cursor:pointer;line-height:1">✕</button>';
+  b.style.display = 'flex';
+}
+
 // ── 全域：等待 iframe 回報 ready 的 pending idx ──
 var _pendingIframeIdx = null;
 
 // ── 監聽 iframe 傳來的 ready 和 navigate 訊息 ──
 window.addEventListener('message', function(e) {
   var frame = document.getElementById('contentFrame');
+  if (e.data && e.data.type === 'pageBuild') { _pageBuild[e.data.page] = e.data.build; return; }
   if (!frame) return;
 
   // iframe 說「我準備好了，請給我 idx」
@@ -2671,6 +2699,7 @@ function showHistoryEvent(id) {
   showIframe('current-events.html');   // 沿用原本的切頁流程（關選單、更新 hash）
   var frame = document.getElementById('contentFrame');
   frame.src = 'current-events.html?_t=' + Date.now() + '&history=' + encodeURIComponent(id);
+  _verCheckStart('current-events.html');
 }
 
 // ── 結束事件（管理員）──

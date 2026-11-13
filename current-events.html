@@ -696,6 +696,22 @@ cursor: pointer; transition: background .15s;
 
 <!-- 懸浮事件卡片 -->
 
+<style>
+.ev-sel-bar { padding: 8px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; font-size: 12px; }
+.ev-sel-lbl { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #3d5070; font-weight: 600; }
+.ev-sel-lbl input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.ev-sel-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.ev-sel-hint { color: var(--text-muted); }
+.ev-sel-chip { display: inline-flex; align-items: center; background: #e0e9ff; border: 1px solid #bcd0ff; border-radius: 12px; padding: 1px 2px 1px 8px; }
+.ev-sel-chip a { cursor: pointer; color: var(--accent); font-weight: 600; }
+.ev-sel-chip button { border: none; background: none; cursor: pointer; color: #6b7a92; padding: 0 6px; font-size: 12px; }
+.ev-sel-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #1e2a3a; }
+.ev-sel-nav button { width: 34px; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+.ev-sel-nav button:disabled { opacity: .35; cursor: not-allowed; }
+.ev-name-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.92); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.layer-warn { font-size: 12px; line-height: 1.5; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
+.layer-for { font-size: 11px; color: #6b7a92; padding: 0 2px 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+</style>
 <div class="ev-card" id="evCard">
   <div class="ev-card-header">
     <div class="ev-card-title">
@@ -710,6 +726,7 @@ cursor: pointer; transition: background .15s;
     <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯" style="display:none">&#x270F;&#xFE0F; 編輯</button>
     <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
   </div>
+  <div class="ev-sel-bar" id="evSelBar" style="display:none"></div>
   <div class="ev-card-body" id="evCardBody">
     <div class="ev-loading">&#x23F3; 載入中…</div>
   </div>
@@ -935,7 +952,7 @@ cursor: pointer; transition: background .15s;
           <span id="mqRefreshDot" style="display:none;width:7px;height:7px;border-radius:50%;background:#16a34a;animation:rfpulse 1.5s ease infinite"></span>
           ↻ 自動刷新
         </button>
-        <button onclick="mqExportCSV()" style="border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">↓ 匯出</button>
+        <button id="mqExportBtn" onclick="mqExportCSV()" style="border:1px solid var(--border);border-radius:6px;padding:5px 11px;background:none;font-family:var(--font);font-size:13px;color:var(--text-muted);cursor:pointer">↓ 匯出</button>
       </div>
       <button class="chg-btn-cancel" onclick="closeMsrQueryModal()">關閉</button>
     </div>
@@ -998,7 +1015,11 @@ cursor: pointer; transition: background .15s;
       <!-- 定位 -->
       <div>
         <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📍 定位座標</div>
-        <div id="msrCoordVal" style="font-size:12px;font-family:ui-monospace,monospace;color:#1a56db;background:#f0f4ff;padding:6px 10px;border-radius:6px">取得中…</div>
+        <div style="display:flex;gap:8px;align-items:stretch">
+          <div id="msrCoordVal" style="flex:1;min-width:0;font-size:12px;font-family:ui-monospace,monospace;color:#1a56db;background:#f0f4ff;padding:6px 10px;border-radius:6px;word-break:break-all">取得中…</div>
+          <button id="msrPickBtn" type="button" onclick="msrStartPick()" style="flex-shrink:0;padding:0 10px;border:1px solid #bfdbfe;border-radius:6px;background:#fff;color:#1a56db;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">📌 地圖選點</button>
+        </div>
+        <div id="msrCoordNote" style="display:none;margin-top:4px;font-size:12px;line-height:1.5"></div>
       </div>
       <!-- 回報人員 -->
       <div>
@@ -1083,6 +1104,12 @@ cursor: pointer; transition: background .15s;
           style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
           font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
+      </div>
+      <!-- 照片 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📷 現場照片（選填）</div>
+        <input id="msrPhotoInp" type="file" accept="image/*" onchange="msrOnPhoto(this)" style="font-size:14px;max-width:100%">
+        <div id="msrPhotoPrev"></div>
       </div>
     </div>
     <!-- 底部按鈕 -->
@@ -1444,7 +1471,7 @@ function onAngleInput(val) {
   document.getElementById('editWindDir').value = val;
   var ev = _events[_curIdx];
   if (ev) {
-    ev.windDir = val;
+    ev.windDir = val; ev.windDirRaw = val;
     // 清除插值格點，讓風場立即用新方向（不等多站資料）
     _windFieldGrid = null;
     buildEventLayers(_curIdx);
@@ -1569,6 +1596,74 @@ function _onMapClickForLocPick(e) {
   // ★ 不關閉點選模式，讓使用者可繼續點選更新
 }
 
+// ════════════════════════════════════════════════════════════════
+// 風向規則
+//  · 事件的風向在「建立事件」時就記進試算表，之後固定不動：氣象署後來的風向變化，不會讓扇形、橫切面、點位跟著轉
+//  · 風向只有兩種情況會改：
+//      ① 有人在「編輯事件」手動改（或按「從氣象局抓取」再儲存）
+//      ② 事件一直沒有有效風向（建立時抓不到、或記的是異常代碼）時，平台自動補上第一筆有效值並寫入試算表
+//  · 沒有有效風向時，不畫扇形、橫切面、附近場域（只畫 100m 圓），圖層面板會提示
+// ════════════════════════════════════════════════════════════════
+// 風向是否為有效角度（0~360）；氣象署的異常代碼（X 儀器故障、-99 缺值、990 風向不定）與空白都不算。回傳數字或 null
+function _validWindDir(v) {
+  var t = String(v == null ? '' : v).trim();
+  if (t === '' || t === 'X' || t === '-99' || t === '990') return null;
+  var n = parseFloat(t);
+  return (isNaN(n) || n < 0 || n > 360) ? null : n;
+}
+// 整理事件的風向欄位：ev.windDir 只留有效角度（字串，連 0 度也算有效），原始值（含異常代碼）放 ev.windDirRaw 供畫面顯示
+function _normEvWind(ev) {
+  var raw = String(ev.windDir == null ? '' : ev.windDir).trim();
+  ev.windDirRaw = raw;
+  ev.windDir = (_validWindDir(raw) === null) ? '' : raw;
+  ev.windSpeed = String(ev.windSpeed == null ? '' : ev.windSpeed).trim();
+}
+function _windNeedsFill(ev) { return _validWindDir(ev.windDir) === null; }
+
+// 風向改變後，更新畫面
+function _afterWindChanged(idx) {
+  var ev = _events[idx];
+  if (!ev) return;
+  if (idx === _curIdx) {
+    renderCard(idx);
+    buildEventLayers(idx);
+    var wdOk = _validWindDir(ev.windDir) !== null;
+    var cbWind = document.getElementById('lyr_wind');
+    if (!wdOk && _windLayerOn) {
+      _windLayerOn = false;
+      if (cbWind) cbWind.checked = false;
+      _stopWindLayer();
+    } else if (wdOk && _windLayerOn) {
+      _refreshWindIfOn();
+    }
+    _applyEventLayerPrefs();
+    renderLayerPanel();
+  } else if (isEventShown(idx)) {
+    buildEventLayers(idx);
+  }
+}
+
+// 以試算表的風向為準（補風向後，可能已經被別人先補上了）
+function _syncWindFromSheet(idx) {
+  var ev = _events[idx];
+  if (!ev) return;
+  var evId = ev.id;
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (!data || !data.events) return;
+    var fresh = null;
+    data.events.forEach(function(e) { if (String(e.id) === String(evId)) fresh = e; });
+    var cur = _events[idx];
+    if (!fresh || !cur || cur.id !== evId) return;
+    var wd = String(fresh.windDir == null ? '' : fresh.windDir).trim();
+    var ws = String(fresh.windSpeed == null ? '' : fresh.windSpeed).trim();
+    if (_validWindDir(wd) === null) return;
+    if (wd === cur.windDir && ws === cur.windSpeed) return;
+    cur.windDir = wd; cur.windSpeed = ws;
+    _normEvWind(cur);
+    _afterWindChanged(idx);
+  });
+}
+
 function fetchCwaWind(autoIdx) {
   var isAuto = (typeof autoIdx === 'number');
   var idx = isAuto ? autoIdx : _curIdx;
@@ -1577,8 +1672,8 @@ function fetchCwaWind(autoIdx) {
     if (!isAuto) showToast('事件缺少座標，無法查詢');
     return;
   }
-  // ★ 自動輪詢時，若使用者已手動儲存風向，不覆蓋（手動優先於氣象署）
-  if (isAuto && ev.windManual) return;
+  // 自動補抓：事件已經有有效風向（建立事件時記下的）就固定不動；歷史檢視、手動鎖定的事件也不補
+  if (isAuto && (_historyId || ev.windManual || !_windNeedsFill(ev))) return;
 
   if (!isAuto) {
     var btn = document.getElementById('cwaFetchBtn');
@@ -1605,69 +1700,62 @@ function fetchCwaWind(autoIdx) {
 
     if (!data) return;
 
-    // 取得抓取時間
     var now = new Date();
     var pad = function(n){ return String(n).padStart(2,'0'); };
     var fetchTime = pad(now.getHours()) + ':' + pad(now.getMinutes());
 
-    // 更新事件快取
+    // ── 自動補抓：只接受有效風向，寫入試算表後固定 ──
+    if (isAuto) {
+      if (_validWindDir(data.windDir) === null) return;   // 異常代碼不寫入，下一輪再試
+      if (!_windNeedsFill(ev)) return;                    // 等待期間已被補上
+      ev.windDir = String(data.windDir);
+      ev.windSpeed = String(data.windSpeed == null ? '' : data.windSpeed);
+      ev.windFetchTime = fetchTime;
+      _normEvWind(ev);
+      // GAS 只有在試算表裡還沒有有效風向時才會寫入（多人同時開地圖，只有第一個會寫入）
+      fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'setInitialWind', eventId: ev.id, windDir: ev.windDir, windSpeed: ev.windSpeed }) });
+      setTimeout(function() { _syncWindFromSheet(idx); }, 2500);
+      _afterWindChanged(idx);
+      return;
+    }
+
+    // ── 手動按「從氣象局抓取」：先套到畫面預覽，按儲存才會寫入試算表 ──
     ev.windDir       = String(data.windDir   || '');
     ev.windSpeed     = String(data.windSpeed || '');
     ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
-    // 手動按「從氣象局抓取」→ 清除手動旗標，之後自動輪詢可正常更新
-    if (!isAuto) {
-      ev.windManual = false;
-      // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
-      fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
-        body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
-    }
+    _normEvWind(ev);
+    // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
+    ev.windManual = false;
+    fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
+    _afterWindChanged(idx);
 
-    // 判斷是否為有效風向（排除特殊異常值）
-    var _wdNormal = ev.windDir && ev.windDir !== ''
-                    && ev.windDir !== 'X' && ev.windDir !== '-99' && ev.windDir !== '990';
-
-    // 若是目前顯示的事件，更新卡片和圖層
-    if (idx === _curIdx) {
-      renderCard(idx);
-      buildEventLayers(idx);
-      // ★ 若風向失效且目前風向圖層開著，自動關閉
-      var _cbWind = document.getElementById('lyr_wind');
-      if (!_wdNormal && _windLayerOn) {
-        _windLayerOn = false;
-        if (_cbWind) _cbWind.checked = false;
-        _stopWindLayer();
-      } else if (_wdNormal && _windLayerOn) {
-        _refreshWindIfOn(); // 風速/風向更新，重啟粒子
-      }
-    }
-
-    // 手動模式：更新編輯面板欄位（如果面板是開的）
-    if (!isAuto) {
-      var edi = document.getElementById('editWindDir');
-      var ews = document.getElementById('editWindSpeed');
-      var sts3 = document.getElementById('cwaFetchStatus');
-      if (edi) edi.value = data.windDir   || '';
-      if (ews) ews.value = data.windSpeed || '';
-      var d = parseInt(data.windDir) || 0;
-      var sldr = document.getElementById('editAngle');
-      if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
-      if (sts3) {
-        sts3.style.color = '#16a34a';
-        sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
-                         + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
-      }
+    // 更新編輯面板欄位（如果面板是開的）
+    var edi = document.getElementById('editWindDir');
+    var ews = document.getElementById('editWindSpeed');
+    var sts3 = document.getElementById('cwaFetchStatus');
+    if (edi) edi.value = data.windDir   || '';
+    if (ews) ews.value = data.windSpeed || '';
+    var d = parseInt(data.windDir) || 0;
+    var sldr = document.getElementById('editAngle');
+    if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
+    if (sts3) {
+      sts3.style.color = '#16a34a';
+      sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
+                       + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
     }
   });
 }
 
-// ── 啟動自動輪詢（載入後立即抓一次，之後每 5 分鐘） ──
+// ── 啟動補風向輪詢（載入後立即檢查一次，之後每 5 分鐘）：只處理「還沒有有效風向」的事件 ──
 function startCwaAutoFetch() {
   if (_cwaTimer) clearInterval(_cwaTimer);
   function fetchAll() {
     _events.forEach(function(ev, i) {
       if (!ev.lat || !ev.lng) return;
-      // 只要曾手動儲存過風向，就不自動抓，直到使用者手動按「從氣象局抓取」
       if (ev.windManual) return;
+      if (!_windNeedsFill(ev)) return;   // 已有有效風向 → 固定不動
       fetchCwaWind(i);
     });
   }
@@ -1718,6 +1806,7 @@ function saveEdit() {
     // 更新本地快取
     ev.windDir    = payload.windDir;
     ev.windSpeed  = payload.windSpeed;
+    _normEvWind(ev);
     ev.windManual = true;
     if (payload.name)    ev.name    = payload.name;
     if (payload.type)    ev.type    = payload.type;
@@ -1739,7 +1828,6 @@ function saveEdit() {
     // 重建該事件圖層（風向可能更新）
     buildEventLayers(_curIdx);
     _refreshWindIfOn(); // 重新初始化風向粒子
-    if (_contourLayerOn) renderContourLayer(); // 等值線也重繪
     // 先更新原始風向記錄，避免 toggleEditPanel 還原成舊值
     _editOrigWindDir = ev.windDir;
     // 關閉面板，重新渲染卡片
@@ -1773,6 +1861,8 @@ function navEvent(dir) {
   _curIdx = Math.max(0, Math.min(_events.length - 1, _curIdx + dir));
   if (_navFollowing) stopNavMode();
   renderCard(_curIdx);
+  refreshShownEvents();   // 地圖只留「目前事件＋選定事件」
+  _refreshMobEvPanel();
   flyToEvent(_curIdx);
 
   // ★ 若切換到無風向的事件，自動關閉風向圖層
@@ -1811,6 +1901,7 @@ function parseDetectorTypes(instrStr) {
 
 // ── 渲染卡片 ──
 function renderCard(idx) {
+  _renderSelBar();
   _onCurEventShown(idx);   // 切換事件時：載入該事件的標註與 KMZ 模擬摘要（同一事件不重複載入）
   // 每次切換事件都寫入 sessionStorage，讓其他頁面知道目前是哪筆
   try { sessionStorage.setItem('currentEventIdx', idx); } catch(e) {}
@@ -1899,7 +1990,7 @@ function renderCard(idx) {
   html += '</div>';
 
   // 風向 + 風速 + 抓取時間（三欄分開顯示）
-  var _wdRaw = ev.windDir      || '';
+  var _wdRaw = ev.windDirRaw || ev.windDir || '';
   var _wsRaw = ev.windSpeed    || '';
   var _wtRaw = ev.windFetchTime|| '';  // 抓取時間（前端暫存，不存 Sheet）
   function _fmtWind(raw) {
@@ -1971,6 +2062,7 @@ var _mqTimer       = null;
 function openMsrQueryModal() {
   _checkModalConflict('msrQuery', function() {
     document.getElementById('msrQueryModal').classList.add('show');
+    var _xb = document.getElementById('mqExportBtn'); if (_xb) _xb.style.display = _loginIsAdmin ? '' : 'none';
     _setActiveModal('msrQuery');
     _mqFilter   = 'all';
     _mqSortDesc = true;
@@ -2068,7 +2160,7 @@ function _drawMsrTable(allRows) {
   html += '<div style="font-size:13px;color:var(--text-muted);padding:6px 0 10px">顯示 '+filtered.length+' 筆'+(filtered.length<allRows.length?'（共 '+allRows.length+' 筆）':'')+' </div>';
   html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
-  ['#','時間','回報人員','數值','使用儀器','定位'].forEach(function(h){
+  ['#','時間','回報人員','數值','使用儀器','定位','照片'].forEach(function(h){
     html += '<th style="font-size:13px;color:#6b7a92;font-weight:600;padding:10px 14px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">'+_esc(h)+'</th>';
   });
   html += '</tr></thead><tbody>';
@@ -2084,6 +2176,7 @@ function _drawMsrTable(allRows) {
     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
       gpsHtml = '<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:var(--accent);font-size:11px;font-family:monospace;text-decoration:none;background:#eff6ff;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">'+lat.toFixed(4)+','+lng.toFixed(4)+'</a>';
     }
+    if (row.posMode === '手動選點') gpsHtml += ' <span title="手動選點" style="font-size:10px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 4px">手動</span>';
     html += '<tr style="border-bottom:1px solid #f0f4f8">';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;font-family:monospace;white-space:nowrap">'+(i+1)+'</td>';
     html += '<td style="padding:10px 14px;font-size:13px;font-family:monospace;white-space:nowrap;color:#3d5070">'+_esc(_mqFmtTime(row.time))+'</td>';
@@ -2102,6 +2195,10 @@ function _drawMsrTable(allRows) {
     html += '<td style="padding:10px 14px;white-space:nowrap"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:3px 12px;border-radius:5px;white-space:nowrap;display:inline-block">'+_esc(valTxt)+' '+_esc(_dispUnit)+'</span></td>';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;white-space:nowrap">'+_esc(row.instrument||'—')+'</td>';
     html += '<td style="padding:10px 14px;white-space:nowrap">'+gpsHtml+'</td>';
+    var phHtml = row.photoId
+      ? '<a href="'+_esc(row.photoUrl)+'" target="_blank" rel="noopener" title="開啟照片"><img alt="現場照片" loading="lazy" src="'+_frThumb(row,200)+'" style="display:block;height:40px;max-width:72px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
+      : '<span style="color:#b0bec5;font-size:12px">—</span>';
+    html += '<td style="padding:6px 14px;white-space:nowrap">'+phHtml+'</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -2184,6 +2281,7 @@ function mqToggleAutoRefresh() {
   }
 }
 function mqExportCSV() {
+  if (!_loginIsAdmin) { showToast('僅管理員可匯出'); return; }
   var ev = _events[_curIdx];
   if (!ev) { showToast('無可匯出的事件'); return; }
   var rows = _msrCache[ev.id];
@@ -2793,13 +2891,11 @@ function flyToEvent(idx) {
   if (ev.windDir && ev.windDir !== '') {
     _windDeg = (parseFloat(ev.windDir) + 180) % 360;
   }
-  // 高亮當前標記
-  _markers.forEach(function(m, i) {
-    var el = m.getElement ? m.getElement() : null;
-    if (el) el.style.opacity = (i === idx) ? '1' : '0.45';
-  });
+  // 圖釘：目前事件加光圈、其他事件稍淡（只在同時顯示多個事件時）
+  _syncEventMarkers();
   // 更新半透明圓形
   buildEventLayers(idx); // 重建該事件圖層（可能風向有更新）
+  if (window.frLoad) frLoad();
   loadMeasurements(idx, true);
   startMsrTimer(idx);
 }
@@ -2826,6 +2922,187 @@ function destPoint(lat, lng, bearingDeg, distM) {
   return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
 }
 
+// ════════════════════════════════════════════════════════════════
+// 量測點位手動調整（5km 扇形的 1~10 號、1km 橫切面的 A01~A20）
+//  · 預設：依事件位置、風向算出來
+//  · 管理員在「編輯地圖」模式下可以把點拖到可抵達的位置；扇形、橫切面的圖形不會跟著動
+//  · 改過的位置存在雲端（GAS「量測點位調整」分頁），所有人、所有裝置看到的都一樣；編號不變
+//  · 導航點位、派送任務也都改用調整後的位置；已經派送出去的任務不會跟著變
+// ════════════════════════════════════════════════════════════════
+var _ptOv = {};          // eventId → { label: {lat, lng, by, time} }
+var _ptOvReady = {};     // eventId → 已讀回（或讀取失敗）
+var _ptOvLoading = {};
+var _ptOvSig = {};
+var _ptDragging = false;
+
+function _ptSig(map) {
+  return Object.keys(map || {}).sort().map(function(k) { return k + ':' + map[k].lat.toFixed(6) + ',' + map[k].lng.toFixed(6); }).join('|');
+}
+function _ptPos(ev, label, def) {
+  var o = _ptOv[ev.id] && _ptOv[ev.id][label];
+  return o ? [o.lat, o.lng] : def;
+}
+function _ptMoved(ev, label) { return !!(_ptOv[ev.id] && _ptOv[ev.id][label]); }
+function _canDragPts() { return !!(_loginIsAdmin && _mapEditOn && !_historyId); }
+
+function _loadPtOverrides(ev, cb) {
+  var evId = ev.id;
+  function apply(map) {
+    var sig = _ptSig(map);
+    var changed = (_ptOvSig[evId] !== sig) || !_ptOvReady[evId];
+    _ptOv[evId] = map; _ptOvSig[evId] = sig; _ptOvReady[evId] = true; _ptOvLoading[evId] = false;
+    if (cb) cb(changed);
+  }
+  // 讀不到（網路或 GAS 尚未更新）時 4 秒後就當作沒有調整，不要讓點位一直不出現
+  var guard = setTimeout(function() { if (!_ptOvReady[evId]) apply(_ptOv[evId] || {}); }, 4000);
+  _jsonpGet(SHEETS_URL + '?action=getPointOverrides&eventId=' + encodeURIComponent(evId), function(data) {
+    clearTimeout(guard);
+    var map = {};
+    ((data && data.points) || []).forEach(function(q) {
+      var la = parseFloat(q.lat), lo = parseFloat(q.lng);
+      if (q.label && !isNaN(la) && !isNaN(lo)) map[String(q.label)] = { lat: la, lng: lo, by: q.by || '', time: q.time || '' };
+    });
+    apply(map);
+  });
+}
+function _ensurePtOverrides(idx) {
+  var ev = _events[idx];
+  if (!ev || _ptOvReady[ev.id] || _ptOvLoading[ev.id]) return;
+  _ptOvLoading[ev.id] = true;
+  _loadPtOverrides(ev, function() { if (isEventShown(idx)) buildEventLayers(idx); });
+}
+// 每 15 秒同步別人調整的位置（拖曳中不更新）
+setInterval(function() {
+  if (document.hidden || _ptDragging) return;
+  _events.forEach(function(ev, i) {
+    if (!isEventShown(i) || !_ptOvReady[ev.id]) return;
+    _loadPtOverrides(ev, function(changed) {
+      if (!changed || _ptDragging) return;
+      buildEventLayers(i); _renderPtResetRow();
+      if (i === _curIdx) _refreshNavPoints();
+    });
+  });
+}, 15000);
+
+function _ptIcon(label, kind, moved) {
+  var bd = moved ? '#f97316' : 'white';
+  if (kind === 'sector') {
+    var sh = moved ? '0 0 0 3px rgba(249,115,22,.6),0 1px 5px rgba(0,0,0,.45)' : '0 1px 5px rgba(0,0,0,.45)';
+    return L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;background:#8b5cf6;border:2px solid ' + bd + ';' +
+            'display:flex;align-items:center;justify-content:center;font-size:' + (label === '10' ? 9 : 11) + 'px;font-weight:700;color:white;' +
+            'box-shadow:' + sh + ';font-family:ui-monospace,monospace">' + label + '</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+  }
+  var sh2 = moved ? '0 0 0 3px rgba(249,115,22,.6),0 1px 4px rgba(0,0,0,.4)' : '0 1px 4px rgba(0,0,0,.4)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:2px solid ' + bd + ';' +
+          'display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white;' +
+          'box-shadow:' + sh2 + ';font-family:ui-monospace,monospace">' + parseInt(label.slice(1), 10) + '</div>',
+    iconSize: [18, 18], iconAnchor: [9, 9]
+  });
+}
+
+function _ptBindInfo(mk, ev, moved) {
+  var km = (gMap.distance([parseFloat(ev.lat), parseFloat(ev.lng)], mk.getLatLng()) / 1000).toFixed(1);
+  mk.unbindTooltip();
+  mk.bindTooltip(mk._ptLabel + '：' + mk._ptTip + (moved ? '（已手動調整・距事發點 ' + km + ' km）' : ''), { permanent: false, direction: 'top' });
+  mk.unbindPopup();
+  if (_canDragPts()) {
+    mk.bindPopup(
+      '<div style="min-width:170px;font-family:var(--font)"><b>' + _esc(mk._ptLabel) + '</b>　' + _esc(mk._ptTip) + '<br>' +
+      '<span style="font-size:12px;color:#6b7a92">距事發點 ' + km + ' km' + (moved ? '｜已手動調整' : '') + '</span>' +
+      (moved
+        ? '<div style="margin-top:8px"><button class="fr-mini" onclick="restorePt(\'' + _esc(ev.id) + '\',\'' + _esc(mk._ptLabel) + '\')">↺ 還原此點</button></div>'
+        : '<div style="margin-top:6px;font-size:12px;color:#94a3b8">可拖曳到可抵達的位置</div>') +
+      '</div>');
+  }
+}
+
+// 建立一個量測點位圖釘（預設位置 def；有調整就用調整後的位置）
+function _mkPtMarker(ev, label, def, kind, tip) {
+  var moved = _ptMoved(ev, label);
+  var mk = L.marker(_ptPos(ev, label, def), { icon: _ptIcon(label, kind, moved), draggable: _canDragPts(), autoPan: true }).addTo(gMap);
+  mk._ptLabel = label; mk._ptEvId = ev.id; mk._ptDef = def; mk._ptKind = kind; mk._ptTip = tip;
+  _ptBindInfo(mk, ev, moved);
+  mk.on('popupopen', function() { mk.closeTooltip(); });   // 點開說明框時，不要同時再顯示提示字
+  mk.on('dragstart', function() { _ptDragging = true; mk.closeTooltip(); mk.closePopup(); });
+  mk.on('dragend', function() { _ptDragging = false; _onPtDragEnd(mk); });
+  return mk;
+}
+
+// 這個點有沒有已經派送給某隊（回傳隊別，沒有就回空字串）
+function _ptDispatchedTo(evId, label) {
+  for (var i = 0; i < _pendingMsrMks.length; i++) {
+    var m = _pendingMsrMks[i];
+    if (m._evId === evId && m._label === label) return m._squad || '某隊';
+  }
+  return '';
+}
+
+function _onPtDragEnd(mk) {
+  var ev = _evById(mk._ptEvId);
+  if (!ev) return;
+  var ll = mk.getLatLng(), label = mk._ptLabel;
+  // 拖回原位附近（畫面上 5 像素內）→ 視為還原
+  if (gMap.latLngToContainerPoint(mk._ptDef).distanceTo(gMap.latLngToContainerPoint(ll)) < 5) { restorePt(ev.id, label); return; }
+  if (!_ptOv[ev.id]) _ptOv[ev.id] = {};
+  _ptOv[ev.id][label] = { lat: ll.lat, lng: ll.lng, by: _loginUserName || '', time: '' };
+  _ptOvSig[ev.id] = _ptSig(_ptOv[ev.id]);
+  mk.setIcon(_ptIcon(label, mk._ptKind, true));
+  _ptBindInfo(mk, ev, true);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'setPointOverride', eventId: ev.id, label: label, lat: ll.lat, lng: ll.lng }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  _refreshNavPoints();
+  _renderPtResetRow();
+  var sq = _ptDispatchedTo(ev.id, label);
+  if (sq) showToast('⚠️ ' + label + ' 號點已派送給「' + sq + '」，任務上的位置不會跟著改，請重新派送');
+}
+
+function restorePt(evId, label) {
+  var ev = _evById(evId);
+  if (!ev) return;
+  if (_ptOv[evId]) delete _ptOv[evId][label];
+  _ptOvSig[evId] = _ptSig(_ptOv[evId]);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'clearPointOverride', eventId: evId, label: label }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  gMap.closePopup();
+  for (var i = 0; i < _events.length; i++) if (_events[i].id === evId) { buildEventLayers(i); break; }
+  _refreshNavPoints();
+  _renderPtResetRow();
+}
+function restoreAllPts() {
+  var ev = _events[_curIdx];
+  if (!ev || !_ptOv[ev.id]) return;
+  var n = Object.keys(_ptOv[ev.id]).length;
+  if (!n || !confirm('確定要把「' + (ev.name || ev.id) + '」手動調整過的 ' + n + ' 個量測點全部還原成預設位置嗎？')) return;
+  _ptOv[ev.id] = {}; _ptOvSig[ev.id] = '';
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'clearPointOverrides', eventId: ev.id }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  buildEventLayers(_curIdx);
+  _refreshNavPoints();
+  _renderPtResetRow();
+}
+// 圖層面板底下的「全部還原」（管理員、編輯地圖模式、有調整過的點才出現）
+function _renderPtResetRow() {
+  var body = document.getElementById('layerPanelBody');
+  if (!body) return;
+  var old = document.getElementById('ptResetRow');
+  if (old) old.remove();
+  var ev = _events[_curIdx];
+  if (!ev || !_canDragPts()) return;
+  var n = Object.keys(_ptOv[ev.id] || {}).length;
+  if (!n) return;
+  var d = document.createElement('div');
+  d.id = 'ptResetRow';
+  d.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border)';
+  d.innerHTML = '<button class="fr-mini" style="width:100%" onclick="restoreAllPts()">↺ 還原手動調整的量測點（' + n + '）</button>';
+  body.appendChild(d);
+}
+
 // ── 建立某個事件的圖層 ──
 function buildEventLayers(idx) {
   var ev = _events[idx];
@@ -2834,21 +3111,22 @@ function buildEventLayers(idx) {
   if (isNaN(la) || isNaN(lo)) return;
 
   // 取該事件的風向（有設定用設定值，否則預設270）
-  var wd = (ev.windDir && ev.windDir !== '') ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+  // 風向 = 事件記錄的風向（建立事件時存入，之後固定）。沒有有效風向時不畫需要方向的圖層，只畫 100m 圓
+  var hasDir = !!(ev.windDir && ev.windDir !== '');
+  var wd = hasDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
 
   // 移除舊圖層
   removeEventLayers(idx);
   if (!_evLayers[idx]) _evLayers[idx] = {};
+  // 量測點位要等「手動調整」讀回來才畫（避免先閃一下預設位置）；讀回後會自動重畫
+  var ptReady = !!_ptOvReady[ev.id];
+  if (!ptReady) _ensurePtOverrides(idx);
 
   // checkbox 狀態
   var showCircle     = isLayerOn(idx, 'circle');
-  var showLine       = isLayerOn(idx, 'line');
-  var showSector     = isLayerOn(idx, 'sector');
-  var showNearby     = isLayerOn(idx, 'nearby');
-  var showMiniCircle = isLayerOn(idx, 'mini_circle');
-  var showMiniLine   = isLayerOn(idx, 'mini_line');
-  var showMiniArea   = isLayerOn(idx, 'mini_area');
-  var showMiniSector = isLayerOn(idx, 'mini_sector');
+  var showLine       = hasDir && isLayerOn(idx, 'line');
+  var showSector     = hasDir && isLayerOn(idx, 'sector');
+  var showNearby     = hasDir && isLayerOn(idx, 'nearby');
 
   // (1) 100m 圓
   if (showCircle) {
@@ -2882,26 +3160,16 @@ function buildEventLayers(idx) {
       color: '#3b82f6', weight: 3, opacity: 0.85, dashArray: '8 4'
     }).addTo(gMap);
 
-    // ── 橫切面 20 等分點（編號 A01~A20，藍色小點）跟隨 1km 橫切面開關 ──
+    // ── 橫切面 20 等分點（編號 A01~A20，藍色小點）跟隨 1km 橫切面開關；管理員可拖曳調整位置（橫切面的線不動）──
     var crossMks = [];
-    for (var ci = 0; ci < 20; ci++) {
-      var t  = ci / 19;
-      var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
-      var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
-      var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
-      var cIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#3b82f6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:8px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + (ci+1) + '</div>',
-        iconSize: [18, 18], iconAnchor: [9, 9]
-      });
-      var cMk = L.marker([cLat, cLng], { icon: cIcon }).addTo(gMap);
-      cMk.bindTooltip(cLabel + '：橫切面', { permanent: false, direction: 'top' });
-      crossMks.push(cMk);
+    if (ptReady) {
+      for (var ci = 0; ci < 20; ci++) {
+        var t  = ci / 19;
+        var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
+        var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
+        var cLabel = 'A' + (ci + 1 < 10 ? '0' + (ci + 1) : '' + (ci + 1));
+        crossMks.push(_mkPtMarker(ev, cLabel, [cLat, cLng], 'cross', '橫切面'));
+      }
     }
     _evLayers[idx].crossMks = crossMks;
   }
@@ -2932,189 +3200,31 @@ function buildEventLayers(idx) {
     var arc4 = [];
     for (var a4 = 0; a4 <= 24; a4++) arc4.push(destPoint(la, lo, (wd - 22.5) + 45 * a4 / 24, 4000));
     _evLayers[idx].arc4 = L.polyline(arc4, { color: '#8b5cf6', weight: 1.5, opacity: 0.65, dashArray: '5 4' }).addTo(gMap);
-    // ── 編號1：1km 中線點（藍色，跟隨 5km 扇形）──
-    var pt1 = destPoint(la, lo, wd, 1000);
-    var icon1 = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#8b5cf6;border:2px solid white;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'font-size:11px;font-weight:700;color:white;' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-            'font-family:ui-monospace,monospace">1</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
-    var mk1 = L.marker(pt1, { icon: icon1 }).addTo(gMap);
-    mk1.bindTooltip('1：1km × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk1 = mk1;
-
-    // ── 編號2：500m 中線點（橘色，跟隨 5km 扇形）──
-    var pt2 = destPoint(la, lo, wd, 500);
-    var icon2 = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;border-radius:50%;' +
-            'background:#8b5cf6;border:2px solid white;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'font-size:11px;font-weight:700;color:white;' +
-            'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-            'font-family:ui-monospace,monospace">2</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
-    var mk2 = L.marker(pt2, { icon: icon2 }).addTo(gMap);
-    mk2.bindTooltip('2：500m × 中線', { permanent: false, direction: 'top' });
-    _evLayers[idx].ptMk2 = mk2;
-
-    // ── 8 個編號交叉點（3~10）──
-    // 越內圈編號越小
-    var crossDefs = [
-      { label: '3',  pt: destPoint(la, lo, wd,        2000), tip: '2km × 中線' },
-      { label: '4',  pt: destPoint(la, lo, wd - 22.5, 3000), tip: '3km × 扇形上緣' },
-      { label: '5',  pt: destPoint(la, lo, wd,        3000), tip: '3km × 中線' },
-      { label: '6',  pt: destPoint(la, lo, wd + 22.5, 3000), tip: '3km × 扇形下緣' },
-      { label: '7',  pt: destPoint(la, lo, wd,        4000), tip: '4km × 中線' },
-      { label: '8',  pt: destPoint(la, lo, wd - 22.5, 5000), tip: '5km × 扇形上緣' },
-      { label: '9',  pt: destPoint(la, lo, wd,        5000), tip: '5km × 中線' },
-      { label: '10', pt: destPoint(la, lo, wd + 22.5, 5000), tip: '5km × 扇形下緣' },
-    ];
-
-    var sectorMks = [];
-    crossDefs.forEach(function(def) {
-      var isDouble = def.label === '10'; // 兩位數字要稍小
-      var icon = L.divIcon({
-        className: '',
-        html: '<div style="' +
-              'width:22px;height:22px;border-radius:50%;' +
-              'background:#8b5cf6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:' + (isDouble ? '9' : '11') + 'px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 5px rgba(0,0,0,.45);' +
-              'font-family:ui-monospace,monospace' +
-              '">' + def.label + '</div>',
-        iconSize: [22, 22], iconAnchor: [11, 11]
+    // ── 扇形量測點 1~10：預設依事件位置、風向算出；管理員可拖曳調整位置（扇形本身不動）──
+    if (ptReady) {
+      var secDefs = [
+        { label: '1',  tip: '1km × 中線',     pt: destPoint(la, lo, wd,        1000) },
+        { label: '2',  tip: '500m × 中線',    pt: destPoint(la, lo, wd,         500) },
+        { label: '3',  tip: '2km × 中線',     pt: destPoint(la, lo, wd,        2000) },
+        { label: '4',  tip: '3km × 扇形上緣', pt: destPoint(la, lo, wd - 22.5, 3000) },
+        { label: '5',  tip: '3km × 中線',     pt: destPoint(la, lo, wd,        3000) },
+        { label: '6',  tip: '3km × 扇形下緣', pt: destPoint(la, lo, wd + 22.5, 3000) },
+        { label: '7',  tip: '4km × 中線',     pt: destPoint(la, lo, wd,        4000) },
+        { label: '8',  tip: '5km × 扇形上緣', pt: destPoint(la, lo, wd - 22.5, 5000) },
+        { label: '9',  tip: '5km × 中線',     pt: destPoint(la, lo, wd,        5000) },
+        { label: '10', tip: '5km × 扇形下緣', pt: destPoint(la, lo, wd + 22.5, 5000) }
+      ];
+      var sectorMks = [];
+      secDefs.forEach(function(d) {
+        var mk = _mkPtMarker(ev, d.label, d.pt, 'sector', d.tip);
+        if (d.label === '1') _evLayers[idx].ptMk1 = mk;
+        else if (d.label === '2') _evLayers[idx].ptMk2 = mk;
+        else sectorMks.push(mk);
       });
-      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
-      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
-      sectorMks.push(mk);
-    });
-    _evLayers[idx].sectorMks = sectorMks;
-  }
-
-  // ══════════════════════════════════════════════
-  // 縮小版圖層（等比例縮小50倍，供室內模擬演練）
-  // ══════════════════════════════════════════════
-
-  // (4) 2m 範圍圓（模擬 100m，縮小50倍）
-  if (showMiniCircle) {
-    _evLayers[idx].miniCircle = L.circle([la, lo], {
-      radius: 20, color: '#f97316', fillColor: '#f97316',
-      fillOpacity: 0.15, weight: 2, dashArray: '4 3', opacity: 0.8
-    }).addTo(gMap);
-  }
-
-  // (5) 20m 橫切面（模擬 1km，縮小50倍）+ 5個量測點
-  if (showMiniLine) {
-    var mlCenter = destPoint(la, lo, wd, 36);  // 36m（40*0.9）
-    var mlPerpA  = destPoint(mlCenter[0], mlCenter[1], (wd + 90) % 360, 18);  // 18m（20*0.9）
-    var mlPerpB  = destPoint(mlCenter[0], mlCenter[1], (wd - 90 + 360) % 360, 18);
-    _evLayers[idx].miniLine = L.polyline([mlPerpA, mlPerpB], {
-      color: '#3b82f6', weight: 2, opacity: 0.85, dashArray: '5 3'
-    }).addTo(gMap);
-
-    // 10 個量測點（B01~B10）
-    var miniLineMks = [];
-    for (var mli = 0; mli < 10; mli++) {
-      var mlt = mli / 9;
-      var mlLat = mlPerpB[0] + (mlPerpA[0] - mlPerpB[0]) * mlt;
-      var mlLng = mlPerpB[1] + (mlPerpA[1] - mlPerpB[1]) * mlt;
-      var mlLabel = 'B' + (mli + 1 < 10 ? '0' + (mli + 1) : '' + (mli + 1));
-      var mlIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:16px;height:16px;border-radius:50%;' +
-              'background:#3b82f6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:7px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + (mli+1) + '</div>',
-        iconSize: [16, 16], iconAnchor: [8, 8]
-      });
-      var mlMk = L.marker([mlLat, mlLng], { icon: mlIcon }).addTo(gMap);
-      mlMk.bindTooltip(mlLabel + '：模擬1km橫切面', { permanent: false, direction: 'top' });
-      miniLineMks.push(mlMk);
+      _evLayers[idx].sectorMks = sectorMks;
     }
-    _evLayers[idx].miniLineMks = miniLineMks;
   }
 
-  // (5.5) 模擬附近場域：矩形，從 20m（圓前緣）到 36m（橫切面），寬 ±20m
-  if (showMiniArea) {
-    var maFront = 36;  // 到橫切面
-    var maBack  = 20;  // 圓前緣
-    var maHalf  = 20;  // 對齊 100m 圓半徑
-
-    var maFL = destPoint(la, lo, wd, maFront);
-    var maFR = destPoint(maFL[0], maFL[1], (wd + 90) % 360, maHalf);
-    var maFF = destPoint(maFL[0], maFL[1], (wd - 90 + 360) % 360, maHalf);
-    var maBL = destPoint(la, lo, wd, maBack);
-    var maBR = destPoint(maBL[0], maBL[1], (wd + 90) % 360, maHalf);
-    var maBF = destPoint(maBL[0], maBL[1], (wd - 90 + 360) % 360, maHalf);
-
-    _evLayers[idx].miniArea = L.polygon([maFR, maFF, maBF, maBR], {
-      color: '#16a34a', weight: 2.5, opacity: 0.9,
-      fillColor: '#16a34a', fillOpacity: 0.12, dashArray: '5 3'
-    }).addTo(gMap);
-  }
-  if (showMiniSector) {
-    var msPts = [[la, lo]];
-    for (var msi = 0; msi <= 40; msi++) {
-      msPts.push(destPoint(la, lo, (wd - 22.5) + 45 * msi / 40, 90)); // 90m（100*0.9）
-    }
-    msPts.push([la, lo]);
-    _evLayers[idx].miniSector = L.polygon(msPts, {
-      color: '#8b5cf6', fillColor: '#8b5cf6',
-      fillOpacity: 0.12, weight: 2, opacity: 0.7, dashArray: '4 3'
-    }).addTo(gMap);
-
-    // 弧線（70m、80m、90m）
-    var msArc2 = [], msArc3 = [], msArc4 = [];
-    for (var ma = 0; ma <= 24; ma++) {
-      msArc2.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 63));
-      msArc3.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 72));
-      msArc4.push(destPoint(la, lo, (wd - 22.5) + 45 * ma / 24, 81));
-    }
-    _evLayers[idx].msArc2 = L.polyline(msArc2, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-    _evLayers[idx].msArc3 = L.polyline(msArc3, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-    _evLayers[idx].msArc4 = L.polyline(msArc4, { color: '#8b5cf6', weight: 1.2, opacity: 0.6, dashArray: '4 3' }).addTo(gMap);
-
-    // 10個量測點（間距減半：1=60m, 2=30m, 3=70m, 4/5/6=80m, 7=90m, 8/9/10=100m）
-    var miniSectorDefs = [
-      { label:'S1',  pt: destPoint(la, lo, wd,        54),  tip: '54m × 中線' },
-      { label:'S2',  pt: destPoint(la, lo, wd,        45),  tip: '45m × 中線' },
-      { label:'S3',  pt: destPoint(la, lo, wd,        63),  tip: '63m × 中線' },
-      { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 72),  tip: '72m × 扇形上緣' },
-      { label:'S5',  pt: destPoint(la, lo, wd,        72),  tip: '72m × 中線' },
-      { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 72),  tip: '72m × 扇形下緣' },
-      { label:'S7',  pt: destPoint(la, lo, wd,        81),  tip: '81m × 中線' },
-      { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90), tip: '90m × 扇形上緣' },
-      { label:'S9',  pt: destPoint(la, lo, wd,        90), tip: '90m × 中線' },
-      { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90), tip: '90m × 扇形下緣' },
-    ];
-    var miniSectorMks = [];
-    miniSectorDefs.forEach(function(def) {
-      var icon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;border-radius:50%;' +
-              'background:#8b5cf6;border:2px solid white;' +
-              'display:flex;align-items:center;justify-content:center;' +
-              'font-size:7px;font-weight:700;color:white;' +
-              'box-shadow:0 1px 4px rgba(0,0,0,.4);' +
-              'font-family:ui-monospace,monospace">' + def.label.replace('S','') + '</div>',
-        iconSize: [18, 18], iconAnchor: [9, 9]
-      });
-      var mk = L.marker(def.pt, { icon: icon }).addTo(gMap);
-      mk.bindTooltip(def.label + '：' + def.tip, { permanent: false, direction: 'top' });
-      miniSectorMks.push(mk);
-    });
-    _evLayers[idx].miniSectorMks = miniSectorMks;
-  }
 }
 
 function removeEventLayers(idx) {
@@ -3137,64 +3247,284 @@ function removeEventLayers(idx) {
     lyr.crossMks.forEach(function(m) { m.remove(); });
     lyr.crossMks = null;
   }
-  // 縮小版圖層清除
-  if (lyr.miniCircle)  { lyr.miniCircle.remove();  lyr.miniCircle  = null; }
-  if (lyr.miniArea)    { lyr.miniArea.remove();    lyr.miniArea    = null; }
-  if (lyr.miniLine)    { lyr.miniLine.remove();    lyr.miniLine    = null; }
-  if (lyr.miniLineMks) {
-    lyr.miniLineMks.forEach(function(m) { m.remove(); });
-    lyr.miniLineMks = null;
-  }
-  if (lyr.miniSector)  { lyr.miniSector.remove();  lyr.miniSector  = null; }
-  if (lyr.msArc2)      { lyr.msArc2.remove();      lyr.msArc2      = null; }
-  if (lyr.msArc3)      { lyr.msArc3.remove();      lyr.msArc3      = null; }
-  if (lyr.msArc4)      { lyr.msArc4.remove();      lyr.msArc4      = null; }
-  if (lyr.miniSectorMks) {
-    lyr.miniSectorMks.forEach(function(m) { m.remove(); });
-    lyr.miniSectorMks = null;
-  }
 }
 
-// ── 每個事件的圖層偏好記憶（key: eventId, value: {circle,line,sector,msr}）──
+// ── 每個事件的圖層偏好記憶（key: eventId）──
+// 規則：
+//  1. 只有「輻射彈事件」才有 100m 爆炸區域、1km 橫切面、附近場域、5km 十點偵測這 4 個圖層，
+//     預設登入就開啟；風向也預設開啟。其餘圖層預設都不勾。
+//  2. 其他類型的事件：沒有上述 4 個圖層，所有圖層預設都不勾。
+//  3. 每個事件各記各的；使用者的勾選存在這台電腦的瀏覽器，直到下次登入（登入／登出時由 index.html 清除）。
 var _layerPrefs = {};
-// 從 localStorage 還原（跨頁面重載保持偏好）
-try { var _lp0 = localStorage.getItem('_layerPrefs'); if (_lp0) _layerPrefs = JSON.parse(_lp0); } catch(e) {}
+try { var _lp0 = localStorage.getItem('_layerPrefsV2'); if (_lp0) _layerPrefs = JSON.parse(_lp0); } catch(e) {}
 
-// 預設：circle（100m範圍）開啟，其餘依使用者勾選
-var _LAYER_DEFAULTS = { circle: true };
+var RDD_ONLY_LAYERS = { circle: true, line: true, nearby: true, sector: true };
+function isRddEvent(ev) { return !!ev && String(ev.type || '').indexOf('輻射彈') !== -1; }
+function _evById(id) {
+  for (var i = 0; i < _events.length; i++) if (String(_events[i].id) === String(id)) return _events[i];
+  return null;
+}
+function layerApplies(ev, type) { return !RDD_ONLY_LAYERS[type] || isRddEvent(ev); }
+function _layerDefault(ev, type) {
+  return isRddEvent(ev) && (type === 'circle' || type === 'line' || type === 'nearby' || type === 'sector' || type === 'wind');
+}
 function getLayerPref(eventId, type) {
-  if (!_layerPrefs[eventId]) {
-    return (_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false;
-  }
-  var val = _layerPrefs[eventId][type];
-  return (val !== undefined) ? val : ((_LAYER_DEFAULTS[type] !== undefined) ? _LAYER_DEFAULTS[type] : false);
+  var ev = _evById(eventId);
+  if (ev && !layerApplies(ev, type)) return false;
+  var p = _layerPrefs[eventId];
+  if (p && p[type] !== undefined) return !!p[type];
+  return _layerDefault(ev, type);
 }
 
 // 儲存使用者勾選狀態
 function saveLayerPref(eventId, type, checked) {
   if (!_layerPrefs[eventId]) _layerPrefs[eventId] = {};
   _layerPrefs[eventId][type] = checked;
-  try { localStorage.setItem('_layerPrefs', JSON.stringify(_layerPrefs)); } catch(e) {}
+  try { localStorage.setItem('_layerPrefsV2', JSON.stringify(_layerPrefs)); } catch(e) {}
 }
 
-// checkbox 狀態（先查記憶，再查 DOM）
+// 圖層是否開啟：一律照「使用者記憶 → 預設規則」判斷（不再看畫面上的勾選框）
 function isLayerOn(idx, type) {
   var ev = _events[idx];
-  // 優先從記憶取值（不受 DOM 重建影響）
-  if (ev) {
-    var pref = getLayerPref(ev.id, type);
-    // 如果記憶有明確的值就用記憶；記憶是空（從未設定）才去查 DOM
-    if (_layerPrefs[ev.id] && _layerPrefs[ev.id][type] !== undefined) return pref;
+  if (!ev) return false;
+  return getLayerPref(ev.id, type);
+}
+
+// ── 全域型圖層（待量測、風向、KMZ、環境監測站、現場回報）：每個事件各自記憶 ──
+function onGlobalChk(type, checked) {
+  var fn = { pending: onPendingChk, wind: onWindChk, kmz: onKmzChk, env: onEnvChk, fr: onFrChk, trk: onTrkChk }[type];
+  if (fn) fn(checked);
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var actual = { pending: _pendingLayerOn, wind: _windLayerOn, kmz: _kmzLayerOn, env: _envLayerOn, fr: _frLayerOn, trk: _trkLayerOn }[type];
+  saveLayerPref(ev.id, type, !!actual);   // 被條件擋回（例如沒有風向）時記成不勾
+  if (type === 'wind') _windAppliedEv = ev.id;
+}
+
+var _windAppliedEv = null;
+// 切換事件／事件資料更新後：把目前事件的記憶套到這幾個全域圖層上
+function _applyEventLayerPrefs() {
+  var ev = _events[_curIdx];
+  if (!ev || !gMap) return;
+  var want;
+  // 待量測數值
+  want = getLayerPref(ev.id, 'pending');
+  if (want !== _pendingLayerOn) onPendingChk(want);
+  // 風向：要有有效的風向與風速才會啟動；資料之後補上時再套用一次
+  want = getLayerPref(ev.id, 'wind');
+  var ws = ev.windSpeed ? parseFloat(ev.windSpeed) : 0;
+  var wd = String(ev.windDir == null ? '' : ev.windDir);
+  var hasWind = !isNaN(ws) && ws > 0 && wd !== '' && wd !== 'X' && wd !== '-99' && wd !== '990';
+  if (want && hasWind) {
+    if (!_windLayerOn) { _windLayerOn = true; _windAppliedEv = ev.id; _startWindLayer(); }
+    else if (_windAppliedEv !== ev.id) { _windAppliedEv = ev.id; _refreshWindIfOn(); }
+  } else if (_windLayerOn) {
+    _windLayerOn = false; _stopWindLayer();
   }
-  // 記憶未設定：查 DOM checkbox
-  var cb = document.getElementById('lyr_' + idx + '_' + type);
-  if (cb) return cb.checked;
+  // KMZ：只有這個瀏覽器上傳過 KMZ 才有東西可顯示
+  want = getLayerPref(ev.id, 'kmz');
+  if (want && _kmzOverlay) { if (!_kmzLayerOn) onKmzChk(true); }
+  else if (_kmzLayerOn) onKmzChk(false);
+  // 環境輻射監測站
+  want = getLayerPref(ev.id, 'env');
+  if (want !== _envLayerOn) onEnvChk(want);
+  // 現場回報
+  want = getLayerPref(ev.id, 'fr');
+  if (want !== _frLayerOn) onFrChk(want);
+  // 人員軌跡：管理員，或管理員開放給所有人時才有；換事件時重新讀取該事件的軌跡
+  want = _trkCanView() && getLayerPref(ev.id, 'trk');
+  if (want !== _trkLayerOn) onTrkChk(want);
+  else if (_trkLayerOn && _trkEvId !== ev.id) _trkRefresh();
+  // 畫面勾選框跟實際狀態同步
+  [['lyr_pending', _pendingLayerOn], ['lyr_wind', _windLayerOn], ['lyr_kmz', _kmzLayerOn],
+   ['lyr_env', _envLayerOn], ['lyr_fr', _frLayerOn], ['lyr_trk', _trkLayerOn]].forEach(function(x) {
+    var cb = document.getElementById(x[0]);
+    if (cb) cb.checked = !!x[1];
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 事件選定：地圖一次只顯示「目前事件」＋「選定的事件」
+//  · 目前事件 = 事件狀態視窗正在看的那一個（預設：發生時間最近的）；圖層選項、事件編輯都只針對它
+//  · 選定的事件 = 在事件狀態視窗按「選定此事件」的，切換到別的事件後仍留在地圖上
+//  · 選定的事件存在這台電腦的瀏覽器，直到下次登入／登出（由 index.html 清除）
+// ════════════════════════════════════════════════════════════════
+var _selEvents = {};
+try { var _se0 = localStorage.getItem('_selEventsV1'); if (_se0) _selEvents = JSON.parse(_se0) || {}; } catch(e) {}
+function _saveSelEvents() { try { localStorage.setItem('_selEventsV1', JSON.stringify(_selEvents)); } catch(e) {} }
+
+// 事件發生時間（比較用）：YYYYMMDDHHMM。日期讀不出來就改用事件編號裡的日期
+function _evOccurKey(ev) {
+  var y = 0, mo = 0, d = 0, h = 0, mi = 0;
+  var ds = String(ev.date == null ? '' : ev.date);
+  var m = ds.match(/(\d{4})[-\/\u5e74](\d{1,2})[-\/\u6708](\d{1,2})/);
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else {
+    var dt = new Date(ds);
+    if (ds && !isNaN(dt.getTime()) && dt.getFullYear() !== 1899) { y = dt.getFullYear(); mo = dt.getMonth() + 1; d = dt.getDate(); }
+  }
+  if (!y) { var im = String(ev.id || '').match(/(\d{4})(\d{2})(\d{2})/); if (im) { y = +im[1]; mo = +im[2]; d = +im[3]; } }
+  var ts = String(ev.time == null ? '' : ev.time);
+  var tm = ts.match(/(\d{1,2}):(\d{2})/);
+  if (tm) { h = +tm[1]; mi = +tm[2]; }
+  else {
+    var td = new Date(ts);
+    if (ts && !isNaN(td.getTime())) { h = td.getHours(); mi = td.getMinutes(); }
+  }
+  return (((y * 100 + mo) * 100 + d) * 100 + h) * 100 + mi;
+}
+// 發生時間最近的事件（時間相同就取後面的）
+function _newestEventIdx() {
+  var best = 0, bestKey = -1;
+  for (var i = 0; i < _events.length; i++) {
+    var k = _evOccurKey(_events[i]);
+    if (k >= bestKey) { bestKey = k; best = i; }
+  }
+  return best;
+}
+
+function isEventShown(idx) {
+  var ev = _events[idx];
+  if (!ev) return false;
+  if (idx === _curIdx) return true;
+  if (_historyId) return false;
+  return !!_selEvents[ev.id];
+}
+function _evShownById(id) {
+  if (!id) return true;
+  for (var i = 0; i < _events.length; i++) if (String(_events[i].id) === String(id)) return isEventShown(i);
   return false;
 }
 
+// 每個事件各自一份量測標記（原本是全域一份，只能顯示一個事件）
+var _msrStore = {}, _msrContamStore = {}, _contamDotStore = {}, _msrDotStore = {};
+function _bucketClear(store, id) {
+  (store[id] || []).forEach(function(m) { try { m.remove(); } catch(e) {} });
+  store[id] = [];
+  return store[id];
+}
+function _clearEvMsr(id) {
+  [_msrStore, _msrContamStore, _contamDotStore, _msrDotStore].forEach(function(st) { _bucketClear(st, id); });
+}
+
+// 事件圖釘
+var _evMarkerByIdx = {};
+function _evMarkerIcon(ev, ring) {
+  var typeClass = '#1a56db';
+  if ((ev.type || '').indexOf('\u8f3b\u5c04\u5f48') !== -1) typeClass = '#dc2626';
+  else if ((ev.type || '').indexOf('\u7269\u8cea') !== -1) typeClass = '#d97706';
+  var shadow = ring ? 'box-shadow:0 0 0 4px rgba(26,86,219,.35),0 2px 6px rgba(0,0,0,.4)' : 'box-shadow:0 2px 6px rgba(0,0,0,.4)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;background:' + typeClass + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;' + shadow + '"></div>',
+    iconSize: [18, 18], iconAnchor: [9, 18]
+  });
+}
+// 依「目前事件＋選定事件」決定哪些圖釘在地圖上；同時顯示多個事件時，圖釘旁加事件名稱、目前事件加光圈
+function _syncEventMarkers() {
+  if (!gMap) return;
+  var shown = 0;
+  _events.forEach(function(_, i) { if (isEventShown(i)) shown++; });
+  _events.forEach(function(ev, i) {
+    var m = _evMarkerByIdx[i];
+    if (!m) return;
+    if (isEventShown(i)) {
+      if (!gMap.hasLayer(m)) m.addTo(gMap);
+      var isCur = (i === _curIdx);
+      m.setIcon(_evMarkerIcon(ev, isCur && shown > 1));
+      m.setZIndexOffset(isCur ? 1000 : 0);
+      m.setOpacity(isCur || shown <= 1 ? 1 : 0.75);
+      m.unbindTooltip();
+      if (shown > 1) m.bindTooltip(_esc(ev.name || ev.id), { permanent: true, direction: 'right', offset: [10, -9], className: 'ev-name-tip' });
+    } else {
+      m.unbindTooltip();
+      if (gMap.hasLayer(m)) m.remove();
+    }
+  });
+}
+
+// 待量測點位：只顯示「目前事件＋選定事件」的
+function _applyPendingVisibility() {
+  if (!gMap) return;
+  function sync(mk, evId) {
+    var show = _pendingLayerOn && _evShownById(evId);
+    if (show) { if (!gMap.hasLayer(mk)) mk.addTo(gMap); }
+    else if (gMap.hasLayer(mk)) mk.remove();
+  }
+  _pendingMsrMks.forEach(function(mk) { sync(mk, mk._evId); });
+  _taskMarkers.forEach(function(t) { sync(t.mk, t.eventId); });
+}
+
+// 重新整理地圖上的事件：該顯示的畫出來，不該顯示的全部拿掉（圖釘、圖層、量測點）
+function refreshShownEvents() {
+  if (!gMap) return;
+  _syncEventMarkers();
+  _events.forEach(function(ev, i) {
+    if (isEventShown(i)) {
+      buildEventLayers(i);
+      if (_anyMsrLayerOn(i)) loadMeasurements(i);   // 有快取直接畫，沒有才去抓
+    } else {
+      removeEventLayers(i);
+      _clearEvMsr(ev.id);
+    }
+  });
+  _applyPendingVisibility();
+  if (_anyShownMsrOn()) { if (!_msrTimer) startMsrTimer(_curIdx); } else stopMsrTimer();
+}
+
+// ── 事件狀態視窗：選定此事件、同時顯示的事件 ──
+function _selBarHtml(mobile) {
+  var ev = _events[_curIdx];
+  if (!ev || _events.length < 2 || _historyId) return '';
+  var html = '';
+  if (mobile) {   // 手機的事件面板沒有 ◀ ▶，地圖上又只剩目前事件＋選定事件，所以在這裡切換事件
+    html += '<div class="ev-sel-nav">' +
+      '<button onclick="navEvent(-1)"' + (_curIdx === 0 ? ' disabled' : '') + '>\u25c0</button>' +
+      '<span>' + (_curIdx + 1) + '/' + _events.length + '\u3000' + _esc(ev.name || ev.id) + '</span>' +
+      '<button onclick="navEvent(1)"' + (_curIdx === _events.length - 1 ? ' disabled' : '') + '>\u25b6</button></div>';
+  }
+  html += '<label class="ev-sel-lbl"><input type="checkbox" class="ev-sel-chk" ' + (_selEvents[ev.id] ? 'checked' : '') +
+          ' onchange="toggleSelectEvent(this.checked)"><span>\u9078\u5b9a\u6b64\u4e8b\u4ef6\uff08\u5207\u63db\u5f8c\u4ecd\u986f\u793a\u5728\u5730\u5716\uff09</span></label>';
+  var chips = '';
+  _events.forEach(function(e, i) {
+    if (i === _curIdx || !_selEvents[e.id]) return;
+    chips += '<span class="ev-sel-chip"><a data-i="' + i + '" onclick="gotoEvent(+this.getAttribute(\'data-i\'))" title="\u5207\u63db\u5230\u9019\u500b\u4e8b\u4ef6">' + _esc(e.name || e.id) +
+             '</a><button data-id="' + _esc(e.id) + '" onclick="unselectEvent(this.getAttribute(\'data-id\'))" title="\u53d6\u6d88\u9078\u5b9a">\u2715</button></span>';
+  });
+  if (chips) html += '<div class="ev-sel-chips"><span class="ev-sel-hint">\u5730\u5716\u4e0a\u540c\u6642\u986f\u793a\uff1a</span>' + chips + '</div>';
+  return html;
+}
+function _renderSelBar() {
+  var bar = document.getElementById('evSelBar');
+  if (!bar) return;
+  var html = _selBarHtml(false);
+  bar.innerHTML = html;
+  bar.style.display = html ? '' : 'none';
+}
+function _refreshMobEvPanel() {
+  if (typeof _mobEvPanelOpen !== 'undefined' && _mobEvPanelOpen) _renderMobEvPanel();
+}
+function toggleSelectEvent(checked) {
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  if (checked) _selEvents[ev.id] = true; else delete _selEvents[ev.id];
+  _saveSelEvents();
+  refreshShownEvents();
+  _renderSelBar();
+  _refreshMobEvPanel();
+}
+function unselectEvent(id) {
+  delete _selEvents[id];
+  _saveSelEvents();
+  refreshShownEvents();
+  _renderSelBar();
+  _refreshMobEvPanel();
+}
+function gotoEvent(i) { navEvent(i - _curIdx); }
+
 // ── 重建所有事件的圖層 ──
 function updateLayers(lat, lng) {
-  _events.forEach(function(_, i) { buildEventLayers(i); });
+  refreshShownEvents();
 }
 
 function removeLayers() {
@@ -3233,24 +3563,27 @@ function loadMeasurements(idx, force) {
   });
 }
 
-// ── 任一量測圖層是否有勾 ──
+// ── 這個事件有沒有開任何量測圖層 ──
 function _anyMsrLayerOn(idx) {
-  return ['msr','msr_contam','msrdot','contamdot'].some(function(k) {
-    var cb = document.getElementById('lyr_' + idx + '_' + k);
-    return cb && cb.checked;
-  });
+  return ['msr', 'msr_contam', 'msrdot', 'contamdot'].some(function(k) { return isLayerOn(idx, k); });
+}
+function _anyShownMsrOn() {
+  for (var i = 0; i < _events.length; i++) if (isEventShown(i) && _anyMsrLayerOn(i)) return true;
+  return false;
 }
 
-// ── 啟動定時刷新（5秒）──
+// ── 啟動定時刷新（5秒）：地圖上顯示的每個事件，只要有開量測圖層就更新 ──
 function startMsrTimer(idx) {
-  stopMsrTimer();
+  if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
   _msrTimer = setInterval(function() {
-    if (_anyMsrLayerOn(idx)) loadMeasurements(idx, true);
+    _events.forEach(function(ev, i) {
+      if (isEventShown(i) && _anyMsrLayerOn(i)) loadMeasurements(i, true);
+    });
   }, 5000);
 }
 
 function stopMsrTimer() {
-  if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
+  if (_msrTimer && !_anyShownMsrOn()) { clearInterval(_msrTimer); _msrTimer = null; }
 }
 
 // ── 設定聚合模式 ──
@@ -3264,8 +3597,7 @@ function setClusterMode(mode) {
     });
   });
   // 重繪
-  var ev = _events[_curIdx];
-  if (ev) renderMsrMarkers(ev.id);
+  _events.forEach(function(e, i) { if (isEventShown(i)) renderMsrMarkers(e.id); });
 }
 
 // ── 計算兩點地理距離（m）──
@@ -3311,8 +3643,8 @@ function clusterMsrPoints(valid, mode) {
 }
 
 function renderMsrMarkers(eventId) {
-  _msrMarkers.forEach(function(m) { m.remove(); });
-  _msrMarkers = [];
+  var _msrMarkers = _bucketClear(_msrStore, eventId);   // 這個事件自己的量測標記
+  if (!_evShownById(eventId)) return;                    // 不在地圖上的事件不畫
   // 圖層關閉時不渲染
   var evIdx = _events.findIndex ? _events.findIndex(function(e){return e.id===eventId;}) :
     (function(){ for(var ii=0;ii<_events.length;ii++) if(_events[ii].id===eventId) return ii; return -1; })();
@@ -3651,15 +3983,14 @@ function renderLayerPanel() {
     msr:        getLayerPref(ev.id, 'msr'),
     msr_contam: getLayerPref(ev.id, 'msr_contam'),
     msrdot:     getLayerPref(ev.id, 'msrdot'),
-    contamdot:  getLayerPref(ev.id, 'contamdot'),
-    mini_circle: getLayerPref(ev.id, 'mini_circle'),
-    mini_line:   getLayerPref(ev.id, 'mini_line'),
-    mini_sector: getLayerPref(ev.id, 'mini_sector')
+    contamdot:  getLayerPref(ev.id, 'contamdot')
   };
 
   function c(type) { return chk[type] ? 'checked' : ''; }
 
   body.innerHTML =
+    (isRddEvent(ev) && !(ev.windDir) ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
+    (_events.length > 1 ? '<div class="layer-for">事件名稱：' + _esc(ev.name || ev.id) + '</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_circle" '+c('circle')+' onchange="onLayerChk('+i+',\'circle\',this.checked)"><span class="layer-dot" style="background:#f97316;border:1.5px solid #f97316"></span>100m爆炸區域</label>' +
@@ -3670,18 +4001,30 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr_contam" '   +c('msr_contam') +' onchange="onMsrContamChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #7c3aed"></span>量測污染值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" '       +c('msrdot')     +' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測劑量率(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" '    +c('contamdot')  +' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>量測污染值(不顯示數值)</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onPendingChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onWindChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'pending\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'wind\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onKmzChk(this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>上傳KMZ資料</label>' +
-      '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onEnvChk(this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_fr" ' + (_frLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'fr\',this.checked)"><span class="layer-dot" style="background:#ea580c;border:1.5px solid #ea580c;border-radius:50%"></span>現場回報</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_kmz" ' + (_kmzLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'kmz\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#4f46e5,#dc2626);border:1.5px solid #4f46e5"></span>上傳KMZ資料</label>' +
+      (_loginIsAdmin ? '<div style="padding:2px 4px 6px 28px;display:flex;gap:4px"><button onclick="openKmzUpload()" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #d1d5db;background:#f9fafb;color:#374151;cursor:pointer;font-family:inherit">上傳 KMZ</button></div>' : '') +
+      '<label class="layer-row"><input type="checkbox" id="lyr_env" ' + (_envLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'env\',this.checked)"><span class="layer-dot" style="background:#0891b2;border:1.5px solid #0891b2;border-radius:2px;transform:rotate(45deg)"></span>環境輻射監測站</label>' +
 
     '</div></div>';
+
+  // 只有輻射彈事件才有這 4 個圖層，其他類型的事件不顯示
+  if (!isRddEvent(ev)) {
+    ['circle', 'line', 'nearby', 'sector'].forEach(function(t) {
+      var cb = document.getElementById('lyr_' + i + '_' + t);
+      var row = cb && cb.closest ? cb.closest('label') : null;
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+    });
+  }
+  _applyEventLayerPrefs();   // 把這個事件的圖層記憶套到風向、待量測、KMZ、環境監測站、現場回報
+  _renderPtResetRow();
 }
 
 // ── checkbox 變更：存入記憶 → 重繪圖層 ──
@@ -3710,7 +4053,7 @@ function onMsrContamChk(idx, checked) {
     }
     startMsrTimer(idx);
   } else {
-    _msrContamMarkers.forEach(function(m){ m.remove(); }); _msrContamMarkers = [];
+    if (ev) _bucketClear(_msrContamStore, ev.id);
     if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
@@ -3718,7 +4061,9 @@ function onMsrContamChk(idx, checked) {
 // ── 污染值標籤圖層 ──
 var _msrContamMarkers = [];
 function renderMsrContamLayer(idx) {
-  _msrContamMarkers.forEach(function(m){ m.remove(); }); _msrContamMarkers = [];
+  var _ev0 = _events[idx];
+  var _msrContamMarkers = _ev0 ? _bucketClear(_msrContamStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msr_contam')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -3925,7 +4270,9 @@ function onContamDotChk(idx, checked) {
 // ── 污染值點位圖層 ──
 var _contamDotMarkers = [];
 function renderContamDotLayer(idx) {
-  _contamDotMarkers.forEach(function(m){ m.remove(); }); _contamDotMarkers = [];
+  var _ev0 = _events[idx];
+  var _contamDotMarkers = _ev0 ? _bucketClear(_contamDotStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'contamdot')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -3965,7 +4312,9 @@ function onMsrDotChk(idx, checked) {
 // ── 量測點：只顯示彩色圓點，不顯示數字 ──
 var _msrDotMarkers = [];
 function renderMsrDotLayer(idx) {
-  _msrDotMarkers.forEach(function(m){ m.remove(); }); _msrDotMarkers = [];
+  var _ev0 = _events[idx];
+  var _msrDotMarkers = _ev0 ? _bucketClear(_msrDotStore, _ev0.id) : [];
+  if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msrdot')) return;
   var ev = _events[idx];
   if (!ev) return;
@@ -3991,237 +4340,6 @@ function renderMsrDotLayer(idx) {
   });
 }
 
-// ════════════════════════════════════════════
-// 理論等值線圖層（管理員非教學模式專用）
-// ════════════════════════════════════════════
-var _contourLayerOn  = false;
-var _contourLines    = []; // 存放所有 L.polyline 物件
-var _contour3LayerOn = false;
-var _contour3Lines   = []; // 教學用三圈等值線A（物理版）
-var _contour4LayerOn = false;
-var _contour4Lines   = []; // 教學用三圈等值線B（梯度版）
-
-// 劑量計算（與 sim_index.html 同模型）
-var _DOSE_TABLE = [
-  [0.1,  120    ],
-  [5,    12     ],
-  [15,   1.2    ],
-  [30,   0.12   ],
-  [50,   0.012  ],
-  [70,   0.0012 ],
-  [90,   0.0005 ],
-  [110,  0.00005]
-];
-var _CONTOUR_SIGMA = 7;
-var _SRC_DOSE = 120;
-
-function _ctDeltaAngle(a, b) {
-  var d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
-function _ctIsUpwind(bearing, windDir) {
-  return _ctDeltaAngle(bearing, (windDir + 180) % 360) < 60;
-}
-function _ctTableInterp(distM) {
-  var t = _DOSE_TABLE;
-  if (distM <= t[0][0]) return t[0][1];
-  if (distM >= t[t.length-1][0]) return t[t.length-1][1];
-  for (var i = 0; i < t.length-1; i++) {
-    if (distM <= t[i+1][0]) {
-      var d0 = t[i][0], d1 = t[i+1][0], v0 = t[i][1], v1 = t[i+1][1];
-      var tt = (distM - d0) / (d1 - d0);
-      return Math.exp(Math.log(v0) + tt * (Math.log(v1) - Math.log(v0)));
-    }
-  }
-  return t[t.length-1][1];
-}
-function _ctCalcDose(distM, bearingFromSrc, windDir) {
-  if (distM < 0.5) return _SRC_DOSE;
-  var doseAxis = _ctTableInterp(distM);
-  var angleDiff = _ctDeltaAngle(bearingFromSrc, windDir);
-  var sigmaEff = Math.max(_CONTOUR_SIGMA, _CONTOUR_SIGMA + distM * 0.02);
-  var sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
-  var gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-  var upFactor = _ctIsUpwind(bearingFromSrc, windDir) ? 0.02 : 1.0;
-  var wf = gaussian * upFactor + 0.01;
-  return Math.min(doseAxis * (wf / 1.01), _SRC_DOSE);
-}
-
-// 極座標法：每個角度找等值線距離（二分搜尋）
-function _ctFindDist(targetDoseMsv, angleDeg, windDir) {
-  var lo = 0.5, hi = 115;
-  for (var iter = 0; iter < 30; iter++) {
-    var mid = (lo + hi) / 2;
-    var d = _ctCalcDose(mid, angleDeg, windDir);
-    if (d > targetDoseMsv) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
-// 繪製等值線
-function renderContourLayer() {
-  // 清除舊線
-  _contourLines.forEach(function(l) { l.remove(); });
-  _contourLines = [];
-  if (!_contourLayerOn) return;
-
-  var ev = _events[_curIdx];
-  if (!ev || !ev.lat || !ev.lng || !ev.windDir || ev.windDir === '') {
-    showToast('⚠️ 請先設定事件座標及風向');
-    return;
-  }
-  var la = parseFloat(ev.lat);
-  var lo = parseFloat(ev.lng);
-  // windDir 是風來的方向（氣象慣例），煙羽方向 = windDir + 180°
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 五條等值線（mSv/h）
-  var levels = [
-    { val: 0.0002, color: '#16a34a', label: '0.2μSv/h'  },
-    { val: 0.0012, color: '#4ade80', label: '1.2μSv/h'  },
-    { val: 0.012,  color: '#facc15', label: '12μSv/h'   },
-    { val: 0.12,   color: '#fb923c', label: '120μSv/h'  },
-    { val: 0.25,   color: '#ef4444', label: '250μSv/h'  }
-  ];
-
-  levels.forEach(function(lev) {
-    var pts = [];
-    var steps = 72; // 每 5 度一個點
-    for (var i = 0; i <= steps; i++) {
-      var bearingDeg = (i / steps) * 360;
-      var distM = _ctFindDist(lev.val, bearingDeg, wd);
-      if (distM >= 113) continue; // 超出範圍跳過此角度
-      var pt = destPoint(la, lo, bearingDeg, distM);
-      pts.push(pt);
-    }
-    if (pts.length < 3) return;
-    // 閉合
-    pts.push(pts[0]);
-    var line = L.polyline(pts, {
-      color: lev.color, weight: 2, opacity: 0.85,
-      dashArray: null
-    }).addTo(gMap);
-    line.bindTooltip(lev.label, { permanent: false, direction: 'top' });
-    _contourLines.push(line);
-  });
-}
-
-function onContourChk(checked) {
-  _contourLayerOn = checked;
-  if (checked) renderContourLayer();
-  else { _contourLines.forEach(function(l){ l.remove(); }); _contourLines = []; }
-}
-
-function onContour3Chk(checked) {
-  _contour3LayerOn = checked;
-  if (checked) renderContour3Layer();
-  else { _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = []; }
-}
-
-// 三圈教學用等值線：0.5μSv/h、100μSv/h、250μSv/h
-function renderContour3Layer() {
-  _contour3Lines.forEach(function(l){ l.remove(); }); _contour3Lines = [];
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 等值線A：0.5μSv / 12μSv / 120μSv（值域自然分開，三圈間距均勻）
-  var levels3 = [
-    { val: 0.0012, color: '#0ea5e9', width: 2.5, label: '1.2 μSv/h'  },
-    { val: 0.012,  color: '#f59e0b', width: 2.5, label: '12 μSv/h'   },
-    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
-  ];
-
-  levels3.forEach(function(lev) {
-    var pts = [];
-    for (var deg = 0; deg < 360; deg += 3) {
-      var distM = _ctFindDist(lev.val, deg, wd);
-      if (distM < 113) pts.push(destPoint(la, lo, deg, distM));
-    }
-    if (pts.length > 4) {
-      pts.push(pts[0]);
-      var line = L.polyline(pts, { color: lev.color, weight: lev.width, opacity: 0.9 }).addTo(gMap);
-      line.bindTooltip(lev.label, { sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95, className: 'contour-lbl' });
-      _contour3Lines.push(line);
-    }
-  });
-}
-
-function onContour4Chk(checked) {
-  _contour4LayerOn = checked;
-  if (checked) renderContour4Layer();
-  else { _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = []; }
-}
-
-// 等值線B：0.5μSv / 100μSv / 120μSv，用調整 doseTable 讓三圈分開
-function renderContour4Layer() {
-  _contour4Lines.forEach(function(l){ l.remove(); }); _contour4Lines = [];
-  var ev = _events[_curIdx];
-  if (!ev) return;
-  var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
-  if (isNaN(la) || isNaN(lo) || isNaN(wd)) return;
-
-  // 調整 doseTable 讓 120μSv 在 ~5m，100μSv 在 ~30m
-  var customTable = [
-    [0.1,  150   ],
-    [5,    0.12  ],
-    [30,   0.10  ],
-    [50,   0.012 ],
-    [70,   0.0012],
-    [90,   0.0005],
-    [110,  0.00005]
-  ];
-  function interpB(d) {
-    if (d <= customTable[0][0]) return customTable[0][1];
-    if (d >= customTable[customTable.length-1][0]) return customTable[customTable.length-1][1];
-    for (var i = 0; i < customTable.length-1; i++) {
-      if (d <= customTable[i+1][0]) {
-        var d0=customTable[i][0], d1=customTable[i+1][0];
-        var v0=customTable[i][1], v1=customTable[i+1][1];
-        var r=(d-d0)/(d1-d0);
-        return Math.exp(Math.log(v0)+r*(Math.log(v1)-Math.log(v0)));
-      }
-    }
-    return customTable[customTable.length-1][1];
-  }
-  function findDistB(target, bearingDeg) {
-    var sigma=7;
-    for (var d=0.5; d<=113; d+=0.5) {
-      var axis=interpB(d);
-      var seff=Math.max(sigma,sigma+d*0.02);
-      var sang=(seff/d)*(180/Math.PI);
-      var ad=Math.abs(bearingDeg-wd)%360; if(ad>180)ad=360-ad;
-      var upwind=ad>110;
-      var gaus=Math.exp(-(ad*ad)/(2*sang*sang));
-      var wf=gaus*(upwind?0.02:1.0)+0.01;
-      if(Math.min(axis*(wf/1.01),150)<=target) return d;
-    }
-    return 999;
-  }
-
-  var levels4 = [
-    { val: 0.0005, color: '#0ea5e9', width: 2.5, label: '0.5 μSv/h'  },
-    { val: 0.10,   color: '#f59e0b', width: 2.5, label: '100 μSv/h'  },
-    { val: 0.12,   color: '#ef4444', width: 2.5, label: '120 μSv/h'  }
-  ];
-  levels4.forEach(function(lev) {
-    var pts = [];
-    for (var deg=0; deg<360; deg+=3) {
-      var distM=findDistB(lev.val,deg);
-      if (distM<113) pts.push(destPoint(la,lo,deg,distM));
-    }
-    if (pts.length>4) {
-      pts.push(pts[0]);
-      var line=L.polyline(pts,{color:lev.color,weight:2.5,opacity:0.9}).addTo(gMap);
-      line.bindTooltip(lev.label,{sticky:true,direction:'top',offset:[0,-8],opacity:0.95});
-      _contour4Lines.push(line);
-    }
-  });
-}
 // ════════════════════════════════════════════
 var _kmzLayerOn   = false;
 var _kmzOverlay   = null;
@@ -4253,6 +4371,7 @@ function onKmzChk(checked) {
 // ── KMZ 上傳解析 ──
 
 function openKmzUpload() {
+  if (!_loginIsAdmin) { showToast('僅管理員可上傳 KMZ'); return; }
   var inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.kmz,.kml';
   inp.onchange = function(e) {
@@ -4349,6 +4468,7 @@ function _applyKmzOverlay(dataUrl, bounds, zip) {
   _kmzLayerOn = true;
   var cb = document.getElementById('lyr_kmz');
   if (cb) cb.checked = true;
+  try { var _ke = _events[_curIdx]; if (_ke) saveLayerPref(_ke.id, 'kmz', true); } catch (e) {}
 
   // 找並顯示圖例
   var legendFile = zip ? zip.file('legend.png') || zip.file('colorbar.png') : null;
@@ -4357,7 +4477,7 @@ function _applyKmzOverlay(dataUrl, bounds, zip) {
       var legendUrl = 'data:image/png;base64,' + b64;
       if (!_kmzLegendEl) {
         _kmzLegendEl = document.createElement('img');
-        _kmzLegendEl.style.cssText = 'position:fixed;left:12px;bottom:80px;z-index:900;height:30vh;max-height:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none';
+        _kmzLegendEl.style.cssText = 'position:fixed;left:calc(12px + var(--rail-left, 0px));bottom:calc(80px + var(--mobbar-h, 0px));z-index:900;height:30vh;max-height:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none';
         document.body.appendChild(_kmzLegendEl);
       }
       _kmzLegendEl.src = legendUrl;
@@ -4746,14 +4866,7 @@ var _WIND_COUNT   = 1800;  // 高密度粒子（Windy 風格）
 
 function onPendingChk(checked) {
   _pendingLayerOn = checked;
-  _pendingMsrMks.forEach(function(mk) {
-    if (checked) mk.addTo(gMap);
-    else mk.remove();
-  });
-  _taskMarkers.forEach(function(t) {
-    if (checked) t.mk.addTo(gMap);
-    else t.mk.remove();
-  });
+  _applyPendingVisibility();
 }
 
 function onWindChk(checked) {
@@ -4786,7 +4899,8 @@ function _startWindLayer() {
   if (!_windCanvas) {
     _windCanvas = document.createElement('canvas');
     _windCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:500';
-    mapEl.style.position = 'relative';
+    // 地圖區塊已是絕對定位（左側圖示列改版），不可再改成 relative，否則高度會變 0、整張地圖消失
+    if (getComputedStyle(mapEl).position === 'static') mapEl.style.position = 'relative';
     mapEl.appendChild(_windCanvas);
     _windCtx = _windCanvas.getContext('2d');
   }
@@ -5032,8 +5146,8 @@ function toggleMsrLayer(idx) {
     loadMeasurements(idx, true);
     startMsrTimer(idx);
   } else {
-    _msrMarkers.forEach(function(m) { m.remove(); });
-    _msrMarkers = [];
+    var _e1 = _events[idx];
+    if (_e1) _bucketClear(_msrStore, _e1.id);
     if (!_anyMsrLayerOn(idx)) stopMsrTimer();
   }
 }
@@ -5049,39 +5163,37 @@ function toggleLayerPanel() {
 function placeMarkers() {
   _markers.forEach(function(m) { m.remove(); });
   _markers = [];
+  _evMarkerByIdx = {};
   if (!gMap) return;
 
   _events.forEach(function(ev, i) {
     var lat = parseFloat(ev.lat), lng = parseFloat(ev.lng);
     if (isNaN(lat) || isNaN(lng)) return;
 
-    var typeClass = '#1a56db';
-    if ((ev.type||'').indexOf('輻射彈') !== -1) typeClass = '#dc2626';
-    else if ((ev.type||'').indexOf('物質') !== -1) typeClass = '#d97706';
-
-    var icon = L.divIcon({
-      className: '',
-      html: '<div style="width:18px;height:18px;background:' + typeClass + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
-      iconSize: [18, 18], iconAnchor: [9, 18]
-    });
-
-    var marker = L.marker([lat, lng], { icon: icon }).addTo(gMap);
+    // 不直接加到地圖：由 _syncEventMarkers() 依「目前事件＋選定事件」決定
+    var marker = L.marker([lat, lng], { icon: _evMarkerIcon(ev, false) });
     marker.bindPopup(
       '<b>' + (ev.name || '') + '</b><br>' +
       (ev.type || '') + '<br>' +
       formatDateTime(ev.date, ev.time)
     );
+    marker._evIdx = i;
     marker.on('click', function() {
       _curIdx = i;
       // 切換事件時自動停止導航
       if (_navFollowing) stopNavMode();
       renderCard(i);
       renderLayerPanel();
+      refreshShownEvents();
+      _refreshMobEvPanel();
       var card = document.getElementById('evCard');
       if (card.classList.contains('collapsed')) toggleCollapse();
+      if (window.railShow) railShow('ev');
     });
     _markers.push(marker);
+    _evMarkerByIdx[i] = marker;
   });
+  _syncEventMarkers();
 }
 
 // ── 載入事件 ──
@@ -5098,8 +5210,6 @@ window.addEventListener('message', function(e) {
   if (e.data.type === 'setLoginUser') {
     _loginUserName = String(e.data.name || '').trim();
     _loginUserTeam = String(e.data.team || '').trim();
-    _loginUserTitle = String(e.data.title || '').trim();
-    _loginTeachMode = !!e.data.teachLogin;
     // isAdmin：優先用 postMessage 傳入值，fallback 讀 localStorage
     if (e.data.isAdmin !== undefined) {
       _loginIsAdmin = !!e.data.isAdmin;
@@ -5107,14 +5217,21 @@ window.addEventListener('message', function(e) {
       _readIsAdmin();
     }
     _initBirdBtn();
-    _loadTitleMap();
+    if (window.railRefresh) railRefresh();
+    return;
+  }
+  // ── 任務角標（由 index.html 計算後傳入）──
+  if (e.data.type === 'railTaskBadge') {
+    if (window.railSetBadge) railSetBadge(e.data.my, e.data.all);
     return;
   }
 
   // ── 編輯地圖模式開關 ──
   if (e.data.type === 'mapEditMode') {
-    var on = !!e.data.on;
+    var on = !!e.data.on && !_historyId;
     _mapEditOn = on; // ★ 同步旗標，控制右鍵選單
+    if (window.railSetEdit) railSetEdit(on);
+    if (_events.length) { refreshShownEvents(); _renderPtResetRow(); }   // 量測點位只有編輯地圖模式下才能拖
     var editBtn   = document.getElementById('evEditBtn');
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
@@ -5164,7 +5281,7 @@ window.addEventListener('message', function(e) {
         { label:'8',  shortTip:'5km上緣',   pt: destPoint(la, lo, wd - 22.5, 5000) },
         { label:'9',  shortTip:'5km中線',   pt: destPoint(la, lo, wd,        5000) },
         { label:'10', shortTip:'5km下緣',   pt: destPoint(la, lo, wd + 22.5, 5000) }
-      ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.shortTip, pt:p.pt, category:'sector' }); });
+      ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.shortTip, pt:_ptPos(ev, p.label, p.pt), category:'sector' }); });
 
       // 1km 橫切面量測點（A01~A20）
       var lineCenter2 = destPoint(la, lo, wd, 1000);
@@ -5175,38 +5292,9 @@ window.addEventListener('message', function(e) {
         var nLat = perpB2[0] + (perpA2[0] - perpB2[0]) * nt;
         var nLng = perpB2[1] + (perpA2[1] - perpB2[1]) * nt;
         var nLabel = 'A' + (ni + 1 < 10 ? '0' + (ni + 1) : '' + (ni + 1));
-        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: [nLat, nLng], category: 'cross' });
+        pts.push({ label: nLabel, shortTip: '橫切面' + (ni + 1), pt: _ptPos(ev, nLabel, [nLat, nLng]), category: 'cross' });
       }
 
-      // 20m 橫切面量測點（B01~B10，中心40m，半寬20m）
-      if (isLayerOn(_curIdx, 'mini_line')) {
-        var mlc2 = destPoint(la, lo, wd, 36);
-        var mlpa2 = destPoint(mlc2[0], mlc2[1], (wd + 90) % 360, 18);
-        var mlpb2 = destPoint(mlc2[0], mlc2[1], (wd - 90 + 360) % 360, 18);
-        for (var bi = 0; bi < 10; bi++) {
-          var bt = bi / 9;
-          var bLat = mlpb2[0] + (mlpa2[0] - mlpb2[0]) * bt;
-          var bLng = mlpb2[1] + (mlpa2[1] - mlpb2[1]) * bt;
-          var bLabel = 'B' + (bi + 1 < 10 ? '0' + (bi + 1) : '' + (bi + 1));
-          pts.push({ label: bLabel, shortTip: '模擬橫切面' + (bi+1), pt: [bLat, bLng], category: 'mini_cross' });
-        }
-      }
-
-      // 100m 扇形量測點（S1~S10，間距調整後）
-      if (isLayerOn(_curIdx, 'mini_sector')) {
-        [
-          { label:'S1',  pt: destPoint(la, lo, wd,        54)  },
-          { label:'S2',  pt: destPoint(la, lo, wd,        45)  },
-          { label:'S3',  pt: destPoint(la, lo, wd,        63)  },
-          { label:'S4',  pt: destPoint(la, lo, wd - 22.5, 72)  },
-          { label:'S5',  pt: destPoint(la, lo, wd,        72)  },
-          { label:'S6',  pt: destPoint(la, lo, wd + 22.5, 72)  },
-          { label:'S7',  pt: destPoint(la, lo, wd,        81)  },
-          { label:'S8',  pt: destPoint(la, lo, wd - 22.5, 90) },
-          { label:'S9',  pt: destPoint(la, lo, wd,        90) },
-          { label:'S10', pt: destPoint(la, lo, wd + 22.5, 90) }
-        ].forEach(function(p){ pts.push({ label:p.label, shortTip:p.label+'(模擬5km十點偵測)', pt:p.pt, category:'mini_sector' }); });
-      }
     }
     // 人工設定的量測點（T01, T02...）只取當前事件的
     var curEvId = ev ? ev.id : '';
@@ -5256,15 +5344,30 @@ window.addEventListener('message', function(e) {
   }
 });
 
+var _historyId = (function() {
+  var m = location.search.match(/[?&]history=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+})();
+function _isClosedEvStatus(v) {
+  var st = String(v || '').trim().toLowerCase();
+  return st === 'closed' || st === '已結束' || st === '結束' || st === '結案';
+}
 function loadEvents() {
   // 先載入隊別清單，再載入事件（確保 TECH_SQUADS 有值）
   loadSquads(function(squads) { TECH_SQUADS = squads.concat(['未分配']); });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
+    // 已結束事件不列入目前事件；歷史檢視（?history=事件編號）時只顯示該筆
+    _events = _events.filter(function(ev) {
+      return _historyId ? String(ev.id) === _historyId : !_isClosedEvStatus(ev.status);
+    });
+    // 歷史檢視：保留當時記錄的風向，不用現在的氣象署資料覆蓋
+    if (_historyId) _events.forEach(function(ev) { ev.windManual = true; });
     // GAS 欄位名稱對應前端：personnel→personnelStr, instrument→instrumentStr
     _events.forEach(function(ev) {
       if (ev.personnelStr === undefined) ev.personnelStr = ev.personnel || '';
       if (ev.instrumentStr === undefined) ev.instrumentStr = ev.instrument || '';
+      _normEvWind(ev);   // 風向只留有效角度；異常代碼放 windDirRaw
     });
     // 套用 pendingIdx（postMessage 比 JSONP 早到的情況）
     if (_pendingEventId !== null) {
@@ -5272,7 +5375,7 @@ function loadEvents() {
       for (var i = 0; i < _events.length; i++) {
         if (_events[i].id === _pendingEventId) { found = i; break; }
       }
-      _curIdx = found >= 0 ? found : 0;
+      _curIdx = found >= 0 ? found : _newestEventIdx();
       _pendingEventId = null;
     } else if (_pendingIdx !== null && _pendingIdx < _events.length) {
       _curIdx = _pendingIdx;
@@ -5286,7 +5389,7 @@ function loadEvents() {
           for (var j = 0; j < _events.length; j++) {
             if (_events[j].id === gotoId) { found2 = j; break; }
           }
-          _curIdx = found2 >= 0 ? found2 : 0;
+          _curIdx = found2 >= 0 ? found2 : _newestEventIdx();
           // 從建立事件頁跳回 → 自動開啟 Bird 並執行分析
           (function(targetIdx) {
             setTimeout(function() {
@@ -5303,11 +5406,17 @@ function loadEvents() {
             }, 1800);
           })(_curIdx);
         } else {
-          _curIdx = 0;
+          _curIdx = _newestEventIdx();   // 預設：發生時間最近的事件
         }
-      } catch(e) { _curIdx = 0; }
+      } catch(e) { _curIdx = _newestEventIdx(); }
     }
     _pendingIdx = null;
+    // 選定的事件：只保留還在進行中的
+    (function() {
+      var keep = {};
+      _events.forEach(function(e) { if (_selEvents[e.id]) keep[e.id] = true; });
+      _selEvents = keep; _saveSelEvents();
+    })();
     renderCard(_curIdx);
     placeMarkers();
     renderLayerPanel();          // 渲染圖層控制面板
@@ -5411,7 +5520,8 @@ function _placePendingMarker(latlng, label, squadStr, eventId) {
     '</div>',
     { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  if (_pendingLayerOn) mk.addTo(gMap);
+  mk._evId = eventId; mk._label = label; mk._squad = squadStr;
+  if (_pendingLayerOn && _evShownById(eventId)) mk.addTo(gMap);
   _pendingMsrMks.push(mk);
 }
 
@@ -5850,9 +5960,7 @@ function isMobile() { return window.innerWidth <= 600; }
 var _mapEditOn  = false; // 是否處於編輯地圖模式（只有開啟時才顯示右鍵選單）
 var _loginUserName = ''; // 登入者姓名（由 index.html postMessage 傳入）
 var _loginUserTeam = ''; // 登入者隊別（由 index.html postMessage 傳入）
-var _loginUserTitle = ''; // 登入者職稱（快速登入時有值）
 var _loginIsAdmin  = false; // 是否為管理員（讀自 localStorage.radAuth.isAdmin）
-var _titleMap = {};       // 姓名→職稱對照表（教學模式下使用）
 
 // ── 管理員判斷：從 localStorage 讀取（postMessage 沒帶 isAdmin）──
 function _readIsAdmin() {
@@ -5862,16 +5970,6 @@ function _readIsAdmin() {
   } catch(e) { _loginIsAdmin = false; }
 }
 
-// 教學模式時：抓取所有技術組人員職稱，建立姓名→職稱對應表
-function _loadTitleMap() {
-  if (!_loginTeachMode) return;
-  _jsonpGet(SHEETS_URL + '?action=group&id=tech-rdd', function(data) {
-    if (!data || !data.members) return;
-    data.members.forEach(function(m) {
-      if (m.name && m.title) _titleMap[m.name] = m.title;
-    });
-  });
-}
 var _ctxLatLng  = null;  // 右鍵點擊的座標
 var _ctxPinMk   = null;  // 右鍵暫時圖釘標記
 
@@ -6106,7 +6204,7 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
     '</div>',
     { permanent: false, direction: 'top', offset: [0, -18], opacity: 1 }
   );
-  if (_pendingLayerOn) mk.addTo(gMap);
+  if (_pendingLayerOn && _evShownById(evId)) mk.addTo(gMap);
   _taskMarkers.push({ mk: mk, latlng: latlng, squad: squadName, num: num, label: label, eventId: evId });
   _refreshNavPoints();
 }
@@ -6157,7 +6255,8 @@ function updateFabPosition() {
   var card = document.getElementById('evCard');
   if (!card) { el.style.bottom = (drawVisible ? drawOffset : 70) + 'px'; return; }
   var cardH = card.getBoundingClientRect().height;
-  el.style.bottom = (cardH + 12 + (drawVisible ? drawBar.offsetHeight + 8 : 0)) + 'px';
+  // 手機：畫筆工具列在 bottom:58px，回報按鈕要排在它上方；兩者都要避開底部圖示列
+  el.style.bottom = ((drawVisible ? 58 + drawBar.offsetHeight + 8 : cardH + 12) + (window._railMobBarH ? _railMobBarH() : 0)) + 'px';
 }
 function showReportFabs() {
   hideReportFabs();
@@ -6235,6 +6334,7 @@ function _resetContamFields() {
 }
 
 function openMeasureModal() {
+  msrClearPhoto();   // 每次開啟都從「不附照片」開始
   var modal = document.getElementById('measureModal');
   var ev    = _events[_curIdx];
   if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
@@ -6261,12 +6361,9 @@ function openMeasureModal() {
       var name  = colonIdx >= 0 ? s.slice(colonIdx + 1).trim() : s;
       if (!name) return;
       var storeVal = squad ? squad + ':' + name : name;
-      // 教學登入：顯示「職稱－姓名」；一般登入：顯示 squad:name
-      var title = _titleMap[name] || '';
-      var displayText = _loginTeachMode ? (title ? title + '－' + name : name) : storeVal;
       var opt = document.createElement('option');
       opt.value = storeVal;
-      opt.textContent = displayText;
+      opt.textContent = storeVal;
       sel.appendChild(opt);
       if (_loginUserName && name === _loginUserName && !_defaultVal) {
         _defaultVal = storeVal;
@@ -6276,35 +6373,32 @@ function openMeasureModal() {
 
   // 若登入者不在出勤名單，仍補上一個選項供選取
   if (_loginUserName && !_defaultVal) {
-    var selfVal = (_loginTeachMode ? '' : (_loginUserTeam ? _loginUserTeam + ':' : '')) + _loginUserName;
-    var selfDisplay = _loginTeachMode
-      ? (_loginUserTitle ? _loginUserTitle + '－' + _loginUserName : _loginUserName) + '（本人）'
-      : selfVal + '（本人）';
+    var selfVal = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
     var selfOpt = document.createElement('option');
-    selfOpt.value = (_loginUserTeam ? _loginUserTeam + ':' : '') + _loginUserName;
-    selfOpt.textContent = selfDisplay;
+    selfOpt.value = selfVal;
+    selfOpt.textContent = selfVal + '（本人）';
     sel.insertBefore(selfOpt, sel.options[1] || null);
     _defaultVal = selfOpt.value;
   }
 
   if (_defaultVal) sel.value = _defaultVal;
 
-  // 取目前使用者位置
-  _msrLat = null; _msrLng = null;
+  // 取目前使用者位置（GPS）；GPS 飄移時可用「地圖選點」自己點位置
+  _msrLat = null; _msrLng = null; _msrGps = null; _msrPosMode = 'gps';
+  _msrRenderCoord();
   if (_userMarker) {
     var ll = _userMarker.getLatLng();
-    _msrLat = ll.lat; _msrLng = ll.lng;
-    document.getElementById('msrCoordVal').textContent =
-      _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+    _msrGps = { lat: ll.lat, lng: ll.lng, acc: _userAccCirc ? _userAccCirc.getRadius() : null };
+    _msrUseGps();
   } else if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(function(pos) {
-      _msrLat = pos.coords.latitude;
-      _msrLng = pos.coords.longitude;
-      document.getElementById('msrCoordVal').textContent =
-        _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+      _msrGps = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+      if (_msrPosMode === 'gps') _msrUseGps(); else _msrRenderCoord();
     }, function() {
-      document.getElementById('msrCoordVal').textContent = '（無法取得定位）';
+      _msrRenderCoord();
     });
+  } else {
+    _msrRenderCoord();
   }
 
   modal.style.display       = 'block';
@@ -6328,6 +6422,7 @@ function openMeasureModal() {
 }
 
 function closeMeasureModal() {
+  if (typeof _msrEndPick === 'function') _msrEndPick(true);
   var m = document.getElementById('measureModal');
   m.style.display = 'none';
   m.style.pointerEvents = 'none';
@@ -6412,7 +6507,8 @@ function openMsrConfirm() {
     ['回報劑量', value + ' ' + unitLabel],
     ['使用儀器', instr || '—'],
     ['備註',     note  || '—'],
-    ['GPS座標',  gps]
+    ['照片',     _msrPhoto ? '📷 已附 1 張' : '不附'],
+    ['定位座標', gps + (_msrPosMode === 'manual' ? '（手動選點）' : '')]
   ];
 
   // 加污染值（有數值就顯示，類型可選）
@@ -6476,6 +6572,8 @@ function submitMeasure() {
       note:          instr + (note ? ' [' + note + ']' : '')
     }
   };
+  if (_msrPhoto) { payload.measurement.photo = _msrPhoto; payload.measurement.photoType = 'image/jpeg'; }
+  if (_msrLat && _msrLng) payload.measurement.posMode = (_msrPosMode === 'manual') ? '手動選點' : 'GPS';
 
   fetch(SHEETS_URL, {
     method:  'POST',
@@ -6487,7 +6585,8 @@ function submitMeasure() {
     closeMsrConfirm();
     closeMeasureModal();
     _resetContamFields();
-    showToast('✅ 劑量回報已送出');
+    showToast(_msrPhoto ? '✅ 劑量回報已送出（含照片）' : '✅ 劑量回報已送出');
+    msrClearPhoto();
     if (ev) { _msrCache[ev.id] = null; loadMeasurements(_curIdx, true); }
   })
   .catch(function() {
@@ -6661,9 +6760,9 @@ function _renderMobEvPanel() {
     return;
   }
   var cardBody = document.getElementById('evCardBody');
-  if (cardBody) {
-    body.innerHTML = cardBody.innerHTML;
-  }
+  var selHtml = _selBarHtml(true);
+  body.innerHTML = (selHtml ? '<div class="ev-sel-bar" style="margin:-12px -16px 12px;border-top:none">' + selHtml + '</div>' : '') +
+                   (cardBody ? cardBody.innerHTML : '');
 }
 
 // ── 視窗縮放時重設樣式 ──
@@ -6853,11 +6952,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 縮放後像素座標改變，需重新跑碰撞偵測重繪標籤
     gMap.on('moveend', function() {
       if (!_events.length) return;
-      var ev = _events[_curIdx];
-      if (!ev) return;
-      var cb = document.getElementById('lyr_' + _curIdx + '_msr');
-      if (!cb || cb.checked) renderMsrMarkers(ev.id);
-      renderMsrContamLayer(_curIdx);
+      _events.forEach(function(ev, i) {
+        if (!isEventShown(i)) return;
+        renderMsrMarkers(ev.id);
+        renderMsrContamLayer(i);
+      });
       // 環境監測站標籤也要重算
       if (_envLayerOn && _envMarkers.length) loadEnvMonitor();
     });
@@ -6959,6 +7058,7 @@ function initUserLocation() {
       var acc = pos.coords.accuracy; // 精確度（公尺）
 
       if (!gMap) return;
+      if (typeof _trkOnPosition === 'function') _trkOnPosition(lat, lng, acc);   // 有開「分享我的位置」才會記錄
 
       // 精確度圓
       if (_userAccCirc) {
@@ -7381,7 +7481,7 @@ function tdSnapshotMsrPts() {
     { label:'9',  tip:'5km中線',  bearing: wd,        dist: 5000 },
     { label:'10', tip:'5km下緣',  bearing: wd + 22.5, dist: 5000 }
   ].forEach(function(d) {
-    var pt = destPoint(la, lo, d.bearing, d.dist);
+    var pt = _ptPos(ev, d.label, destPoint(la, lo, d.bearing, d.dist));
     pts.push({ label: d.label, tip: d.tip, group: 'sector', lat: pt[0], lng: pt[1] });
   });
 
@@ -7394,7 +7494,8 @@ function tdSnapshotMsrPts() {
     var cLat = perpB[0] + (perpA[0] - perpB[0]) * t;
     var cLng = perpB[1] + (perpA[1] - perpB[1]) * t;
     var cLabel = 'A' + (i + 1 < 10 ? '0' + (i + 1) : '' + (i + 1));
-    pts.push({ label: cLabel, tip: '橫切面第' + (i + 1) + '點', group: 'cross', lat: cLat, lng: cLng });
+    var cPt = _ptPos(ev, cLabel, [cLat, cLng]);
+    pts.push({ label: cLabel, tip: '橫切面第' + (i + 1) + '點', group: 'cross', lat: cPt[0], lng: cPt[1] });
   }
 
   _tdMsrPts = pts;
@@ -7694,6 +7795,7 @@ function tvRender() {
     if (seen[key] !== undefined) {
       // 合併 target
       grouped[seen[key]].targets.push(t.target || '');
+      if (t.photoId) grouped[seen[key]].photos.push({ url: t.photoUrl, target: t.target });
       // 任一筆 pending → 整批 pending
       if (t.status !== 'done') grouped[seen[key]].status = t.status;
     } else {
@@ -7706,6 +7808,7 @@ function tvRender() {
         createdAt: t.createdAt,
         status:    t.status,
         targets:   [t.target || ''],
+        photos:    t.photoId ? [{ url: t.photoUrl, target: t.target }] : [],
         taskId:    t.taskId
       });
     }
@@ -7743,7 +7846,10 @@ function tvRender() {
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
-    html += '<td style="padding:9px 12px">'+stBadge+'</td>';
+    var phLinks = (t.photos || []).map(function(ph) {
+      return '<a href="' + _esc(ph.url) + '" target="_blank" rel="noopener" title="' + _esc((ph.target || '') + ' 回報照片') + '" style="text-decoration:none">📷</a>';
+    }).join(' ');
+    html += '<td style="padding:9px 12px">'+stBadge+(phLinks ? ' <span style="margin-left:4px">' + phLinks + '</span>' : '')+'</td>';
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
@@ -7836,6 +7942,7 @@ function _closeAllModals() {
   });
   var assign = document.getElementById('assignModal');
   if (assign) assign.style.display = 'none';
+  if (typeof _msrEndPick === 'function') _msrEndPick(true);
   var measure = document.getElementById('measureModal');
   if (measure) measure.style.display = 'none';
   _clearActiveModal();
@@ -7848,17 +7955,7 @@ var _myTaskEvMap = {};
 
 function myTaskDone(taskId) {
   if (!taskId) return;
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({ action: 'updateTaskStatus', taskId: taskId, status: 'done' })
-  });
-  _myTaskAll.forEach(function(t) {
-    if (t.taskId === taskId) t.status = 'done';
-  });
-  myTaskRender();
-  setTimeout(function() {
-    try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
-  }, 1000);
+  openTaskDone(taskId);   // 先跳出「回報任務完成」視窗（可選填照片），按確認才送出
 }
 
 function openMyTaskModal(team, label) {
@@ -7959,7 +8056,9 @@ function myTaskRender() {
         'color:white;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">' +
         '✔ 完成</button></td>';
     } else {
-      html += '<td style="padding:9px 10px"></td>';
+      html += '<td style="padding:9px 10px">' + (t.photoId
+        ? '<a href="' + _esc(t.photoUrl) + '" target="_blank" rel="noopener" title="回報照片"><img alt="回報照片" loading="lazy" src="' + _frThumb(t, 160) + '" style="display:block;height:36px;max-width:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
+        : '') + '</td>';
     }
     html += '</tr>';
     if (t.content) {
@@ -7980,9 +8079,12 @@ function myTaskRender() {
   display:none;position:fixed;inset:0;z-index:8500;
   background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
   <div style="
-    background:white;border-radius:16px;padding:28px 24px;
+    position:relative;background:white;border-radius:16px;padding:28px 24px;
     width:min(340px,90vw);box-shadow:0 8px 40px rgba(0,0,0,.25);
     font-family:var(--font);display:flex;flex-direction:column;gap:18px">
+    <button onclick="closeMsrTypeModal()" aria-label="關閉" title="關閉" style="
+      position:absolute;top:8px;right:10px;width:32px;height:32px;border:none;background:none;
+      font-size:20px;line-height:1;color:#8da0b8;cursor:pointer;border-radius:50%">✕</button>
     <div style="font-size:16px;font-weight:700;color:#1e2a3a;text-align:center">回報劑量</div>
     <div style="font-size:14px;color:#3d5070;text-align:center;line-height:1.6">
       此次回報是否為<br><strong>量測任務的執行回報？</strong>
@@ -9323,6 +9425,1060 @@ async function birdCheckAlert(measurements, eventId){
   } finally {
     _birdAlertBusy = false;
   }
+}
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     左側圖示列（桌機：左側直排；手機：底部橫排）
+     事件狀態／圖層顯示 可釘住（同時只能釘一個）；其餘為點了才拉出的選單
+     另含：現場其他事情回報、歷史事件檢視橫幅
+════════════════════════════════════════════════════════════ -->
+<style>
+:root { --rail-w: 40px; --pin-off: 0px; --rail-left: 40px; --mobbar-h: 0px; }
+#map { position: absolute !important; top: 0; right: 0; bottom: 0; left: var(--rail-w); width: auto; height: auto; }
+#railBar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 1100;
+  background: #fff; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.rail-btn {
+  position: relative; width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  border: 1px solid transparent; background: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-family: var(--font); color: var(--text); transition: background .15s, border-color .15s;
+}
+.rail-btn:hover { background: #f0f4ff; border-color: #d0d8e4; }
+.rail-btn.active { background: #e0e9ff; border-color: var(--accent); }
+.rail-btn.on { background: #fff7ed; border-color: #f97316; }
+.rail-btn .rail-lbl { display: none; }
+.rail-badge {
+  position: absolute; top: -4px; right: -1px; min-width: 16px; height: 16px; border-radius: 8px;
+  background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+  text-align: center; padding: 0 4px; display: none; pointer-events: none;
+}
+.rail-sep { width: 26px; border-top: 1px solid var(--border); margin: 4px 0; flex-shrink: 0; }
+.rail-spacer { flex: 1; }
+/* 原本的定位、衛星按鈕搬進圖示列 */
+#railBar .locate-btn, #railBar .basemap-btn {
+  position: relative; left: auto; bottom: auto; box-shadow: none; background: none; border-color: transparent;
+}
+#railBar .locate-btn:hover, #railBar .basemap-btn:hover { background: #f0f4ff; border-color: #d0d8e4; }
+#railBar .locate-btn.nav-active { background: #ede9fe; border-color: #7c3aed; }
+#railBar .basemap-btn.satellite { background: #1e2a3a; border-color: #4a6080; color: #fff; }
+
+/* 拉出的選單 */
+.rail-menu {
+  position: fixed; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px; width: 220px; z-index: 1050;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); display: none; overflow: hidden;
+}
+.rail-menu.rail-open { display: block; }
+.rail-menu-hd { padding: 10px 14px; font-size: 14px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
+.rail-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px;
+  border: none; background: none; font-family: var(--font); font-size: 14px; color: var(--text);
+  cursor: pointer; text-align: left;
+}
+.rail-menu-item:hover { background: #f0f4ff; }
+.rail-menu-item .rail-mbadge {
+  margin-left: auto; min-width: 18px; border-radius: 9px; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 1px 6px; text-align: center; display: none;
+}
+.rail-hd-btn {
+  width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); background: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;
+  color: var(--text-muted); flex-shrink: 0; padding: 0; font-family: var(--font);
+}
+.rail-hd-btn:hover { background: var(--bg); color: var(--accent); }
+.rail-hd-btn.pinned { background: #e0e9ff; border-color: var(--accent); }
+
+/* ── 桌機：事件狀態（左上）與圖層顯示（右上）各自用圖示開關，可同時開著 ── */
+@media (min-width: 601px) {
+  .rail-btn[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 46px; top: 50%; transform: translateY(-50%);
+    background: #1e2a3a; color: #fff; font-size: 12px; font-weight: 600; line-height: 1.2;
+    padding: 6px 9px; border-radius: 6px; white-space: nowrap; z-index: 5000; pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .ev-card {
+    display: none; left: calc(var(--rail-w) + 8px + var(--pin-off)); top: 8px; width: 330px;
+    max-height: calc(100vh - 16px); z-index: 1050;
+  }
+  .ev-card-title { white-space: nowrap; }
+  /* 事件狀態（左上）、圖層顯示（右上）：點左邊圖示開／關，圖示呈現底色表示開著；開著時點地圖不會收回 */
+  .ev-card.rail-on { display: flex; left: calc(var(--rail-w) + 8px); z-index: 1040; }
+  .layer-panel { display: none; z-index: 1050; }
+  .layer-panel.rail-on { display: block; z-index: 1040; }
+  .ev-collapse-btn, .layer-collapse-btn { display: none !important; }
+}
+
+/* ── 手機：圖示列改到底部橫排，圖示下方直接顯示文字；不提供釘住 ── */
+@media (max-width: 600px) {
+  :root { --rail-left: 0px; --mobbar-h: 56px; }
+  #map { left: 0; bottom: calc(var(--mobbar-h) + env(safe-area-inset-bottom, 0px)); }
+  #railBar {
+    top: auto; right: 0; bottom: 0; width: auto;
+    height: calc(var(--mobbar-h) + env(safe-area-inset-bottom, 0px));
+    flex-direction: row; align-items: flex-start; justify-content: space-around; gap: 0;
+    padding: 4px 2px 0; border-right: none; border-top: 1px solid var(--border); overflow-x: auto;
+  }
+  .rail-btn, #railBar .locate-btn, #railBar .basemap-btn {
+    flex: 1 1 0; min-width: 33px; width: auto; height: 48px; flex-direction: column; gap: 1px;
+    font-size: 18px; border-radius: 8px;
+  }
+  .rail-btn .rail-lbl { display: block; font-size: 10px; line-height: 1.1; color: var(--text-muted); white-space: nowrap; }
+  .rail-badge { top: 0; right: 2px; }
+  .rail-sep, .rail-spacer { display: none !important; }
+  .mob-layer-btn, .mob-ev-btn { display: none !important; }
+  .rail-menu {
+    left: 8px; right: 8px; top: auto; width: auto;
+    bottom: calc(var(--mobbar-h) + 8px + env(safe-area-inset-bottom, 0px));    z-index: 3100;
+  }
+  .rail-menu-item { padding: 14px 16px; font-size: 15px; }
+  .layer-panel {
+    top: auto !important; right: 8px !important;
+    bottom: calc(var(--mobbar-h) + 8px + env(safe-area-inset-bottom, 0px));    z-index: 3100;
+  }
+  .draw-toolbar { bottom: calc(58px + var(--mobbar-h)) !important; }
+  #aiBirdGroup { bottom: calc(20px + var(--mobbar-h)) !important; }
+}
+
+/* ── 現場其他事情回報 ── */
+#frModal {
+  display: none; position: fixed; inset: 0; z-index: 6000; background: rgba(15,23,42,.45);
+  align-items: center; justify-content: center; padding: 12px;
+}
+#frModal.show { display: flex; }
+.fr-card {
+  background: #fff; border-radius: 12px; width: 460px; max-width: 100%; max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column; box-shadow: 0 10px 36px rgba(0,0,0,.3); overflow: hidden;
+}
+.fr-hd { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 700; }
+.fr-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.fr-tab { flex: 1; padding: 10px; border: none; background: none; font-family: var(--font); font-size: 14px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.fr-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.fr-body { padding: 14px 16px; overflow-y: auto; }
+.fr-lbl { display: block; font-size: 13px; font-weight: 600; color: #3d5070; margin: 10px 0 5px; }
+.fr-inp { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; font-family: var(--font); font-size: 16px; color: var(--text); background: #fff; }
+.fr-mini { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; background: #f8fafc; font-family: var(--font); font-size: 13px; color: var(--text); cursor: pointer; }
+.fr-mini:hover { border-color: var(--accent); color: var(--accent); }
+.fr-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); }
+.fr-submit { border: none; border-radius: 8px; padding: 9px 20px; background: var(--accent); color: #fff; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; }
+.fr-submit:disabled { opacity: .5; cursor: not-allowed; }
+.fr-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.fr-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+.fr-cat { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+.fr-text { font-size: 14px; color: var(--text); margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+.fr-photo { display: block; max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 8px; border: 1px solid var(--border); }
+.fr-err { color: #dc2626; font-size: 13px; min-height: 18px; margin-top: 8px; }
+
+/* ── 歷史事件檢視橫幅 ── */
+#historyBanner {
+  display: none; position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1200;
+  background: #1e2a3a; color: #fff; border-radius: 20px; padding: 7px 8px 7px 16px;
+  font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  align-items: center; gap: 10px; white-space: nowrap; max-width: calc(100vw - 16px);
+}
+#historyBanner button { border: 1px solid rgba(255,255,255,.6); background: none; color: #fff; border-radius: 14px; padding: 4px 12px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+</style>
+
+<div id="railBar">
+  <button class="rail-btn" id="railBtn_ev" data-tip="事件狀態" onclick="railToggle('ev')">🚨<span class="rail-lbl">事件</span></button>
+  <button class="rail-btn" id="railBtn_layers" data-tip="圖層顯示" onclick="railToggle('layers')">🗺️<span class="rail-lbl">圖層</span></button>
+  <button class="rail-btn rail-live" id="railBtn_report" data-tip="回報" onclick="railToggle('report')">📝<span class="rail-lbl">回報</span></button>
+  <button class="rail-btn rail-live" id="railBtn_task" data-tip="任務" onclick="railToggle('task')">📋<span class="rail-lbl">任務</span><span class="rail-badge" id="railTaskBadge">0</span></button>
+  <button class="rail-btn rail-live" id="railBtn_nav" data-tip="導航至量測點" onclick="railAction('nav')">🧭<span class="rail-lbl">導航</span></button>
+  <button class="rail-btn" id="railBtn_people" data-tip="人員位置" onclick="railToggle('people')">📡<span class="rail-lbl">位置</span></button>
+  <div class="rail-sep rail-admin"></div>
+  <button class="rail-btn rail-admin rail-live" id="railBtn_edit" data-tip="編輯地圖（關閉中）" onclick="railAction('edit')">✏️<span class="rail-lbl">編輯</span></button>
+  <button class="rail-btn rail-admin" id="railBtn_bird" data-tip="AI 鳥" onclick="railAction('bird')">🐦<span class="rail-lbl">AI鳥</span></button>
+  <div class="rail-spacer"></div>
+  <button class="rail-btn" id="railBtn_myloc" data-tip="回到我的位置" onclick="goMyLocation()">🔵<span class="rail-lbl">我的</span></button>
+</div>
+
+<div class="rail-menu" id="railMenu_report">
+  <div class="rail-menu-hd">回報</div>
+  <button class="rail-menu-item" id="railItemReport" onclick="railAction('reportToggle')">我要回報</button>
+  <button class="rail-menu-item" onclick="railAction('msrQuery')">回報數值查詢</button>
+  <button class="rail-menu-item" onclick="railAction('fieldReport')">現場其他事情回報</button>
+</div>
+<div class="rail-menu" id="railMenu_people" style="width:250px"></div>
+<div class="rail-menu" id="railMenu_task">
+  <div class="rail-menu-hd">任務</div>
+  <button class="rail-menu-item" onclick="railAction('myTask')">隊別任務<span class="rail-mbadge" id="railMyBadge" style="background:#dc2626">0</span></button>
+  <button class="rail-menu-item" onclick="railAction('allTask')">所有任務<span class="rail-mbadge" id="railAllBadge" style="background:#1a56db">0</span></button>
+  <button class="rail-menu-item rail-admin" onclick="railAction('dispatch')">派送任務</button>
+</div>
+
+<div id="historyBanner">
+  <span>📁 歷史事件檢視（唯讀）</span>
+  <button onclick="railBackToLive()">返回目前事件</button>
+</div>
+
+<!-- 現場其他事情回報 -->
+<div id="frModal" onclick="if(event.target===this)frClose()">
+  <div class="fr-card">
+    <div class="fr-hd"><span>現場其他事情回報</span><button class="rail-hd-btn" style="margin-left:auto;display:flex !important" onclick="frClose()" title="關閉">✕</button></div>
+    <div class="fr-tabs">
+      <button class="fr-tab active" id="frTab_new" onclick="frTab('new')">新增回報</button>
+      <button class="fr-tab" id="frTab_list" onclick="frTab('list')">回報清單</button>
+    </div>
+    <div class="fr-body" id="frPane_new">
+      <div style="font-size:12px;color:var(--text-muted)" id="frEvName"></div>
+      <label class="fr-lbl" for="frCategory">類別</label>
+      <select class="fr-inp" id="frCategory">
+        <option>人員受傷</option><option>設備故障</option><option>交通管制</option><option>民眾狀況</option><option selected>其他</option>
+      </select>
+      <label class="fr-lbl" for="frText">說明</label>
+      <textarea class="fr-inp" id="frText" rows="4" placeholder="請描述現場狀況" oninput="document.getElementById('frErr').textContent=''"></textarea>
+      <label class="fr-lbl">位置（可不附）</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="fr-mini" onclick="frUseMyLocation()">📍 我的位置</button>
+        <button class="fr-mini" onclick="frUseMapCenter()">🗺️ 地圖中心</button>
+        <button class="fr-mini" onclick="frClearLocation()">不附位置</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:5px" id="frLocText">未附位置</div>
+      <label class="fr-lbl">照片（可不附，一張）</label>
+      <input type="file" id="frPhotoInp" accept="image/*" onchange="frOnPhoto(this)" style="font-size:14px;max-width:100%">
+      <div id="frPhotoPrev"></div>
+      <div class="fr-err" id="frErr"></div>
+    </div>
+    <div class="fr-body" id="frPane_list" style="display:none"></div>
+    <div class="fr-foot" id="frFoot">
+      <button class="fr-mini" onclick="frClose()">取消</button>
+      <button class="fr-submit" id="frSubmitBtn" onclick="frSubmit()">送出回報</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 版本回報：讓首頁知道載入的是不是新版地圖頁（檔案沒更新成最新版時，首頁會提示）
+var PAGE_BUILD = 1;
+try { parent.postMessage({ type: 'pageBuild', page: 'current-events.html', build: PAGE_BUILD }, '*'); } catch (e) {}
+// 送往 GAS 的寫入一律自動帶上操作者「姓名(帳號)」，供異動紀錄使用（不影響原本送出的內容）
+(function() {
+  var _f = window.fetch;
+  if (!_f || window.__byShim) return;
+  window.__byShim = true;
+  window.fetch = function(u, o) {
+    try {
+      if (o && o.method === 'POST' && typeof o.body === 'string' && String(u).indexOf('script.google.com') > -1) {
+        var a = JSON.parse(localStorage.getItem('radAuth') || '{}');
+        var b = JSON.parse(o.body);
+        if (b && typeof b === 'object' && !b._by && (a.name || a.acc)) {
+          b._by = (a.name || '') + (a.acc ? '(' + a.acc + ')' : '');
+          o.body = JSON.stringify(b);
+        }
+      }
+    } catch (e) {}
+    return _f.apply(this, arguments);
+  };
+})();
+</script>
+<script>
+// ════════════════════════════════════════════════════════════
+// 左側圖示列
+// ════════════════════════════════════════════════════════════
+var RAIL_PANELS = { ev: 'evCard', layers: 'layerPanel', report: 'railMenu_report', task: 'railMenu_task', people: 'railMenu_people' };
+var RAIL_TOGGLE = { ev: 330, layers: 158 };   // 開關型面板（桌機）及其寬度
+var _railOpen = null;    // 目前拉出的選單（回報／任務，點地圖會收回）
+var _railOn   = {};      // 開關型面板目前是否開著：{ ev:true, layers:false }
+
+function _railIsMob() { return window.innerWidth <= 600; }
+function _railMobBarH() { return _railIsMob() ? 56 : 0; }
+function _railEl(k) { return document.getElementById(RAIL_PANELS[k]); }
+
+function _railMark() {
+  Object.keys(RAIL_PANELS).forEach(function(k) {
+    var b = document.getElementById('railBtn_' + k);
+    if (!b) return;
+    b.classList.toggle('active', RAIL_TOGGLE[k] ? !!_railOn[k] : _railOpen === k);
+  });
+  var it = document.getElementById('railItemReport');
+  if (it) it.textContent = (typeof _reportFabEl !== 'undefined' && _reportFabEl) ? '我要回報（開啟中）' : '我要回報';
+}
+
+function railClose() {
+  if (_railOpen) { var el = _railEl(_railOpen); if (el) el.classList.remove('rail-open'); }
+  _railOpen = null;
+  _railMark();
+}
+
+// 回報／任務選單開在事件狀態右邊，避免蓋住它
+function _railApplyOff() {
+  var off = (_railOn.ev && !_railIsMob()) ? RAIL_TOGGLE.ev + 8 : 0;
+  document.documentElement.style.setProperty('--pin-off', off + 'px');
+}
+
+function _railSetOn(k, on) {
+  var el = _railEl(k);
+  if (!el) return;
+  _railOn[k] = !!on;
+  el.classList.remove('collapsed');
+  el.classList.toggle('rail-on', !!on);
+  _railApplyOff();
+  _railMark();
+  try {
+    sessionStorage.setItem('railOn', Object.keys(RAIL_TOGGLE).filter(function(x) { return _railOn[x]; }).join(',') || '-');
+  } catch (e) {}
+}
+
+function railShow(k) {
+  if (_railIsMob() && RAIL_TOGGLE[k]) return;   // 手機沿用原本的事件／圖層面板
+  if (RAIL_TOGGLE[k]) { _railSetOn(k, true); return; }
+  railClose();
+  if (k === 'people' && typeof _trkMenuRender === 'function') _trkMenuRender();   // 人員位置選單：依身分與目前狀態重畫
+  var el = _railEl(k);
+  if (!el) return;
+  el.classList.add('rail-open');
+  _railOpen = k;
+  _railMark();
+}
+
+function railToggle(k) {
+  if (_railIsMob()) {
+    var lp = document.getElementById('layerPanel');
+    if (k === 'ev')     { railClose(); if (lp) lp.classList.remove('mob-show'); toggleMobEvPanel(); return; }
+    if (k === 'layers') { railClose(); toggleMobLayer(); return; }
+    if (lp) lp.classList.remove('mob-show');
+  }
+  if (RAIL_TOGGLE[k]) { _railSetOn(k, !_railOn[k]); return; }   // 事件狀態、圖層顯示：點一下開、再點一下關
+  if (_railOpen === k) { railClose(); return; }
+  railShow(k);
+}
+
+function _railParent(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  try {
+    if (parent && parent !== window && typeof parent[fn] === 'function') { parent[fn].apply(parent, args); return true; }
+  } catch (e) {}
+  showToast('請從平台首頁開啟此功能');
+  return false;
+}
+
+function railAction(a) {
+  if (a !== 'edit' && a !== 'bird') railClose();
+  var lp = document.getElementById('layerPanel');
+  if (_railIsMob() && lp) lp.classList.remove('mob-show');
+  if (a === 'nav')          { _railParent('openNavSelectModal'); return; }
+  if (a === 'reportToggle') { _railParent('toggleReportFabs'); setTimeout(_railMark, 400); return; }
+  if (a === 'msrQuery')     { openMsrQueryModal(); return; }
+  if (a === 'fieldReport')  { frOpen(); return; }
+  if (a === 'myTask')       { _railParent('openMyTaskModal'); return; }
+  if (a === 'allTask')      { openTaskViewModal(); return; }
+  if (a === 'dispatch')     { if (_loginIsAdmin) openTdModal(); return; }
+  if (a === 'edit')         { if (_loginIsAdmin) _railParent('openEditEventPage'); return; }
+  if (a === 'bird') {
+    if (!_loginIsAdmin) return;
+    if (_birdIsOpen) _birdClose(); else _birdOpen();
+    return;
+  }
+}
+
+function railSetEdit(on) {
+  var b = document.getElementById('railBtn_edit');
+  if (!b) return;
+  b.classList.toggle('on', !!on);
+  b.setAttribute('data-tip', on ? '編輯地圖（開啟中）' : '編輯地圖（關閉中）');
+}
+
+function railSetBadge(my, all) {
+  my = parseInt(my, 10) || 0; all = parseInt(all, 10) || 0;
+  var set = function(id, n) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = n; el.style.display = n > 0 ? 'inline-block' : 'none';
+  };
+  set('railTaskBadge', my); set('railMyBadge', my); set('railAllBadge', all);
+}
+
+// 依身分顯示：管理員項目只有管理員看得到；歷史檢視時隱藏回報、任務、導航、編輯
+function railRefresh() {
+  var hist = !!_historyId;
+  document.querySelectorAll('.rail-admin').forEach(function(el) {
+    el.style.display = _loginIsAdmin ? '' : 'none';
+  });
+  document.querySelectorAll('.rail-live').forEach(function(el) {
+    if (hist) el.style.display = 'none';
+  });
+  var hb = document.getElementById('historyBanner');
+  if (hb) hb.style.display = hist ? 'flex' : 'none';
+  if (typeof renderLayerPanel === 'function' && typeof _events !== 'undefined' && _events.length) renderLayerPanel();
+}
+
+// 回到我的位置：已有定位就直接飛過去，否則要求一次定位
+function goMyLocation() {
+  if (!gMap) return;
+  if (typeof _userMarker !== 'undefined' && _userMarker) {
+    gMap.setView(_userMarker.getLatLng(), Math.max(gMap.getZoom(), 17), { animate: true });
+    return;
+  }
+  if (!navigator.geolocation) { showToast('此裝置無法定位'); return; }
+  showToast('定位中…');
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    gMap.setView([pos.coords.latitude, pos.coords.longitude], 17, { animate: true });
+  }, function() {
+    showToast('無法取得定位，請確認已允許瀏覽器使用位置');
+  }, { enableHighAccuracy: true, timeout: 8000 });
+}
+
+function railBackToLive() {
+  if (!_railParent('showIframe', 'current-events.html')) location.href = 'current-events.html';
+}
+
+(function railInit() {
+  // 把原本的定位、衛星按鈕搬進圖示列（保留原本的 id 與行為）
+  var bar = document.getElementById('railBar');
+  [['locateBtn', '回到事件位置', '事發地'], ['basemapBtn', '切換衛星地圖', '衛星']].forEach(function(d) {
+    var b = document.getElementById(d[0]);
+    if (!b) return;
+    b.classList.add('rail-btn');
+    b.setAttribute('data-tip', d[1]);
+    b.removeAttribute('title');
+    var s = document.createElement('span'); s.className = 'rail-lbl'; s.textContent = d[2];
+    b.appendChild(s);
+    bar.appendChild(b);
+  });
+  var lb = document.getElementById('locateBtn');
+  if (lb) lb.addEventListener('mouseenter', function() {
+    lb.setAttribute('data-tip', (typeof _navModeActive !== 'undefined' && _navModeActive) ? '回到我的位置（導航中）' : '回到事件位置');
+  });
+
+  // 初始狀態：同一次登入期間記住開關；每次重新登入預設兩個都開
+  if (!_railIsMob()) {
+    var saved = null;
+    try { saved = sessionStorage.getItem('railOn'); } catch (e) {}
+    if (saved === null) saved = 'ev,layers';   // 每次登入預設：事件狀態、圖層顯示都開著
+    saved.split(',').forEach(function(k) { if (RAIL_TOGGLE[k]) _railSetOn(k, true); });
+  }
+  railRefresh();
+
+  // 點地圖 → 收回未釘住的選單（編輯事件面板開著時不收，避免地圖點選地點時被關掉）
+  var tries = 0;
+  var hook = setInterval(function() {
+    if (gMap) {
+      clearInterval(hook);
+      gMap.on('click', function() { if (_railOpen) railClose(); });
+      gMap.invalidateSize();
+    } else if (++tries > 200) { clearInterval(hook); }
+  }, 100);
+
+  // 視窗在桌機／手機寬度間切換時重設
+  var wasMob = _railIsMob();
+  window.addEventListener('resize', function() {
+    var mob = _railIsMob();
+    if (mob !== wasMob) {
+      wasMob = mob;
+      railClose();
+      if (mob) Object.keys(RAIL_TOGGLE).forEach(function(k) { var el = _railEl(k); if (el) el.classList.remove('rail-on'); _railOn[k] = false; });
+      else {
+        var sv = ''; try { sv = sessionStorage.getItem('railOn') || ''; } catch (e) {}
+        sv.split(',').forEach(function(k) { if (RAIL_TOGGLE[k]) _railSetOn(k, true); });
+      }
+      _railApplyOff();
+    }
+  });
+})();
+
+// ════════════════════════════════════════════════════════════
+// 現場其他事情回報（所有人可回報、可查看；地圖上以橘色標記顯示）
+// ════════════════════════════════════════════════════════════
+var _frLayerOn = false;   // 預設不勾（依事件記憶）
+var _frMarkers = [];
+var _frCache   = [];
+var _frLatLng  = null;   // 本次回報要附的位置
+var _frPhoto   = null;   // 本次回報要附的照片（base64，不含開頭）
+
+function _frEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _frThumb(r, w) { return r.photoId ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(r.photoId) + '&sz=w' + w : ''; }
+
+function frOpen() {
+  var ev = _events[_curIdx];
+  if (!ev) { showToast('目前無進行中事件'); return; }
+  document.getElementById('frEvName').textContent = '事件：' + (ev.name || ev.id);
+  document.getElementById('frText').value = '';
+  document.getElementById('frCategory').value = '其他';
+  document.getElementById('frErr').textContent = '';
+  document.getElementById('frPhotoInp').value = '';
+  document.getElementById('frPhotoPrev').innerHTML = '';
+  _frPhoto = null;
+  frClearLocation();
+  document.getElementById('frModal').classList.add('show');
+  frTab(_historyId ? 'list' : 'new');
+  document.getElementById('frTab_new').style.display = _historyId ? 'none' : '';
+}
+function frClose() { document.getElementById('frModal').classList.remove('show'); }
+
+function frTab(t) {
+  document.getElementById('frTab_new').classList.toggle('active', t === 'new');
+  document.getElementById('frTab_list').classList.toggle('active', t === 'list');
+  document.getElementById('frPane_new').style.display  = t === 'new' ? '' : 'none';
+  document.getElementById('frPane_list').style.display = t === 'list' ? '' : 'none';
+  document.getElementById('frFoot').style.display      = t === 'new' ? '' : 'none';
+  if (t === 'list') { _frRenderList(true); frLoad(); }
+}
+
+function _frSetLoc(ll, label) {
+  _frLatLng = ll;
+  document.getElementById('frLocText').textContent =
+    ll ? label + '：' + ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5) : '未附位置';
+}
+function frClearLocation() { _frSetLoc(null); }
+function frUseMapCenter() { if (gMap) { var c = gMap.getCenter(); _frSetLoc({ lat: c.lat, lng: c.lng }, '地圖中心'); } }
+function frUseMyLocation() {
+  if (!navigator.geolocation) { showToast('此裝置無法定位'); return; }
+  document.getElementById('frLocText').textContent = '定位中…';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    _frSetLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }, '我的位置');
+  }, function() {
+    _frSetLoc(null);
+    showToast('無法取得定位，可改用「地圖中心」');
+  }, { enableHighAccuracy: true, timeout: 8000 });
+}
+
+// 照片先在裝置上縮到長邊 1280px 再上傳，避免檔案太大送不出去
+function frOnPhoto(inp) {
+  _frPhoto = null;
+  var prev = document.getElementById('frPhotoPrev');
+  prev.innerHTML = '';
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { document.getElementById('frErr').textContent = '請選擇圖片檔'; inp.value = ''; return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var img = new Image();
+    img.onload = function() {
+      var max = 1280, w = img.width, h = img.height;
+      var k = Math.min(1, max / Math.max(w, h));
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var url = cv.toDataURL('image/jpeg', 0.8);
+      _frPhoto = url.split(',')[1];
+      prev.innerHTML = '<img class="fr-photo" alt="照片預覽" src="' + url + '">';
+    };
+    img.onerror = function() { document.getElementById('frErr').textContent = '照片讀取失敗，請換一張'; inp.value = ''; };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+
+function frSubmit() {
+  var ev = _events[_curIdx];
+  var text = document.getElementById('frText').value.trim();
+  var err = document.getElementById('frErr');
+  if (!ev) { err.textContent = '目前無進行中事件'; return; }
+  if (!text) { err.textContent = '請填寫說明'; return; }
+  var btn = document.getElementById('frSubmitBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  var body = {
+    action: 'addFieldReport', eventId: ev.id,
+    reporter: _loginUserName || '', team: (typeof _loginUserTeam !== 'undefined' ? _loginUserTeam : '') || '',
+    category: document.getElementById('frCategory').value, text: text
+  };
+  if (_frLatLng) { body.lat = _frLatLng.lat; body.lng = _frLatLng.lng; }
+  if (_frPhoto)  { body.photo = _frPhoto; body.photoType = 'image/jpeg'; }
+  var hadPhoto = !!_frPhoto;
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).then(function() {
+    btn.disabled = false; btn.textContent = '送出回報';
+    showToast('已送出回報');
+    document.getElementById('frText').value = '';
+    document.getElementById('frPhotoInp').value = '';
+    document.getElementById('frPhotoPrev').innerHTML = '';
+    _frPhoto = null;
+    frTab('list');
+    // 寫入試算表（含照片上傳）需要幾秒，稍後再重抓兩次
+    setTimeout(frLoad, 2500);
+    setTimeout(frLoad, hadPhoto ? 8000 : 5000);
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = '送出回報';
+    err.textContent = '送出失敗，請確認網路連線後再試';
+  });
+}
+
+function frLoad() {
+  var ev = _events[_curIdx];
+  if (!ev) { _frCache = []; _frRenderMarkers(); return; }
+  var evId = ev.id;
+  _jsonpGet(SHEETS_URL + '?action=fieldReports&eventId=' + encodeURIComponent(evId), function(data) {
+    var cur = _events[_curIdx];
+    if (!cur || cur.id !== evId) return;   // 期間已切換事件
+    _frCache = (data && data.reports) ? data.reports : [];
+    _frRenderMarkers();
+    _frRenderList(false);
+  });
+}
+
+function _frRenderList(loading) {
+  var pane = document.getElementById('frPane_list');
+  if (!pane || pane.style.display === 'none') return;
+  if (!_frCache.length) {
+    pane.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:24px 0;font-size:13px">' + (loading ? '載入中…' : '此事件尚無現場回報') + '</div>';
+    return;
+  }
+  pane.innerHTML = _frCache.map(function(r, i) {
+    var hasLoc = r.lat !== '' && r.lng !== '' && !isNaN(parseFloat(r.lat)) && !isNaN(parseFloat(r.lng));
+    return '<div class="fr-item">' +
+      '<div class="fr-item-top"><span class="fr-cat">' + _frEsc(r.category || '其他') + '</span>' +
+      '<span>' + _frEsc(r.time) + '</span><span>' + _frEsc(r.reporter || '未具名') + (r.team ? '（' + _frEsc(r.team) + '）' : '') + '</span>' +
+      (hasLoc ? '<button class="fr-mini" style="margin-left:auto;padding:3px 8px;font-size:12px" onclick="frGoto(' + i + ')">📍 看位置</button>' : '') +
+      '</div>' +
+      '<div class="fr-text">' + _frEsc(r.text) + '</div>' +
+      (r.photoId ? '<a href="' + _frEsc(r.photoUrl) + '" target="_blank" rel="noopener"><img class="fr-photo" alt="現場照片" loading="lazy" src="' + _frThumb(r, 800) + '"></a>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function frGoto(i) {
+  var r = _frCache[i];
+  if (!r || !gMap) return;
+  frClose();
+  if (!_frLayerOn) { var cb = document.getElementById('lyr_fr'); if (cb) cb.checked = true; onGlobalChk('fr', true); _frRenderMarkers(); }
+  gMap.setView([parseFloat(r.lat), parseFloat(r.lng)], Math.max(gMap.getZoom(), 16));
+  var m = _frMarkers.filter(function(x) { return x._frId === r.id; })[0];
+  if (m) m.openPopup();
+}
+
+function _frRenderMarkers() {
+  _frMarkers.forEach(function(m) { m.remove(); });
+  _frMarkers = [];
+  if (!_frLayerOn || !gMap) return;
+  _frCache.forEach(function(r) {
+    var la = parseFloat(r.lat), lo = parseFloat(r.lng);
+    if (r.lat === '' || r.lng === '' || isNaN(la) || isNaN(lo)) return;
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="width:26px;height:26px;border-radius:50%;background:#ea580c;border:2px solid #fff;' +
+            'box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:14px">📣</div>',
+      iconSize: [26, 26], iconAnchor: [13, 13]
+    });
+    var m = L.marker([la, lo], { icon: icon }).addTo(gMap);
+    m._frId = r.id;
+    m.bindPopup(
+      '<div style="min-width:180px;max-width:240px">' +
+      '<b>' + _frEsc(r.category || '現場回報') + '</b><br>' +
+      '<span style="font-size:12px;color:#6b7a92">' + _frEsc(r.time) + '　' + _frEsc(r.reporter || '未具名') + '</span>' +
+      '<div style="margin-top:6px;white-space:pre-wrap;word-break:break-word">' + _frEsc(r.text) + '</div>' +
+      (r.photoId ? '<a href="' + _frEsc(r.photoUrl) + '" target="_blank" rel="noopener"><img alt="現場照片" style="display:block;max-width:100%;border-radius:6px;margin-top:6px" src="' + _frThumb(r, 400) + '"></a>' : '') +
+      '</div>'
+    );
+    _frMarkers.push(m);
+  });
+}
+
+function onFrChk(checked) {
+  _frLayerOn = !!checked;
+  if (_frLayerOn) frLoad(); else _frRenderMarkers();
+}
+
+// 每 30 秒同步一次（圖層有開、且有事件時才抓）
+setInterval(function() {
+  if (_frLayerOn && typeof _events !== 'undefined' && _events.length && !document.hidden) frLoad();
+}, 30000);
+</script>
+
+
+<!-- ═══ 回報任務完成（可選填照片）═══ -->
+<div id="taskDoneModal" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(15,23,42,.5);align-items:center;justify-content:center;padding:12px" onclick="if(event.target===this)closeTaskDone()">
+  <div style="background:#fff;border-radius:14px;width:380px;max-width:100%;box-shadow:0 10px 36px rgba(0,0,0,.3);font-family:var(--font);overflow:hidden">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:16px;font-weight:700">回報任務完成</div>
+    <div style="padding:14px 18px">
+      <div id="taskDoneTitle" style="font-size:14px;color:#1e2a3a;font-weight:600;word-break:break-all"></div>
+      <div style="font-size:12px;font-weight:600;color:#6b7a92;margin:14px 0 6px">📷 現場照片（選填）</div>
+      <input id="taskDonePhotoInp" type="file" accept="image/*" onchange="taskDoneOnPhoto(this)" style="font-size:14px;max-width:100%">
+      <div id="taskDonePhotoPrev"></div>
+      <div id="taskDoneErr" style="color:#dc2626;font-size:13px;min-height:18px;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 18px 16px;justify-content:flex-end">
+      <button onclick="closeTaskDone()" style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">取消</button>
+      <button id="taskDoneBtn" onclick="submitTaskDone()" style="padding:9px 18px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">✅ 確認完成</button>
+    </div>
+  </div>
+</div>
+<script>
+// ── 回報用的選填照片：縮到長邊 1280px、JPEG 品質 0.8 後轉 base64（跟「現場其他事情回報」同一套）──
+function _photoFromInput(inp, onOk, onFail) {
+  var f = inp.files && inp.files[0];
+  if (!f) { onOk(null, ''); return; }
+  if (!/^image\//.test(f.type)) { onFail('請選擇圖片檔'); inp.value = ''; return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var img = new Image();
+    img.onload = function() {
+      var k = Math.min(1, 1280 / Math.max(img.width, img.height));
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var url = cv.toDataURL('image/jpeg', 0.8);
+      onOk(url.split(',')[1], url);
+    };
+    img.onerror = function() { onFail('照片讀取失敗，請換一張'); inp.value = ''; };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function _photoPrevHtml(url) {
+  return url ? '<img alt="照片預覽" src="' + url + '" style="display:block;max-width:100%;max-height:160px;border-radius:8px;margin-top:8px;border:1px solid var(--border)">' : '';
+}
+
+// 一般回報（量測值）
+var _msrPhoto = null;
+function msrOnPhoto(inp) {
+  _msrPhoto = null;
+  var prev = document.getElementById('msrPhotoPrev'); if (prev) prev.innerHTML = '';
+  _photoFromInput(inp, function(b64, url) { _msrPhoto = b64; if (prev) prev.innerHTML = _photoPrevHtml(url); },
+                  function(msg) { showToast('⚠️ ' + msg); });
+}
+function msrClearPhoto() {
+  _msrPhoto = null;
+  var inp = document.getElementById('msrPhotoInp'); if (inp) inp.value = '';
+  var prev = document.getElementById('msrPhotoPrev'); if (prev) prev.innerHTML = '';
+}
+
+// 回報任務完成
+var _tdPhoto = null, _tdTaskId = '';
+function openTaskDone(taskId) {
+  _tdTaskId = taskId; _tdPhoto = null;
+  var t = null;
+  (_myTaskAll || []).forEach(function(x) { if (x.taskId === taskId) t = x; });
+  document.getElementById('taskDoneTitle').textContent = t ? (t.title || '任務') : '任務';
+  document.getElementById('taskDonePhotoInp').value = '';
+  document.getElementById('taskDonePhotoPrev').innerHTML = '';
+  document.getElementById('taskDoneErr').textContent = '';
+  var btn = document.getElementById('taskDoneBtn'); btn.disabled = false; btn.textContent = '✅ 確認完成';
+  document.getElementById('taskDoneModal').style.display = 'flex';
+}
+function closeTaskDone() { document.getElementById('taskDoneModal').style.display = 'none'; _tdTaskId = ''; _tdPhoto = null; }
+function taskDoneOnPhoto(inp) {
+  _tdPhoto = null;
+  var prev = document.getElementById('taskDonePhotoPrev'); prev.innerHTML = '';
+  _photoFromInput(inp, function(b64, url) { _tdPhoto = b64; prev.innerHTML = _photoPrevHtml(url); },
+                  function(msg) { document.getElementById('taskDoneErr').textContent = msg; });
+}
+function submitTaskDone() {
+  var id = _tdTaskId;
+  if (!id) return;
+  var btn = document.getElementById('taskDoneBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  var hadPhoto = !!_tdPhoto;
+  var body = { action: 'updateTaskStatus', taskId: id, status: 'done' };
+  if (_tdPhoto) { body.photo = _tdPhoto; body.photoType = 'image/jpeg'; }
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).then(function() {
+    (_myTaskAll || []).forEach(function(t) { if (t.taskId === id) t.status = 'done'; });
+    closeTaskDone();
+    myTaskRender();
+    showToast(hadPhoto ? '✅ 已回報任務完成（含照片）' : '✅ 已回報任務完成');
+    // 重新讀取任務清單（取得照片連結），並通知首頁更新任務角標
+    setTimeout(function() {
+      myTaskLoad();
+      try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
+    }, 1200);
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = '✅ 確認完成';
+    document.getElementById('taskDoneErr').textContent = '送出失敗，請確認網路連線後再試';
+  });
+}
+</script>
+
+
+<!-- ═══ 回報劑量：地圖選點（視窗暫時收成底部細列）═══ -->
+<div id="msrPickBar" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9300;width:min(560px,calc(100vw - 16px));box-sizing:border-box;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.3);padding:10px 12px;font-family:var(--font)">
+  <div style="font-size:12px;color:#6b7a92">📌 點地圖或拖曳圖釘，選擇回報位置</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+    <div style="flex:1;min-width:150px">
+      <div id="msrPickCoord" style="font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:#1a56db"></div>
+      <div id="msrPickDist" style="font-size:12px;color:#6b7a92;margin-top:2px"></div>
+    </div>
+    <button type="button" onclick="msrPickCancel()" style="padding:9px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">取消</button>
+    <button id="msrPickOk" type="button" onclick="msrPickConfirm()" style="padding:9px 18px;border:none;border-radius:8px;background:#f97316;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">確定</button>
+  </div>
+</div>
+<style>@media (max-width: 600px) { #msrPickBar { bottom: calc(var(--mobbar-h, 56px) + 8px + env(safe-area-inset-bottom, 0px)) !important; } }</style>
+<script>
+var _msrGps = null;          // 最近一次 GPS：{ lat, lng, acc }
+var _msrPosMode = 'gps';     // 'gps' 或 'manual'（手動選點）
+var _msrPickMk = null, _msrPickClickFn = null, _msrPickPrev = null;
+
+function _msrUseGps() {
+  if (!_msrGps) return;
+  _msrLat = _msrGps.lat; _msrLng = _msrGps.lng; _msrPosMode = 'gps';
+  _msrRenderCoord();
+}
+// 更新座標列：GPS（附精度，誤差大時提示）／手動選點（可改回 GPS）／無法定位
+function _msrRenderCoord() {
+  var el = document.getElementById('msrCoordVal'), note = document.getElementById('msrCoordNote'), btn = document.getElementById('msrPickBtn');
+  if (!el) return;
+  var warn = false, noteHtml = '';
+  if (_msrLat && _msrLng) {
+    var txt = _msrLat.toFixed(6) + ', ' + _msrLng.toFixed(6);
+    if (_msrPosMode === 'manual') {
+      txt += '　<span style="color:#b45309;font-family:var(--font)">（手動選點）</span>';
+      if (_msrGps) noteHtml = '<a href="javascript:void(0)" onclick="_msrUseGps()" style="color:#1a56db;text-decoration:none">↺ 改回 GPS 位置</a>';
+    } else if (_msrGps && _msrGps.acc != null) {
+      var acc = Math.round(_msrGps.acc);
+      txt += '　<span style="font-family:var(--font);color:#6b7a92">GPS 精度 ±' + acc + 'm</span>';
+      if (acc > 50) warn = true;   // 精度差：座標列變黃、「地圖選點」按鈕變藍底，不另外加文字
+    }
+    el.innerHTML = txt;
+  } else {
+    warn = true;
+    el.textContent = '（無法取得定位）';
+  }
+  el.style.background = warn ? '#fffbeb' : '#f0f4ff';
+  el.style.color = warn ? '#92400e' : '#1a56db';
+  if (note) { note.style.display = noteHtml ? '' : 'none'; note.style.color = warn ? '#92400e' : '#6b7a92'; note.innerHTML = noteHtml; }
+  if (btn) { btn.style.background = warn ? '#1a56db' : '#fff'; btn.style.color = warn ? '#fff' : '#1a56db'; }
+}
+
+function msrStartPick() {
+  if (!gMap || _msrPickMk) return;
+  var modal = document.getElementById('measureModal');
+  _msrPickPrev = { display: modal.style.display, pe: modal.style.pointerEvents };
+  modal.style.display = 'none';
+  // 圖釘起點：有 GPS 就用 GPS 位置（地圖移過去）；沒有 GPS 就用「目前看到的地圖畫面中心」（地圖不動）
+  var start = null, moveMap = false;
+  if (_msrGps) { start = [_msrGps.lat, _msrGps.lng]; moveMap = true; }
+  else { var c0 = gMap.getCenter(); start = [c0.lat, c0.lng]; }
+  _msrPickMk = L.marker(start, {
+    draggable: true, autoPan: true, zIndexOffset: 2000,
+    icon: L.divIcon({ className: '', html: '<div style="font-size:32px;line-height:32px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))">📍</div>', iconSize: [32, 32], iconAnchor: [16, 30] })
+  }).addTo(gMap);
+  _msrPickMk.on('drag dragend', _msrPickUpdate);
+  _msrPickClickFn = function(e) { if (_msrPickMk) { _msrPickMk.setLatLng(e.latlng); _msrPickUpdate(); } };
+  gMap.on('click', _msrPickClickFn);
+  if (moveMap) gMap.setView(start, Math.max(gMap.getZoom(), 16), { animate: false });
+  document.getElementById('msrPickBar').style.display = 'block';
+  _msrPickUpdate();
+}
+function _msrPickUpdate() {
+  if (!_msrPickMk) return;
+  var ll = _msrPickMk.getLatLng();
+  document.getElementById('msrPickCoord').textContent = ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
+  var d = _msrGps ? gMap.distance([_msrGps.lat, _msrGps.lng], ll) : null;
+  document.getElementById('msrPickDist').textContent = d == null ? '' : (d < 1000 ? '距 GPS 位置約 ' + Math.round(d) + ' 公尺' : '距 GPS 位置約 ' + (d / 1000).toFixed(1) + ' 公里');
+}
+function msrPickConfirm() {
+  if (!_msrPickMk) return;
+  var ll = _msrPickMk.getLatLng();
+  var ev = _events[_curIdx];
+  if (ev && !isNaN(parseFloat(ev.lat))) {
+    var dEv = gMap.distance([parseFloat(ev.lat), parseFloat(ev.lng)], ll);
+    if (dEv > 10000 && !confirm('這個位置距事發點 ' + (dEv / 1000).toFixed(1) + ' 公里，確定嗎？')) return;   // 防止手滑點到很遠的地方
+  }
+  _msrLat = ll.lat; _msrLng = ll.lng; _msrPosMode = 'manual';
+  _msrEndPick();
+  _msrRenderCoord();
+}
+function msrPickCancel() { _msrEndPick(); }
+// 結束選點：拿掉圖釘與底部列；quiet=true 時不把回報視窗再顯示出來（關閉視窗時用）
+function _msrEndPick(quiet) {
+  if (!_msrPickMk) return;
+  try { _msrPickMk.remove(); } catch (e) {}
+  _msrPickMk = null;
+  if (_msrPickClickFn) { gMap.off('click', _msrPickClickFn); _msrPickClickFn = null; }
+  document.getElementById('msrPickBar').style.display = 'none';
+  if (!quiet && _msrPickPrev) {
+    var modal = document.getElementById('measureModal');
+    modal.style.display = _msrPickPrev.display || 'block';
+    modal.style.pointerEvents = _msrPickPrev.pe || 'auto';
+  }
+  _msrPickPrev = null;
+}
+</script>
+
+
+<!-- ═══ 人員位置：分享、軌跡（管理員可開放給所有登入者看到彼此）═══ -->
+<div id="trkPill" style="display:none;position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:1200;background:#dc2626;color:#fff;border-radius:20px;padding:6px 8px 6px 14px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.3);align-items:center;gap:10px;white-space:nowrap;max-width:calc(100vw - 16px);font-family:var(--font)">
+  <span style="width:8px;height:8px;border-radius:50%;background:#fff;animation:userPulse 1.6s ease infinite"></span>
+  <span>📡 位置分享中</span>
+  <button type="button" onclick="trkSetShare(false)" style="border:1px solid rgba(255,255,255,.7);background:none;color:#fff;border-radius:14px;padding:3px 12px;font-family:inherit;font-size:12px;cursor:pointer">停止</button>
+</div>
+<style>
+.trk-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.93); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.trk-mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 14px; color: var(--text); cursor: pointer; }
+.trk-mrow input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.trk-hint { font-size: 12px; line-height: 1.5; color: #6b7a92; margin: -2px 0 4px 26px; }
+.trk-sep { border-top: 1px solid var(--border); margin: 6px 0; }
+.trk-sel { font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font-family: inherit; }
+</style>
+<script>
+var _trkShare   = false;     // 我是否正在分享位置（每次登入都要自己打開）
+try { _trkShare = sessionStorage.getItem('trkShare') === '1'; } catch (e) {}
+var _trkOpen    = false;     // 管理員是否開放所有登入者看到彼此（讀自試算表設定）
+var _trkLayerOn = false, _trkMinutes = 60, _trkGroup = null, _trkTimer = null, _trkEvId = null;
+var _trkBuf = [], _trkLast = null, _trkFlushTimer = null;
+
+function _trkCanView() { return !!(_loginIsAdmin || _trkOpen); }
+
+// ── 左欄「📡 人員位置」選單 ──
+function _trkMenuRender() {
+  var el = document.getElementById('railMenu_people');
+  if (!el) return;
+  var h = '<div class="rail-menu-hd">人員位置</div><div style="padding:6px 14px 12px">';
+  h += '<label class="trk-mrow"><input type="checkbox" id="trk_share" ' + (_trkShare ? 'checked' : '') + ' onchange="trkSetShare(this.checked)"><span>📡 分享我的位置</span></label>';
+  h += '<div class="trk-hint">打開後，畫面上方會一直顯示「位置分享中」；每次登入都要重新打開。</div>';
+  if (_trkCanView()) {
+    h += '<div class="trk-sep"></div>';
+    h += '<label class="trk-mrow"><input type="checkbox" id="lyr_trk" ' + (_trkLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'trk\',this.checked)"><span>🧵 顯示人員軌跡</span></label>';
+    h += '<div style="padding:0 0 6px 26px"><select id="trk_range" class="trk-sel" onchange="onTrkRange(this.value)">' +
+      [[60, '最近 1 小時'], [180, '最近 3 小時'], [720, '最近 12 小時'], [1440, '最近 24 小時']].map(function(o) {
+        return '<option value="' + o[0] + '"' + (o[0] === _trkMinutes ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select></div>';
+  }
+  if (_loginIsAdmin) {
+    h += '<div class="trk-sep"></div>';
+    h += '<label class="trk-mrow"><input type="checkbox" id="trk_open" ' + (_trkOpen ? 'checked' : '') + ' onchange="trkSetOpen(this.checked)"><span>👥 開放給所有登入者看到彼此</span></label>';
+    h += '<div class="trk-hint">未開放時，只有管理員看得到所有人的位置與軌跡。</div>';
+  }
+  el.innerHTML = h + '</div>';
+}
+// 選單開著時才需要重畫
+function _trkMenuRefresh() { if (typeof _railOpen !== 'undefined' && _railOpen === 'people') _trkMenuRender(); }
+// 左欄圖示：分享中就亮起橘色底
+function _trkMarkRail() {
+  var b = document.getElementById('railBtn_people');
+  if (!b) return;
+  b.classList.toggle('on', !!_trkShare);
+  b.setAttribute('data-tip', _trkShare ? '人員位置（分享中）' : '人員位置');
+}
+
+// ── 分享我的位置 ──
+function trkSetShare(on) {
+  if (on && typeof _historyId !== 'undefined' && _historyId) { showToast('歷史事件檢視不能分享位置'); var cb0 = document.getElementById('trk_share'); if (cb0) cb0.checked = false; return; }
+  if (on && !navigator.geolocation) { showToast('此裝置無法定位'); var cb1 = document.getElementById('trk_share'); if (cb1) cb1.checked = false; return; }
+  _trkShare = !!on;
+  try { sessionStorage.setItem('trkShare', on ? '1' : '0'); } catch (e) {}
+  var cb = document.getElementById('trk_share'); if (cb) cb.checked = _trkShare;
+  var pill = document.getElementById('trkPill'); if (pill) pill.style.display = _trkShare ? 'flex' : 'none';
+  _trkMarkRail();
+  if (_trkShare) {
+    _trkLast = null;
+    if (!_trkFlushTimer) _trkFlushTimer = setInterval(_trkFlush, 30000);
+    showToast(_userMarker ? '📡 已開始分享位置，畫面上方會顯示「位置分享中」' : '📡 已開始分享位置；尚未取得定位，請允許瀏覽器使用位置');
+    if (_userMarker) { var ll = _userMarker.getLatLng(); _trkOnPosition(ll.lat, ll.lng, _userAccCirc ? _userAccCirc.getRadius() : 50); }
+  } else {
+    _trkFlush();
+    if (_trkFlushTimer) { clearInterval(_trkFlushTimer); _trkFlushTimer = null; }
+  }
+}
+// 每次定位更新時呼叫：精度太差的不記；移動超過 15 公尺，或每 60 秒記一筆（讓人知道還在線）
+function _trkOnPosition(lat, lng, acc) {
+  if (!_trkShare) return;
+  if (acc != null && acc > 100) return;
+  var now = Date.now();
+  if (_trkLast) {
+    var dt = now - _trkLast.t;
+    if (dt < 5000) return;
+    var d = L.latLng(_trkLast.lat, _trkLast.lng).distanceTo(L.latLng(lat, lng));
+    if (d < 15 && dt < 60000) return;
+  }
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  _trkBuf.push({ e: ev.id, t: now, lat: lat, lng: lng, acc: acc == null ? '' : Math.round(acc) });
+  _trkLast = { lat: lat, lng: lng, t: now };
+  if (_trkBuf.length >= 40) _trkFlush();
+}
+function _trkFlush() {
+  if (!_trkBuf.length || !_loginUserName) return;
+  var pts = _trkBuf.splice(0, 200);
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'addTrackPoints', name: _loginUserName, team: _loginUserTeam || '', points: pts }) })
+    .catch(function() { _trkBuf = pts.concat(_trkBuf).slice(-600); });   // 送失敗就留著，下次再送
+}
+document.addEventListener('visibilitychange', function() { if (document.hidden) _trkFlush(); });
+window.addEventListener('pagehide', _trkFlush);
+
+// ── 管理員：開放給所有登入者看到彼此 ──
+function trkSetOpen(on) {
+  if (!_loginIsAdmin) return;
+  _trkOpen = !!on;
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'setTrackOpen', open: !!on, updatedBy: _loginUserName || '' }) })
+    .catch(function() { showToast('⚠️ 儲存失敗，請確認網路連線'); });
+  showToast(on ? '已開放：所有登入者都能看到彼此的位置與軌跡' : '已關閉：只有管理員看得到位置與軌跡');
+  _trkMenuRefresh();
+}
+function _trkLoadSettings() {
+  _jsonpGet(SHEETS_URL + '?action=getTrackSettings', function(d) {
+    if (!d || d.ok === false) return;
+    var was = _trkOpen;
+    if (!_loginIsAdmin || d.open !== undefined) _trkOpen = !!d.open;
+    if (was !== _trkOpen && _events.length) {
+      if (!_trkCanView() && _trkLayerOn) onTrkChk(false);
+      _trkMenuRefresh();
+    }
+  });
+}
+
+// ── 軌跡圖層 ──
+function onTrkRange(v) { _trkMinutes = parseInt(v, 10) || 60; if (_trkLayerOn) _trkRefresh(); }
+function onTrkChk(on) {
+  _trkLayerOn = !!on && _trkCanView();
+  if (_trkTimer) { clearInterval(_trkTimer); _trkTimer = null; }
+  if (_trkLayerOn) { _trkRefresh(); _trkTimer = setInterval(_trkRefresh, 15000); }
+  else { _trkEvId = null; if (_trkGroup) _trkGroup.clearLayers(); }
+}
+function _trkRefresh() {
+  if (!_trkLayerOn || !gMap) return;
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var evId = ev.id;
+  _trkEvId = evId;
+  _jsonpGet(SHEETS_URL + '?action=getTracks&eventId=' + encodeURIComponent(evId) + '&minutes=' + _trkMinutes + '&admin=' + (_loginIsAdmin ? 1 : 0), function(d) {
+    if (!_trkLayerOn || !d || d.ok === false) return;
+    var cur = _events[_curIdx];
+    if (!cur || cur.id !== evId) return;           // 期間已切換事件
+    if (d.open !== undefined && !_loginIsAdmin) _trkOpen = !!d.open;
+    if (!_trkCanView()) { onTrkChk(false); _trkMenuRefresh(); return; }
+    _trkDraw(d.tracks || []);
+  });
+}
+function _trkColor(key) {
+  var pal = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'];
+  var h = 0; for (var i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return pal[h % pal.length];
+}
+function _trkDraw(tracks) {
+  if (!_trkGroup) _trkGroup = L.layerGroup().addTo(gMap);
+  _trkGroup.clearLayers();
+  var nowMs = Date.now();
+  tracks.forEach(function(t) {
+    var pts = t.points || [];
+    if (!pts.length) return;
+    var col = _trkColor((t.name || '') + (t.team || ''));
+    // 相鄰兩點相隔超過 3 分鐘 → 中間畫虛線（代表沒有資料，例如手機鎖屏），實線只畫有連續資料的部分
+    var seg = [[pts[0][1], pts[0][2]]];
+    function flushSeg() { if (seg.length > 1) L.polyline(seg, { color: col, weight: 3, opacity: 0.85 }).addTo(_trkGroup); }
+    for (var i = 1; i < pts.length; i++) {
+      var cur = [pts[i][1], pts[i][2]];
+      if (pts[i][0] - pts[i - 1][0] > 180000) {
+        flushSeg();
+        L.polyline([[pts[i - 1][1], pts[i - 1][2]], cur], { color: col, weight: 2, opacity: 0.5, dashArray: '4 6' }).addTo(_trkGroup);
+        seg = [cur];
+      } else seg.push(cur);
+    }
+    flushSeg();
+    L.circleMarker([pts[0][1], pts[0][2]], { radius: 4, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1 }).addTo(_trkGroup);
+    var last = pts[pts.length - 1];
+    var ageMin = Math.round((nowMs - last[0]) / 60000);
+    var stale = ageMin > 5;
+    var d = new Date(last[0]);
+    var hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    L.circleMarker([last[1], last[2]], { radius: 8, color: '#fff', weight: 2, fillColor: col, fillOpacity: stale ? 0.45 : 1 }).addTo(_trkGroup)
+      .bindTooltip(_esc(t.name || '?') + ' · ' + hhmm + (stale ? '（' + ageMin + ' 分鐘前）' : ''), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
+  });
+}
+
+// 啟動：讀「是否開放」設定；之前已經打開分享（同一次登入內換頁）就恢復顯示與定時傳送
+setTimeout(_trkLoadSettings, 2500);
+setInterval(_trkLoadSettings, 60000);
+if (_trkShare) {
+  _trkMarkRail();
+  var _p0 = document.getElementById('trkPill'); if (_p0) _p0.style.display = 'flex';
+  _trkFlushTimer = setInterval(_trkFlush, 30000);
 }
 </script>
 
