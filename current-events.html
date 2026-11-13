@@ -9644,7 +9644,7 @@ async function birdCheckAlert(measurements, eventId){
   <button class="rail-btn" id="railBtn_people" data-tip="人員位置" onclick="railToggle('people')">📡<span class="rail-lbl">位置</span></button>
   <button class="rail-btn rail-mobonly" id="railBtn_more" data-tip="位置與地圖" onclick="railToggle('more')">📍<span class="rail-lbl">位置</span></button>
   <div class="rail-sep rail-admin"></div>
-  <button class="rail-btn rail-admin rail-live" id="railBtn_edit" data-tip="編輯地圖（關閉中）" onclick="railAction('edit')">✏️<span class="rail-lbl">編輯</span></button>
+  <button class="rail-btn rail-admin rail-live" id="railBtn_edit" data-tip="編輯地圖" onclick="railAction('edit')">✏️<span class="rail-lbl">編輯</span></button>
   <button class="rail-btn rail-admin" id="railBtn_bird" data-tip="AI 鳥" onclick="railAction('bird')">🐦<span class="rail-lbl">AI鳥</span></button>
   <div class="rail-spacer"></div>
   <button class="rail-btn" id="railBtn_myloc" data-tip="回到我的位置" onclick="goMyLocation()">🔵<span class="rail-lbl">我的</span></button>
@@ -9835,7 +9835,7 @@ function railSetEdit(on) {
   var b = document.getElementById('railBtn_edit');
   if (!b) return;
   b.classList.toggle('on', !!on);
-  b.setAttribute('data-tip', on ? '編輯地圖（開啟中）' : '編輯地圖（關閉中）');
+  b.setAttribute('data-tip', '編輯地圖');   // 開或關看圖示有沒有底色即可
 }
 
 function railSetBadge(my, all) {

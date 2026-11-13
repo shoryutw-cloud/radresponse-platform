@@ -501,7 +501,6 @@
       <div class="drawer-section-title">後台功能</div>
 <button class="drawer-item admin-item" id="drawerAdminBtn" onclick="drawerToggleAdmin()">開啟/關閉編輯地圖</button>
       <button class="drawer-item" onclick="showIframe('create-event.html');closeDrawer()">建立事件</button>
-      <button class="drawer-item" id="drawerEditEventBtn" onclick="openEditEventPage();closeDrawer()">編輯事件</button>
       <button class="drawer-item" onclick="closeDrawer();openEndEventModal()" style="color:#dc2626">結束事件</button>
       <button class="drawer-item" onclick="closeDrawer();openTaskDispatchViaIframe()">派送任務</button>
       <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">查看任務</button>
@@ -629,7 +628,6 @@
 </div>
 <div class="top-drop-l3" id="drop-jishi">
   <button class="top-drop-l3-btn" onclick="showIframe('create-event.html');closeAllMenus()">建立事件</button>
-  <button class="top-drop-l3-btn" id="btnEditEvent" onclick="openEditEventPage();closeAllMenus()">編輯事件</button>
   <button class="top-drop-l3-btn" onclick="closeAllMenus();openTaskDispatchViaIframe()">派送任務</button>
   <button class="top-drop-l3-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">查看任務</button>
   <button class="top-drop-l3-btn" onclick="closeAllMenus();openEndEventModal()" style="color:#f87171">結束事件</button>
