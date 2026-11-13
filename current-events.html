@@ -1101,6 +1101,12 @@ cursor: pointer; transition: background .15s;
           font-family:inherit;font-size:16px;color:#1e2a3a;background:white;
           outline:none;box-sizing:border-box;">
       </div>
+      <!-- 照片 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a92;letter-spacing:.05em;margin-bottom:4px">📷 現場照片（選填）</div>
+        <input id="msrPhotoInp" type="file" accept="image/*" onchange="msrOnPhoto(this)" style="font-size:14px;max-width:100%">
+        <div id="msrPhotoPrev"></div>
+      </div>
     </div>
     <!-- 底部按鈕 -->
     <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e2e8f0">
@@ -2150,7 +2156,7 @@ function _drawMsrTable(allRows) {
   html += '<div style="font-size:13px;color:var(--text-muted);padding:6px 0 10px">顯示 '+filtered.length+' 筆'+(filtered.length<allRows.length?'（共 '+allRows.length+' 筆）':'')+' </div>';
   html += '<table style="width:100%;min-width:900px;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
-  ['#','時間','回報人員','數值','使用儀器','定位'].forEach(function(h){
+  ['#','時間','回報人員','數值','使用儀器','定位','照片'].forEach(function(h){
     html += '<th style="font-size:13px;color:#6b7a92;font-weight:600;padding:10px 14px;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">'+_esc(h)+'</th>';
   });
   html += '</tr></thead><tbody>';
@@ -2184,6 +2190,10 @@ function _drawMsrTable(allRows) {
     html += '<td style="padding:10px 14px;white-space:nowrap"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:3px 12px;border-radius:5px;white-space:nowrap;display:inline-block">'+_esc(valTxt)+' '+_esc(_dispUnit)+'</span></td>';
     html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;white-space:nowrap">'+_esc(row.instrument||'—')+'</td>';
     html += '<td style="padding:10px 14px;white-space:nowrap">'+gpsHtml+'</td>';
+    var phHtml = row.photoId
+      ? '<a href="'+_esc(row.photoUrl)+'" target="_blank" rel="noopener" title="開啟照片"><img alt="現場照片" loading="lazy" src="'+_frThumb(row,200)+'" style="display:block;height:40px;max-width:72px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
+      : '<span style="color:#b0bec5;font-size:12px">—</span>';
+    html += '<td style="padding:6px 14px;white-space:nowrap">'+phHtml+'</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -6315,6 +6325,7 @@ function _resetContamFields() {
 }
 
 function openMeasureModal() {
+  msrClearPhoto();   // 每次開啟都從「不附照片」開始
   var modal = document.getElementById('measureModal');
   var ev    = _events[_curIdx];
   if (!ev) { showToast('⚠️ 目前無進行中事件'); return; }
@@ -6486,6 +6497,7 @@ function openMsrConfirm() {
     ['回報劑量', value + ' ' + unitLabel],
     ['使用儀器', instr || '—'],
     ['備註',     note  || '—'],
+    ['照片',     _msrPhoto ? '📷 已附 1 張' : '不附'],
     ['GPS座標',  gps]
   ];
 
@@ -6550,6 +6562,7 @@ function submitMeasure() {
       note:          instr + (note ? ' [' + note + ']' : '')
     }
   };
+  if (_msrPhoto) { payload.measurement.photo = _msrPhoto; payload.measurement.photoType = 'image/jpeg'; }
 
   fetch(SHEETS_URL, {
     method:  'POST',
@@ -6561,7 +6574,8 @@ function submitMeasure() {
     closeMsrConfirm();
     closeMeasureModal();
     _resetContamFields();
-    showToast('✅ 劑量回報已送出');
+    showToast(_msrPhoto ? '✅ 劑量回報已送出（含照片）' : '✅ 劑量回報已送出');
+    msrClearPhoto();
     if (ev) { _msrCache[ev.id] = null; loadMeasurements(_curIdx, true); }
   })
   .catch(function() {
@@ -7769,6 +7783,7 @@ function tvRender() {
     if (seen[key] !== undefined) {
       // 合併 target
       grouped[seen[key]].targets.push(t.target || '');
+      if (t.photoId) grouped[seen[key]].photos.push({ url: t.photoUrl, target: t.target });
       // 任一筆 pending → 整批 pending
       if (t.status !== 'done') grouped[seen[key]].status = t.status;
     } else {
@@ -7781,6 +7796,7 @@ function tvRender() {
         createdAt: t.createdAt,
         status:    t.status,
         targets:   [t.target || ''],
+        photos:    t.photoId ? [{ url: t.photoUrl, target: t.target }] : [],
         taskId:    t.taskId
       });
     }
@@ -7818,7 +7834,10 @@ function tvRender() {
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
-    html += '<td style="padding:9px 12px">'+stBadge+'</td>';
+    var phLinks = (t.photos || []).map(function(ph) {
+      return '<a href="' + _esc(ph.url) + '" target="_blank" rel="noopener" title="' + _esc((ph.target || '') + ' 回報照片') + '" style="text-decoration:none">📷</a>';
+    }).join(' ');
+    html += '<td style="padding:9px 12px">'+stBadge+(phLinks ? ' <span style="margin-left:4px">' + phLinks + '</span>' : '')+'</td>';
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
@@ -7923,17 +7942,7 @@ var _myTaskEvMap = {};
 
 function myTaskDone(taskId) {
   if (!taskId) return;
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({ action: 'updateTaskStatus', taskId: taskId, status: 'done' })
-  });
-  _myTaskAll.forEach(function(t) {
-    if (t.taskId === taskId) t.status = 'done';
-  });
-  myTaskRender();
-  setTimeout(function() {
-    try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
-  }, 1000);
+  openTaskDone(taskId);   // 先跳出「回報任務完成」視窗（可選填照片），按確認才送出
 }
 
 function openMyTaskModal(team, label) {
@@ -8034,7 +8043,9 @@ function myTaskRender() {
         'color:white;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">' +
         '✔ 完成</button></td>';
     } else {
-      html += '<td style="padding:9px 10px"></td>';
+      html += '<td style="padding:9px 10px">' + (t.photoId
+        ? '<a href="' + _esc(t.photoUrl) + '" target="_blank" rel="noopener" title="回報照片"><img alt="回報照片" loading="lazy" src="' + _frThumb(t, 160) + '" style="display:block;height:36px;max-width:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
+        : '') + '</td>';
     }
     html += '</tr>';
     if (t.content) {
@@ -10045,6 +10056,109 @@ function onFrChk(checked) {
 setInterval(function() {
   if (_frLayerOn && typeof _events !== 'undefined' && _events.length && !document.hidden) frLoad();
 }, 30000);
+</script>
+
+
+<!-- ═══ 回報任務完成（可選填照片）═══ -->
+<div id="taskDoneModal" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(15,23,42,.5);align-items:center;justify-content:center;padding:12px" onclick="if(event.target===this)closeTaskDone()">
+  <div style="background:#fff;border-radius:14px;width:380px;max-width:100%;box-shadow:0 10px 36px rgba(0,0,0,.3);font-family:var(--font);overflow:hidden">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:16px;font-weight:700">回報任務完成</div>
+    <div style="padding:14px 18px">
+      <div id="taskDoneTitle" style="font-size:14px;color:#1e2a3a;font-weight:600;word-break:break-all"></div>
+      <div style="font-size:12px;font-weight:600;color:#6b7a92;margin:14px 0 6px">📷 現場照片（選填）</div>
+      <input id="taskDonePhotoInp" type="file" accept="image/*" onchange="taskDoneOnPhoto(this)" style="font-size:14px;max-width:100%">
+      <div id="taskDonePhotoPrev"></div>
+      <div id="taskDoneErr" style="color:#dc2626;font-size:13px;min-height:18px;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 18px 16px;justify-content:flex-end">
+      <button onclick="closeTaskDone()" style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">取消</button>
+      <button id="taskDoneBtn" onclick="submitTaskDone()" style="padding:9px 18px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">✅ 確認完成</button>
+    </div>
+  </div>
+</div>
+<script>
+// ── 回報用的選填照片：縮到長邊 1280px、JPEG 品質 0.8 後轉 base64（跟「現場其他事情回報」同一套）──
+function _photoFromInput(inp, onOk, onFail) {
+  var f = inp.files && inp.files[0];
+  if (!f) { onOk(null, ''); return; }
+  if (!/^image\//.test(f.type)) { onFail('請選擇圖片檔'); inp.value = ''; return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var img = new Image();
+    img.onload = function() {
+      var k = Math.min(1, 1280 / Math.max(img.width, img.height));
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var url = cv.toDataURL('image/jpeg', 0.8);
+      onOk(url.split(',')[1], url);
+    };
+    img.onerror = function() { onFail('照片讀取失敗，請換一張'); inp.value = ''; };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function _photoPrevHtml(url) {
+  return url ? '<img alt="照片預覽" src="' + url + '" style="display:block;max-width:100%;max-height:160px;border-radius:8px;margin-top:8px;border:1px solid var(--border)">' : '';
+}
+
+// 一般回報（量測值）
+var _msrPhoto = null;
+function msrOnPhoto(inp) {
+  _msrPhoto = null;
+  var prev = document.getElementById('msrPhotoPrev'); if (prev) prev.innerHTML = '';
+  _photoFromInput(inp, function(b64, url) { _msrPhoto = b64; if (prev) prev.innerHTML = _photoPrevHtml(url); },
+                  function(msg) { showToast('⚠️ ' + msg); });
+}
+function msrClearPhoto() {
+  _msrPhoto = null;
+  var inp = document.getElementById('msrPhotoInp'); if (inp) inp.value = '';
+  var prev = document.getElementById('msrPhotoPrev'); if (prev) prev.innerHTML = '';
+}
+
+// 回報任務完成
+var _tdPhoto = null, _tdTaskId = '';
+function openTaskDone(taskId) {
+  _tdTaskId = taskId; _tdPhoto = null;
+  var t = null;
+  (_myTaskAll || []).forEach(function(x) { if (x.taskId === taskId) t = x; });
+  document.getElementById('taskDoneTitle').textContent = t ? (t.title || '任務') : '任務';
+  document.getElementById('taskDonePhotoInp').value = '';
+  document.getElementById('taskDonePhotoPrev').innerHTML = '';
+  document.getElementById('taskDoneErr').textContent = '';
+  var btn = document.getElementById('taskDoneBtn'); btn.disabled = false; btn.textContent = '✅ 確認完成';
+  document.getElementById('taskDoneModal').style.display = 'flex';
+}
+function closeTaskDone() { document.getElementById('taskDoneModal').style.display = 'none'; _tdTaskId = ''; _tdPhoto = null; }
+function taskDoneOnPhoto(inp) {
+  _tdPhoto = null;
+  var prev = document.getElementById('taskDonePhotoPrev'); prev.innerHTML = '';
+  _photoFromInput(inp, function(b64, url) { _tdPhoto = b64; prev.innerHTML = _photoPrevHtml(url); },
+                  function(msg) { document.getElementById('taskDoneErr').textContent = msg; });
+}
+function submitTaskDone() {
+  var id = _tdTaskId;
+  if (!id) return;
+  var btn = document.getElementById('taskDoneBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  var hadPhoto = !!_tdPhoto;
+  var body = { action: 'updateTaskStatus', taskId: id, status: 'done' };
+  if (_tdPhoto) { body.photo = _tdPhoto; body.photoType = 'image/jpeg'; }
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).then(function() {
+    (_myTaskAll || []).forEach(function(t) { if (t.taskId === id) t.status = 'done'; });
+    closeTaskDone();
+    myTaskRender();
+    showToast(hadPhoto ? '✅ 已回報任務完成（含照片）' : '✅ 已回報任務完成');
+    // 重新讀取任務清單（取得照片連結），並通知首頁更新任務角標
+    setTimeout(function() {
+      myTaskLoad();
+      try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
+    }, 1200);
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = '✅ 確認完成';
+    document.getElementById('taskDoneErr').textContent = '送出失敗，請確認網路連線後再試';
+  });
+}
 </script>
 
 </body>
