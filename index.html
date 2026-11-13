@@ -292,12 +292,12 @@
   }
   .panel-back {
     display: flex; align-items: center; gap: 5px; color: var(--accent); cursor: pointer;
-    font-size: 13px; font-weight: 500; background: none; border: none; padding: 4px 0;
+    font-size: 16px; font-weight: 500; background: none; border: none; padding: 4px 0;
     font-family: var(--font); transition: opacity .15s;
   }
   .panel-back:hover { opacity: .7; }
   .panel-title { font-size: 30px; font-weight: 600; color: var(--text); }
-  .panel-body { padding: 24px; max-width: 900px; }
+  .panel-body { padding: 24px; max-width: 1100px; margin: 0 auto; }   /* 內容置中 */
   .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
@@ -2527,26 +2527,28 @@ function closeLiveWin() {
      歷史事件查詢／各種紀錄／結束事件（2026-11 新增）
 ════════════════════════════════════════════════════════════ -->
 <style>
-  .pn-note { font-size: 13px; color: #6b7a92; margin-bottom: 14px; }
-  .pn-empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 14px; }
-  .pn-err { text-align: center; color: #dc2626; padding: 32px 0; font-size: 14px; line-height: 1.8; }
+  .pn-note { font-size: 16px; color: #6b7a92; margin-bottom: 14px; line-height: 1.6; }
+  .pn-empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 16px; line-height: 1.7; }
+  .pn-err { text-align: center; color: #dc2626; padding: 32px 0; font-size: 16px; line-height: 1.8; }
   .pn-tablewrap { overflow-x: auto; background: white; border: 1px solid #e2e8f0; border-radius: 10px; }
-  .pn-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .pn-table th { text-align: left; padding: 10px 12px; background: #f8fafc; color: #3d5070; font-weight: 700;
+  .pn-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .pn-table th { text-align: left; padding: 13px 18px; font-size: 16px; background: #f8fafc; color: #3d5070; font-weight: 700;
     border-bottom: 1px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; }
-  .pn-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #1e2a3a; vertical-align: top; word-break: break-word; }
-  .pn-table td:first-child { white-space: nowrap; font-family: ui-monospace,'Cascadia Mono',monospace; font-size: 12px; color: #6b7a92; }
+  .pn-table td { padding: 13px 18px; border-bottom: 1px solid #f1f5f9; line-height: 1.5; color: #1e2a3a; vertical-align: top; word-break: break-word; }
+  .pn-table td:first-child { white-space: nowrap; font-family: ui-monospace,'Cascadia Mono',monospace; font-size: 16px; color: #4b5b73; }
   .pn-table tr:last-child td { border-bottom: none; }
+  .pn-table tbody tr:nth-child(even) td { background: #fafcff; }
+  .pn-table tbody tr:hover td { background: #f0f6ff; }
   .pn-ok { color: #16a34a; font-weight: 700; } .pn-bad { color: #dc2626; font-weight: 700; }
   .pn-ev { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
     display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .pn-ev-main { flex: 1; min-width: 200px; }
-  .pn-ev-name { font-size: 16px; font-weight: 700; color: #1e2a3a; }
-  .pn-ev-meta { font-size: 13px; color: #6b7a92; margin-top: 4px; line-height: 1.6; }
+  .pn-ev-name { font-size: 18px; font-weight: 700; color: #1e2a3a; }
+  .pn-ev-meta { font-size: 16px; color: #6b7a92; margin-top: 4px; line-height: 1.6; }
   .pn-ev-type { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px;
     background: #f1f5f9; color: #3d5070; margin-left: 8px; vertical-align: 2px; }
-  .pn-btn { border: 1px solid #1a56db; background: white; color: #1a56db; border-radius: 8px; padding: 8px 14px;
-    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .pn-btn { border: 1px solid #1a56db; background: white; color: #1a56db; border-radius: 8px; padding: 9px 16px;
+    font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .pn-btn:hover { background: #eff6ff; }
 
   #endEvModal { display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.5);
