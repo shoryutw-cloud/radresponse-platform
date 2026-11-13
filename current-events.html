@@ -8066,9 +8066,12 @@ function myTaskRender() {
   display:none;position:fixed;inset:0;z-index:8500;
   background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
   <div style="
-    background:white;border-radius:16px;padding:28px 24px;
+    position:relative;background:white;border-radius:16px;padding:28px 24px;
     width:min(340px,90vw);box-shadow:0 8px 40px rgba(0,0,0,.25);
     font-family:var(--font);display:flex;flex-direction:column;gap:18px">
+    <button onclick="closeMsrTypeModal()" aria-label="關閉" title="關閉" style="
+      position:absolute;top:8px;right:10px;width:32px;height:32px;border:none;background:none;
+      font-size:20px;line-height:1;color:#8da0b8;cursor:pointer;border-radius:50%">✕</button>
     <div style="font-size:16px;font-weight:700;color:#1e2a3a;text-align:center">回報劑量</div>
     <div style="font-size:14px;color:#3d5070;text-align:center;line-height:1.6">
       此次回報是否為<br><strong>量測任務的執行回報？</strong>
