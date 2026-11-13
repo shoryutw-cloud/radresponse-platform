@@ -779,7 +779,7 @@ cursor: pointer; transition: background .15s;
         </button>
       </label>
       <div style="display:flex;gap:6px;align-items:center">
-        <input class="ev-edit-inp" id="editWindDir" type="text" placeholder="風向（0-359）" style="flex:1">
+        <input class="ev-edit-inp" id="editWindDir" type="text" placeholder="風向（0-359）" style="flex:1" oninput="onEditWindInput()">
         <input class="ev-edit-inp" id="editWindSpeed" type="text" placeholder="風速（m/s）" style="flex:1">
       </div>
       <div id="cwaFetchStatus" style="font-size:11px;color:#6b7a92;margin-top:3px;display:none"></div>
@@ -792,6 +792,10 @@ cursor: pointer; transition: background .15s;
       <input type="range" id="editAngle" min="0" max="359" step="1"
         style="width:100%;accent-color:var(--accent);cursor:pointer;margin-top:4px"
         oninput="onAngleInput(this.value)">
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:#3d5070;cursor:pointer">
+        <input type="checkbox" id="editApplyNewWind" onchange="onApplyNewWind(this.checked)" style="width:16px;height:16px;margin:0;accent-color:var(--accent);cursor:pointer">
+        十點偵測套用新風向
+      </label>
     </div>
     <div class="ev-edit-btns">
       <button class="ev-edit-cancel" onclick="toggleEditPanel()">取消</button>
@@ -1435,12 +1439,16 @@ function toggleEditPanel() {
   editBtn.style.color = isOpen ? 'var(--accent)' : '';
   // ★ 關閉編輯面板（取消）→ 還原預覽時暫改的 windDir，並清除 locPick
   if (!isOpen) {
-    var evCancel = _events[_curIdx];
-    if (evCancel && _editOrigWindDir !== undefined) {
-      evCancel.windDir = _editOrigWindDir;
-      buildEventLayers(_curIdx);
+    var evCancel = _editOrig ? _evById(_editOrig.id) : null;
+    if (evCancel) {
+      evCancel.windDir = _editOrig.windDir; evCancel.windDirRaw = _editOrig.windDirRaw;
+      evCancel.windSpeed = _editOrig.windSpeed; evCancel.windFetchTime = _editOrig.windFetchTime;
+      evCancel.layerDir = _editOrig.layerDir;
+      for (var _ci = 0; _ci < _events.length; _ci++) if (_events[_ci] === evCancel && isEventShown(_ci)) buildEventLayers(_ci);
       _refreshWindIfOn();
+      if (evCancel === _events[_curIdx]) renderCard(_curIdx);
     }
+    _editOrig = null;
     // 清除地點點選模式與暫時標記
     if (_editLocPickOn) toggleLocPickMode();
     if (_editLocMarker) { gMap.removeLayer(_editLocMarker); _editLocMarker = null; }
@@ -1460,30 +1468,63 @@ function toggleEditPanel() {
       document.getElementById('editTime').value = _dtM[4].padStart(2,'0') + ':' + _dtM[5];
     }
     document.getElementById('editAddress').value = ev.address || '';
-    document.getElementById('editWindDir').value   = ev.windDir   || '';
+    document.getElementById('editWindDir').value   = ev.windDirRaw || ev.windDir || '';
     document.getElementById('editWindSpeed').value  = ev.windSpeed || '';
-    var _curAngle = ev.windDir ? parseInt(ev.windDir) : 0;
+    // 旋轉角度＝十點偵測（1km 橫切面、5km 扇形、附近場域）目前的方向，與風向分開
+    var _ld0 = _layerDirOf(ev);
+    var _curAngle = _ld0 === null ? 0 : Math.round(_ld0) % 360;
     document.getElementById('editAngle').value = _curAngle;
-    document.getElementById('angleDisplay').textContent = _curAngle + '°';
-    // ★ 記錄開啟編輯前的原始風向，取消時用來還原
+    document.getElementById('angleDisplay').textContent = _ld0 === null ? '—' : _curAngle + '°';
+    document.getElementById('editApplyNewWind').checked = false;
+    _editAnglePrev = _curAngle; _editAngleTouched = false; _editFetchTime = null;
+    var _st0 = document.getElementById('cwaFetchStatus'); if (_st0) { _st0.style.display = 'none'; _st0.textContent = ''; }
+    // ★ 記錄開啟編輯前的原始值，取消時用來還原
+    _editOrig = { id: ev.id, windDir: ev.windDir, windDirRaw: ev.windDirRaw, windSpeed: ev.windSpeed, windFetchTime: ev.windFetchTime, layerDir: ev.layerDir, hadDir: _ld0 !== null };
     _editOrigWindDir = ev.windDir || '';
   }
 }
 
 // ── 儲存編輯 ──
 
-// 旋轉角度滑桿即時預覽（只預覽，不寫入 ev，取消後可還原）
+// 旋轉角度：只轉十點偵測（1km 橫切面、5km 扇形、附近場域與編號點），不改風向；按儲存才寫入
+var _editOrig = null, _editAnglePrev = 0, _editAngleTouched = false, _editFetchTime = null, _editSettingAngle = false;
 function onAngleInput(val) {
   document.getElementById('angleDisplay').textContent = val + '°';
-  document.getElementById('editWindDir').value = val;
-  var ev = _events[_curIdx];
-  if (ev) {
-    ev.windDir = val; ev.windDirRaw = val;
-    // 清除插值格點，讓風場立即用新方向（不等多站資料）
-    _windFieldGrid = null;
-    buildEventLayers(_curIdx);
-    _refreshWindIfOn();
+  _editAngleTouched = true;
+  if (!_editSettingAngle) {   // 手動拉了角度，就不再是「套用新風向」
+    var cb = document.getElementById('editApplyNewWind'); if (cb) cb.checked = false;
   }
+  var ev = _events[_curIdx];
+  if (ev) { ev.layerDir = String(val); buildEventLayers(_curIdx); }   // 預覽
+}
+function _editSetAngle(v) {
+  var sl = document.getElementById('editAngle');
+  sl.value = v;
+  _editSettingAngle = true; onAngleInput(String(v)); _editSettingAngle = false;
+}
+// 勾選「十點偵測套用新風向」：角度跳到風向欄的值並預覽；取消勾選就回到原本的角度
+function onApplyNewWind(checked) {
+  if (checked) {
+    var w = _validWindDir(document.getElementById('editWindDir').value);
+    if (w === null) { showToast('風向欄沒有有效的角度'); document.getElementById('editApplyNewWind').checked = false; return; }
+    _editAnglePrev = parseInt(document.getElementById('editAngle').value, 10) || 0;
+    _editSetAngle(Math.round(w) % 360);
+  } else {
+    _editSetAngle(_editAnglePrev);
+  }
+}
+// 風向欄改了（手動輸入或從氣象局抓取）：有勾「套用新風向」才跟著轉
+function onEditWindInput() {
+  var cb = document.getElementById('editApplyNewWind');
+  if (!cb || !cb.checked) return;
+  var w = _validWindDir(document.getElementById('editWindDir').value);
+  if (w !== null) _editSetAngle(Math.round(w) % 360);
+}
+// 儲存時要不要送十點偵測方向：原本就有方向、或動過角度、或勾了套用 → 送（避免「跟著風向」時被新風向帶著轉）
+function _editLayerDirToSave() {
+  var cb = document.getElementById('editApplyNewWind');
+  if ((_editOrig && _editOrig.hadDir) || _editAngleTouched || (cb && cb.checked)) return String(document.getElementById('editAngle').value);
+  return null;
 }
 
 
@@ -1624,8 +1665,16 @@ function _normEvWind(ev) {
   ev.windDirRaw = raw;
   ev.windDir = (_validWindDir(raw) === null) ? '' : raw;
   ev.windSpeed = String(ev.windSpeed == null ? '' : ev.windSpeed).trim();
+  var ld = String(ev.layerDir == null ? '' : ev.layerDir).trim();
+  ev.layerDir = _validWindDir(ld) === null ? '' : ld;
 }
 function _windNeedsFill(ev) { return _validWindDir(ev.windDir) === null; }
+// 十點偵測（扇形、橫切面、附近場域、編號點）的方向：有設定「扇形方向」就用它，否則跟著事件風向；都沒有回傳 null
+function _layerDirOf(ev) {
+  var ld = _validWindDir(ev && ev.layerDir);
+  if (ld !== null) return ld;
+  return _validWindDir(ev && ev.windDir);
+}
 
 // 風向改變後，更新畫面
 function _afterWindChanged(idx) {
@@ -1727,30 +1776,22 @@ function fetchCwaWind(autoIdx) {
       return;
     }
 
-    // ── 手動按「從氣象局抓取」：先套到畫面預覽，按儲存才會寫入試算表 ──
-    ev.windDir       = String(data.windDir   || '');
-    ev.windSpeed     = String(data.windSpeed || '');
-    ev.windFetchTime = fetchTime;              // 僅前端暫存，顯示抓取時間
-    _normEvWind(ev);
-    // 手動按氣象局按鈕時，解除鎖定（讓這次 CWA 值可寫回）
-    ev.windManual = false;
-    fetch(SHEETS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({ action:'updateEvent', eventId: ev.id, windManual: false }) });
-    _afterWindChanged(idx);
-
-    // 更新編輯面板欄位（如果面板是開的）
+    // ── 手動按「從氣象局抓取」：只把新風向、風速填進欄位，畫面不轉；勾「十點偵測套用新風向」才預覽，按儲存才寫入 ──
+    _editFetchTime = fetchTime;
     var edi = document.getElementById('editWindDir');
     var ews = document.getElementById('editWindSpeed');
     var sts3 = document.getElementById('cwaFetchStatus');
     if (edi) edi.value = data.windDir   || '';
     if (ews) ews.value = data.windSpeed || '';
-    var d = parseInt(data.windDir) || 0;
-    var sldr = document.getElementById('editAngle');
-    if (sldr) { sldr.value = d; document.getElementById('angleDisplay').textContent = d + '°'; }
+    onEditWindInput();
     if (sts3) {
+      var stn = String(data.stationName || '').trim();
+      var stLabel = stn ? (/站$/.test(stn) ? stn : stn + '氣象站') : '氣象站';
+      var hasDist = data.dist !== undefined && data.dist !== null && data.dist !== '' && !isNaN(parseFloat(data.dist));
+      sts3.style.display = 'block';
       sts3.style.color = '#16a34a';
-      sts3.textContent = '取得：' + (data.stationName || '') + '（距離 ' + data.dist + ' km）'
-                       + '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
+      sts3.textContent = '取得：' + (hasDist ? '距' + stLabel + ' ' + data.dist + ' km' : stLabel) +
+                         '　' + fetchTime + '　風向：' + data.windDir + '°　風速：' + data.windSpeed + ' m/s';
     }
   });
 }
@@ -1796,6 +1837,9 @@ function saveEdit() {
     address:  addrVal
   };
 
+  var _ldSave = _editLayerDirToSave();
+  if (_ldSave !== null) payload.layerDir = _ldSave;
+
   // 若有地圖點選新座標，一併更新
   if (_editNewLat !== null && _editNewLng !== null) {
     payload.lat = _editNewLat;
@@ -1813,6 +1857,8 @@ function saveEdit() {
     // 更新本地快取
     ev.windDir    = payload.windDir;
     ev.windSpeed  = payload.windSpeed;
+    if (payload.layerDir !== undefined) ev.layerDir = payload.layerDir;
+    if (_editFetchTime) ev.windFetchTime = _editFetchTime;
     _normEvWind(ev);
     ev.windManual = true;
     if (payload.name)    ev.name    = payload.name;
@@ -1837,6 +1883,7 @@ function saveEdit() {
     _refreshWindIfOn(); // 重新初始化風向粒子
     // 先更新原始風向記錄，避免 toggleEditPanel 還原成舊值
     _editOrigWindDir = ev.windDir;
+    _editOrig = { id: ev.id, windDir: ev.windDir, windDirRaw: ev.windDirRaw, windSpeed: ev.windSpeed, windFetchTime: ev.windFetchTime, layerDir: ev.layerDir, hadDir: true };
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
@@ -3124,8 +3171,9 @@ function buildEventLayers(idx) {
 
   // 取該事件的風向（有設定用設定值，否則預設270）
   // 風向 = 事件記錄的風向（建立事件時存入，之後固定）。沒有有效風向時不畫需要方向的圖層，只畫 100m 圓
-  var hasDir = !!(ev.windDir && ev.windDir !== '');
-  var wd = hasDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+  var _ldir = _layerDirOf(ev);
+  var hasDir = _ldir !== null;
+  var wd = hasDir ? (_ldir + 180) % 360 : 270;
 
   // 移除舊圖層
   removeEventLayers(idx);
@@ -4001,7 +4049,7 @@ function renderLayerPanel() {
   function c(type) { return chk[type] ? 'checked' : ''; }
 
   body.innerHTML =
-    (isRddEvent(ev) && !(ev.windDir) ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
+    (isRddEvent(ev) && _layerDirOf(ev) === null ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
     (_events.length > 1 ? '<div class="layer-for">事件名稱：' + _esc(ev.name || ev.id) + '</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
@@ -5277,10 +5325,10 @@ window.addEventListener('message', function(e) {
     }
     var pts = [];
     // 風向必要點位（1~10 + 橫切面 A01~A20）只有「輻射彈事件」且有風向時才有
-    var hasWind = isRddEvent(ev) && ev.windDir && ev.windDir !== '';
+    var hasWind = isRddEvent(ev) && _layerDirOf(ev) !== null;
     if (hasWind) {
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-      var wd = (parseFloat(ev.windDir) + 180) % 360;
+      var wd = (_layerDirOf(ev) + 180) % 360;
       // 5km 扇形量測點（編號 1~10）
       [
         { label:'1',  shortTip:'1km中線',   pt: destPoint(la, lo, wd,        1000) },
@@ -5779,12 +5827,12 @@ function startNavMode() {
       clearTimeout(timeout);
       var userLL = _userMarker.getLatLng();
       var ev = _events[_curIdx];
-      if (!ev || !ev.lat || !ev.windDir) {
+      if (!ev || !ev.lat || _layerDirOf(ev) === null) {
         showNavBanner('⚠️ 目前事件無座標或風向資料，無法規劃路線', '#dc2626');
         return;
       }
       var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
-      var wd = (parseFloat(ev.windDir) + 180) % 360;
+      var wd = (_layerDirOf(ev) + 180) % 360;
 
       // 使用者選擇的點位（由 index.html 傳入），預設編號3
       var target = _navTargetPt || { label: '3', pt: destPoint(la, lo, wd, 2000) };
@@ -6243,7 +6291,7 @@ function placeTempMeasureMarker(latlng, squadName, autoOpen) {
 function _refreshNavPoints() {
   try {
     var ev = _events[_curIdx];
-    if (!ev || !ev.lat || !ev.windDir) return;
+    if (!ev || !ev.lat || _layerDirOf(ev) === null) return;
     parent.postMessage({ type: 'requestNavPointsRefresh' }, '*');
   } catch(e) {}
 }
@@ -7509,11 +7557,11 @@ function tdSetType(type) {
 function tdSnapshotMsrPts() {
   if (_tdMsrPts.length > 0) return;
   var ev = _events[_curIdx];
-  if (!ev || !isRddEvent(ev) || !ev.windDir || ev.windDir === '') return;   // 非輻射彈事件沒有這些點位
+  if (!ev || !isRddEvent(ev) || _layerDirOf(ev) === null) return;   // 非輻射彈事件、沒有方向時沒有這些點位
   var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
   if (isNaN(la) || isNaN(lo)) return;
 
-  var wd = (parseFloat(ev.windDir) + 180) % 360;
+  var wd = (_layerDirOf(ev) + 180) % 360;
   var pts = [];
 
   // 扇形 10 點（含座標）
