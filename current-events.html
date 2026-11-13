@@ -1833,6 +1833,11 @@ function saveEdit() {
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
+    // 名稱、類型等改了：圖層面板標題、地圖圖釘（說明框與名稱標籤）、選定列、手機面板一起更新，不必切換事件
+    if (payload.lat === undefined) placeMarkers();
+    renderLayerPanel();
+    _renderSelBar();
+    _refreshMobEvPanel();
     btn.disabled = false; btn.textContent = '💾 儲存';
   })
   .catch(function() {
