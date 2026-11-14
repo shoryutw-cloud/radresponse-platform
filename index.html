@@ -693,7 +693,7 @@ function showIframe(src) {
 
 // ── 版本防呆：地圖頁載入後會回報自己的版本；沒回報（舊檔案）或版本太舊，就在畫面上方提示 ──
 // 地圖頁新增「首頁一定要搭配」的功能時，才需要把這裡的數字調高
-var NEED_BUILD = { 'current-events.html': 1 };
+var NEED_BUILD = { 'current-events.html': 2 };
 var _pageBuild = {}, _verTimer = null;
 function _verCheckStart(file) {
   if (!NEED_BUILD[file]) return;
@@ -718,7 +718,7 @@ function _verBanner(file) {
 }
 
 // ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
-var NEED_GAS = 26;
+var NEED_GAS = 27;
 function _gasVerCheck() {
   _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
     if (!d) return;   // 連不上（例如離線）就不提示，避免誤報
@@ -2578,6 +2578,10 @@ function closeLiveWin() {
   .pn-btn { border: 1px solid #1a56db; background: white; color: #1a56db; border-radius: 8px; padding: 9px 16px;
     font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .pn-btn:hover { background: #eff6ff; }
+  .pn-ev-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pn-btn-replay { background: #1a56db; color: white; }
+  .pn-btn-replay:hover { background: #1648b8; }
+  @media (max-width: 600px) { .pn-btn-replay { display: none; } }   /* 回放目前只支援電腦版 */
 
   #endEvModal { display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.5);
     align-items: center; justify-content: center; }
@@ -2680,13 +2684,14 @@ function _panelLoadHistory() {
     var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); });
     list.reverse();   // 新的在前
     if (!list.length) { body.innerHTML = '<div class="pn-empty">尚無歷史事件。<br>事件由管理員在「後台功能 → 事件管理 → 結束事件」結束後，會出現在這裡。</div>'; return; }
-    body.innerHTML = '<div class="pn-note">共 ' + list.length + ' 筆已結束事件。點「在地圖檢視」可唯讀查看當時的圖層與量測值。</div>' +
+    body.innerHTML = '<div class="pn-note">共 ' + list.length + ' 筆已結束事件。點「在地圖檢視」可唯讀查看當時的圖層與量測值；點「▶ 回放」可在地圖上依時間重播事件經過（電腦版）。</div>' +
       list.map(function(ev) {
         var dt = String(ev.date || '').slice(0, 15) + (ev.time ? ' ' + String(ev.time).slice(0, 8) : '');
         return '<div class="pn-ev"><div class="pn-ev-main">' +
           '<div class="pn-ev-name">' + _pnEsc(ev.name || ev.id) + '<span class="pn-ev-type">' + _pnEsc(ev.type || '') + '</span></div>' +
           '<div class="pn-ev-meta">' + _pnEsc(ev.id) + '　' + _pnEsc(dt) + '<br>' + _pnEsc(ev.address || '') + '</div></div>' +
-          '<button class="pn-btn" data-evid="' + _pnEsc(ev.id) + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button></div>';
+          '<div class="pn-ev-btns"><button class="pn-btn" data-evid="' + _pnEsc(ev.id) + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button>' +
+          '<button class="pn-btn pn-btn-replay" data-evid="' + _pnEsc(ev.id) + '" onclick="showReplayEvent(this.getAttribute(\'data-evid\'))">▶ 回放</button></div></div>';
       }).join('');
   });
 }
@@ -2784,6 +2789,15 @@ function showHistoryEvent(id) {
   showIframe('current-events.html');   // 沿用原本的切頁流程（關選單、更新 hash）
   var frame = document.getElementById('contentFrame');
   frame.src = 'current-events.html?_t=' + Date.now() + '&history=' + encodeURIComponent(id);
+  _verCheckStart('current-events.html');
+}
+
+// ── 歷史事件：在地圖上依時間回放（唯讀；電腦版）──
+function showReplayEvent(id) {
+  if (!id) return;
+  showIframe('current-events.html');
+  var frame = document.getElementById('contentFrame');
+  frame.src = 'current-events.html?_t=' + Date.now() + '&history=' + encodeURIComponent(id) + '&replay=1';
   _verCheckStart('current-events.html');
 }
 

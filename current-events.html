@@ -2972,6 +2972,10 @@ function _eventFitView(idx, lat, lng) {
     if (ec && getComputedStyle(ec).display !== 'none') { var r1 = ec.getBoundingClientRect(); pl = Math.max(pl, r1.right - mr.left + 16); }
     var lp = document.getElementById('layerPanel');
     if (lp && getComputedStyle(lp).display !== 'none') { var r2 = lp.getBoundingClientRect(); pr = Math.max(pr, mr.right - r2.left + 16); }
+    var rf = document.getElementById('rpFeed');   // 回放：右側的事件經過清單、底部時間軸
+    if (rf && getComputedStyle(rf).display !== 'none') { var r3 = rf.getBoundingClientRect(); pr = Math.max(pr, mr.right - r3.left + 16); }
+    var rb = document.getElementById('rpBar');
+    if (rb && getComputedStyle(rb).display !== 'none') { pb = Math.max(pb, mr.bottom - rb.getBoundingClientRect().top + 16); }
     if (mr.width - pl - pr < 240) { pl = 24; pr = 24; }   // 視窗太窄就不扣
   }
   var zoom = gMap.getBoundsZoom(b, false, L.point(pl + pr, pt + pb));
@@ -3027,6 +3031,11 @@ function _canDragPts() { return !!(_loginIsAdmin && _mapEditOn && !_historyId); 
 
 function _loadPtOverrides(ev, cb) {
   var evId = ev.id;
+  if (_rpOn) {   // 回放：點位調整由回放器依時間點設定
+    _ptOv[evId] = _ptOv[evId] || {}; _ptOvReady[evId] = true; _ptOvLoading[evId] = false;
+    setTimeout(function() { if (cb) cb(false); }, 0);
+    return;
+  }
   function apply(map) {
     var sig = _ptSig(map);
     var changed = (_ptOvSig[evId] !== sig) || !_ptOvReady[evId];
@@ -3620,6 +3629,7 @@ function loadMeasurements(idx, force) {
   if (!gMap) return;
   var ev = _events[idx];
   if (!ev) return;
+  if (_rpOn) { force = false; if (!_msrCache[ev.id]) _msrCache[ev.id] = []; }   // 回放：只畫回放器給的資料
 
   if (!force && _msrCache[ev.id]) {
     renderMsrMarkers(ev.id);
@@ -3656,6 +3666,7 @@ function _anyShownMsrOn() {
 // ── 啟動定時刷新（5秒）：地圖上顯示的每個事件，只要有開量測圖層就更新 ──
 function startMsrTimer(idx) {
   if (_msrTimer) { clearInterval(_msrTimer); _msrTimer = null; }
+  if (_rpOn) return;
   _msrTimer = setInterval(function() {
     _events.forEach(function(ev, i) {
       if (isEventShown(i) && _anyMsrLayerOn(i)) loadMeasurements(i, true);
@@ -5429,6 +5440,10 @@ var _historyId = (function() {
   var m = location.search.match(/[?&]history=([^&]+)/);
   return m ? decodeURIComponent(m[1]) : '';
 })();
+// 回放模式（?history=事件編號&replay=1）：沿用歷史檢視（唯讀），另外加上時間軸播放器。
+// 回放時不讀即時資料（量測、繪圖、點位調整、任務、現場回報），改由回放器依時間點提供。目前只支援電腦版。
+var _rpWanted = !!_historyId && /[?&]replay=1(&|$)/.test(location.search);
+var _rpOn = _rpWanted && window.innerWidth > 600;
 function _isClosedEvStatus(v) {
   var st = String(v || '').trim().toLowerCase();
   return st === 'closed' || st === '已結束' || st === '結束' || st === '結案';
@@ -5517,6 +5532,7 @@ function loadEvents() {
 // 從 GAS 讀取任務，把「量測任務」畫到地圖上
 function _loadTaskMarkers() {
   if (!_events.length) return;
+  if (_rpOn) return;
   // 清除舊的 pending markers
   _pendingMsrMks.forEach(function(m) { m.remove(); });
   _pendingMsrMks = [];
@@ -5771,6 +5787,7 @@ function loadDrawings() {
   if (!gMap) return;
   var ev = _events[_curIdx];
   if (!ev) return;
+  if (_rpOn) { _drawEventId = ev.id; return; }
   // 切換事件 → 先清掉畫面上前一個事件的標註
   if (_drawEventId !== ev.id) {
     _drawLines.forEach(function(l) { l.remove(); });
@@ -9781,7 +9798,7 @@ async function birdCheckAlert(measurements, eventId){
 
 <script>
 // 版本回報：讓首頁知道載入的是不是新版地圖頁（檔案沒更新成最新版時，首頁會提示）
-var PAGE_BUILD = 1;
+var PAGE_BUILD = 2;
 try { parent.postMessage({ type: 'pageBuild', page: 'current-events.html', build: PAGE_BUILD }, '*'); } catch (e) {}
 // 送往 GAS 的寫入一律自動帶上操作者「姓名(帳號)」，供異動紀錄使用（不影響原本送出的內容）
 (function() {
@@ -9932,6 +9949,7 @@ function railRefresh() {
   });
   var hb = document.getElementById('historyBanner');
   if (hb) hb.style.display = hist ? 'flex' : 'none';
+  if (hb && _rpOn && hb.firstElementChild) hb.firstElementChild.textContent = '⏪ 歷史事件回放（唯讀）';
   if (typeof renderLayerPanel === 'function' && typeof _events !== 'undefined' && _events.length) renderLayerPanel();
 }
 
@@ -10128,6 +10146,7 @@ function frSubmit() {
 }
 
 function frLoad() {
+  if (_rpOn) { _frRenderMarkers(); _frRenderList(false); return; }
   var ev = _events[_curIdx];
   if (!ev) { _frCache = []; _frRenderMarkers(); return; }
   var evId = ev.id;
@@ -10204,7 +10223,7 @@ function onFrChk(checked) {
 
 // 每 30 秒同步一次（圖層有開、且有事件時才抓）
 setInterval(function() {
-  if (_frLayerOn && typeof _events !== 'undefined' && _events.length && !document.hidden) frLoad();
+  if (_frLayerOn && typeof _events !== 'undefined' && _events.length && !document.hidden && !_rpOn) frLoad();
 }, 30000);
 </script>
 
@@ -10933,6 +10952,710 @@ function _refreshEventsFromSheet() {
 }
 function _pnClosed(st) { return /已結束|結束|closed/i.test(String(st || '')); }
 setInterval(_refreshEventsFromSheet, 60000);
+</script>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     歷史事件回放（電腦版）
+     由「歷史事件查詢 → ▶ 回放」開啟（?history=事件編號&replay=1）。完全唯讀，不寫入任何資料。
+     資料來源：GAS getReplay（v27），一次取回這個事件所有帶時間的資料。
+     做法：以「某個時間點 T」為準，重新算出當下的整張地圖，所以往前、往後拖都正確。
+════════════════════════════════════════════════════════════════ -->
+<style>
+#rpBar { display: none; position: fixed; left: calc(var(--rail-w) + 8px); right: 8px; bottom: 8px; z-index: 1150;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.22);
+  padding: 8px 12px 6px; font-family: var(--font); }
+#rpMsg { font-size: 14px; color: #3d5070; padding: 6px 2px; }
+.rp-row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rp-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: #fff; cursor: pointer;
+  font-size: 13px; display: flex; align-items: center; justify-content: center; color: #1e2a3a; padding: 0; }
+.rp-btn:hover { background: #eff6ff; }
+.rp-btn.rp-play { width: 42px; height: 42px; background: #1a56db; color: #fff; border-color: #1a56db; font-size: 16px; }
+.rp-btn.rp-play:hover { background: #1648b8; }
+#rpSpeed { font-family: inherit; font-size: 14px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.rp-clock { min-width: 168px; }
+#rpClock { font-size: 17px; font-weight: 700; color: #1e2a3a; font-variant-numeric: tabular-nums; line-height: 1.2; }
+#rpElapsed { font-size: 12px; color: #6b7a92; font-variant-numeric: tabular-nums; }
+#rpSkipNote { color: #b45309; margin-left: 6px; }
+#rpWind { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #3d5070; padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: 8px; white-space: nowrap; }
+.rp-arrow { display: inline-block; font-size: 17px; line-height: 1; font-weight: 700; color: #0ea5e9; transition: transform .3s; }
+.rp-chips { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.rp-chip { border: 1px solid var(--border); background: #fff; border-radius: 14px; padding: 4px 10px; font-size: 13px;
+  cursor: pointer; color: #94a3b8; font-family: inherit; }
+.rp-chip.on { background: #eff6ff; border-color: #93c5fd; color: #1a56db; font-weight: 600; }
+.rp-chip:disabled { cursor: not-allowed; opacity: .55; }
+.rp-skip { font-size: 13px; color: #3d5070; display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+.rp-row2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.rp-end { font-size: 12px; color: #6b7a92; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rp-track { position: relative; flex: 1; height: 36px; }
+#rpTicks { position: absolute; left: 8px; right: 8px; top: 2px; height: 14px; }
+.rp-tick { position: absolute; top: 0; width: 3px; height: 14px; margin-left: -1.5px; border-radius: 1px; cursor: pointer; opacity: .85; }
+.rp-tick:hover { height: 18px; top: -2px; opacity: 1; }
+#rpSlider { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; margin: 0; height: 18px; accent-color: #1a56db; cursor: pointer; }
+#rpFeed { display: none; position: fixed; right: 8px; top: 8px; bottom: calc(var(--rp-h, 120px) + 8px); width: 300px; z-index: 1040;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg);
+  flex-direction: column; overflow: hidden; font-family: var(--font); }
+.rp-feed-hd { padding: 10px 12px; font-size: 15px; font-weight: 700; color: #1e2a3a; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: baseline; flex-shrink: 0; }
+.rp-feed-hd span { font-size: 12px; font-weight: 400; color: #6b7a92; }
+#rpFeedList { overflow-y: auto; flex: 1; position: relative; }
+.rp-day { padding: 4px 12px; font-size: 12px; background: #f1f5f9; color: #6b7a92; position: sticky; top: 0; z-index: 1; }
+.rp-it { display: flex; gap: 8px; padding: 7px 12px; font-size: 14px; line-height: 1.45; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+.rp-it:hover { background: #f8fafc; }
+.rp-it.future { opacity: .38; }
+.rp-it.cur { background: #eff6ff; box-shadow: inset 3px 0 0 #1a56db; }
+.rp-it-t { flex-shrink: 0; width: 42px; color: #6b7a92; font-variant-numeric: tabular-nums; font-size: 13px; padding-top: 1px; }
+.rp-it-x { flex: 1; min-width: 0; word-break: break-word; color: #1e2a3a; }
+.rp-it-s { display: block; font-size: 12px; color: #6b7a92; }
+.rp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+body.rp-on .layer-panel { right: 316px !important; }
+body.rp-on .ev-card, body.rp-on .layer-panel { max-height: calc(100vh - 24px - var(--rp-h, 120px)) !important; }
+body.rp-on #aiBirdGroup { display: none !important; }
+body.rp-on .leaflet-bottom { bottom: var(--rp-h, 120px) !important; }
+body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
+</style>
+
+<div id="rpBar">
+  <div id="rpMsg">載入回放資料中…</div>
+  <div id="rpCtl" style="display:none">
+    <div class="rp-row1">
+      <button class="rp-btn" id="rpPrev" title="上一件事（←）" onclick="rpStep(-1)">⏮</button>
+      <button class="rp-btn rp-play" id="rpPlay" title="播放／暫停（空白鍵）" onclick="rpToggle()">▶</button>
+      <button class="rp-btn" id="rpNext" title="下一件事（→）" onclick="rpStep(1)">⏭</button>
+      <select id="rpSpeed" title="播放速度" onchange="rpSetSpeed(this.value)">
+        <option value="1">1×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option>
+      </select>
+      <div class="rp-clock"><div id="rpClock">—</div><div id="rpElapsed"></div></div>
+      <div id="rpWind" style="display:none" title="離事件最近的氣象站當時的觀測風向（只是紀錄，不會轉動十點偵測）"></div>
+      <div class="rp-chips" id="rpChips"></div>
+      <label class="rp-skip" title="沒有任何動靜的時段自動快轉"><input type="checkbox" id="rpSkip" checked onchange="_rp.skip=this.checked"> 跳過空白時段</label>
+    </div>
+    <div class="rp-row2">
+      <span class="rp-end" id="rpT0"></span>
+      <div class="rp-track"><div id="rpTicks"></div><input type="range" id="rpSlider" min="0" max="100" value="0" step="1" oninput="rpSeekSlider(this.value)"></div>
+      <span class="rp-end" id="rpT1"></span>
+    </div>
+  </div>
+</div>
+<div id="rpFeed"><div class="rp-feed-hd">事件經過<span id="rpFeedN"></span></div><div id="rpFeedList"></div></div>
+
+<script>
+var _rp = { ready: false, playing: false, speed: 60, skip: true, t: 0, t0: 0, t1: 0,
+            show: { msr: true, trk: true, task: true, fr: true, draw: true } };
+var _RP_KEYS = ['personnel', 'instrument', 'windDir', 'windSpeed', 'layerDir', 'name', 'type', 'address', 'lat', 'lng'];
+var _RP_GAP = 180000;      // 人員軌跡：相鄰兩點超過 3 分鐘 → 中間沒有資料（畫虛線、不補移動）
+
+// ── 時間工具：一律以台灣時間（UTC+8）顯示 ──
+function _rpP(ms) { var d = new Date(ms + 8 * 3600000); return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds() }; }
+function _rp2(n) { return (n < 10 ? '0' : '') + n; }
+function _rpFmtD(ms) { var p = _rpP(ms); return _rp2(p.mo) + '/' + _rp2(p.d); }
+function _rpFmtT(ms, sec) { var p = _rpP(ms); return _rp2(p.h) + ':' + _rp2(p.mi) + (sec ? ':' + _rp2(p.s) : ''); }
+function _rpDur(ms) {
+  var s = Math.max(0, Math.round(ms / 1000)), d = Math.floor(s / 86400); s -= d * 86400;
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return (d ? d + ' 天 ' : '') + h + ':' + _rp2(m) + ':' + _rp2(x);
+}
+function _rpDurText(ms) {
+  var m = Math.round(ms / 60000);
+  if (m < 60) return m + ' 分鐘';
+  if (m < 1440) return Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : '');
+  return Math.floor(m / 1440) + ' 天' + (Math.floor((m % 1440) / 60) ? ' ' + Math.floor((m % 1440) / 60) + ' 小時' : '');
+}
+// 事件發生時間（事件的日期＋時間欄）→ 毫秒；讀不出來回傳 NaN
+function _rpOccurMs(ev) {
+  var k = _evOccurKey(ev);
+  var mi = k % 100; k = Math.floor(k / 100);
+  var h = k % 100;  k = Math.floor(k / 100);
+  var d = k % 100;  k = Math.floor(k / 100);
+  var mo = k % 100, y = Math.floor(k / 100);
+  if (!y || !mo || !d) return NaN;
+  return Date.UTC(y, mo - 1, d, h, mi) - 8 * 3600000;
+}
+// 已排序陣列中，時間 ≤ T 的筆數（物件用 .t，陣列用 [0]）
+function _rpCount(arr, T) {
+  var lo = 0, hi = arr.length;
+  while (lo < hi) { var mid = (lo + hi) >> 1; var t = arr[mid].t !== undefined ? arr[mid].t : arr[mid][0]; if (t <= T) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+function _rpWho(s) { return String(s || '').replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim(); }
+function _rpList(s) { return String(s || '').split(/[,，]/).map(function(x) { return x.trim(); }).filter(Boolean); }
+function _rpCut(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) + '…' : s; }
+function _rpMsg(t) {
+  document.getElementById('rpMsg').textContent = t || '';
+  document.getElementById('rpMsg').style.display = t ? '' : 'none';
+  document.getElementById('rpCtl').style.display = t ? 'none' : '';
+  _rpSyncH();
+}
+function _rpSyncH() {
+  var b = document.getElementById('rpBar');
+  document.documentElement.style.setProperty('--rp-h', (b.offsetHeight + 16) + 'px');
+}
+
+// ════════ 啟動 ════════
+(function rpBoot() {
+  if (!_rpWanted) return;
+  if (!_rpOn) { setTimeout(function() { showToast('回放目前只支援電腦版，這裡先以歷史事件檢視顯示'); }, 1500); return; }
+  document.body.classList.add('rp-on');
+  document.getElementById('rpBar').style.display = 'block';
+  _rpSyncH();
+  var tries = 0;
+  (function wait() {
+    if (typeof gMap === 'undefined' || !gMap || typeof _events === 'undefined' || !_events.length) {
+      if (++tries > 60) { _rpMsg('找不到這個事件，無法回放'); return; }
+      setTimeout(wait, 300);
+      return;
+    }
+    _rpLoad();
+  })();
+})();
+
+function _rpLoad() {
+  var ev = _events[_curIdx], admin = false, done = false;
+  try { admin = !!JSON.parse(localStorage.getItem('radAuth') || '{}').isAdmin; } catch (e) {}
+  var guard = setTimeout(function() { if (!done) _rpMsg('讀取回放資料逾時，請重新整理再試一次'); }, 25000);
+  _jsonpGet(SHEETS_URL + '?action=getReplay&eventId=' + encodeURIComponent(ev.id) + '&admin=' + (admin ? 1 : 0), function(d) {
+    done = true; clearTimeout(guard);
+    if (!d || !d.ok) {
+      // 有明確原因（例如找不到事件）就顯示原因；沒有回應或 GAS 不認得這個查詢，才提示更新 GAS
+      var known = d && d.error && String(d.error).indexOf('未知') < 0;
+      _rpMsg(known ? '讀取回放資料失敗：' + d.error : '讀取回放資料失敗。請確認後端程式（GAS）已更新到 v27 並重新部署。');
+      return;
+    }
+    try { _rpPrepare(d); _rpStart(); }
+    catch (err) { _rpMsg('回放資料處理失敗：' + err.message); if (window.console) console.error(err); }
+  });
+}
+
+// ════════ 整理資料：欄位時間線、任務批次、時間範圍、事件經過清單 ════════
+function _rpPrepare(d) {
+  var ev = _events[_curIdx], E = d.event;
+  _rp.ev = ev; _rp.d = d;
+  var byT = function(a, b) { return a.t - b.t; };
+
+  // 事件欄位隨時間的值：起始值＝第一次修改前的舊值；沒有修改紀錄就用現在的值
+  var cur = { personnel: E.personnel, instrument: E.instrument, windDir: E.windDir, windSpeed: E.windSpeed, layerDir: E.layerDir,
+              name: E.name, type: E.type, address: E.address, lat: E.lat, lng: E.lng };
+  _rp.fields = {};
+  _RP_KEYS.forEach(function(k) {
+    var list = d.changes.filter(function(c) { return c.key === k; }).sort(byT);
+    _rp.fields[k] = { init: list.length ? String(list[0].old) : String(cur[k] == null ? '' : cur[k]), list: list };
+  });
+
+  // 任務：同一批派送（標題、內容相同，60 秒內）合成一批；解析量測點位
+  _rp.batches = [];
+  d.tasks.forEach(function(t) {
+    var b = null;
+    for (var i = 0; i < _rp.batches.length; i++) {
+      var x = _rp.batches[i];
+      if (x.title === t.title && x.content === t.content && Math.abs(t.t - x.t) < 60000) { b = x; break; }
+    }
+    if (!b) { b = { t: t.t, title: t.title, content: t.content, rows: [], pts: [] }; _rp.batches.push(b); }
+    b.rows.push(t);
+  });
+  _rp.batches.forEach(function(b) {
+    var re = /^(A\d+|T\d+|\d+)[^(\n]*\(([0-9.]+),([0-9.]+)\)/gm, m;
+    while ((m = re.exec(b.content || '')) !== null) {
+      var la = parseFloat(m[2]), lo = parseFloat(m[3]);
+      if (!isNaN(la) && !isNaN(lo)) b.pts.push({ label: m[1], lat: la, lng: lo });
+    }
+    if (!b.pts.length && b.title === '量測任務') {
+      var m0 = (b.content || '').match(/\(([\d.]+),([\d.]+)\)/);
+      if (m0 && !isNaN(parseFloat(m0[1])) && !isNaN(parseFloat(m0[2]))) b.pts.push({ label: 'T', lat: parseFloat(m0[1]), lng: parseFloat(m0[2]) });
+    }
+    var all = b.rows.every(function(r) { return r.doneT > 0; });
+    b.doneT = all ? Math.max.apply(null, b.rows.map(function(r) { return r.doneT; })) : 0;
+  });
+
+  // 測站風向：只留有效角度
+  _rp.wind = (d.wind || []).filter(function(w) { return _validWindDir(w.dir) !== null; });
+
+  // ── 時間範圍 ──
+  var occur = _rpOccurMs(E), created = Date.parse(E.created);
+  if (isNaN(occur)) occur = null;
+  if (isNaN(created)) created = null;
+  var acts = [];
+  d.measurements.forEach(function(m) { acts.push(m.t); });
+  d.tasks.forEach(function(t) { acts.push(t.t); if (t.doneT) acts.push(t.doneT); });
+  d.reports.forEach(function(r) { acts.push(r.t); });
+  d.drawings.forEach(function(x) { acts.push(x.t); if (x.del) acts.push(x.del); x.names.forEach(function(n) { acts.push(n[0]); }); });
+  d.ptOverrides.forEach(function(o) { acts.push(o.t); });
+  d.tracks.forEach(function(tr) { if (tr.points.length) { acts.push(tr.points[0][0]); acts.push(tr.points[tr.points.length - 1][0]); } });
+  var closeT = null;
+  d.changes.forEach(function(c) {
+    if (c.key === 'status') { if (_isClosedEvStatus(c.val)) closeT = c.t; }
+    else acts.push(c.t);
+  });
+  if (created !== null) acts.push(created);
+  var firstAct = acts.length ? Math.min.apply(null, acts) : null;
+  var lastAct  = acts.length ? Math.max.apply(null, acts) : null;
+  var FAR = 3 * 3600000;
+  var t0, t1, occurFar = false, closeFar = false;
+  if (occur === null) t0 = firstAct !== null ? firstAct : Date.now();
+  else if (firstAct !== null && firstAct < occur) t0 = firstAct;
+  else if (firstAct !== null && firstAct - occur > FAR) { t0 = firstAct - 5 * 60000; occurFar = true; }
+  else t0 = occur;
+  if (lastAct === null) t1 = closeT !== null ? Math.min(closeT, t0 + 10 * 60000) : t0 + 10 * 60000;
+  else if (closeT === null) t1 = lastAct + 60000;
+  else if (closeT < lastAct) t1 = lastAct + 60000;
+  else if (closeT - lastAct > FAR) { t1 = lastAct + 5 * 60000; closeFar = true; }
+  else t1 = closeT;
+  if (t1 - t0 < 60000) t1 = t0 + 60000;
+  _rp.t0 = t0; _rp.t1 = t1; _rp.occur = occur;
+
+  // ── 事件經過清單 ──
+  var items = [];
+  var add = function(t, color, html, sub) { items.push({ t: Math.min(Math.max(t, t0), t1), color: color, html: html, sub: sub || '' }); };
+  var e = _esc;
+  var C = { ev: '#1e2a3a', ppl: '#64748b', wind: '#7c3aed', task: '#2563eb', fr: '#ea580c', draw: '#db2777', pt: '#a855f7', trk: '#0ea5e9', obs: '#0ea5e9' };
+  var LV = { green: '#16a34a', orange: '#f97316', red: '#dc2626', unknown: '#94a3b8' };
+
+  if (occur !== null) {
+    if (occurFar) add(t0, C.ev, '🚨 事件發生時間：' + _rpFmtD(occur) + ' ' + _rpFmtT(occur),
+                      '比平台上第一筆紀錄早 ' + _rpDurText(firstAct - occur) + '，時間軸從第一筆紀錄前 5 分鐘開始');
+    else add(occur, C.ev, '🚨 事件發生', e(_rp.fields.address.init || ''));
+  }
+  if (created !== null) add(created, C.ev, '📝 在平台建立事件');
+
+  // 事件欄位的修改
+  var seenLL = {};
+  d.changes.forEach(function(c) {
+    var who = _rpWho(c.who), by = who ? e(who) + ' ' : '';
+    if (c.key === 'personnel' || c.key === 'instrument') {
+      var a = _rpList(c.old), b = _rpList(c.val);
+      var plus = b.filter(function(x) { return a.indexOf(x) < 0; }), minus = a.filter(function(x) { return b.indexOf(x) < 0; });
+      if (!plus.length && !minus.length) return;
+      var sub = (plus.length ? '加入：' + e(plus.join('、')) : '') + (plus.length && minus.length ? '<br>' : '') + (minus.length ? '移除：' + e(minus.join('、')) : '');
+      add(c.t, C.ppl, (c.key === 'personnel' ? '👥 ' + by + '異動出勤人員' : '🧰 ' + by + '異動攜帶儀器'), sub);
+    } else if (c.key === 'windDir') {
+      var o1 = _validWindDir(c.old) === null ? '（無）' : c.old + '°', n1 = _validWindDir(c.val) === null ? '（無）' : c.val + '°';
+      add(c.t, C.wind, '🌬️ ' + by + '修改事件風向 ' + e(o1) + ' → ' + e(n1));
+    } else if (c.key === 'layerDir') {
+      add(c.t, C.wind, '🧭 ' + by + '調整十點偵測方向 ' + e(_validWindDir(c.old) === null ? '（跟著風向）' : c.old + '°') + ' → ' +
+                       e(_validWindDir(c.val) === null ? '（跟著風向）' : c.val + '°'));
+    } else if (c.key === 'name') add(c.t, C.ev, '✏️ ' + by + '修改事件名稱', e(c.old) + ' → ' + e(c.val));
+    else if (c.key === 'type') add(c.t, C.ev, '✏️ ' + by + '修改事件類型', e(c.old) + ' → ' + e(c.val));
+    else if (c.key === 'address') add(c.t, C.ev, '📍 ' + by + '修改事件地點', e(c.val));
+    else if (c.key === 'lat' || c.key === 'lng') {
+      var kk = Math.round(c.t / 3000);
+      if (!seenLL[kk]) { seenLL[kk] = 1; add(c.t, C.ev, '📍 ' + by + '修改事發地點座標'); }
+    } else if (c.key === 'status' && _isClosedEvStatus(c.val)) {
+      add(c.t, C.ev, '🏁 ' + by + '結束事件', (closeFar && c.t === closeT) ? '實際結束時間 ' + _rpFmtD(c.t) + ' ' + _rpFmtT(c.t) : '');
+    }
+  });
+
+  // 量測：手動逐筆列出；自動量測（無人載具）只列開始回傳、以及第一次升到更高等級
+  var autoStarted = false, autoLvl = 0, lvRank = { unknown: 0, green: 1, orange: 2, red: 3 };
+  d.measurements.forEach(function(m) {
+    var v = parseFloat(m.value), lv = isNaN(v) ? 'unknown' : _mqValueLevel(v);
+    var vs = isNaN(v) ? '' : _fmtDoseStr(v);
+    var cs = String(m.contamination == null ? '' : m.contamination).trim();
+    var txt = (vs || '') + (vs && cs ? '／' : '') + (cs ? '污染 ' + e(cs) : '');
+    var dot = '<span class="rp-dot" style="background:' + LV[lv] + '"></span>';
+    if (m.source === 'auto') {
+      if (!autoStarted) { autoStarted = true; add(m.t, LV[lv], '🤖 自動量測開始回傳', dot + txt); autoLvl = lvRank[lv]; return; }
+      if (lvRank[lv] > autoLvl) { autoLvl = lvRank[lv]; add(m.t, LV[lv], '🤖 自動量測升到' + (lv === 'red' ? '熱區' : '暖區'), dot + txt); }
+      return;
+    }
+    add(m.t, LV[lv], '☢️ ' + e(m.reporter || '未具名') + ' 回報量測值', dot + txt + (m.photoId ? ' 📷' : ''));
+  });
+
+  // 任務
+  _rp.batches.forEach(function(b) {
+    var targets = b.rows.map(function(r) { return r.target; }).filter(Boolean).join('、');
+    var sub = b.pts.length ? '點位：' + e(b.pts.map(function(p) { return p.label; }).join('、')) : e(_rpCut(b.content, 40));
+    add(b.t, C.task, '📋 派送「' + e(b.title || '任務') + '」給 ' + e(targets || '—'), sub);
+    b.rows.forEach(function(r) { if (r.doneT) add(r.doneT, C.task, '✅ ' + e(r.target || '') + ' 完成「' + e(r.title || '任務') + '」' + (r.photoId ? ' 📷' : '')); });
+  });
+
+  // 現場其他事情回報
+  d.reports.forEach(function(r) {
+    add(r.t, C.fr, '📣 ' + e(r.reporter || '未具名') + ' 現場回報' + (r.photoId ? ' 📷' : ''), (r.category ? '［' + e(r.category) + '］' : '') + e(_rpCut(r.text, 60)));
+  });
+
+  // 繪圖：連續的畫筆筆跡（同一人 60 秒內）合成一則；擦除（5 秒內）合成一則
+  var SH = { circle: '圓形', rect: '矩形', poly: '多邊形' };
+  var pen = null;
+  d.drawings.slice().sort(byT).forEach(function(x) {
+    if (x.shape) { add(x.t, C.draw, '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫了' + SH[x.shape.type] + (x.shape.name ? '「' + e(x.shape.name) + '」' : '')); pen = null; }
+    else if (pen && pen.by === x.by && x.t - pen.last < 60000) { pen.last = x.t; pen.n++; pen.item.html = '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫筆標註（' + pen.n + ' 筆）'; }
+    else { add(x.t, C.draw, '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫筆標註'); pen = { by: x.by, last: x.t, n: 1, item: items[items.length - 1] }; }
+    x.names.forEach(function(n, i) {
+      var prev = i ? x.names[i - 1][1] : (x.shape ? x.shape.name : '');
+      add(n[0], C.draw, '🖍️ ' + (n[2] ? e(_rpWho(n[2])) + ' ' : '') + '圖形改名', e(prev || '（未命名）') + ' → ' + e(n[1] || '（未命名）'));
+    });
+  });
+  var dels = d.drawings.filter(function(x) { return x.del; }).sort(function(a, b) { return a.del - b.del; }), dg = null;
+  dels.forEach(function(x) {
+    if (dg && x.del - dg.last < 5000) { dg.last = x.del; dg.n++; dg.item.html = '🧹 擦除 ' + dg.n + ' 個標註'; }
+    else { add(x.del, C.draw, '🧹 擦除標註' + (x.shape && _rpDrawName(x, x.del - 1) ? '「' + e(_rpDrawName(x, x.del - 1)) + '」' : '')); dg = { last: x.del, n: 1, item: items[items.length - 1] }; }
+  });
+
+  // 量測點位調整／還原（3 秒內的多個還原合成一則）
+  var rg = null;
+  d.ptOverrides.forEach(function(o) {
+    var by = o.by ? e(_rpWho(o.by)) + ' ' : '';
+    if (!o.restore) { add(o.t, C.pt, '📌 ' + by + '調整量測點 ' + e(o.label)); rg = null; }
+    else if (rg && o.t - rg.last < 3000) { rg.last = o.t; rg.n++; rg.item.html = '↺ ' + by + '還原 ' + rg.n + ' 個量測點'; }
+    else { add(o.t, C.pt, '↺ ' + by + '還原量測點 ' + e(o.label)); rg = { last: o.t, n: 1, item: items[items.length - 1] }; }
+  });
+
+  // 測站風向：第一筆，以及之後與上一則相差 20 度以上的變化
+  var lastObs = null;
+  _rp.wind.forEach(function(w) {
+    var dir = parseFloat(w.dir);
+    if (lastObs === null) add(w.t, C.obs, '🌀 測站風向 ' + e(w.dir) + '°', e(w.station || '') + (w.dist !== '' && w.dist != null ? '（距事發地 ' + e(w.dist) + ' km）' : ''));
+    else { var df = Math.abs(dir - lastObs); if (df > 180) df = 360 - df; if (df < 20) return; add(w.t, C.obs, '🌀 測站風向 ' + lastObs + '° → ' + e(w.dir) + '°', e(w.station || '')); }
+    lastObs = dir;
+  });
+
+  // 人員開始分享位置
+  d.tracks.forEach(function(tr) { if (tr.points.length) add(tr.points[0][0], C.trk, '📡 ' + e(tr.name) + ' 開始分享位置', e(tr.team || '')); });
+
+  items = items.map(function(x, i) { x.k = i; return x; }).sort(function(a, b) { return a.t - b.t || a.k - b.k; });
+  _rp.items = items;
+
+  // 「有動靜」的時間點（跳過空白時段用）：清單上的每一則，加上人員實際移動的時間
+  var act2 = items.map(function(x) { return x.t; });
+  d.tracks.forEach(function(tr) {
+    var p = tr.points, last = null;
+    for (var i = 0; i < p.length; i++) {
+      if (!last || L.latLng(last[1], last[2]).distanceTo(L.latLng(p[i][1], p[i][2])) > 15) { act2.push(p[i][0]); last = p[i]; }
+    }
+  });
+  act2.sort(function(a, b) { return a - b; });
+  _rp.acts = act2.filter(function(t, i) { return t >= t0 && t <= t1 && (i === 0 || t !== act2[i - 1]); });
+}
+function _rpDrawName(x, T) {
+  var nm = x.shape ? x.shape.name : '';
+  for (var i = 0; i < x.names.length; i++) { if (x.names[i][0] <= T) nm = x.names[i][1]; else break; }
+  return nm;
+}
+function _rpValAt(k, T) {
+  var f = _rp.fields[k], v = f.init;
+  for (var i = 0; i < f.list.length; i++) { if (f.list[i].t <= T) v = String(f.list[i].val); else break; }
+  return v;
+}
+
+// ════════ 建立畫面、開始 ════════
+function _rpStart() {
+  var ev = _rp.ev, d = _rp.d;
+  _msrCache[ev.id] = [];
+  saveLayerPref(ev.id, 'msr', true);      // 回放預設顯示量測值與現場回報（可用下方按鈕或圖層面板關掉）
+  saveLayerPref(ev.id, 'fr', true);
+  _frLayerOn = true;
+
+  // 時間軸
+  var sl = document.getElementById('rpSlider');
+  sl.max = Math.max(1, Math.round((_rp.t1 - _rp.t0) / 1000));
+  document.getElementById('rpT0').textContent = _rpFmtD(_rp.t0) + ' ' + _rpFmtT(_rp.t0);
+  document.getElementById('rpT1').textContent = _rpFmtD(_rp.t1) + ' ' + _rpFmtT(_rp.t1);
+  var span = _rp.t1 - _rp.t0, items = _rp.items;
+  var step = Math.max(1, Math.ceil(items.length / 1500));
+  var th = '';
+  for (var i = 0; i < items.length; i += step) {
+    th += '<div class="rp-tick" style="left:' + ((items[i].t - _rp.t0) / span * 100).toFixed(3) + '%;background:' + items[i].color +
+          '" title="' + _rpFmtT(items[i].t) + ' ' + _esc(String(items[i].html).replace(/<[^>]+>/g, '')) + '" onclick="rpSeekItem(' + i + ')"></div>';
+  }
+  document.getElementById('rpTicks').innerHTML = th;
+
+  // 事件經過清單
+  var fh = '', lastDay = '';
+  items.forEach(function(x, i) {
+    var day = _rpFmtD(x.t);
+    if (day !== lastDay) { fh += '<div class="rp-day">' + day + '</div>'; lastDay = day; }
+    fh += '<div class="rp-it future" data-i="' + i + '" onclick="rpSeekItem(' + i + ')"><span class="rp-it-t">' + _rpFmtT(x.t) + '</span>' +
+          '<span class="rp-it-x">' + x.html + (x.sub ? '<span class="rp-it-s">' + x.sub + '</span>' : '') + '</span></div>';
+  });
+  var list = document.getElementById('rpFeedList');
+  list.innerHTML = fh || '<div style="padding:24px 12px;color:#94a3b8;font-size:14px;text-align:center">這個事件沒有可回放的紀錄</div>';
+  _rp.feedEls = Array.prototype.slice.call(list.querySelectorAll('.rp-it'));
+  document.getElementById('rpFeedN').textContent = '共 ' + items.length + ' 則';
+  document.getElementById('rpFeed').style.display = 'flex';
+
+  // 圖層按鈕
+  var chips = [['msr', '量測值'], ['trk', '人員'], ['task', '任務點位'], ['fr', '現場回報'], ['draw', '繪圖']];
+  document.getElementById('rpChips').innerHTML = chips.map(function(c) {
+    var dis = (c[0] === 'trk' && d.tracksHidden);
+    return '<button class="rp-chip on" id="rpChip_' + c[0] + '" onclick="rpChip(\'' + c[0] + '\')"' +
+           (dis ? ' disabled title="人員軌跡只有管理員看得到（或管理員開放給所有人）"' : '') + '>' + c[1] + '</button>';
+  }).join('');
+  if (d.tracksHidden) _rp.show.trk = false;
+
+  _rpMsg('');
+  _rp.ready = true; _rp.nFeed = -1;
+  _rp.t = _rp.t0;
+  _rpApply(true);
+  setTimeout(function() { _rpSyncH(); if (_events.length) flyToEvent(_curIdx); }, 400);
+}
+
+// ════════ 把地圖設成時間點 T 的狀態 ════════
+function _rpApply(force) {
+  if (!_rp.ready) return;
+  var T = _rp.t, ev = _rp.ev, d = _rp.d, idx = _curIdx, cardDirty = false;
+
+  // 1. 事件欄位（風向、十點偵測方向、人員、儀器…）與量測點位調整
+  var v = {};
+  _RP_KEYS.forEach(function(k) { v[k] = _rpValAt(k, T); });
+  var po = {};
+  for (var i = 0; i < d.ptOverrides.length; i++) {
+    var o = d.ptOverrides[i];
+    if (o.t > T) break;
+    if (o.restore) delete po[o.label]; else po[o.label] = { lat: o.lat, lng: o.lng, by: o.by, time: '' };
+  }
+  var sigGeo = [v.windDir, v.windSpeed, v.layerDir, v.type, v.lat, v.lng, _ptSig(po)].join('~');
+  var sigCard = sigGeo + '~' + [v.personnel, v.instrument, v.name, v.address].join('~');
+  var sigMk = [v.lat, v.lng, v.name, v.type].join('~');
+  if (force || sigCard !== _rp.sigCard) {
+    ev.personnelStr = ev.personnel = v.personnel;
+    ev.instrumentStr = ev.instrument = v.instrument;
+    ev.windDir = v.windDir; ev.windSpeed = v.windSpeed; ev.layerDir = v.layerDir;
+    ev.name = v.name; ev.type = v.type; ev.address = v.address;
+    if (v.lat !== '' && v.lng !== '') { ev.lat = v.lat; ev.lng = v.lng; }
+    ev.doseMax = '';                     // 最大劑量率改由「到這個時間點為止的量測值」決定
+    _normEvWind(ev);
+    if (force || sigGeo !== _rp.sigGeo) {
+      _ptOv[ev.id] = po; _ptOvSig[ev.id] = _ptSig(po); _ptOvReady[ev.id] = true;
+      _afterWindChanged(idx);            // 重畫事件卡、扇形／橫切面／點位、風向粒子、圖層面板
+    } else cardDirty = true;
+    if (force || sigMk !== _rp.sigMk) placeMarkers();
+    _rp.sigCard = sigCard; _rp.sigGeo = sigGeo; _rp.sigMk = sigMk;
+  }
+
+  // 2. 量測值
+  var n = _rpCount(d.measurements, T);
+  if (force || n !== _rp.nMsr) { _rp.nMsr = n; _msrCache[ev.id] = d.measurements.slice(0, n); loadMeasurements(idx, false); cardDirty = true; }
+
+  // 3. 現場回報
+  n = _rpCount(d.reports, T);
+  if (force || n !== _rp.nFr) { _rp.nFr = n; _frCache = d.reports.slice(0, n).reverse(); _frRenderMarkers(); }
+
+  _rpTasks(T, force);
+  _rpDrawings(T);
+  _rpTracks(T, force);
+  _rpWindObs(T, force);
+  if (cardDirty) renderCard(idx);
+  _rpUi();
+}
+
+// 任務的量測點位：派送後出現（待量測），整批完成後變成綠色勾
+function _rpTaskIcon(label, done) {
+  var isCross = /^A/.test(label), bg = done ? '#16a34a' : (isCross ? '#3b82f6' : '#7c3aed');
+  return L.divIcon({ className: '',
+    html: '<div style="position:relative;width:30px;height:30px;' + (done ? 'opacity:.8' : '') + '">' +
+          '<div style="width:30px;height:30px;background:' + bg + ';border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+          'font-size:14px;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4)">' + (done ? '✔' : '📐') + '</div>' +
+          '<div style="position:absolute;top:-6px;right:-8px;background:' + (done ? '#15803d' : '#dc2626') + ';border:1.5px solid white;border-radius:10px;' +
+          'font-size:9px;font-weight:700;color:white;font-family:ui-monospace,monospace;padding:1px 4px;white-space:nowrap">' + _esc(label) + '</div></div>',
+    iconSize: [30, 30], iconAnchor: [15, 15] });
+}
+function _rpTasks(T, force) {
+  var st = _rp.batches.map(function(b) { return T < b.t ? 0 : (b.doneT && T >= b.doneT ? 2 : 1); });
+  var sig = st.join('') + (_rp.show.task ? 'y' : 'n');
+  if (!force && sig === _rp.sigTask) return;
+  _rp.sigTask = sig;
+  if (!_rp.taskGroup) _rp.taskGroup = L.layerGroup().addTo(gMap);
+  _rp.taskGroup.clearLayers();
+  if (!_rp.show.task) return;
+  _rp.batches.forEach(function(b, i) {
+    if (!st[i]) return;
+    var targets = b.rows.map(function(r) { return r.target; }).filter(Boolean).join('、');
+    b.pts.forEach(function(p) {
+      L.marker([p.lat, p.lng], { icon: _rpTaskIcon(p.label, st[i] === 2), zIndexOffset: st[i] === 2 ? -200 : 300 })
+        .bindTooltip('<b>' + _esc(p.label) + ' ' + _esc(b.title || '任務') + '</b><br>' + _esc(targets) + '<br>' +
+                     (st[i] === 2 ? '已完成（' + _rpFmtT(b.doneT) + '）' : '待量測（' + _rpFmtT(b.t) + ' 派送）'), { direction: 'top', offset: [0, -16] })
+        .addTo(_rp.taskGroup);
+    });
+  });
+}
+
+// 繪圖：畫的時候出現、擦掉的時候消失、改名的時候換名稱
+function _rpDrawings(T) {
+  if (!_rp.drawLayers) _rp.drawLayers = {};
+  _rp.d.drawings.forEach(function(x) {
+    var vis = _rp.show.draw && x.t <= T && (!x.del || T < x.del);
+    var ly = _rp.drawLayers[x.id];
+    if (vis && !ly) {
+      var dd = { id: x.id, color: x.color, weight: x.weight, pts: x.pts };
+      if (x.shape) dd.shape = { type: x.shape.type, name: _rpDrawName(x, T) };
+      _rp.drawLayers[x.id] = _drawMakeLine(dd);
+    } else if (!vis && ly) {
+      if (typeof _dimOwner !== 'undefined' && _dimOwner === ly) { _shapeClearDims(); gMap.closePopup(); }
+      ly.remove(); delete _rp.drawLayers[x.id];
+    } else if (vis && ly && ly._shape && x.names.length) {
+      var nm = _rpDrawName(x, T);
+      if (ly._shape.name !== nm) _shapeSetName(ly, nm);
+    }
+  });
+}
+
+// 人員軌跡：位置隨時間移動（兩個紀錄點之間補成平順移動），走過的路線留在地圖上
+function _rpTracks(T, force) {
+  if (!_rp.trkGroup) _rp.trkGroup = L.layerGroup();
+  if (!_rp.show.trk) { if (gMap.hasLayer(_rp.trkGroup)) gMap.removeLayer(_rp.trkGroup); return; }
+  if (!gMap.hasLayer(_rp.trkGroup)) _rp.trkGroup.addTo(gMap);
+  _rp.d.tracks.forEach(function(tr) {
+    var p = tr.points, st = tr._st;
+    if (!st) {
+      st = tr._st = { idx: -1, grp: L.layerGroup(), path: L.layerGroup(), line: null, col: _trkColor((tr.name || '') + (tr.team || '')) };
+      st.grp.addLayer(st.path);
+    }
+    var i = _rpCount(p, T) - 1;
+    if (i < 0) { if (_rp.trkGroup.hasLayer(st.grp)) _rp.trkGroup.removeLayer(st.grp); st.idx = -1; st.path.clearLayers(); st.line = null; return; }
+    if (!_rp.trkGroup.hasLayer(st.grp)) _rp.trkGroup.addLayer(st.grp);
+    var solid = { color: st.col, weight: 3, opacity: 0.75, interactive: false };
+    if (force || i < st.idx || st.idx < 0) {      // 往回拖、或第一次：整條重畫
+      st.path.clearLayers();
+      st.line = L.polyline([[p[0][1], p[0][2]]], solid).addTo(st.path);
+      st.idx = 0;
+    }
+    for (var k = st.idx + 1; k <= i; k++) {        // 往前播：只補新的點
+      var c = [p[k][1], p[k][2]];
+      if (p[k][0] - p[k - 1][0] > _RP_GAP) {
+        L.polyline([[p[k - 1][1], p[k - 1][2]], c], { color: st.col, weight: 2, opacity: 0.45, dashArray: '4 6', interactive: false }).addTo(st.path);
+        st.line = L.polyline([c], solid).addTo(st.path);
+      } else st.line.addLatLng(c);
+    }
+    st.idx = i;
+    var cur = p[i], nx = p[i + 1], pos = [cur[1], cur[2]], moving = false;
+    if (nx && nx[0] > cur[0] && nx[0] - cur[0] <= _RP_GAP) {
+      var f = (T - cur[0]) / (nx[0] - cur[0]);
+      pos = [cur[1] + (nx[1] - cur[1]) * f, cur[2] + (nx[2] - cur[2]) * f];
+      moving = true;
+    }
+    if (!st.head) st.head = L.polyline([], solid).addTo(st.grp);
+    st.head.setLatLngs(moving ? [[cur[1], cur[2]], pos] : []);
+    var stale = !moving && T - cur[0] > 300000;
+    var label = (tr.name || '?') + (stale ? '（' + _rpDurText(T - cur[0]) + '前）' : '');
+    if (!st.mk) {
+      st.mk = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 2, fillColor: st.col, fillOpacity: 1 }).addTo(st.grp);
+      st.mk.bindTooltip(_esc(label), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
+      st.label = label; st.op = 1;
+    }
+    st.mk.setLatLng(pos);
+    if (label !== st.label) { st.mk.setTooltipContent(_esc(label)); st.label = label; }
+    var op = stale ? 0.45 : 1;
+    if (op !== st.op) { st.mk.setStyle({ fillOpacity: op }); st.op = op; }
+  });
+}
+
+// 測站觀測風向（自動紀錄）：只顯示，不影響扇形
+function _rpWindObs(T, force) {
+  var w = _rp.wind, el = document.getElementById('rpWind');
+  var n = _rpCount(w, T);
+  if (!force && n === _rp.nWind) return;
+  _rp.nWind = n;
+  if (!w.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  if (!n) { el.innerHTML = '測站風向 —'; return; }
+  var o = w[n - 1];
+  el.innerHTML = '<span class="rp-arrow" style="transform:rotate(' + ((parseFloat(o.dir) + 180) % 360) + 'deg)">↑</span>' +
+                 '<span>測站風向 <b>' + _esc(o.dir) + '°</b>' + (o.speed !== '' ? '　' + _esc(o.speed) + ' m/s' : '') +
+                 '<span style="color:#94a3b8">（' + _esc(o.station || '') + ' ' + _rpFmtT(o.t) + '）</span></span>';
+}
+
+// 時間、滑桿、清單的目前位置、按鈕狀態
+function _rpUi() {
+  var T = _rp.t;
+  var sl = document.getElementById('rpSlider');
+  sl.value = Math.round((T - _rp.t0) / 1000);
+  document.getElementById('rpClock').textContent = _rpFmtD(T) + ' ' + _rpFmtT(T, true);
+  var base = _rp.occur !== null ? _rp.occur : _rp.t0;
+  document.getElementById('rpElapsed').innerHTML = (T >= base ? '事件發生後 ' : '事件發生前 ') + _rpDur(Math.abs(T - base)) +
+    (_rp.skipNote && Date.now() < _rp.skipNoteUntil ? '<span id="rpSkipNote">⏩ ' + _rp.skipNote + '</span>' : '');
+  var n = _rpCount(_rp.items, T);
+  if (n !== _rp.nFeed) {
+    var els = _rp.feedEls, old = _rp.nFeed < 0 ? 0 : _rp.nFeed;
+    if (_rp.nFeed < 0) for (var i = 0; i < els.length; i++) els[i].classList.toggle('future', i >= n);
+    else for (var j = Math.min(old, n); j < Math.max(old, n); j++) els[j].classList.toggle('future', j >= n);
+    if (old > 0 && els[old - 1]) els[old - 1].classList.remove('cur');
+    if (n > 0 && els[n - 1]) {
+      els[n - 1].classList.add('cur');
+      var list = document.getElementById('rpFeedList');
+      list.scrollTop = Math.max(0, els[n - 1].offsetTop - list.clientHeight / 2 + els[n - 1].offsetHeight / 2);
+    }
+    _rp.nFeed = n;
+  }
+  document.getElementById('rpPlay').textContent = _rp.playing ? '⏸' : '▶';
+  var cm = document.getElementById('rpChip_msr'), cf = document.getElementById('rpChip_fr');
+  if (cm) { _rp.show.msr = isLayerOn(_curIdx, 'msr'); cm.classList.toggle('on', _rp.show.msr); }
+  if (cf) { _rp.show.fr = !!_frLayerOn; cf.classList.toggle('on', _rp.show.fr); }
+}
+
+// ════════ 播放控制 ════════
+function rpToggle() {
+  if (!_rp.ready) return;
+  if (!_rp.playing && _rp.t >= _rp.t1) _rp.t = _rp.t0;     // 播完再按一次 → 從頭播
+  _rp.playing = !_rp.playing;
+  if (_rp.playing) { _rp.lastTs = 0; _rp.lastApply = 0; requestAnimationFrame(_rpLoop); }
+  _rpApply();
+}
+function _rpLoop(ts) {
+  if (!_rp.playing) return;
+  var dt = _rp.lastTs ? Math.min(ts - _rp.lastTs, 250) : 0;
+  _rp.lastTs = ts;
+  var T = _rp.t + dt * _rp.speed;
+  if (_rp.skip && dt > 0) {
+    // 下一個有動靜的時間點離現在太遠（超過約 8 秒的播放時間，至少 30 秒）→ 直接跳到它前面一點
+    var a = _rp.acts, lo = 0, hi = a.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (a[mid] <= _rp.t) lo = mid + 1; else hi = mid; }
+    var next = lo < a.length ? a[lo] : _rp.t1;
+    var thr = Math.max(30000, _rp.speed * 8000), lead = _rp.speed * 1500;
+    if (next - T > thr) {
+      var to = Math.max(T, next - lead);
+      _rp.skipNote = '已跳過 ' + _rpDurText(to - T); _rp.skipNoteUntil = Date.now() + 2500;
+      T = to;
+    }
+  }
+  if (T >= _rp.t1) { T = _rp.t1; _rp.playing = false; }
+  _rp.t = T;
+  if (!_rp.playing || ts - (_rp.lastApply || 0) >= 66) { _rp.lastApply = ts; _rpApply(); }
+  if (_rp.playing) requestAnimationFrame(_rpLoop);
+}
+function rpSetSpeed(v) { _rp.speed = parseFloat(v) || 60; }
+function rpSeek(T) {
+  if (!_rp.ready) return;
+  _rp.t = Math.min(Math.max(T, _rp.t0), _rp.t1);
+  _rp.skipNote = '';
+  _rpApply();
+}
+function rpSeekSlider(v) { rpSeek(_rp.t0 + (parseFloat(v) || 0) * 1000); }
+function rpSeekItem(i) {
+  var x = _rp.items && _rp.items[i];
+  if (!x) return;
+  _rp.playing = false;
+  rpSeek(x.t);
+}
+// 跳到上一件／下一件事
+function rpStep(dir) {
+  if (!_rp.ready || !_rp.items.length) return;
+  var it = _rp.items, T = _rp.t, target = null;
+  if (dir > 0) { for (var i = 0; i < it.length; i++) if (it[i].t > T + 500) { target = it[i].t; break; } if (target === null) target = _rp.t1; }
+  else { for (var j = it.length - 1; j >= 0; j--) if (it[j].t < T - 500) { target = it[j].t; break; } if (target === null) target = _rp.t0; }
+  rpSeek(target);
+}
+// 圖層按鈕
+function rpChip(k) {
+  if (!_rp.ready) return;
+  var ev = _rp.ev, on = !_rp.show[k];
+  _rp.show[k] = on;
+  var el = document.getElementById('rpChip_' + k); if (el) el.classList.toggle('on', on);
+  if (k === 'msr') { saveLayerPref(ev.id, 'msr', on); loadMeasurements(_curIdx, false); renderLayerPanel(); }
+  else if (k === 'fr') { _frLayerOn = on; saveLayerPref(ev.id, 'fr', on); _frRenderMarkers(); renderLayerPanel(); }
+  else if (k === 'task') _rpTasks(_rp.t, true);
+  else if (k === 'draw') _rpDrawings(_rp.t);
+  else if (k === 'trk') _rpTracks(_rp.t, true);
+}
+document.addEventListener('keydown', function(e) {
+  if (!_rp.ready) return;
+  var tg = e.target && e.target.tagName;
+  if (tg === 'INPUT' && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+  if (tg === 'TEXTAREA' || tg === 'SELECT') return;
+  if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); rpToggle(); }
+  else if (e.key === 'ArrowRight' && tg !== 'INPUT') { e.preventDefault(); rpStep(1); }
+  else if (e.key === 'ArrowLeft' && tg !== 'INPUT') { e.preventDefault(); rpStep(-1); }
+});
+window.addEventListener('resize', function() { if (_rpOn) _rpSyncH(); });
 </script>
 
 </body>
