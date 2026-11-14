@@ -689,6 +689,13 @@ cursor: pointer; transition: background .15s;
 #map.draw-mode   { cursor: crosshair !important; }
 #map.draw-mode .leaflet-marker-icon, #map.draw-mode .leaflet-interactive { pointer-events: none !important; }
 #map.erase-mode  { cursor: cell !important; }
+#windChgBox{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1200;background:#fff;border:2px solid #0ea5e9;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 14px;min-width:260px;max-width:calc(100% - 32px);font-size:14px;color:#0f172a;font-family:inherit}
+#windChgBox .wc-hd{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;color:#0369a1;margin-bottom:6px}
+#windChgBox .wc-x{border:none;background:none;font-size:16px;cursor:pointer;color:#64748b;padding:0 0 0 12px}
+#windChgBox .wc-row{white-space:nowrap}
+#windChgBox .wc-t{display:inline-block;min-width:96px;color:#475569}
+#windChgBox .wc-arrow{color:#0ea5e9;font-weight:700;padding-left:40px;line-height:1.2}
+#windChgBox .wc-ft{margin-top:6px;font-size:12px;color:#64748b;line-height:1.5}
 </style>
 
 </head>
@@ -2982,6 +2989,7 @@ function flyToEvent(idx) {
   if (window.frLoad) frLoad();
   loadMeasurements(idx, true);
   startMsrTimer(idx);
+  _wlPoll();   // 即時風向：換事件時馬上抓一次
 }
 
 // 依事件已畫出的圖層算出合適的中心與縮放（最大 17 級）；桌機會避開左邊事件狀態、右邊圖層顯示視窗
@@ -5094,9 +5102,11 @@ function _getWindVec(px, py) {
   if (!_windFieldGrid || !_windFieldGridW) {
     // fallback：用單站資料
     var ev = _events[_curIdx];
-    var wd = ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270;
+    var lw = _wlLatest(ev);   // 有自動抓到的最新風向就用它，否則用事件建立時的風向
+    var wd = lw ? (parseFloat(lw.dir) + 180) % 360 : (ev && ev.windDir ? (parseFloat(ev.windDir) + 180) % 360 : 270);
     var rad = (wd - 90) * Math.PI / 180;
-    var spd = ev && ev.windSpeed ? Math.max(1, Math.min(8, parseFloat(ev.windSpeed) * 0.5)) : 2.5;
+    var wsv = lw ? parseFloat(lw.speed) : (ev && ev.windSpeed ? parseFloat(ev.windSpeed) : NaN);
+    var spd = !isNaN(wsv) ? Math.max(1, Math.min(8, wsv * 0.5)) : 2.5;
     return { vx: Math.cos(rad) * spd, vy: Math.sin(rad) * spd };
   }
   var step = _WIND_GRID_STEP;
@@ -5255,6 +5265,102 @@ function _refreshWindIfOn() {
     return;
   }
   if (_windCanvas) _initWindParticles();
+}
+
+// ── 即時風向 ──
+//  · 風向粒子跟著自動抓到的風向變：每 5 分鐘重抓一次附近測站風場（粒子），並讀 GAS「風向紀錄」
+//  · 風向明顯改變時，在地圖上通知「從 何時 什麼風、風速 → 轉為 何時 什麼風、風速」
+//    明顯改變＝八方位風向不同（例如西南風→西風），或風速相差 2 m/s 以上
+//  · 只影響風向粒子；扇形、十點偵測、橫切面仍維持建立事件時的方向
+//  · 歷史檢視、回放不抓（保留當時的資料）
+var _wl = { evId: null, list: [], at: 0 };
+var _WL_POLL_MS = 5 * 60 * 1000;
+var _WL_SPD_STEP = 2;   // 風速相差多少 m/s 算明顯改變
+var _DIR8 = ['北', '東北', '東', '東南', '南', '西南', '西', '西北'];
+function _dir8(d) { return _DIR8[Math.round((((d % 360) + 360) % 360) / 45) % 8]; }
+function _wlLatest(ev) {
+  if (!ev || _wl.evId !== ev.id || !_wl.list.length) return null;
+  return _wl.list[_wl.list.length - 1];
+}
+// 試算表的時間字串（2026/11/12 10:00:00、ISO…）→ 毫秒；看不懂回傳 NaN
+function _wlParseT(v) {
+  var m = String(v == null ? '' : v).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})/);
+  if (!m) return NaN;
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(String(v).trim())) { var d = new Date(v); if (!isNaN(d)) return d.getTime(); }
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - 8 * 3600000;
+}
+function _wlFmtT(t) {
+  if (isNaN(t)) return '';
+  var d = new Date(t + 8 * 3600000), p = function(n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getUTCMonth() + 1) + '/' + p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+}
+function _wlPoll(force) {
+  if (_historyId) return;
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  var id = ev.id;
+  if (!force && _wl.evId === id && Date.now() - _wl.at < 60000) return;   // 一分鐘內不重抓
+  _wl.at = Date.now();
+  if (_wl.evId !== id) { _wl.evId = id; _wl.list = []; _wlHide(); }
+  if (_windLayerOn) _fetchWindField();   // 粒子：重抓附近測站風場
+  _jsonpGet(SHEETS_URL + '?action=getWindLog&eventId=' + encodeURIComponent(id) + '&n=300', function(d) {
+    if (!d || !d.ok || !d.wind) return;   // GAS 還沒更新到 v28：只有粒子會更新，不會有通知
+    var cur = _events[_curIdx];
+    if (!cur || cur.id !== id) return;
+    _wl.list = d.wind.filter(function(w) { return _validWindDir(w.dir) !== null && !isNaN(parseFloat(w.speed)); });
+    _wlNotify(cur);
+  });
+}
+setInterval(function() { _wlPoll(true); }, _WL_POLL_MS);
+// 找最近一次明顯改變：從建立事件時的風向開始，依序比對風向紀錄
+function _wlLastChange(ev) {
+  var pts = [];
+  var d0 = _validWindDir(ev.windDir), s0 = parseFloat(ev.windSpeed);
+  if (d0 !== null && !isNaN(s0)) pts.push({ d: d0, s: s0, t: _wlParseT(ev.created), first: true, station: '' });
+  _wl.list.forEach(function(w) {
+    pts.push({ d: parseFloat(w.dir), s: parseFloat(w.speed), t: w.t, station: w.station, dist: w.dist });
+  });
+  var ref = null, chg = null;
+  pts.forEach(function(p) {
+    if (!ref) { ref = p; return; }
+    if (_dir8(ref.d) !== _dir8(p.d) || Math.abs(ref.s - p.s) >= _WL_SPD_STEP) { chg = { from: ref, to: p }; ref = p; }
+  });
+  return chg;
+}
+function _wlNotify(ev) {
+  var chg = _wlLastChange(ev);
+  if (!chg) return;
+  var sig = ev.id + '|' + chg.to.t;
+  var box = document.getElementById('windChgBox');
+  if (box && box.getAttribute('data-sig') === sig) return;
+  try { if (localStorage.getItem('windChg_' + ev.id) === String(chg.to.t)) return; } catch (e) {}
+  _wlShow(ev, chg, sig);
+}
+function _wlLine(p) {
+  var t = p.first ? (_wlFmtT(p.t) ? _wlFmtT(p.t) + '（建立事件）' : '建立事件時') : _wlFmtT(p.t);
+  return '<div class="wc-row"><span class="wc-t">' + _esc(t) + '</span>' +
+    '<b>' + _dir8(p.d) + '風</b> ' + Math.round(p.d) + '°　' + (Math.round(p.s * 10) / 10) + ' m/s</div>';
+}
+function _wlShow(ev, chg, sig) {
+  _wlHide();
+  var box = document.createElement('div');
+  box.id = 'windChgBox';
+  box.setAttribute('data-sig', sig);
+  var st = chg.to.station ? '測站：' + _esc(chg.to.station) + (chg.to.dist !== '' && chg.to.dist != null && !isNaN(chg.to.dist) ? '（距事件 ' + chg.to.dist + ' km）' : '') : '';
+  box.innerHTML = '<div class="wc-hd">🌬️ 風向改變<button class="wc-x" title="關閉" onclick="_wlClose()">✕</button></div>' +
+    _wlLine(chg.from) + '<div class="wc-arrow">↓</div>' + _wlLine(chg.to) +
+    '<div class="wc-ft">' + (st ? st + '<br>' : '') + '風向粒子已跟著更新；扇形、十點偵測維持原方向</div>';
+  var mapEl = document.getElementById('map');
+  (mapEl && mapEl.parentNode ? mapEl.parentNode : document.body).appendChild(box);
+}
+function _wlHide() { var b = document.getElementById('windChgBox'); if (b) b.remove(); }
+function _wlClose() {
+  var b = document.getElementById('windChgBox');
+  if (b) {
+    var sig = b.getAttribute('data-sig') || '', i = sig.lastIndexOf('|');
+    try { localStorage.setItem('windChg_' + sig.slice(0, i), sig.slice(i + 1)); } catch (e) {}
+  }
+  _wlHide();
 }
 
 // ── 圖層面板收合 ──
