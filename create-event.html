@@ -1494,7 +1494,7 @@ function ceDo() {
 
   // 建立事件的當下，向氣象署取得最近測站的風向、風速，一併記進試算表；之後事件的風向固定，不再跟著氣象署變動
   ceFetchWind(ev.lat, ev.lng, function(w) {
-    if (w) { ev.windDir = w.windDir; ev.windSpeed = w.windSpeed; }
+    if (w) { ev.windDir = w.windDir; ev.windSpeed = w.windSpeed; if (w.station) ev.windStation = w.station; }
     ceSaveEvent(ev);
   });
 }
@@ -1511,7 +1511,7 @@ function ceFetchWind(lat, lng, cb) {
     var t = d && !d.error ? String(d.windDir == null ? '' : d.windDir).trim() : '';
     var n = parseFloat(t);
     var ok = t !== '' && t !== 'X' && t !== '-99' && t !== '990' && !isNaN(n) && n >= 0 && n <= 360;
-    cb(ok ? { windDir: t, windSpeed: String(d.windSpeed == null ? '' : d.windSpeed) } : null);
+    cb(ok ? { windDir: t, windSpeed: String(d.windSpeed == null ? '' : d.windSpeed), station: String(d.stationName || '').trim() } : null);
   });
 }
 

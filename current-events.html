@@ -1504,6 +1504,7 @@ function toggleEditPanel() {
     document.getElementById('editAddress').value = twAddr(ev.address || '');
     document.getElementById('editWindDir').value   = ev.windDirRaw || ev.windDir || '';
     document.getElementById('editWindSpeed').value  = ev.windSpeed || '';
+    _editWindFetched = null;   // 這次編輯「從氣象局抓取」到的測站（儲存時判斷風向來源）
     // 旋轉角度＝十點偵測（1km 橫切面、5km 扇形、附近場域）目前的方向，與風向分開
     var _ld0 = _layerDirOf(ev);
     var _curAngle = _ld0 === null ? 0 : Math.round(_ld0) % 360;
@@ -1565,7 +1566,8 @@ function _editLayerDirToSave() {
 // ── 從氣象局抓取最近站風向/風速，透過 GAS 代理（避免 CORS）──
 // autoIdx: 若為數字，代表自動輪詢呼叫（不更新 UI 按鈕），否則為手動點擊
 var _cwaTimer = null;       // 自動輪詢計時器
-var _editOrigWindDir = ''; // 編輯面板開啟前的原始風向（取消時還原）
+var _editOrigWindDir = '';
+var _editWindFetched = null; // 編輯面板開啟前的原始風向（取消時還原）
 var _editNewLat = null;   // 編輯面板中地圖點選的新緯度
 var _editNewLng = null;   // 編輯面板中地圖點選的新經度
 // ── 編輯事件地址：打字搜尋（Nominatim 正向地理編碼）──
@@ -1805,7 +1807,8 @@ function fetchCwaWind(autoIdx) {
       _normEvWind(ev);
       // GAS 只有在試算表裡還沒有有效風向時才會寫入（多人同時開地圖，只有第一個會寫入）
       fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'setInitialWind', eventId: ev.id, windDir: ev.windDir, windSpeed: ev.windSpeed }) });
+        body: JSON.stringify({ action: 'setInitialWind', eventId: ev.id, windDir: ev.windDir, windSpeed: ev.windSpeed, windStation: String(data.stationName || '').trim() }) });
+      if (String(data.stationName || '').trim()) ev.windStation = String(data.stationName).trim();
       setTimeout(function() { _syncWindFromSheet(idx); }, 2500);
       _afterWindChanged(idx);
       return;
@@ -1818,6 +1821,7 @@ function fetchCwaWind(autoIdx) {
     var sts3 = document.getElementById('cwaFetchStatus');
     if (edi) edi.value = data.windDir   || '';
     if (ews) ews.value = data.windSpeed || '';
+    _editWindFetched = { name: String(data.stationName || '').trim(), dir: String(data.windDir || '').trim(), ws: String(data.windSpeed || '').trim() };
     onEditWindInput();
     if (sts3) {
       var stn = String(data.stationName || '').trim();
@@ -1874,6 +1878,12 @@ function saveEdit() {
 
   var _ldSave = _editLayerDirToSave();
   if (_ldSave !== null) payload.layerDir = _ldSave;
+  // 風向測站：風向或風速有改才送——跟「從氣象局抓取」的值一樣＝該站，否則＝手動輸入
+  var _wdOrig = String(ev.windDirRaw || ev.windDir || '').trim(), _wsOrig = String(ev.windSpeed || '').trim();
+  if (windVal !== _wdOrig || windSpVal !== _wsOrig) {
+    payload.windStation = (_editWindFetched && _editWindFetched.name && _editWindFetched.dir === windVal && _editWindFetched.ws === windSpVal)
+      ? _editWindFetched.name : (windVal === '' ? '' : '手動輸入');
+  }
 
   // 若有地圖點選新座標，一併更新
   if (_editNewLat !== null && _editNewLng !== null) {
@@ -1893,6 +1903,7 @@ function saveEdit() {
     ev.windDir    = payload.windDir;
     ev.windSpeed  = payload.windSpeed;
     if (payload.layerDir !== undefined) ev.layerDir = payload.layerDir;
+    if (payload.windStation !== undefined) { ev.windStation = payload.windStation; delete _wxStn[ev.id]; }
     if (_editFetchTime) ev.windFetchTime = _editFetchTime;
     _normEvWind(ev);
     ev.windManual = true;
@@ -1922,6 +1933,7 @@ function saveEdit() {
     // 關閉面板，重新渲染卡片
     toggleEditPanel();
     renderCard(_curIdx);
+    _wxLoad(ev);   // 風向測站可能換了：重找位置、更新圖示
     // 名稱、類型等改了：圖層面板標題、地圖圖釘（說明框與名稱標籤）、選定列、手機面板一起更新，不必切換事件
     if (payload.lat === undefined) placeMarkers();
     renderLayerPanel();
@@ -5297,24 +5309,34 @@ function _kmLL(la1, lo1, la2, lo2) {
   var a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
+function _wxStnName(n) { n = String(n || '').trim(); return /站$/.test(n) ? n : n + '站'; }
 function _wxCardHtml(ev) {
-  var st = ev && _wxStn[ev.id];
-  if (!st) return '<span style="color:#94a3b8;font-weight:400">查詢中…</span>';
-  return '<a href="javascript:void(0)" onclick="_wxGo()" style="color:#1a56db;text-decoration:none">' + _esc(st.name) + '站</a>' +
-    ' <span style="font-size:13px;color:#64748b;font-weight:400">（距事件 ' + st.km + ' km）</span>';
+  if (!ev) return '—';
+  var saved = String(ev.windStation || '').trim();
+  if (saved === '手動輸入') return '<span style="font-weight:400">手動輸入</span>';
+  var st = _wxStn[ev.id];
+  if (!st) return saved ? _esc(_wxStnName(saved)) : '<span style="color:#94a3b8;font-weight:400">查詢中…</span>';
+  return '<a href="javascript:void(0)" onclick="_wxGo()" style="color:#1a56db;text-decoration:none">' + _esc(_wxStnName(st.name)) + '</a>' +
+    ' <span style="font-size:13px;color:#64748b;font-weight:400">（距事件 ' + st.km + ' km' + (st.guess ? '，最近的測站' : '') + '）</span>';
 }
 function _wxLoad(ev) {
-  if (!ev || !ev.lat || !ev.lng) { _wxDraw(null); return; }
+  if (!ev || !ev.lat || !ev.lng || String(ev.windStation || '').trim() === '手動輸入') { _wxDraw(ev); return; }
   var c = _wxStn[ev.id];
   if (c && Date.now() - c.at < 10 * 60000) { _wxDraw(ev); return; }
   var id = ev.id;
-  _jsonpGet(SHEETS_URL + '?action=fetchWindField&lat=' + ev.lat + '&lng=' + ev.lng + '&n=1', function(d) {
+  var saved = String(ev.windStation || '').trim();
+  // 有記下測站：在附近 30 站裡找同名的；沒記（舊事件）就用最近的測站
+  _jsonpGet(SHEETS_URL + '?action=fetchWindField&lat=' + ev.lat + '&lng=' + ev.lng + '&n=' + (saved ? 30 : 1), function(d) {
     var cur = _events[_curIdx];
     if (!d || !d.stations || !d.stations.length) {
       if (cur && cur.id === id) { var el = document.getElementById('evWxVal'); if (el && !_wxStn[id]) el.innerHTML = '<span style="color:#94a3b8;font-weight:400">查不到</span>'; }
       return;
     }
-    var s = d.stations[0];
+    var s = null;
+    if (saved) d.stations.forEach(function(x) { if (!s && String(x.name || '').trim().replace(/站$/, '') === saved.replace(/站$/, '')) s = x; });
+    if (!s && saved) { if (cur && cur.id === id) { var el2 = document.getElementById('evWxVal'); if (el2) el2.innerHTML = _esc(_wxStnName(saved)) + ' <span style="font-size:13px;color:#94a3b8;font-weight:400">（目前查不到此站位置）</span>'; } return; }
+    if (!s) s = d.stations[0];
+    s.guess = !saved;
     s.lat = parseFloat(s.lat); s.lng = parseFloat(s.lng);
     s.km = Math.round(_kmLL(parseFloat(ev.lat), parseFloat(ev.lng), s.lat, s.lng) * 10) / 10;
     s.at = Date.now();
@@ -5323,13 +5345,13 @@ function _wxLoad(ev) {
   });
 }
 function _wxPopup(st) {
-  var h = '<div style="font-size:14px;line-height:1.6"><b>🌬️ ' + _esc(st.name) + '氣象站</b><br>距事件 ' + st.km + ' km';
+  var h = '<div style="font-size:14px;line-height:1.6"><b>🌬️ ' + _esc(_wxStnName(st.name)) + '</b><br>距事件 ' + st.km + ' km';
   if (!_historyId && _validWindDir(st.wd) !== null) {
     h += '<br>目前：' + _dir8(parseFloat(st.wd)) + '風 ' + Math.round(parseFloat(st.wd)) + '°　' + _esc(String(st.ws)) + ' m/s';
     var t = _wlFmtT(_wlParseT(st.time));
     if (t) h += '<br><span style="color:#64748b;font-size:12px">觀測時間 ' + t + '</span>';
   }
-  return h + '<br><span style="color:#64748b;font-size:12px">事件的風向取自此站</span></div>';
+  return h + '<br><span style="color:#64748b;font-size:12px">' + (st.guess ? '離事件最近的測站（此事件建立時沒有記下測站）' : '事件的風向取自此站') + '</span></div>';
 }
 function _wxDraw(ev) {
   if (_wxMarker) { gMap.removeLayer(_wxMarker); _wxMarker = null; }
@@ -5339,8 +5361,8 @@ function _wxDraw(ev) {
   if (!st || !_wxLayerOn || !gMap || isNaN(st.lat) || isNaN(st.lng)) return;
   _wxMarker = L.marker([st.lat, st.lng], {
     icon: L.divIcon({ className: 'wx-stn-icon', html: _WX_SVG, iconSize: [40, 50], iconAnchor: [20, 49], popupAnchor: [0, -46] }),
-    zIndexOffset: 400, title: st.name + '氣象站'
-  }).bindPopup(_wxPopup(st)).bindTooltip(st.name + '氣象站', { direction: 'top', offset: [0, -46] }).addTo(gMap);
+    zIndexOffset: 400, title: _wxStnName(st.name)
+  }).bindPopup(_wxPopup(st)).bindTooltip(_wxStnName(st.name), { direction: 'top', offset: [0, -46] }).addTo(gMap);
 }
 function onWxStnChk(on) {
   _wxLayerOn = !!on;
