@@ -1215,6 +1215,32 @@ cursor: pointer; transition: background .15s;
 </div>
 
 <script>
+// 地址改成台灣習慣的寫法：由大到小、不加逗號，例如「臺灣新北市永和區保平路174巷8號」
+// 地圖服務（OpenStreetMap）回傳的是「8號, 保平路174巷, 保平里, 永和區, 溪洲, 新北市, 23446, 臺灣」這種由小到大、逗號分隔的寫法。
+// 只轉換這種格式（最後一段是國名）；使用者自己輸入的地址原樣保留。
+function twAddr(s) {
+  s = String(s == null ? '' : s).trim();
+  var parts = s.split(/\s*,\s*/).filter(Boolean);
+  if (parts.length < 2 || !/^(臺灣|台灣|中華民國|Taiwan)$/i.test(parts[parts.length - 1])) return s;
+  var country = parts.pop();
+  if (/^taiwan$/i.test(country) || country === '中華民國') country = '臺灣';
+  var place = '', out = [];
+  parts.forEach(function(p, i) {
+    var digits = /^\d+(之\d+)?$/.test(p);
+    if (digits && i === parts.length - 1 && i > 0) return;          // 郵遞區號（緊接在國名前）
+    if (/省$/.test(p)) return;                                      // 臺灣省
+    if (digits) p = p + '號';                                       // 門牌只有數字
+    var isAdmin = /(市|縣|區|鄉|鎮)$/.test(p);
+    var isRoad = /(路|街|大道|段|巷|弄|號|樓|之\d+|道)$/.test(p) || /(路|街|巷|弄)/.test(p) && /\d/.test(p);
+    if (isAdmin || isRoad) { out.push(p); return; }
+    if (i === 0) place = p;                                         // 地標名稱（例如 臺北車站）
+    // 其他（里、村、社區名稱）不放進地址
+  });
+  var addr = country + out.reverse().join('');
+  return place ? addr + '（' + place + '）' : addr;
+}
+
+
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 var TECH_SQUADS = []; // 從 GAS 動態載入，見 loadSquads()
 // ── 動態隊別清單（從 GAS getSquads 讀取，sessionStorage 快取）──
@@ -1467,7 +1493,7 @@ function toggleEditPanel() {
       document.getElementById('editDate').value = _dtM[1] + '-' + _dtM[2].padStart(2,'0') + '-' + _dtM[3].padStart(2,'0');
       document.getElementById('editTime').value = _dtM[4].padStart(2,'0') + ':' + _dtM[5];
     }
-    document.getElementById('editAddress').value = ev.address || '';
+    document.getElementById('editAddress').value = twAddr(ev.address || '');
     document.getElementById('editWindDir').value   = ev.windDirRaw || ev.windDir || '';
     document.getElementById('editWindSpeed').value  = ev.windSpeed || '';
     // 旋轉角度＝十點偵測（1km 橫切面、5km 扇形、附近場域）目前的方向，與風向分開
@@ -1549,13 +1575,14 @@ function _editAddrSearch(val) {
       .then(function(results) {
         if (!results.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = results.map(function(r) {
+          var tw = twAddr(r.display_name);
           return '<div onclick="_editAddrPick(' + r.lat + ',' + r.lon + ',\'' +
-            r.display_name.replace(/'/g, "\\'") + '\')" style="' +
+            tw.replace(/'/g, "\\'") + '\')" style="' +
             'padding:9px 12px;cursor:pointer;border-bottom:1px solid #f0f4f8;' +
             'line-height:1.4;color:#1e2a3a" ' +
             'onmouseover="this.style.background=\'#f0f4ff\'" ' +
             'onmouseout="this.style.background=\'\'">' +
-            _esc(r.display_name) + '</div>';
+            _esc(tw) + '</div>';
         }).join('');
         dd.style.display = 'block';
       }).catch(function(){ dd.style.display = 'none'; });
@@ -1637,7 +1664,7 @@ function _onMapClickForLocPick(e) {
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (data && data.display_name) {
-        document.getElementById('editAddress').value = data.display_name;
+        document.getElementById('editAddress').value = twAddr(data.display_name);
       }
     }).catch(function(){});
 
@@ -2026,7 +2053,7 @@ function renderCard(idx) {
   // 事件地點
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">事件地點</span>';
-  html += '<span class="ev-val">' + _esc(ev.address || '—') + '</span>';
+  html += '<span class="ev-val">' + _esc(twAddr(ev.address) || '—') + '</span>';
   html += '</div>';
 
   html += '<hr class="ev-divider">';
@@ -6344,7 +6371,7 @@ function reverseGeocode(lat, lng, cb) {
     '?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=zh-TW&zoom=18';
   fetch(url, { headers: { 'Accept-Language': 'zh-TW' } })
     .then(function(r) { return r.json(); })
-    .then(function(d) { cb(d.display_name || ''); })
+    .then(function(d) { cb(twAddr(d.display_name || '')); })
     .catch(function() { cb(''); });
 }
 
@@ -8990,15 +9017,15 @@ function _birdGetRelevantKb(q) {
 }
 
 async function _birdReverseGeo(lat,lng){
-  try{ var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=zh&zoom=17'); var d=await r.json(); var n=d.namedetails&&d.namedetails.name; if(!n&&d.address) n=d.address.building||d.address.amenity||d.address.road||''; return n||d.display_name||(lat+','+lng); }catch(e){ return lat+','+lng; }
+  try{ var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=zh&zoom=17'); var d=await r.json(); var n=d.namedetails&&d.namedetails.name; if(!n&&d.address) n=d.address.building||d.address.amenity||d.address.road||''; return n||twAddr(d.display_name)||(lat+','+lng); }catch(e){ return lat+','+lng; }
 }
 
 async function _birdGetEvCtxAsync(){
   var ev=_events?_events[_curIdx]:null;
   if(!ev) return '目前無進行中事件';
-  var loc=ev.address||'';
+  var loc=twAddr(ev.address||'');
   var evLat=parseFloat(ev.lat), evLng=parseFloat(ev.lng);
-  if(ev.lat&&ev.lng){ try{ var g=await _birdReverseGeo(evLat,evLng); if(g&&g!==loc) loc=g+'（'+ev.address+'）'; }catch(e){} }
+  if(ev.lat&&ev.lng){ try{ var g=await _birdReverseGeo(evLat,evLng); if(g&&g!==loc) loc=g+'（'+loc+'）'; }catch(e){} }
   var ctx='事件名稱：'+(ev.name||'—')+'\n事件類型：'+(ev.type||'—')+
     '\n確切地點：'+loc+
     '\n【事件GPS座標（畫圖必須用這個）lat='+(!isNaN(evLat)?evLat.toFixed(6):'未知')+' lng='+(!isNaN(evLng)?evLng.toFixed(6):'未知')+'】'+
@@ -11219,7 +11246,7 @@ function _rpPrepare(d) {
   if (occur !== null) {
     if (occurFar) add(t0, C.ev, '🚨 事件發生時間：' + _rpFmtD(occur) + ' ' + _rpFmtT(occur),
                       '比平台上第一筆紀錄早 ' + _rpDurText(firstAct - occur) + '，時間軸從第一筆紀錄前 5 分鐘開始', evLL);
-    else add(occur, C.ev, '🚨 事件發生', e(_rp.fields.address.init || ''), evLL);
+    else add(occur, C.ev, '🚨 事件發生', e(twAddr(_rp.fields.address.init || '')), evLL);
   }
   if (created !== null) add(created, C.ev, '📝 在平台建立事件', '', evLL);
 
@@ -11241,7 +11268,7 @@ function _rpPrepare(d) {
                        e(_validWindDir(c.val) === null ? '（跟著風向）' : c.val + '°'));
     } else if (c.key === 'name') add(c.t, C.ev, '✏️ ' + by + '修改事件名稱', e(c.old) + ' → ' + e(c.val));
     else if (c.key === 'type') add(c.t, C.ev, '✏️ ' + by + '修改事件類型', e(c.old) + ' → ' + e(c.val));
-    else if (c.key === 'address') add(c.t, C.ev, '📍 ' + by + '修改事件地點', e(c.val));
+    else if (c.key === 'address') add(c.t, C.ev, '📍 ' + by + '修改事件地點', e(twAddr(c.val)));
     else if (c.key === 'lat' || c.key === 'lng') {
       var kk = Math.round(c.t / 3000);
       if (!seenLL[kk]) { seenLL[kk] = 1; add(c.t, C.ev, '📍 ' + by + '修改事發地點座標'); }

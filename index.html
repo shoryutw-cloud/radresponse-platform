@@ -626,6 +626,32 @@
 </div>
 
 <script>
+// 地址改成台灣習慣的寫法：由大到小、不加逗號，例如「臺灣新北市永和區保平路174巷8號」
+// 地圖服務（OpenStreetMap）回傳的是「8號, 保平路174巷, 保平里, 永和區, 溪洲, 新北市, 23446, 臺灣」這種由小到大、逗號分隔的寫法。
+// 只轉換這種格式（最後一段是國名）；使用者自己輸入的地址原樣保留。
+function twAddr(s) {
+  s = String(s == null ? '' : s).trim();
+  var parts = s.split(/\s*,\s*/).filter(Boolean);
+  if (parts.length < 2 || !/^(臺灣|台灣|中華民國|Taiwan)$/i.test(parts[parts.length - 1])) return s;
+  var country = parts.pop();
+  if (/^taiwan$/i.test(country) || country === '中華民國') country = '臺灣';
+  var place = '', out = [];
+  parts.forEach(function(p, i) {
+    var digits = /^\d+(之\d+)?$/.test(p);
+    if (digits && i === parts.length - 1 && i > 0) return;          // 郵遞區號（緊接在國名前）
+    if (/省$/.test(p)) return;                                      // 臺灣省
+    if (digits) p = p + '號';                                       // 門牌只有數字
+    var isAdmin = /(市|縣|區|鄉|鎮)$/.test(p);
+    var isRoad = /(路|街|大道|段|巷|弄|號|樓|之\d+|道)$/.test(p) || /(路|街|巷|弄)/.test(p) && /\d/.test(p);
+    if (isAdmin || isRoad) { out.push(p); return; }
+    if (i === 0) place = p;                                         // 地標名稱（例如 臺北車站）
+    // 其他（里、村、社區名稱）不放進地址
+  });
+  var addr = country + out.reverse().join('');
+  return place ? addr + '（' + place + '）' : addr;
+}
+
+
 // ════════════════════════════════════════════════════════════
 // JavaScript 區塊
 // ════════════════════════════════════════════════════════════
@@ -2696,7 +2722,7 @@ function _panelLoadHistory() {
     if (!data || !data.events) { body.innerHTML = '<div class="pn-err">讀取失敗，請確認網路連線後再試。</div>'; return; }
     var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); }).map(function(ev) {
       var o = _pnOccur(ev);
-      return { id: String(ev.id || ''), name: String(ev.name || ''), type: String(ev.type || ''), address: String(ev.address || ''),
+      return { id: String(ev.id || ''), name: String(ev.name || ''), type: String(ev.type || ''), address: twAddr(ev.address || ''),
                ymd: o.ymd, hm: o.hm, key: o.key };
     });
     if (!list.length) { body.innerHTML = '<div class="pn-empty">尚無歷史事件。<br>事件由管理員在「後台功能 → 事件管理 → 結束事件」結束後，會出現在這裡。</div>'; return; }
