@@ -2580,6 +2580,19 @@ function closeLiveWin() {
   .pn-btn:hover { background: #eff6ff; }
   .pn-ev-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .pn-btn-replay { background: #1a56db; color: white; }
+  .pn-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; background: white; border: 1px solid #e2e8f0;
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .pn-f { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #3d5070; font-weight: 600; }
+  .pn-f input, .pn-f select { font-family: inherit; font-size: 16px; padding: 7px 10px; border: 1px solid #d0d8e4; border-radius: 8px;
+    background: white; color: #1e2a3a; min-height: 40px; box-sizing: border-box; }
+  .pn-f input[type=search] { width: 240px; }
+  .pn-f select { min-width: 170px; }
+  .pn-f-reset { height: 40px; }
+  .pn-hist .pn-hname { font-weight: 700; }
+  .pn-hist .pn-ev-btns { flex-wrap: nowrap; }
+  .pn-hist td:first-child { color: #1e2a3a; }
+  .pn-hist td { vertical-align: middle; }
+  @media (max-width: 600px) { .pn-f, .pn-f input[type=search], .pn-f select { width: 100%; } }
   .pn-btn-replay:hover { background: #1648b8; }
   @media (max-width: 600px) { .pn-btn-replay { display: none; } }   /* 回放目前只支援電腦版 */
 
@@ -2681,19 +2694,99 @@ function _panelLoadHistory() {
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     if (_panelCur !== '歷史事件查詢') return;
     if (!data || !data.events) { body.innerHTML = '<div class="pn-err">讀取失敗，請確認網路連線後再試。</div>'; return; }
-    var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); });
-    list.reverse();   // 新的在前
+    var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); }).map(function(ev) {
+      var o = _pnOccur(ev);
+      return { id: String(ev.id || ''), name: String(ev.name || ''), type: String(ev.type || ''), address: String(ev.address || ''),
+               ymd: o.ymd, hm: o.hm, key: o.key };
+    });
     if (!list.length) { body.innerHTML = '<div class="pn-empty">尚無歷史事件。<br>事件由管理員在「後台功能 → 事件管理 → 結束事件」結束後，會出現在這裡。</div>'; return; }
-    body.innerHTML = '<div class="pn-note">共 ' + list.length + ' 筆已結束事件。點「在地圖檢視」可唯讀查看當時的圖層與量測值；點「▶ 回放」可在地圖上依時間重播事件經過（電腦版）。</div>' +
-      list.map(function(ev) {
-        var dt = String(ev.date || '').slice(0, 15) + (ev.time ? ' ' + String(ev.time).slice(0, 8) : '');
-        return '<div class="pn-ev"><div class="pn-ev-main">' +
-          '<div class="pn-ev-name">' + _pnEsc(ev.name || ev.id) + '<span class="pn-ev-type">' + _pnEsc(ev.type || '') + '</span></div>' +
-          '<div class="pn-ev-meta">' + _pnEsc(ev.id) + '　' + _pnEsc(dt) + '<br>' + _pnEsc(ev.address || '') + '</div></div>' +
-          '<div class="pn-ev-btns"><button class="pn-btn" data-evid="' + _pnEsc(ev.id) + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button>' +
-          '<button class="pn-btn pn-btn-replay" data-evid="' + _pnEsc(ev.id) + '" onclick="showReplayEvent(this.getAttribute(\'data-evid\'))">▶ 回放</button></div></div>';
-      }).join('');
+    var types = [];
+    list.forEach(function(x) { if (x.type && types.indexOf(x.type) < 0) types.push(x.type); });
+    _pnHist = { list: list, col: 'key', asc: false };
+    body.innerHTML =
+      '<div class="pn-note">已結束的事件。點「在地圖檢視」可唯讀查看當時的圖層與量測值；點「▶ 回放」可在地圖上依時間重播事件經過（電腦版）。</div>' +
+      '<div class="pn-filter">' +
+        '<label class="pn-f"><span>關鍵字</span><input type="search" id="hfKw" placeholder="事件名稱、編號或地點" oninput="_pnHistRender()"></label>' +
+        '<label class="pn-f"><span>事件類型</span><select id="hfType" onchange="_pnHistRender()"><option value="">全部</option>' +
+          types.map(function(t) { return '<option value="' + _pnEsc(t) + '">' + _pnEsc(t) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="pn-f"><span>發生日期（起）</span><input type="date" id="hfFrom" onchange="_pnHistRender()"></label>' +
+        '<label class="pn-f"><span>發生日期（迄）</span><input type="date" id="hfTo" onchange="_pnHistRender()"></label>' +
+        '<button class="pn-btn pn-f-reset" onclick="_pnHistReset()">清除條件</button>' +
+      '</div>' +
+      '<div id="hfCount" class="pn-note" style="margin-bottom:8px"></div><div id="hfTable"></div>';
+    _pnHistRender();
   });
+}
+
+// 事件發生日期時間：試算表的日期、時間欄可能是「2026/11/14」「00:08」，也可能是日期物件轉成的文字（例如 Sat Nov 14 2026 …、Sat Dec 30 1899 00:08:00 …）
+var _PN_MON = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+function _pnOccur(ev) {
+  var y = 0, mo = 0, d = 0, h = -1, mi = 0;
+  var ds = String(ev.date == null ? '' : ev.date).trim(), m;
+  if ((m = ds.match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})/)) && !/T\d{2}:\d{2}.*Z$/.test(ds)) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = ds.match(/([A-Z][a-z]{2}) (\d{1,2}) (\d{4})/)) && _PN_MON[m[1]]) { y = +m[3]; mo = _PN_MON[m[1]]; d = +m[2]; }
+  else if (ds) { var dt = new Date(ds); if (!isNaN(dt.getTime())) { var tw = new Date(dt.getTime() + 8 * 3600000); y = tw.getUTCFullYear(); mo = tw.getUTCMonth() + 1; d = tw.getUTCDate(); } }
+  if (!y) { var im = String(ev.id || '').match(/(\d{4})(\d{2})(\d{2})/); if (im) { y = +im[1]; mo = +im[2]; d = +im[3]; } }
+  var ts = String(ev.time == null ? '' : ev.time).trim();
+  if (/T\d{2}:\d{2}.*Z$/.test(ts)) { var td = new Date(ts); if (!isNaN(td.getTime())) { var tt = new Date(td.getTime() + 8 * 3600000); h = tt.getUTCHours(); mi = tt.getUTCMinutes(); } }
+  else if ((m = ts.match(/(\d{1,2}):(\d{2})/))) { h = +m[1]; mi = +m[2]; }
+  var p2 = function(n) { return (n < 10 ? '0' : '') + n; };
+  return { ymd: y ? y + '/' + p2(mo) + '/' + p2(d) : '', hm: h >= 0 ? p2(h) + ':' + p2(mi) : '',
+           key: (((y * 100 + mo) * 100 + d) * 100 + Math.max(h, 0)) * 100 + mi };
+}
+
+var _pnHist = null;
+var _PN_HCOLS = [['id', '事件編號'], ['key', '發生日期'], ['name', '事件名稱'], ['type', '事件類型'], ['address', '事件地點']];
+function _pnHistReset() {
+  ['hfKw', 'hfType', 'hfFrom', 'hfTo'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  _pnHistRender();
+}
+function _pnHistSort(col) {
+  if (!_pnHist) return;
+  if (_pnHist.col === col) _pnHist.asc = !_pnHist.asc;
+  else { _pnHist.col = col; _pnHist.asc = col !== 'key'; }   // 發生日期第一次點是新→舊，其他由小到大
+  _pnHistRender();
+}
+function _pnHistRender() {
+  var H = _pnHist, box = document.getElementById('hfTable');
+  if (!H || !box) return;
+  var kw = (document.getElementById('hfKw').value || '').trim().toLowerCase();
+  var ty = document.getElementById('hfType').value;
+  var fr = (document.getElementById('hfFrom').value || '').replace(/-/g, '/');
+  var to = (document.getElementById('hfTo').value || '').replace(/-/g, '/');
+  var rows = H.list.filter(function(x) {
+    if (kw && (x.name + ' ' + x.id + ' ' + x.address).toLowerCase().indexOf(kw) < 0) return false;
+    if (ty && x.type !== ty) return false;
+    if ((fr || to) && !x.ymd) return false;
+    if (fr && x.ymd < fr) return false;
+    if (to && x.ymd > to) return false;
+    return true;
+  });
+  var dir = H.asc ? 1 : -1, c = H.col;
+  rows.sort(function(a, b) {
+    var r = c === 'key' ? a.key - b.key : String(a[c]).localeCompare(String(b[c]), 'zh-Hant', { numeric: true });
+    return r * dir || b.key - a.key;
+  });
+  document.getElementById('hfCount').textContent = '共 ' + H.list.length + ' 筆已結束事件' + (rows.length !== H.list.length ? '，符合條件 ' + rows.length + ' 筆' : '') + '。點表頭可排序。';
+  if (!rows.length) { box.innerHTML = '<div class="pn-empty">沒有符合條件的事件</div>'; return; }
+  box.innerHTML = '<div class="pn-tablewrap"><table class="pn-table pn-hist"><thead><tr>' +
+    _PN_HCOLS.map(function(h) {
+      var on = c === h[0], arrow = on ? (H.asc ? '&#x25B2;' : '&#x25BC;') : '&#x25B2;&#x25BC;';
+      return '<th class="' + (h[0] === 'address' ? 'pn-col-main' : 'pn-col-fit') + '" onclick="_pnHistSort(\'' + h[0] + '\')" style="cursor:pointer;user-select:none" title="點一下排序">' +
+             h[1] + '<span class="pn-sort' + (on ? ' on' : '') + '">' + arrow + '</span></th>';
+    }).join('') + '<th class="pn-col-fit">操作</th></tr></thead><tbody>' +
+    rows.map(function(x) {
+      var id = _pnEsc(x.id);
+      return '<tr><td class="pn-col-fit">' + id + '</td>' +
+        '<td class="pn-col-fit">' + (x.ymd ? '<div class="pn-d">' + x.ymd + '</div>' + (x.hm ? '<div class="pn-t">' + x.hm + '</div>' : '') : '—') + '</td>' +
+        '<td class="pn-col-fit pn-hname">' + _pnEsc(x.name || '—') + '</td>' +
+        '<td class="pn-col-fit">' + (x.type ? '<span class="pn-ev-type" style="margin-left:0">' + _pnEsc(x.type) + '</span>' : '—') + '</td>' +
+        '<td class="pn-col-main">' + _pnEsc(x.address || '—') + '</td>' +
+        '<td class="pn-col-fit"><div class="pn-ev-btns">' +
+          '<button class="pn-btn" data-evid="' + id + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button>' +
+          '<button class="pn-btn pn-btn-replay" data-evid="' + id + '" onclick="showReplayEvent(this.getAttribute(\'data-evid\'))">▶ 回放</button>' +
+        '</div></td></tr>';
+    }).join('') + '</tbody></table></div>';
 }
 
 function _panelLoadLog(title) {
