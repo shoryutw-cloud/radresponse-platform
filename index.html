@@ -744,7 +744,7 @@ function _verBanner(file) {
 }
 
 // ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
-var NEED_GAS = 30;
+var NEED_GAS = 31;
 function _gasVerCheck() {
   _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
     if (!d) return;   // 連不上（例如離線）就不提示，避免誤報

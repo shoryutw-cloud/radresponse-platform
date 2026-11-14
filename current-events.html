@@ -697,8 +697,29 @@ cursor: pointer; transition: background .15s;
 #windChgBox .wc-arrow{color:#0ea5e9;font-weight:700;padding-left:40px;line-height:1.2}
 #windChgBox .wc-ft{margin-top:6px;font-size:12px;color:#64748b;line-height:1.5}
 .wx-stn-icon{background:none;border:none}
+#miPicker{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:1300;width:380px;max-width:calc(100% - 24px);height:440px;max-height:calc(100% - 80px);background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden;font-family:inherit}
+#miPicker .mi-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 6px;font-weight:700;font-size:16px;color:#1e2a3a}
+#miPicker .mi-x{border:none;background:none;font-size:18px;color:#64748b;cursor:pointer;padding:0 4px}
+#miSearch{margin:0 12px 8px;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;outline:none;font-family:inherit}
+#miSearch:focus{border-color:#1a56db}
+#miTabs{display:flex;gap:2px;padding:0 8px 6px;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-shrink:0}
+.mi-tab{border:none;background:none;font-size:19px;padding:4px 2px;border-radius:6px;cursor:pointer;flex:1 0 auto;min-width:30px;font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}
+.mi-tab.on{background:#dbeafe}
+#miGrid{flex:1;overflow-y:auto;padding:6px 8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));align-content:start;gap:2px;-webkit-overflow-scrolling:touch}
+.mi-cell{border:none;background:none;font-size:28px;line-height:1;height:44px;border-radius:8px;cursor:pointer;font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;padding:0}
+.mi-cell:hover{background:#f1f5f9}
+.mi-empty{grid-column:1/-1;text-align:center;color:#94a3b8;font-size:14px;padding:30px 0}
+.mi-icon{background:none;border:none}
+.rp-emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}
+.mi-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.mi-emo{line-height:1;font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+.mi-name{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(255,255,255,.92);border:1px solid #cbd5e1;border-radius:4px;padding:0 5px;font-size:12px;font-weight:600;color:#1e2a3a;margin-top:1px;pointer-events:none}
+.mi-szb{border:1px solid #cbd5e1;background:#fff;border-radius:5px;padding:1px 8px;font-size:13px;cursor:pointer}
+.mi-szb.on{background:#1a56db;color:#fff;border-color:#1a56db}
+#miMenu{min-width:190px}
 </style>
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap">
 </head>
 <body>
 
@@ -829,6 +850,9 @@ cursor: pointer; transition: background .15s;
 <div id="mapCtxMenu" class="map-ctx-menu" style="display:none">
   <div class="map-ctx-item" onclick="onCtxMeasure()">
     <span class="ctx-icon">📐</span> 設為量測點
+  </div>
+  <div class="map-ctx-item" onclick="onCtxIcon()">
+    <span class="ctx-icon">😀</span> 設置圖示
   </div>
 </div>
 
@@ -4157,6 +4181,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'pending\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'wind\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wxstn" ' + (_wxLayerOn ? 'checked' : '') + ' onchange="onWxStnChk(this.checked)"><span class="layer-dot" style="background:#fff;border:1.5px solid #111;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">' + _WX_SVG.replace('width="40" height="50"', 'width="12" height="15"') + '</span>氣象站</label>' +
+      '<label class="layer-row"><input type="checkbox" id="lyr_mapicon" ' + (_miLayerOn ? 'checked' : '') + ' onchange="onMiLayerChk(this.checked)"><span class="layer-dot" style="background:none;border:none;font-size:12px;line-height:1;font-family:\'Noto Color Emoji\',sans-serif">😀</span>地圖圖示</label>' +
 
     '</div></div>' +
     // 環境監測站圖層（全域，與事件無關）
@@ -4794,6 +4819,7 @@ function _onCurEventShown(idx) {
   var ev = _events && _events[idx];
   if (!ev) return;
   if (ev.id !== _drawEventId) loadDrawings();
+  if (ev.id !== _mi.evId) _miLoad();
   _loadSimForEvent(ev);
 }
 
@@ -5294,6 +5320,266 @@ function _refreshWindIfOn() {
   if (_windCanvas) _initWindParticles();
 }
 
+// ════════════════════════════════════════════
+// 地圖圖示（emoji）：編輯地圖時右鍵「設置圖示」→ 選圖示 → 放在該處
+//  · 圖示上右鍵（手機長按）：命名、更換圖示、大小、刪除；可拖曳移動（編輯地圖時）
+//  · 所有操作寫入 GAS「地圖圖示」分頁（只新增不覆蓋）；每 15 秒同步其他人的變動
+//  · 圖示用 Google 的 Noto 彩色 emoji 字型，各裝置看起來一樣
+// ════════════════════════════════════════════
+var _MI_SYNC_MS = 15000, _MI_GRACE_MS = 20000;
+var _MI_PX = { s: 24, m: 34, l: 48 };
+var _MI_SZ_NAME = { s: '小', m: '中', l: '大' };
+var _MI_GROUPS = [[0, '😀', '表情'], [1, '🧑', '人物'], [3, '🐻', '動物與自然'], [4, '🍔', '食物飲料'], [5, '🚗', '旅遊地點'],
+                  [6, '⚽', '活動'], [7, '💡', '物品'], [8, '⚠️', '符號'], [9, '🏁', '旗幟']];
+var _mi = { evId: null, icons: {}, mks: {}, pend: {}, layer: null, dragging: false };
+var _miLayerOn = true;
+try { if (localStorage.getItem('miLayer') === '0') _miLayerOn = false; } catch (e) {}
+var _miPick = { mode: 'add', ll: null, id: null, cat: 'recent' };
+
+function _miNewId() { return 'mi' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function _miIcon(st) {
+  var px = _MI_PX[st.size] || _MI_PX.m;
+  return L.divIcon({ className: 'mi-icon',
+    html: '<div class="mi-wrap"><span class="mi-emo" style="font-size:' + px + 'px">' + _esc(st.emoji) + '</span>' +
+          (st.name ? '<span class="mi-name">' + _esc(st.name) + '</span>' : '') + '</div>',
+    iconSize: [px + 8, px + 8], iconAnchor: [(px + 8) / 2, (px + 8) / 2] });
+}
+function _miPost(o) {
+  var ev = _events[_curIdx];
+  o.action = 'saveMapIcon';
+  o.eventId = o.eventId || (ev && ev.id);
+  _mi.pend[o.id] = Date.now();
+  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(o) })
+    .catch(function() { showToast('⚠️ 圖示沒有存到，請檢查網路'); });
+}
+function _miDraw(id) {
+  var st = _mi.icons[id], mk = _mi.mks[id];
+  if (!_mi.layer) _mi.layer = L.layerGroup();
+  if (_miLayerOn && !gMap.hasLayer(_mi.layer)) _mi.layer.addTo(gMap);
+  if (!_miLayerOn && gMap.hasLayer(_mi.layer)) gMap.removeLayer(_mi.layer);
+  if (!st) { if (mk) { _mi.layer.removeLayer(mk); delete _mi.mks[id]; } return; }
+  if (!mk) {
+    mk = L.marker([st.lat, st.lng], { icon: _miIcon(st), draggable: true, autoPan: true, zIndexOffset: 600 });
+    mk._miId = id;
+    mk.on('dragstart', function() { _mi.dragging = true; hideCtxMenu(); _miHideMenu(); });
+    mk.on('dragend', function() {
+      _mi.dragging = false;
+      var s = _mi.icons[id], p = mk.getLatLng();
+      if (!s) return;
+      s.lat = p.lat; s.lng = p.lng;
+      _miPost({ id: id, op: 'move', lat: p.lat, lng: p.lng });
+    });
+    mk.on('contextmenu', function(e) {
+      if (e.originalEvent) L.DomEvent.preventDefault(e.originalEvent);
+      if (!_mapEditOn || _rpOn) return;
+      hideCtxMenu();
+      var oe = e.originalEvent || {}, pt = e.containerPoint || gMap.latLngToContainerPoint(mk.getLatLng());
+      var r = document.getElementById('map').getBoundingClientRect();
+      _miShowMenu(id, oe.clientX != null ? oe.clientX : r.left + pt.x, oe.clientY != null ? oe.clientY : r.top + pt.y);
+    });
+    mk.on('click', function() { if (!_mapEditOn && st.name) mk.openTooltip(); });
+    _mi.mks[id] = mk;
+    mk.addTo(_mi.layer);
+  } else {
+    var ll = mk.getLatLng();
+    if (Math.abs(ll.lat - st.lat) > 1e-9 || Math.abs(ll.lng - st.lng) > 1e-9) mk.setLatLng([st.lat, st.lng]);
+    var sig = st.emoji + '|' + st.name + '|' + st.size;
+    if (mk._miSig !== sig) mk.setIcon(_miIcon(st));
+  }
+  mk._miSig = st.emoji + '|' + st.name + '|' + st.size;
+  if (mk.dragging) { if (_mapEditOn && !_rpOn) mk.dragging.enable(); else mk.dragging.disable(); }
+}
+function _miSyncDrag() { Object.keys(_mi.mks).forEach(function(id) { var mk = _mi.mks[id]; if (mk.dragging) { if (_mapEditOn && !_rpOn) mk.dragging.enable(); else mk.dragging.disable(); } }); if (!_mapEditOn) { _miHideMenu(); _miClosePicker(); } }
+function _miClearAll() { Object.keys(_mi.mks).forEach(function(id) { _mi.layer.removeLayer(_mi.mks[id]); }); _mi.mks = {}; _mi.icons = {}; _mi.pend = {}; }
+function _miLoad() {
+  if (!gMap || _rpOn) return;
+  var ev = _events[_curIdx];
+  if (!ev) return;
+  if (_mi.evId !== ev.id) { if (_mi.layer) _miClearAll(); _mi.evId = ev.id; _miHideMenu(); _miClosePicker(); }
+  var reqId = ev.id, issued = Date.now();
+  _jsonpGet(SHEETS_URL + '?action=getMapIcons&eventId=' + encodeURIComponent(reqId), function(d) {
+    if (!d || !d.icons || _mi.evId !== reqId || _mi.dragging) return;
+    var server = {};
+    d.icons.forEach(function(x) { server[x.id] = x; });
+    var ids = {};
+    Object.keys(_mi.icons).concat(Object.keys(server)).forEach(function(id) { ids[id] = 1; });
+    Object.keys(ids).forEach(function(id) {
+      var p = _mi.pend[id];
+      if (p && (issued - p < 2500 || Date.now() - p < _MI_GRACE_MS) && !(server[id] && issued > p + 2500)) return;   // 自己剛改的，先以畫面為準
+      delete _mi.pend[id];
+      var sv = server[id];
+      if (sv) _mi.icons[id] = { emoji: sv.emoji, name: sv.name, lat: sv.lat, lng: sv.lng, size: sv.size || 'm' };
+      else delete _mi.icons[id];
+      _miDraw(id);
+    });
+  });
+}
+setInterval(function() { if (!document.hidden && !_mi.dragging) _miLoad(); }, _MI_SYNC_MS);
+function onMiLayerChk(on) {
+  _miLayerOn = !!on;
+  try { localStorage.setItem('miLayer', on ? '1' : '0'); } catch (e) {}
+  if (_rpOn && _rp.ready) {   // 回放：圖層面板的勾選與下方「圖示」按鈕同步
+    _rp.show.icon = !!on; var ch = document.getElementById('rpChip_icon'); if (ch) ch.classList.toggle('on', !!on);
+    _rpIcons(_rp.t, true); return;
+  }
+  if (!_mi.layer) _mi.layer = L.layerGroup();
+  if (on) _mi.layer.addTo(gMap); else gMap.removeLayer(_mi.layer);
+}
+
+// ── 圖示上的右鍵選單 ──
+function _miShowMenu(id, x, y) {
+  _miHideMenu();
+  var st = _mi.icons[id]; if (!st) return;
+  var m = document.createElement('div');
+  m.id = 'miMenu'; m.className = 'map-ctx-menu';
+  var sz = ['s', 'm', 'l'].map(function(k) {
+    return '<button class="mi-szb' + (st.size === k ? ' on' : '') + '" onclick="_miSetSize(\'' + id + '\',\'' + k + '\')">' + _MI_SZ_NAME[k] + '</button>';
+  }).join('');
+  m.innerHTML = '<div class="map-ctx-item" onclick="_miRename(\'' + id + '\')"><span class="ctx-icon">✏️</span> 命名</div>' +
+    '<div class="map-ctx-item" onclick="_miChangeEmoji(\'' + id + '\')"><span class="ctx-icon">🔄</span> 更換圖示</div>' +
+    '<div class="map-ctx-item" style="cursor:default"><span class="ctx-icon">↔️</span> 大小 <span style="margin-left:auto;display:inline-flex;gap:4px">' + sz + '</span></div>' +
+    '<div class="map-ctx-item" style="color:#dc2626" onclick="_miDelete(\'' + id + '\')"><span class="ctx-icon">🗑️</span> 刪除</div>';
+  document.body.appendChild(m);
+  m.style.display = 'block';
+  var w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(4, Math.min(x, innerWidth - w - 4)) + 'px';
+  m.style.top = Math.max(4, Math.min(y, innerHeight - h - 4)) + 'px';
+  setTimeout(function() { document.addEventListener('mousedown', _miMenuOutside, true); document.addEventListener('touchstart', _miMenuOutside, true); }, 0);
+}
+function _miMenuOutside(e) { var m = document.getElementById('miMenu'); if (m && !m.contains(e.target)) _miHideMenu(); }
+function _miHideMenu() {
+  var m = document.getElementById('miMenu'); if (m) m.remove();
+  document.removeEventListener('mousedown', _miMenuOutside, true); document.removeEventListener('touchstart', _miMenuOutside, true);
+}
+function _miRename(id) {
+  _miHideMenu();
+  var st = _mi.icons[id]; if (!st) return;
+  var nm = prompt('圖示名稱（可留空）', st.name || '');
+  if (nm === null) return;
+  nm = nm.trim().slice(0, 60);
+  if (nm === st.name) return;
+  st.name = nm; _miDraw(id);
+  _miPost({ id: id, op: 'rename', name: nm });
+}
+function _miSetSize(id, k) {
+  _miHideMenu();
+  var st = _mi.icons[id]; if (!st || st.size === k) return;
+  st.size = k; _miDraw(id);
+  _miPost({ id: id, op: 'size', size: k });
+}
+function _miDelete(id) {
+  _miHideMenu();
+  var st = _mi.icons[id]; if (!st) return;
+  delete _mi.icons[id]; _miDraw(id);
+  _miPost({ id: id, op: 'delete' });
+  showToast('已刪除圖示 ' + st.emoji + (st.name ? '「' + st.name + '」' : ''));
+}
+function _miChangeEmoji(id) { _miHideMenu(); _miOpenPicker('emoji', null, id); }
+
+// ── 圖示選單（懸浮視窗）──
+function onCtxIcon() {
+  var ll = _ctxLatLng;
+  hideCtxMenu();
+  if (!ll) return;
+  _miOpenPicker('add', ll, null);
+}
+var _miDataLoading = false;
+function _miEnsureData(cb) {
+  if (window.EMOJI_DATA) { cb(); return; }
+  var box = document.getElementById('miGrid');
+  if (box) box.innerHTML = '<div class="mi-empty">載入圖示中…</div>';
+  if (_miDataLoading) return;
+  _miDataLoading = true;
+  var s = document.createElement('script');
+  s.src = 'emoji-zh.js?v=1';
+  s.onload = function() { _miDataLoading = false; cb(); };
+  s.onerror = function() { _miDataLoading = false; var b = document.getElementById('miGrid'); if (b) b.innerHTML = '<div class="mi-empty">找不到圖示清單（emoji-zh.js），請確認已上傳到網站</div>'; };
+  document.head.appendChild(s);
+}
+function _miOpenPicker(mode, ll, id) {
+  _miPick.mode = mode; _miPick.ll = ll; _miPick.id = id;
+  var p = document.getElementById('miPicker');
+  if (!p) {
+    p = document.createElement('div');
+    p.id = 'miPicker';
+    p.innerHTML = '<div class="mi-hd"><span id="miTitle">選擇圖示</span><button class="mi-x" onclick="_miClosePicker()" title="關閉">✕</button></div>' +
+      '<input id="miSearch" type="search" placeholder="搜尋圖示，例如：漢堡、消防、警告、hospital" autocomplete="off" oninput="_miRender()">' +
+      '<div id="miTabs"></div><div id="miGrid"></div>';
+    var mapEl = document.getElementById('map');
+    (mapEl && mapEl.parentNode ? mapEl.parentNode : document.body).appendChild(p);
+    L.DomEvent.disableClickPropagation(p); L.DomEvent.disableScrollPropagation(p);
+  }
+  document.getElementById('miTitle').textContent = mode === 'emoji' ? '更換圖示' : '選擇圖示';
+  document.getElementById('miSearch').value = '';
+  p.style.display = 'flex';
+  _miPick.cat = _miRecent().length ? 'recent' : 0;
+  _miEnsureData(function() { _miRenderTabs(); _miRender(); });
+  if (!('ontouchstart' in window)) setTimeout(function() { document.getElementById('miSearch').focus(); }, 50);
+}
+function _miClosePicker() { var p = document.getElementById('miPicker'); if (p) p.style.display = 'none'; }
+function _miRecent() { try { return JSON.parse(localStorage.getItem('miRecent') || '[]'); } catch (e) { return []; } }
+function _miAddRecent(em) {
+  var r = _miRecent().filter(function(x) { return x !== em; }); r.unshift(em);
+  try { localStorage.setItem('miRecent', JSON.stringify(r.slice(0, 32))); } catch (e) {}
+}
+function _miRenderTabs() {
+  var t = [['recent', '🕘', '最近使用']].concat(_MI_GROUPS);
+  document.getElementById('miTabs').innerHTML = t.map(function(g) {
+    return '<button class="mi-tab' + (String(_miPick.cat) === String(g[0]) ? ' on' : '') + '" title="' + g[2] + '" onclick="_miCat(\'' + g[0] + '\')">' + g[1] + '</button>';
+  }).join('');
+}
+function _miCat(c) { _miPick.cat = c === 'recent' ? 'recent' : parseInt(c, 10); document.getElementById('miSearch').value = ''; _miRenderTabs(); _miRender(); }
+function _miRender() {
+  var box = document.getElementById('miGrid');
+  if (!box || !window.EMOJI_DATA) return;
+  var q = String(document.getElementById('miSearch').value || '').trim().toLowerCase(), list;
+  var tabs = document.getElementById('miTabs');
+  if (q) {
+    tabs.style.opacity = '.4';
+    var scored = [];
+    EMOJI_DATA.forEach(function(e, i) {
+      var zl = e[2].toLowerCase(), sc = -1;
+      if (zl === q) sc = 0;
+      else if (zl.indexOf(q) === 0) sc = 1;
+      else if (zl.indexOf(q) >= 0) sc = 2;
+      else if ((' ' + e[3].toLowerCase() + ' ').indexOf(' ' + q) >= 0) sc = 3;
+      else if (e[3].toLowerCase().indexOf(q) >= 0) sc = 4;
+      else if ((' ' + e[4].toLowerCase()).indexOf(' ' + q) >= 0) sc = 5;
+      if (sc >= 0) scored.push([sc, i, e]);
+    });
+    scored.sort(function(a, b) { return a[0] - b[0] || a[1] - b[1]; });
+    list = scored.map(function(x) { return x[2]; });
+  } else {
+    tabs.style.opacity = '';
+    if (_miPick.cat === 'recent') {
+      var byEm = {}; EMOJI_DATA.forEach(function(e) { byEm[e[0]] = e; });
+      list = _miRecent().map(function(em) { return byEm[em] || [em, -1, '', '', '']; });
+    } else list = EMOJI_DATA.filter(function(e) { return e[1] === _miPick.cat; });
+  }
+  if (!list.length) { box.innerHTML = '<div class="mi-empty">' + (q ? '找不到「' + _esc(q) + '」' : '還沒有用過的圖示') + '</div>'; return; }
+  box.innerHTML = list.map(function(e) {
+    return '<button class="mi-cell" title="' + _esc(e[2]) + '" data-e="' + _esc(e[0]) + '" onclick="_miChoose(this.getAttribute(\'data-e\'))">' + e[0] + '</button>';
+  }).join('');
+  box.scrollTop = 0;
+}
+function _miChoose(em) {
+  _miAddRecent(em);
+  _miClosePicker();
+  if (_miPick.mode === 'emoji') {
+    var st = _mi.icons[_miPick.id]; if (!st || st.emoji === em) return;
+    st.emoji = em; _miDraw(_miPick.id);
+    _miPost({ id: _miPick.id, op: 'emoji', emoji: em });
+    return;
+  }
+  var ll = _miPick.ll, ev = _events[_curIdx];
+  if (!ll || !ev) return;
+  if (_mi.evId !== ev.id) { if (_mi.layer) _miClearAll(); _mi.evId = ev.id; }
+  var id = _miNewId();
+  _mi.icons[id] = { emoji: em, name: '', lat: ll.lat, lng: ll.lng, size: 'm' };
+  _miDraw(id);
+  _miPost({ id: id, op: 'add', emoji: em, name: '', lat: ll.lat, lng: ll.lng, size: 'm' });
+}
+
 // ── 風向資料來源的氣象站 ──
 //  事件的風向取自離事件最近的氣象署測站（建立事件、自動補風向、風向紀錄都用同一個規則）
 //  卡片「氣象站」列顯示站名與距離，點了會移到該站；地圖上用風向雞圖示標出位置（圖層面板可關）
@@ -5588,6 +5874,7 @@ window.addEventListener('message', function(e) {
     _mapEditOn = on; // ★ 同步旗標，控制右鍵選單
     if (window.railSetEdit) railSetEdit(on);
     if (_events.length) { refreshShownEvents(); _renderPtResetRow(); }   // 量測點位只有編輯地圖模式下才能拖
+    _miSyncDrag();   // 地圖圖示也只有編輯地圖時能拖、能右鍵
     var editBtn   = document.getElementById('evEditBtn');
     var toolbar   = document.getElementById('drawToolbar');
     if (editBtn) editBtn.style.display = on ? '' : 'none';
@@ -11311,7 +11598,7 @@ body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
 
 <script>
 var _rp = { ready: false, playing: false, speed: 60, skip: true, t: 0, t0: 0, t1: 0,
-            show: { msr: true, trk: true, task: true, fr: true, draw: true } };
+            show: { msr: true, trk: true, task: true, fr: true, draw: true, icon: true } };
 var _RP_KEYS = ['personnel', 'instrument', 'windDir', 'windSpeed', 'layerDir', 'name', 'type', 'address', 'lat', 'lng'];
 var _RP_GAP = 180000;      // 人員軌跡：相鄰兩點超過 3 分鐘 → 中間沒有資料（畫虛線、不補移動）
 
@@ -11449,6 +11736,7 @@ function _rpPrepare(d) {
   d.reports.forEach(function(r) { acts.push(r.t); });
   d.drawings.forEach(function(x) { acts.push(x.t); if (x.del) acts.push(x.del); x.names.forEach(function(n) { acts.push(n[0]); }); });
   d.ptOverrides.forEach(function(o) { acts.push(o.t); });
+  (d.icons || []).forEach(function(x) { acts.push(x.t); });
   d.tracks.forEach(function(tr) { if (tr.points.length) { acts.push(tr.points[0][0]); acts.push(tr.points[tr.points.length - 1][0]); } });
   var closeT = null;
   d.changes.forEach(function(c) {
@@ -11477,7 +11765,7 @@ function _rpPrepare(d) {
   var add = function(t, color, html, sub, ll) { items.push({ t: Math.min(Math.max(t, t0), t1), color: color, html: html, sub: sub || '', ll: _rpLL(ll) }); };
   var evLL = [_rp.fields.lat.init, _rp.fields.lng.init];
   var e = _esc;
-  var C = { ev: '#1e2a3a', ppl: '#64748b', wind: '#7c3aed', task: '#2563eb', fr: '#ea580c', draw: '#db2777', pt: '#a855f7', trk: '#0ea5e9', obs: '#0ea5e9' };
+  var C = { ev: '#1e2a3a', ppl: '#64748b', wind: '#7c3aed', task: '#2563eb', fr: '#ea580c', draw: '#db2777', pt: '#a855f7', trk: '#0ea5e9', obs: '#0ea5e9', icon: '#ca8a04' };
   var LV = { green: '#16a34a', orange: '#f97316', red: '#dc2626', unknown: '#94a3b8' };
 
   if (occur !== null) {
@@ -11559,6 +11847,25 @@ function _rpPrepare(d) {
   dels.forEach(function(x) {
     if (dg && x.del - dg.last < 5000) { dg.last = x.del; dg.n++; dg.item.html = '🧹 擦除 ' + dg.n + ' 個標註'; }
     else { add(x.del, C.draw, '🧹 擦除標註' + (x.shape && _rpDrawName(x, x.del - 1) ? '「' + e(_rpDrawName(x, x.del - 1)) + '」' : ''), '', x.pts); dg = { last: x.del, n: 1, item: items[items.length - 1] }; }
+  });
+
+  // 地圖圖示：放置、改名、換圖示、調整大小、刪除；同一個圖示 60 秒內連續移動合成一則
+  var ICN = function(x) { return '<span class="rp-emo">' + e(x.emoji) + '</span>' + (x.name ? '「' + e(x.name) + '」' : ''); };
+  var lastMove = {}, prevSt = {};
+  (d.icons || []).forEach(function(x) {
+    var by = x.by ? e(_rpWho(x.by)) + ' ' : '', ll = [x.lat, x.lng], pv = prevSt[x.id];
+    if (x.op === 'add') add(x.t, C.icon, '📍 ' + by + '放置圖示 ' + ICN(x), '', ll);
+    else if (x.op === 'rename') add(x.t, C.icon, '✏️ ' + by + '圖示改名', '<span class="rp-emo">' + e(x.emoji) + '</span> ' + e(pv && pv.name || '（未命名）') + ' → ' + e(x.name || '（未命名）'), ll);
+    else if (x.op === 'emoji') add(x.t, C.icon, '🔄 ' + by + '更換圖示', '<span class="rp-emo">' + e(pv ? pv.emoji : '') + '</span> → ' + ICN(x), ll);
+    else if (x.op === 'size') add(x.t, C.icon, '↔️ ' + by + '調整圖示大小 ' + ICN(x), _MI_SZ_NAME[pv ? pv.size : 'm'] + ' → ' + _MI_SZ_NAME[x.size], ll);
+    else if (x.op === 'delete') add(x.t, C.icon, '🗑️ ' + by + '刪除圖示 ' + ICN(x), '', ll);
+    else if (x.op === 'move') {
+      var lm = lastMove[x.id];
+      if (lm && x.t - lm.last < 60000) { lm.last = x.t; lm.item.ll = _rpLL(ll); }
+      else { add(x.t, C.icon, '✋ ' + by + '移動圖示 ' + ICN(x), '', ll); lastMove[x.id] = { last: x.t, item: items[items.length - 1] }; }
+    }
+    if (x.op !== 'move') delete lastMove[x.id];
+    prevSt[x.id] = x;
   });
 
   // 量測點位調整／還原（3 秒內的多個還原合成一則）
@@ -11644,7 +11951,7 @@ function _rpStart() {
   document.getElementById('rpFeed').style.display = 'flex';
 
   // 圖層按鈕
-  var chips = [['msr', '量測值'], ['trk', '人員'], ['task', '任務點位'], ['fr', '現場回報'], ['draw', '繪圖']];
+  var chips = [['msr', '量測值'], ['trk', '人員'], ['task', '任務點位'], ['fr', '現場回報'], ['draw', '繪圖'], ['icon', '圖示']];
   document.getElementById('rpChips').innerHTML = chips.map(function(c) {
     var dis = (c[0] === 'trk' && d.tracksHidden);
     return '<button class="rp-chip on" id="rpChip_' + c[0] + '" onclick="rpChip(\'' + c[0] + '\')"' +
@@ -11703,6 +12010,7 @@ function _rpApply(force) {
 
   _rpTasks(T, force);
   _rpDrawings(T);
+  _rpIcons(T, force);
   _rpTracks(T, force);
   _rpWindObs(T, force);
   if (cardDirty) renderCard(idx);
@@ -11757,6 +12065,27 @@ function _rpDrawings(T) {
       var nm = _rpDrawName(x, T);
       if (ly._shape.name !== nm) _shapeSetName(ly, nm);
     }
+  });
+}
+
+// 地圖圖示：依時間出現、改名、移動、換圖示、消失
+function _rpIcons(T, force) {
+  var st = {};
+  (_rp.d.icons || []).forEach(function(x) {
+    if (x.t > T) return;
+    if (x.op === 'delete') delete st[x.id];
+    else st[x.id] = { emoji: x.emoji, name: x.name, lat: x.lat, lng: x.lng, size: x.size };
+  });
+  if (!_rp.show.icon) st = {};
+  var sig = JSON.stringify(st);
+  if (!force && sig === _rp.sigIcon) return;
+  _rp.sigIcon = sig;
+  if (!_rp.iconGroup) _rp.iconGroup = L.layerGroup().addTo(gMap);
+  _rp.iconGroup.clearLayers();
+  Object.keys(st).forEach(function(id) {
+    var s = st[id];
+    if (isNaN(s.lat) || isNaN(s.lng)) return;
+    L.marker([s.lat, s.lng], { icon: _miIcon(s), zIndexOffset: 600, interactive: false }).addTo(_rp.iconGroup);
   });
 }
 
@@ -11986,6 +12315,7 @@ function rpChip(k) {
   else if (k === 'fr') { _frLayerOn = on; saveLayerPref(ev.id, 'fr', on); _frRenderMarkers(); renderLayerPanel(); }
   else if (k === 'task') _rpTasks(_rp.t, true);
   else if (k === 'draw') _rpDrawings(_rp.t);
+  else if (k === 'icon') _rpIcons(_rp.t, true);
   else if (k === 'trk') _rpTracks(_rp.t, true);
 }
 document.addEventListener('keydown', function(e) {
