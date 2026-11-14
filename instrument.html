@@ -72,7 +72,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     font-family: var(--font);
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
@@ -89,7 +89,7 @@
 
   .toolbar-right { display: flex; align-items: center; gap: 10px; }
   .item-count {
-    font-size: 12px; color: var(--muted);
+    font-size: 14px; color: var(--muted);
     font-family: var(--font-mono);
     background: var(--bg); padding: 4px 10px;
     border-radius: 20px; border: 1px solid var(--border);
@@ -98,7 +98,7 @@
     display: flex; align-items: center; gap: 6px;
     padding: 8px 16px; background: var(--accent); color: #fff;
     border: none; border-radius: var(--radius);
-    font-family: var(--font); font-size: 13px; font-weight: 500;
+    font-family: var(--font); font-size: 14px; font-weight: 500;
     cursor: pointer; transition: background .15s; white-space: nowrap;
   }
   .btn-add:hover { background: #1648c0; }
@@ -127,7 +127,7 @@
   thead th {
     padding: 11px 16px;
     text-align: left;
-    font-size: 13px; font-weight: 600;
+    font-size: 14px; font-weight: 600;
     color: var(--muted); letter-spacing: .05em;
     text-transform: uppercase;
     background: var(--bg);
@@ -200,7 +200,7 @@
   .form-row .form-group { flex: 1; }
   .form-group { margin-bottom: 14px; }
   .form-group label {
-    display: block; font-size: 13px; font-weight: 600;
+    display: block; font-size: 14px; font-weight: 600;
     color: var(--muted); letter-spacing: .05em;
     text-transform: uppercase; margin-bottom: 5px;
   }
@@ -230,14 +230,14 @@
   }
   .btn-cancel {
     padding: 8px 16px; border-radius: var(--radius);
-    font-family: var(--font); font-size: 13px; font-weight: 500;
+    font-family: var(--font); font-size: 14px; font-weight: 500;
     cursor: pointer; border: 1px solid var(--border);
     background: none; color: var(--muted); transition: all .15s;
   }
   .btn-cancel:hover { border-color: #94a3b8; color: var(--text); }
   .btn-save {
     padding: 8px 20px; border-radius: var(--radius);
-    font-family: var(--font); font-size: 13px; font-weight: 500;
+    font-family: var(--font); font-size: 14px; font-weight: 500;
     cursor: pointer; border: none;
     background: var(--accent); color: #fff; transition: background .15s;
   }
@@ -252,11 +252,11 @@
   }
   .confirm-icon { font-size: 40px; margin-bottom: 12px; }
   .confirm-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-  .confirm-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .confirm-desc { font-size: 14px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
   .confirm-btns { display: flex; justify-content: center; gap: 10px; }
   .btn-confirm-del {
     padding: 8px 20px; border-radius: var(--radius);
-    font-family: var(--font); font-size: 13px; font-weight: 500;
+    font-family: var(--font); font-size: 14px; font-weight: 500;
     cursor: pointer; border: none;
     background: var(--danger); color: #fff; transition: background .15s;
   }
@@ -266,7 +266,7 @@
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #1e2a3a; color: #e8f0fa;
-    padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 1000;
+    padding: 10px 20px; border-radius: 20px; font-size: 14px; z-index: 1000;
     opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
   }
   .toast.show { opacity: 1; }
@@ -417,7 +417,7 @@ function renderTable(rows) {
     var arrowColor = isActive ? '#1a56db' : '#ccc';
     html += '<th class="sortable" onclick="toggleSort(' + i + ')">' +
       esc(col) +
-      '<span style="font-size:9px;color:' + arrowColor + ';margin-left:4px">' + arrow + '</span>' +
+      '<span style="font-size:14px;color:' + arrowColor + ';margin-left:4px">' + arrow + '</span>' +
       '</th>';
   });
   html += '<th>操作</th></tr></thead><tbody>';
