@@ -34,7 +34,7 @@
     position: relative;
   }
   .ce-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .ce-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .ce-title { font-size: 20px; font-weight: 700; color: var(--text); }
   .ce-evid {
     font-family: var(--font-mono); font-size: 14px; color: var(--text-muted);
     background: var(--bg); padding: 3px 8px;
@@ -431,10 +431,12 @@
     .ce-map-col { height: 200px; }
 
     /* header/footer 縮排 */
-    .ce-header { padding: 0 12px; }
+    /* 標題放大後放不下：頁首改兩行，第一行標題＋返回，第二行步驟 */
+    .ce-header { padding: 8px 12px; height: auto; flex-wrap: wrap; row-gap: 8px; }
+    .ce-steps  { position: static; transform: none; order: 3; width: 100%; justify-content: center; }
     .ce-footer { padding: 8px 12px; }
     .ce-step-label { display: none; }
-    .ce-title { font-size: 14px; }
+    .ce-title { font-size: 20px; }
     .ce-evid  { font-size: 14px; max-width: 100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
     /* 第四頁：三欄改直排 */

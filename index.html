@@ -296,7 +296,7 @@
     font-family: var(--font); transition: opacity .15s;
   }
   .panel-back:hover { opacity: .7; }
-  .panel-title { font-size: 30px; font-weight: 600; color: var(--text); }
+  .panel-title { font-size: 20px; font-weight: 700; color: var(--text); }
   .panel-body { padding: 24px; max-width: 1100px; margin: 0 auto; }   /* 內容置中 */
   .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
@@ -578,8 +578,6 @@
 
     <div class="content-panel" id="contentPanel">
       <div class="panel-header">
-        <button class="panel-back" onclick="closePanel()">&#8592; 返回上一頁</button>
-        <span style="color:#d0d8e4">|</span>
         <span class="panel-title" id="panelTitle">&#8212;</span>
       </div>
       <div class="panel-body" id="panelBody"></div>
