@@ -2252,7 +2252,7 @@ function _drawMsrTable(allRows) {
           + '</td>';
     var _dispUnit = valFmt.unit || 'μSv/h';
     html += '<td style="padding:10px 14px;white-space:nowrap"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+colorMap[lvl]+';background:'+bgMap[lvl]+';border:1px solid '+bdMap[lvl]+';padding:3px 12px;border-radius:5px;white-space:nowrap;display:inline-block">'+_esc(valTxt)+' '+_esc(_dispUnit)+'</span></td>';
-    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;white-space:nowrap">'+_esc(row.instrument||'—')+'</td>';
+    html += '<td style="padding:10px 14px;font-size:13px;color:#6b7a92;white-space:nowrap">'+_esc(row.instrument||row.note||'—')+'</td>';
     html += '<td style="padding:10px 14px;white-space:nowrap">'+gpsHtml+'</td>';
     var phHtml = row.photoId
       ? '<a href="'+_esc(row.photoUrl)+'" target="_blank" rel="noopener" title="開啟照片"><img alt="現場照片" loading="lazy" src="'+_frThumb(row,200)+'" style="display:block;height:40px;max-width:72px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
@@ -5915,8 +5915,12 @@ function onLocateBtnClick() {
     document.getElementById('locateBtn').classList.remove('nav-active');
     document.getElementById('locateBtn').style.borderColor = '';
   } else {
-    // 一般模式：飛到當前事件
-    if (_events.length) flyToEvent(_curIdx);
+    // 一般模式：把事發地放在地圖正中央，縮放跟「回到我的位置」一樣（至少 17 級），不改圖層
+    var ev = _events[_curIdx];
+    if (!ev) return;
+    var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+    if (isNaN(la) || isNaN(lo)) { showToast('此事件沒有座標'); return; }
+    gMap.setView([la, lo], Math.max(gMap.getZoom(), 17), { animate: true });
   }
 }
 
@@ -10875,6 +10879,60 @@ document.addEventListener('keydown', function(e) {
   if (_shpStart) { _shpTmpClear(); _shpStart = null; _isDrawing = false; }
 });
 window.addEventListener('resize', function() { if (_drawMode === 'poly') _polyBarUpdate(); });
+</script>
+
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// 每 60 秒重讀事件資料：別人改了風向、十點偵測方向、名稱、類型、地點、人員等，這裡約一分鐘內跟著更新
+//  · 自己正在編輯的那個事件（編輯面板開著）先不動，避免蓋掉還沒儲存的內容
+//  · 有新事件或事件被結束，只提示，重新整理後才會出現／消失
+// ════════════════════════════════════════════════════════════════
+var _evRefreshKeys = ['name', 'type', 'date', 'time', 'address', 'lat', 'lng', 'status', 'personnel', 'personnelStr',
+                      'instrument', 'instrumentStr', 'windDir', 'windSpeed', 'layerDir', 'doseMax', 'windManual'];
+var _evRefreshNotified = {};
+function _evSnap(ev) { return JSON.stringify(_evRefreshKeys.map(function(k) { return ev[k] == null ? '' : String(ev[k]); })); }
+function _refreshEventsFromSheet() {
+  if (document.hidden || (typeof _historyId !== 'undefined' && _historyId) || !_events.length) return;
+  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+    if (!data || !data.events) return;
+    var byId = {};
+    data.events.forEach(function(e) { byId[String(e.id)] = e; });
+    var editOpen = (function() { var p = document.getElementById('evEditPanel'); return !!(p && p.classList.contains('show')); })();
+    var changedCur = false, changedAny = false, moved = false;
+    _events.forEach(function(ev, i) {
+      var f = byId[String(ev.id)];
+      if (!f) return;
+      if (editOpen && i === _curIdx) return;
+      var before = _evSnap(ev), oldLat = String(ev.lat), oldLng = String(ev.lng), oldName = ev.name;
+      _evRefreshKeys.forEach(function(k) { if (f[k] !== undefined) ev[k] = f[k]; });
+      _normEvWind(ev);
+      if (_evSnap(ev) === before) return;
+      changedAny = true;
+      if (String(ev.lat) !== oldLat || String(ev.lng) !== oldLng || ev.name !== oldName) moved = true;
+      if (isEventShown(i)) buildEventLayers(i);
+      if (i === _curIdx) changedCur = true;
+      if (_pnClosed(ev.status) && !_evRefreshNotified['end:' + ev.id]) {
+        _evRefreshNotified['end:' + ev.id] = 1;
+        showToast('事件「' + (ev.name || ev.id) + '」已被結束，重新整理後會移到歷史事件');
+      }
+    });
+    if (moved) placeMarkers();
+    if (changedCur) { renderCard(_curIdx); renderLayerPanel(); _refreshWindIfOn(); }
+    if (changedAny) { _renderSelBar(); _refreshMobEvPanel(); }
+    // 別人新建的事件：提示一次
+    var known = {};
+    _events.forEach(function(ev) { known[String(ev.id)] = 1; });
+    data.events.forEach(function(e) {
+      var id = String(e.id);
+      if (known[id] || _pnClosed(e.status) || _evRefreshNotified['new:' + id]) return;
+      _evRefreshNotified['new:' + id] = 1;
+      showToast('有新事件「' + (e.name || id) + '」，重新整理頁面即可看到');
+    });
+  });
+}
+function _pnClosed(st) { return /已結束|結束|closed/i.test(String(st || '')); }
+setInterval(_refreshEventsFromSheet, 60000);
 </script>
 
 </body>

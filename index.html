@@ -719,6 +719,27 @@ function _verBanner(file) {
   b.style.display = 'flex';
 }
 
+// ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
+var NEED_GAS = 26;
+function _gasVerCheck() {
+  _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
+    if (!d) return;   // 連不上（例如離線）就不提示，避免誤報
+    var v = parseInt(d.version, 10);
+    if (!isNaN(v) && v >= NEED_GAS) return;
+    var b = document.getElementById('gasVerBanner');
+    if (!b) {
+      b = document.createElement('div');
+      b.id = 'gasVerBanner';
+      b.style.cssText = 'position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:99998;max-width:min(640px,calc(100vw - 16px));background:#b91c1c;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px;line-height:1.6;box-shadow:0 6px 24px rgba(0,0,0,.35);display:flex;gap:10px;align-items:flex-start';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = '<div>⚠️ 後端程式（GAS）不是最新版本' + (isNaN(v) ? '' : '（目前 v' + v + '）') + '，需要 v' + NEED_GAS + ' 以上，部分功能會缺少或異常。<br>請把最新的 GAS 貼上並重新部署。</div>' +
+                  '<button onclick="this.parentNode.style.display=\'none\'" style="border:none;background:none;color:#fff;font-size:18px;cursor:pointer;line-height:1">✕</button>';
+    b.style.display = 'flex';
+  });
+}
+setTimeout(_gasVerCheck, 3000);
+
 // ── 全域：等待 iframe 回報 ready 的 pending idx ──
 var _pendingIframeIdx = null;
 
@@ -2535,7 +2556,13 @@ function closeLiveWin() {
   .pn-table th { text-align: left; padding: 13px 18px; font-size: 16px; background: #f8fafc; color: #3d5070; font-weight: 700;
     border-bottom: 1px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; }
   .pn-table td { padding: 13px 18px; border-bottom: 1px solid #f1f5f9; line-height: 1.5; color: #1e2a3a; vertical-align: top; word-break: break-word; }
-  .pn-table td:first-child { white-space: nowrap; font-family: ui-monospace,'Cascadia Mono',monospace; font-size: 16px; color: #4b5b73; }
+  .pn-table td:first-child { white-space: nowrap; font-size: 16px; color: #4b5b73; }
+  .pn-table td, .pn-table th { vertical-align: middle; }
+  .pn-table .pn-col-fit { width: 1%; white-space: nowrap; }
+  .pn-table .pn-col-nw  { white-space: nowrap; }
+  .pn-table .pn-col-main { min-width: 260px; }
+  .pn-d { font-variant-numeric: tabular-nums; }
+  .pn-t { font-variant-numeric: tabular-nums; color: #6b7a92; font-size: 16px; margin-top: 2px; }
   .pn-table tr:last-child td { border-bottom: none; }
   .pn-table tbody tr:nth-child(even) td { background: #fafcff; }
   .pn-table tbody tr:hover td { background: #f0f6ff; }
@@ -2678,17 +2705,37 @@ function _panelLoadLog(title) {
       return;
     }
     var resCol = data.headers.indexOf('結果');
+    var hasContent = data.headers.indexOf('內容') > -1;
     body.innerHTML = '<div class="pn-note">顯示最近 ' + data.rows.length + ' 筆（最新的在最上面，最多 300 筆；完整資料在試算表「' + _pnEsc(title.replace('各帳號', (title.indexOf('登入') > -1 ? '' : '帳號'))) + '」分頁）。</div>' +
       '<div class="pn-tablewrap"><table class="pn-table"><thead><tr>' +
-      data.headers.map(function(h) { return '<th>' + _pnEsc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      data.headers.map(function(h) { return '<th' + _pnColCls(h, hasContent) + '>' + _pnEsc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       data.rows.map(function(r) {
         return '<tr>' + r.map(function(c, i) {
-          var cls = (i === resCol) ? (c === '成功' ? ' class="pn-ok"' : ' class="pn-bad"') : '';
-          return '<td' + cls + '>' + _pnEsc(c) + '</td>';
+          var h = data.headers[i], cls = _pnColCls(h, hasContent), html;
+          if (h === '時間') html = _pnTimeCell(c);
+          else if (h === '操作者') html = _pnEsc(_pnNameOnly(c) || '—');
+          else html = _pnEsc(c);
+          if (i === resCol) cls = cls.replace('class="', 'class="' + (c === '成功' ? 'pn-ok ' : 'pn-bad '));
+          return '<td' + cls + '>' + html + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';
   });
 }
+
+// 欄位樣式：有「內容」欄時，其他欄位縮到剛好的寬度且不換行，讓內容欄吃剩下的寬度
+function _pnColCls(h, hasContent) {
+  if (h === '內容') return ' class="pn-col-main"';
+  return hasContent ? ' class="pn-col-fit"' : ' class="pn-col-nw"';
+}
+// 時間：日期一行、時:分一行（不含秒）
+function _pnTimeCell(v) {
+  var m = String(v || '').match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})\D+(\d{1,2}):(\d{2})/);
+  if (!m) return _pnEsc(v);
+  var pad = function(x) { return ('0' + x).slice(-2); };
+  return '<div class="pn-d">' + m[1] + '/' + pad(m[2]) + '/' + pad(m[3]) + '</div><div class="pn-t">' + pad(m[4]) + ':' + m[5] + '</div>';
+}
+// 操作者：「姓名(帳號)」只留姓名
+function _pnNameOnly(v) { return String(v || '').replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim(); }
 
 // ── 歷史事件：在地圖唯讀檢視 ──
 function showHistoryEvent(id) {
