@@ -2111,12 +2111,23 @@ function renderCard(idx) {
   var _wsFmt = _fmtWind(_wsRaw);
   var _wdDisplay = _wdFmt ? _wdFmt : (_wdRaw ? _wdRaw + '°（正北為0度）' : '—');
   var _wsDisplay = _wsFmt ? _wsFmt : (_wsRaw ? _wsRaw + ' m/s' : '—');
+  // 有自動抓到的最新風向就顯示最新的（只是顯示；扇形等圖層仍用建立事件時的風向），下面附一行建立時的值
+  var _lw = _wlLatest(ev);
+  if (_lw) {
+    var _lwd = parseFloat(_lw.dir), _lt = _wlFmtT(_lw.t);
+    html += '<div class="ev-row"><span class="ev-lbl">風向</span><span class="ev-val">' + Math.round(_lwd) + '°（' + _dir8(_lwd) + '風，正北為0度）</span></div>';
+    html += '<div class="ev-row"><span class="ev-lbl">風速</span><span class="ev-val">' + _esc(String(_lw.speed)) + ' m/s' +
+            (_lt ? ' <span style="font-size:13px;color:#94a3b8;font-weight:400">（' + _lt + ' 觀測）</span>' : '') + '</span></div>';
+    html += '<div class="ev-row"><span class="ev-lbl" style="font-size:13px">建立時</span><span class="ev-val" style="font-weight:400;font-size:14px;color:#64748b">' +
+            _esc(_wdDisplay) + '、' + _esc(_wsDisplay) + '<br><span style="font-size:12px">扇形、十點偵測依此方向</span></span></div>';
+  } else {
   html += '<div class="ev-row"><span class="ev-lbl">風向</span>';
   html += '<span class="ev-val">' + _esc(_wdDisplay) + '</span></div>';
   html += '<div class="ev-row"><span class="ev-lbl">風速</span>';
   html += '<span class="ev-val">' + _esc(_wsDisplay);
   if (_wtRaw) html += ' <span style="font-size:11px;color:#94a3b8;font-weight:400">（' + _esc(_wtRaw) + '）</span>';
   html += '</span></div>';
+  }
   html += '<div class="ev-row"><span class="ev-lbl">氣象站</span><span class="ev-val" id="evWxVal">' + _wxCardHtml(ev) + '</span></div>';
 
   html += '<hr class="ev-divider">';
@@ -5288,6 +5299,7 @@ function _refreshWindIfOn() {
 //  卡片「氣象站」列顯示站名與距離，點了會移到該站；地圖上用風向雞圖示標出位置（圖層面板可關）
 var _wxStn = {};          // 事件編號 → { name, lat, lng, wd, ws, time, km, at }
 var _wxMarker = null;
+var _wxFail = {};         // 查不到測站的事件（卡片重畫時顯示「查不到」而不是「查詢中」）
 var _wxLayerOn = true;
 try { if (localStorage.getItem('wxStnLayer') === '0') _wxLayerOn = false; } catch (e) {}
 var _WX_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50" viewBox="0 0 40 50">' +
@@ -5315,7 +5327,7 @@ function _wxCardHtml(ev) {
   var saved = String(ev.windStation || '').trim();
   if (saved === '手動輸入') return '<span style="font-weight:400">手動輸入</span>';
   var st = _wxStn[ev.id];
-  if (!st) return saved ? _esc(_wxStnName(saved)) : '<span style="color:#94a3b8;font-weight:400">查詢中…</span>';
+  if (!st) return saved ? _esc(_wxStnName(saved)) : '<span style="color:#94a3b8;font-weight:400">' + (_wxFail[ev.id] ? '查不到' : '查詢中…') + '</span>';
   return '<a href="javascript:void(0)" onclick="_wxGo()" style="color:#1a56db;text-decoration:none">' + _esc(_wxStnName(st.name)) + '</a>' +
     ' <span style="font-size:13px;color:#64748b;font-weight:400">（距事件 ' + st.km + ' km' + (st.guess ? '，最近的測站' : '') + '）</span>';
 }
@@ -5329,6 +5341,7 @@ function _wxLoad(ev) {
   _jsonpGet(SHEETS_URL + '?action=fetchWindField&lat=' + ev.lat + '&lng=' + ev.lng + '&n=' + (saved ? 30 : 1), function(d) {
     var cur = _events[_curIdx];
     if (!d || !d.stations || !d.stations.length) {
+      _wxFail[id] = true;
       if (cur && cur.id === id) { var el = document.getElementById('evWxVal'); if (el && !_wxStn[id]) el.innerHTML = '<span style="color:#94a3b8;font-weight:400">查不到</span>'; }
       return;
     }
@@ -5419,7 +5432,13 @@ function _wlPoll(force) {
     if (!d || !d.ok || !d.wind) return;   // GAS 還沒更新到 v28：只有粒子會更新，不會有通知
     var cur = _events[_curIdx];
     if (!cur || cur.id !== id) return;
+    var before = _wlLatest(cur);
     _wl.list = d.wind.filter(function(w) { return _validWindDir(w.dir) !== null && !isNaN(parseFloat(w.speed)); });
+    var after = _wlLatest(cur);
+    if ((before ? before.t + '|' + before.dir + '|' + before.speed : '') !== (after ? after.t + '|' + after.dir + '|' + after.speed : '')) {
+      var ed = document.getElementById('evEditPanel');
+      if (!(ed && ed.classList.contains('show'))) renderCard(_curIdx);   // 卡片的風向、風速跟著更新（編輯中先不動）
+    }
     _wlNotify(cur);
   });
 }
