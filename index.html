@@ -2561,6 +2561,9 @@ function closeLiveWin() {
   .pn-table .pn-col-fit { width: 1%; white-space: nowrap; }
   .pn-table .pn-col-nw  { white-space: nowrap; }
   .pn-table .pn-col-main { min-width: 260px; }
+  .pn-table th:hover { background: #eef3fb; }
+  .pn-sort { font-size: 11px; color: #c4ccd8; margin-left: 6px; letter-spacing: -1px; }
+  .pn-sort.on { color: #1a56db; }
   .pn-d { font-variant-numeric: tabular-nums; }
   .pn-t { font-variant-numeric: tabular-nums; color: #6b7a92; font-size: 16px; margin-top: 2px; }
   .pn-table tr:last-child td { border-bottom: none; }
@@ -2704,11 +2707,52 @@ function _panelLoadLog(title) {
       body.innerHTML = '<div class="pn-empty">尚無紀錄。<br>紀錄自 GAS v15 上線後開始記錄，之前的操作查不到。</div>';
       return;
     }
+    // 預設依時間排序、最新在最上面（跟原本一樣）；點表頭可改排序
+    _pnLog = { title: title, headers: data.headers, rows: data.rows, col: data.headers.indexOf('時間'), asc: false };
+    _pnRenderLog();
+  });
+}
+
+// ── 紀錄表格：排序與繪製 ──
+var _pnLog = null;
+function _pnSortLog(i) {
+  if (!_pnLog) return;
+  if (_pnLog.col === i) _pnLog.asc = !_pnLog.asc;
+  else { _pnLog.col = i; _pnLog.asc = _pnLog.headers[i] !== '時間'; }   // 新點的欄：時間預設新→舊，其他預設由小到大
+  _pnRenderLog();
+}
+function _pnTimeKey(v) {
+  var m = String(v || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) : -Infinity;
+}
+function _pnRenderLog() {
+  var L = _pnLog, body = document.getElementById('panelBody');
+  if (!L || _panelCur !== L.title) return;
+  var data = { headers: L.headers, rows: L.rows.slice() };
+  var title = L.title;
+  if (L.col >= 0) {
+    var h0 = L.headers[L.col], dir = L.asc ? 1 : -1;
+    data.rows = data.rows.map(function(r, k) { return { r: r, k: k }; }).sort(function(x, y) {
+      var a = x.r[L.col], b = y.r[L.col], c;
+      if (h0 === '時間') c = _pnTimeKey(a) - _pnTimeKey(b);
+      else {
+        if (h0 === '操作者') { a = _pnNameOnly(a); b = _pnNameOnly(b); }
+        a = String(a == null ? '' : a); b = String(b == null ? '' : b);
+        if (!a !== !b) return a ? -1 : 1;   // 空白一律排最後
+        c = a.localeCompare(b, 'zh-Hant', { numeric: true });
+      }
+      return c * dir || x.k - y.k;
+    }).map(function(o) { return o.r; });
+  }
     var resCol = data.headers.indexOf('結果');
     var hasContent = data.headers.indexOf('內容') > -1;
-    body.innerHTML = '<div class="pn-note">顯示最近 ' + data.rows.length + ' 筆（最新的在最上面，最多 300 筆；完整資料在試算表「' + _pnEsc(title.replace('各帳號', (title.indexOf('登入') > -1 ? '' : '帳號'))) + '」分頁）。</div>' +
+    body.innerHTML = '<div class="pn-note">顯示最近 ' + data.rows.length + ' 筆（預設最新的在最上面，點表頭可排序；最多 300 筆；完整資料在試算表「' + _pnEsc(title.replace('各帳號', (title.indexOf('登入') > -1 ? '' : '帳號'))) + '」分頁）。</div>' +
       '<div class="pn-tablewrap"><table class="pn-table"><thead><tr>' +
-      data.headers.map(function(h) { return '<th' + _pnColCls(h, hasContent) + '>' + _pnEsc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      data.headers.map(function(h, i) {
+        var on = i === L.col, arrow = on ? (L.asc ? '&#x25B2;' : '&#x25BC;') : '&#x25B2;&#x25BC;';
+        return '<th' + _pnColCls(h, hasContent) + ' onclick="_pnSortLog(' + i + ')" style="cursor:pointer;user-select:none" title="點一下排序">' + _pnEsc(h) +
+               '<span class="pn-sort' + (on ? ' on' : '') + '">' + arrow + '</span></th>';
+      }).join('') + '</tr></thead><tbody>' +
       data.rows.map(function(r) {
         return '<tr>' + r.map(function(c, i) {
           var h = data.headers[i], cls = _pnColCls(h, hasContent), html;
@@ -2719,7 +2763,6 @@ function _panelLoadLog(title) {
           return '<td' + cls + '>' + html + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';
-  });
 }
 
 // 欄位樣式：有「內容」欄時，其他欄位縮到剛好的寬度且不換行，讓內容欄吃剩下的寬度
