@@ -4205,30 +4205,8 @@ function renderMsrMarkers(eventId) {
       iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
-    // 滑鼠移過去：數值、回報人員、回報時間（符號、數值兩種模式都一樣）；點一下看詳細
+    // 滑鼠移過去（手機點一下）：數值、回報人員、回報時間；符號、數值兩種模式都一樣，不另外跳出說明框
     label.bindTooltip(_msrHoverHtml(msr, hasVal ? _fmtDoseStr(msr.value) : '（未填劑量率）'), { direction: 'top', offset: [0, _msrSym ? -11 : -14] });
-
-    var dtStr = '';
-    try {
-      var d = new Date(msr.time);
-      if (!isNaN(d.getTime())) {
-        var yy = d.getFullYear();
-        var mm = String(d.getMonth()+1).padStart(2,'0');
-        var dd = String(d.getDate()).padStart(2,'0');
-        var hh = String(d.getHours()).padStart(2,'0');
-        var mi = String(d.getMinutes()).padStart(2,'0');
-        dtStr = yy + '/' + mm + '/' + dd + ' ' + hh + ':' + mi;
-      }
-    } catch(e) {}
-    label.bindPopup(
-      '<div class="msr-popup">' +
-      '<span class="msr-popup-val" style="color:' + col + '">' + _fmtDose(val).val + '</span>' +
-      '<span class="msr-popup-unit">' + _fmtDose(val).unit + '</span>' +
-      (msr.source === 'auto' ? '<div class="msr-popup-info" style="color:#1a56db;font-weight:700">🤖 自動量測（無人載具）</div>' : '') +
-      '<div class="msr-popup-info">' + (msr.reporter||'') + (dtStr ? ' · '+dtStr : '') + '</div>' +
-      (msr.instrument ? '<div class="msr-popup-info">'+msr.instrument+'</div>' : '') +
-      '</div>'
-    );
     _msrMarkers.push(label);
   });
 }
