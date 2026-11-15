@@ -1417,6 +1417,108 @@ function _msrHoverHtml(msr, valText) {
     (who ? '<br>回報人員：' + _esc(who) : '') +
     (tm ? '<br>回報時間：' + _esc(tm) : '') + '</div>';
 }
+// ── 符號模式的重疊處理 ──
+//  · 符號和「人員定位」（我的位置藍點、其他人員軌跡的目前位置）重疊：人員不動，符號移到旁邊並拉一條牽引線
+//  · 不同回報的符號彼此重疊：每一個都移開、各自拉牽引線回到回報位置
+//  · 同一筆回報的 γ 和 α／β 本來就並排，當作一組一起移動
+var _symDecLayer = null, _symDecT = 0;
+function _symRid(msr) { return String(msr.id || [msr.lat, msr.lng, msr.time, msr.reporter].join('|')); }
+function _symDeclutterSoon() { clearTimeout(_symDecT); _symDecT = setTimeout(_symDeclutter, 40); }
+function _symDeclutter() {
+  if (!gMap) return;
+  if (!_symDecLayer) _symDecLayer = L.layerGroup().addTo(gMap);
+  _symDecLayer.clearLayers();
+  if (!_msrSym) return;
+  // 收集地圖上的符號，依回報分組
+  var units = {}, order = [];
+  [_msrStore, _msrContamStore].forEach(function(store) {
+    Object.keys(store || {}).forEach(function(k) {
+      (store[k] || []).forEach(function(m) {
+        if (!m._sym || !gMap.hasLayer(m)) return;
+        var u = units[m._sym.rid];
+        if (!u) { u = units[m._sym.rid] = { ll: m._sym.ll, mks: [], col: m._sym.col }; order.push(u); }
+        u.mks.push(m);
+        m.setLatLng(m._sym.ll);   // 先放回原位，再重新判斷
+      });
+    });
+  });
+  if (!order.length) return;
+  // 人員定位（固定不動的障礙）
+  var persons = [];
+  if (_userMarker && gMap.hasLayer(_userMarker)) persons.push(gMap.latLngToContainerPoint(_userMarker.getLatLng()));
+  if (typeof _trkGroup !== 'undefined' && _trkGroup && gMap.hasLayer(_trkGroup)) {
+    _trkGroup.eachLayer(function(l) { if (l instanceof L.CircleMarker && l.getRadius() >= 8) persons.push(gMap.latLngToContainerPoint(l.getLatLng())); });
+  }
+  var R = 13;   // 符號半徑（px，含白框）
+  order.forEach(function(u) {
+    u.p = gMap.latLngToContainerPoint(u.ll);
+    var xs = u.mks.map(function(m) { return m._sym.dx; });
+    u.x0 = Math.min.apply(null, xs) - R; u.x1 = Math.max.apply(null, xs) + R;   // 這一組在螢幕上左右的範圍（相對回報點）
+  });
+  var hit = function(a, b) { return a.p.x + a.x0 < b.p.x + b.x1 + 2 && b.p.x + b.x0 < a.p.x + a.x1 + 2 && Math.abs(a.p.y - b.p.y) < 2 * R + 2; };
+  var hitP = function(u, q) { return u.p.x + u.x0 < q.x + 12 && q.x - 12 < u.p.x + u.x1 && Math.abs(u.p.y - q.y) < R + 12; };
+  // 彼此重疊的符號連成一群
+  var par = order.map(function(_, i) { return i; });
+  var find = function(i) { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+  for (var i = 0; i < order.length; i++) for (var j = i + 1; j < order.length; j++) if (hit(order[i], order[j])) par[find(i)] = find(j);
+  var groups = {};
+  order.forEach(function(u, i) { var g = find(i); (groups[g] = groups[g] || []).push(u); });
+  // 事發地標記也當作障礙，符號不要被移到它上面
+  _events.forEach(function(ev, i) {
+    var la = parseFloat(ev.lat), lo = parseFloat(ev.lng);
+    if (!isNaN(la) && !isNaN(lo) && isEventShown(i)) persons.push(gMap.latLngToContainerPoint([la, lo]));
+  });
+  var placed = [];   // 已決定位置的符號（螢幕座標的範圍）
+  order.forEach(function(u) { u.moved = false; });
+  var boxAt = function(u, pt) { return { x0: pt.x + u.x0, x1: pt.x + u.x1, y0: pt.y - R, y1: pt.y + R }; };
+  var free = function(bx) {
+    for (var i = 0; i < placed.length; i++) { var o = placed[i]; if (bx.x0 < o.x1 + 2 && o.x0 < bx.x1 + 2 && bx.y0 < o.y1 + 2 && o.y0 < bx.y1 + 2) return false; }
+    for (var j = 0; j < persons.length; j++) { var q = persons[j]; if (bx.x0 < q.x + 13 && q.x - 13 < bx.x1 && bx.y0 < q.y + 15 && q.y - 15 < bx.y1) return false; }
+    return true;
+  };
+  // 從某個角度開始，每次轉 30°（距離不夠再拉遠）找一個不壓到別人的位置
+  var spot = function(u, c, a0, rad) {
+    for (var ring = 0; ring < 3; ring++) {
+      for (var k = 0; k < 12; k++) {
+        var a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 6, r = rad + ring * 22;
+        var pt = L.point(c.x + r * Math.cos(a) - (u.x0 + u.x1) / 2, c.y + r * Math.sin(a));
+        if (free(boxAt(u, pt))) return pt;
+      }
+    }
+    return L.point(c.x + rad * Math.cos(a0) - (u.x0 + u.x1) / 2, c.y + rad * Math.sin(a0));
+  };
+  var moveTo = function(u, pt) {
+    var ll = gMap.containerPointToLatLng(pt);
+    u.mks.forEach(function(m) { m.setLatLng(ll); });
+    u.moved = true;
+    placed.push(boxAt(u, pt));
+    L.polyline([u.ll, ll], { color: u.col, weight: 2, opacity: 0.85, dashArray: '5 3', interactive: false }).addTo(_symDecLayer);
+    L.circleMarker(u.ll, { radius: 3.5, color: '#fff', weight: 1.5, fillColor: u.col, fillOpacity: 1, interactive: false }).addTo(_symDecLayer);
+  };
+  // 不必移動的符號先佔位
+  var need = {};
+  Object.keys(groups).forEach(function(g) {
+    var us = groups[g];
+    if (us.length > 1) { us.forEach(function(u) { need[order.indexOf(u)] = { grp: us }; }); return; }
+    var u = us[0], q = null;
+    persons.forEach(function(pp) { if (!q && hitP(u, pp)) q = pp; });
+    if (q) need[order.indexOf(u)] = { person: q };
+    else placed.push(boxAt(u, u.p));
+  });
+  Object.keys(groups).forEach(function(g) {
+    var us = groups[g];
+    if (us.length > 1) {
+      // 一群互相重疊：以中心為圓心往四周分開（兩個時左右分開），每個都拉牽引線
+      var cx = 0, cy = 0;
+      us.forEach(function(u) { cx += u.p.x; cy += u.p.y; });
+      var c = L.point(cx / us.length, cy / us.length), rad = Math.max(40, us.length * 15);
+      us.forEach(function(u, k) { moveTo(u, spot(u, c, Math.PI + k * 2 * Math.PI / us.length, rad)); });
+      return;
+    }
+    var n = need[order.indexOf(us[0])];
+    if (n && n.person) moveTo(us[0], spot(us[0], n.person, -Math.PI / 3, 40));   // 跟人員定位重疊：人員不動，符號移到旁邊（先試右上方）
+  });
+}
 function _msrSymHtml(sym, col, badge) {
   return '<div class="msr-sym" style="background:' + col + '">' + (badge || '') + sym + '</div>';
 }
@@ -3899,6 +4001,7 @@ function clusterMsrPoints(valid, mode) {
 
 function renderMsrMarkers(eventId) {
   var _msrMarkers = _bucketClear(_msrStore, eventId);   // 這個事件自己的量測標記
+  _symDeclutterSoon();   // 符號模式：畫完後檢查重疊（排在這次繪製之後執行）
   if (!_evShownById(eventId)) return;                    // 不在地圖上的事件不畫
   // 圖層關閉時不渲染
   var evIdx = _events.findIndex ? _events.findIndex(function(e){return e.id===eventId;}) :
@@ -4205,6 +4308,7 @@ function renderMsrMarkers(eventId) {
       iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
+    if (_msrSym) label._sym = { ll: pt.ll, rid: _symRid(msr), col: col, dx: (labelIcon.options.iconAnchor[0] - 12.5) };
     // 滑鼠移過去（手機點一下）：數值、回報人員、回報時間；符號、數值兩種模式都一樣，不另外跳出說明框
     label.bindTooltip(_msrHoverHtml(msr, hasVal ? _fmtDoseStr(msr.value) : '（未填劑量率）'), { direction: 'top', offset: [0, _msrSym ? -11 : -14] });
     _msrMarkers.push(label);
@@ -4311,6 +4415,7 @@ var _msrContamMarkers = [];
 function renderMsrContamLayer(idx) {
   var _ev0 = _events[idx];
   var _msrContamMarkers = _ev0 ? _bucketClear(_msrContamStore, _ev0.id) : [];
+  _symDeclutterSoon();   // 符號模式：畫完後檢查重疊
   if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msr_contam')) return;
   var ev = _events[idx];
@@ -4505,6 +4610,7 @@ function renderMsrContamLayer(idx) {
       iconAnchor: [LW/2, LH/2]
     });
     var mk = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
+    if (_msrSym) mk._sym = { ll: pt.ll, rid: _symRid(msr), col: col, dx: (labelIcon.options.iconAnchor[0] - 12.5) };
     mk.bindTooltip(_msrHoverHtml(msr, contam), { direction: 'top', offset: [0, _msrSym ? -11 : -14] });   // 數值、回報人員、回報時間
     _msrContamMarkers.push(mk);
   });
@@ -7699,6 +7805,7 @@ document.addEventListener('DOMContentLoaded', function() {
       _events.forEach(function(ev, evIdx) {
         if (isLayerOn(evIdx, 'msr')) renderMsrMarkers(ev.id);
       });
+      _symDeclutterSoon();   // 縮放後符號在螢幕上的距離變了，重新檢查重疊
     });
     gMap.on('dragstart',  function() {
       hideCtxMenu();
@@ -7851,6 +7958,7 @@ function initUserLocation() {
 
       if (_userMarker) {
         _userMarker.setLatLng([lat, lng]);
+        if (_msrSym) _symDeclutterSoon();   // 我的位置移動：符號重疊要重新檢查
       } else {
         var icon = L.divIcon({
           className: '',
@@ -7858,6 +7966,7 @@ function initUserLocation() {
           iconSize: [20, 20], iconAnchor: [10, 10]
         });
         _userMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 500 }).addTo(gMap);
+        _symDeclutterSoon();
         _userMarker.bindTooltip('您的位置', { direction: 'top', offset: [0, -12] });
       }
 
@@ -11240,6 +11349,7 @@ function _trkColor(key) {
 function _trkDraw(tracks) {
   if (!_trkGroup) _trkGroup = L.layerGroup().addTo(gMap);
   _trkGroup.clearLayers();
+  _symDeclutterSoon();   // 人員位置更新後重新檢查符號重疊
   var nowMs = Date.now();
   tracks.forEach(function(t) {
     var pts = t.points || [];
