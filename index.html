@@ -744,7 +744,7 @@ function _verBanner(file) {
 }
 
 // ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
-var NEED_GAS = 34;
+var NEED_GAS = 35;
 function _gasVerCheck() {
   _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
     if (!d) return;   // 連不上（例如離線）就不提示，避免誤報
@@ -2170,27 +2170,25 @@ function thSave() {
   thPost(r.warm, r.hot, '閾值已儲存', document.getElementById('thBtnSave'), '儲存');
 }
 
-// ── 污染值顏色分界（GAS v34：getThresholds 的 aWarm/aHot/bWarm/bHot，saveContamThresholds）──
+// ── 污染值顏色分界（GAS v35：getThresholds 的 aHot/bHot，saveContamThresholds）：α、β 各一個熱區閾值 ──
 function _ctV(id) { return document.getElementById(id).value.trim(); }
 function ctFill(d) {
   var f = function(v) { return v > 0 ? thFmt(v) : ''; };
-  document.getElementById('ctAW').value = f(d.aWarm); document.getElementById('ctAH').value = f(d.aHot);
-  document.getElementById('ctBW').value = f(d.bWarm); document.getElementById('ctBH').value = f(d.bHot);
+  document.getElementById('ctAH').value = f(d.aHot);
+  document.getElementById('ctBH').value = f(d.bHot);
   ctOnInput();
 }
 function ctRead() {
   var out = {}, err = '';
-  [['a', 'ctAW', 'ctAH', 'α'], ['b', 'ctBW', 'ctBH', 'β']].forEach(function(k) {
-    var rw = _ctV(k[1]), rh = _ctV(k[2]), bad = false;
-    if (rw === '' && rh === '') { out[k[0] + 'Warm'] = ''; out[k[0] + 'Hot'] = ''; }
+  [['a', 'ctAH', 'α'], ['b', 'ctBH', 'β']].forEach(function(k) {
+    var rh = _ctV(k[1]), bad = false;
+    if (rh === '') out[k[0] + 'Hot'] = '';
     else {
-      var w = parseFloat(rw), h = parseFloat(rh);
-      if (!(w > 0) || !(h > 0)) { bad = true; if (!err) err = k[3] + '：暖區、熱區都要填大於 0 的數字（或兩格都空白）'; }
-      else if (!(h > w)) { bad = true; if (!err) err = k[3] + '：熱區必須大於暖區'; }
-      out[k[0] + 'Warm'] = w; out[k[0] + 'Hot'] = h;
+      var h = parseFloat(rh);
+      if (!(h > 0)) { bad = true; if (!err) err = k[2] + '：熱區閾值要大於 0（或空白＝不分級）'; }
+      out[k[0] + 'Hot'] = h;
     }
     document.getElementById(k[1]).classList.toggle('th-bad', bad);
-    document.getElementById(k[2]).classList.toggle('th-bad', bad);
   });
   out.err = err;
   return out;
@@ -2202,17 +2200,17 @@ function ctOnInput() {
 }
 function ctMeta(d) {
   var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-  var one = function(t, w, h) { return t + (w > 0 ? '：暖區 ' + thFmt(w) + '、熱區 ' + thFmt(h) + ' cps' : '：不分級'); };
-  var set = d.aWarm > 0 || d.bWarm > 0;
+  var one = function(t, h) { return t + (h > 0 ? '：熱區 ≥ ' + thFmt(h) + ' cps' : '：不分級'); };
+  var set = d.aHot > 0 || d.bHot > 0;
   document.getElementById('ctTag').innerHTML = set ? '<span class="th-tag th-tag-cus">已設定</span>' : '<span class="th-tag th-tag-def">未設定</span>';
-  var m = '目前生效：' + one('α', d.aWarm, d.aHot) + '；' + one('β', d.bWarm, d.bHot);
+  var m = '目前生效：' + one('α', d.aHot) + '；' + one('β', d.bHot);
   if (d.contamUpdatedAt) m += '<br>最後更新：' + esc(d.contamUpdatedAt) + (d.contamUpdatedBy ? '（' + esc(d.contamUpdatedBy) + '）' : '');
   document.getElementById('ctMeta').innerHTML = m;
 }
 function ctLoad(cb) {
   _jsonpGet(SHEETS_URL + '?action=getThresholds', function(d) {
-    if (!d || !d.ok || !('aWarm' in d)) {
-      document.getElementById('ctMeta').textContent = '讀取失敗或 GAS 版本太舊（需要 GAS v34），請貼上新版並重新部署。';
+    if (!d || !d.ok || !('aHot' in d) || ('aWarm' in d)) {
+      document.getElementById('ctMeta').textContent = '讀取失敗或 GAS 版本太舊（需要 GAS v35），請貼上新版並重新部署。';
       document.getElementById('ctBtnSave').disabled = true; document.getElementById('ctBtnClear').disabled = true;
       if (cb) cb(null);
       return;
@@ -2225,7 +2223,7 @@ function ctLoad(cb) {
 function ctInit() {
   document.getElementById('ctErr').textContent = '';
   document.getElementById('ctMeta').textContent = '讀取中…';
-  try { var c = JSON.parse(localStorage.getItem('radContamTh') || 'null'); if (c) ctFill({ aWarm: c.a && c.a.warm, aHot: c.a && c.a.hot, bWarm: c.b && c.b.warm, bHot: c.b && c.b.hot }); } catch(e) {}
+  try { var c = JSON.parse(localStorage.getItem('radContamTh') || 'null'); if (c) ctFill({ aHot: c.a && c.a.hot, bHot: c.b && c.b.hot }); } catch(e) {}
   ctLoad();
 }
 function ctPost(v, okMsg, btn, label) {
@@ -2234,19 +2232,19 @@ function ctPost(v, okMsg, btn, label) {
   var who = '';
   try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
   fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'saveContamThresholds', aWarm: v.aWarm, aHot: v.aHot, bWarm: v.bWarm, bHot: v.bHot, updatedBy: who }) })
+    body: JSON.stringify({ action: 'saveContamThresholds', aHot: v.aHot, bHot: v.bHot, updatedBy: who }) })
   .then(function() {
     setTimeout(function() {
       ctLoad(function(d) {
         btn.textContent = label; bC.disabled = false; ctOnInput();
         var same = function(x, y) { return (x === '' ? null : x) === (y > 0 ? y : null); };
         var e = document.getElementById('ctErr');
-        if (d && same(v.aWarm, d.aWarm) && same(v.aHot, d.aHot) && same(v.bWarm, d.bWarm) && same(v.bHot, d.bHot)) {
+        if (d && same(v.aHot, d.aHot) && same(v.bHot, d.bHot)) {
           try {
-            var pair = function(w, h) { return w > 0 ? { warm: w, hot: h } : null; };
-            localStorage.setItem('radContamTh', JSON.stringify({ a: pair(d.aWarm, d.aHot), b: pair(d.bWarm, d.bHot) }));
+            var one = function(h) { return h > 0 ? { hot: h } : null; };
+            localStorage.setItem('radContamTh', JSON.stringify({ a: one(d.aHot), b: one(d.bHot) }));
             var f = document.getElementById('contentFrame');
-            if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'contamThresholds', aWarm: d.aWarm, aHot: d.aHot, bWarm: d.bWarm, bHot: d.bHot }, '*');
+            if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'contamThresholds', aHot: d.aHot, bHot: d.bHot }, '*');
           } catch(err) {}
           e.style.color = '#15803d'; e.textContent = '✓ ' + okMsg;
           setTimeout(function(){ e.style.color = ''; e.textContent = ''; }, 2500);
@@ -2260,9 +2258,9 @@ function ctPost(v, okMsg, btn, label) {
 }
 function ctSave() { var r = ctRead(); if (r.err) return; ctPost(r, '污染值分界已儲存', document.getElementById('ctBtnSave'), '儲存'); }
 function ctClear() {
-  ['ctAW', 'ctAH', 'ctBW', 'ctBH'].forEach(function(id) { document.getElementById(id).value = ''; });
+  ['ctAH', 'ctBH'].forEach(function(id) { document.getElementById(id).value = ''; });
   ctOnInput();
-  ctPost({ aWarm: '', aHot: '', bWarm: '', bHot: '' }, '已清除（不分級）', document.getElementById('ctBtnClear'), '清除（不分級）');
+  ctPost({ aHot: '', bHot: '' }, '已清除（不分級）', document.getElementById('ctBtnClear'), '清除（不分級）');
 }
 
 function thResetDefault() {
@@ -2349,22 +2347,16 @@ function thResetDefault() {
       <div class="ms-sep"></div>
       <div class="ms-sec-title">污染值顏色分界<span id="ctTag"></span></div>
       <div style="font-size:14px;color:#6b7a92;margin-bottom:8px;line-height:1.6">
-        地圖標籤切換成「符號」時，α／β 圓圈的底色：綠 &lt; 暖區 ≤ 橘 &lt; 熱區 ≤ 紅。單位 cps（以 cpm 回報的會自動換算）。<br>
-        兩格都空白＝不分級，α 顯示紫色、β 顯示藍色。
+        地圖標籤切換成「符號」時，α／β 圓圈的底色：低於熱區閾值為冷區（綠），達到或超過為熱區（紅）。單位 cps（以 cpm 回報的會自動換算）。<br>
+        空白＝不分級，α 顯示紫色、β 顯示藍色。
       </div>
       <div class="th-field">
-        <label>α 污染 <span class="th-hint">（暖區／熱區，cps）</span></label>
-        <div class="th-inrow">
-          <input type="number" id="ctAW" step="any" min="0" inputmode="decimal" placeholder="暖區" oninput="ctOnInput()">
-          <input type="number" id="ctAH" step="any" min="0" inputmode="decimal" placeholder="熱區" oninput="ctOnInput()">
-        </div>
+        <label>α 熱區閾值 <span class="th-hint">（cps）</span></label>
+        <div class="th-inrow"><input type="number" id="ctAH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
       </div>
       <div class="th-field">
-        <label>β 污染 <span class="th-hint">（暖區／熱區，cps）</span></label>
-        <div class="th-inrow">
-          <input type="number" id="ctBW" step="any" min="0" inputmode="decimal" placeholder="暖區" oninput="ctOnInput()">
-          <input type="number" id="ctBH" step="any" min="0" inputmode="decimal" placeholder="熱區" oninput="ctOnInput()">
-        </div>
+        <label>β 熱區閾值 <span class="th-hint">（cps）</span></label>
+        <div class="th-inrow"><input type="number" id="ctBH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
       </div>
       <div class="th-err" id="ctErr"></div>
       <div class="th-btns">

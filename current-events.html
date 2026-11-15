@@ -412,10 +412,10 @@ transition: all .12s; flex-shrink: 0;
 .msr-new-1 { animation: msrNewBlink 1s ease-in-out infinite; }   /* 最新：彩色＋閃爍 */
 .msr-new-3 { background: #1e2a3a; }                               /* 第三新：黑白 */
 /* ── 量測標籤「符號」模式：圓圈裡 γ／α／β，底色依閾值 ── */
-.msr-sym { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.35); color: #fff; display: flex; align-items: center; justify-content: center;
-  font: italic 700 18px/1 'Times New Roman', 'Noto Serif', serif; box-sizing: content-box; }
-.msr-sym .msr-new { top: -12px; left: -14px; }
+.msr-sym { position: relative; width: 21px; height: 21px; border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 1px 6px rgba(0,0,0,.35); color: #fff; display: flex; align-items: center; justify-content: center;
+  font: italic 700 14px/1 'Times New Roman', 'Noto Serif', serif; box-sizing: content-box; }
+.msr-sym .msr-new { top: -12px; left: -16px; }
 .msr-mode-row { display: flex; align-items: center; gap: 6px; padding: 2px 0 6px 24px; font-size: 13px; color: #6b7a92; white-space: nowrap; }
 .msr-seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
 .msr-seg button { border: none; background: #fff; color: #475569; font-size: 13px; padding: 2px 7px; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
@@ -1353,7 +1353,7 @@ function _loadDoseThresholds() {
     var changed = (w !== DOSE_TH.warm || h !== DOSE_TH.hot);
     DOSE_TH.warm = w; DOSE_TH.hot = h;
     try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: w, hot: h })); } catch(e) {}
-    if (_setContamTh(_ctPair(d.aWarm, d.aHot), _ctPair(d.bWarm, d.bHot))) changed = true;   // GAS v34 起才有污染閾值
+    if (_setContamTh(_ctPair(d.aHot), _ctPair(d.bHot))) changed = true;   // GAS v35 起：α、β 各一個熱區閾值
     if (changed) _refreshDoseColors();
   });
 }
@@ -1362,9 +1362,9 @@ function _loadDoseThresholds() {
 var CONTAM_TH = { a: null, b: null };
 try {
   var _ctCached = JSON.parse(localStorage.getItem('radContamTh') || 'null');
-  if (_ctCached) CONTAM_TH = { a: _ctCached.a || null, b: _ctCached.b || null };
+  if (_ctCached) CONTAM_TH = { a: _ctCached.a && _ctCached.a.hot > 0 ? { hot: _ctCached.a.hot } : null, b: _ctCached.b && _ctCached.b.hot > 0 ? { hot: _ctCached.b.hot } : null };
 } catch(e) {}
-function _ctPair(w, h) { w = parseFloat(w); h = parseFloat(h); return (w > 0 && h > w) ? { warm: w, hot: h } : null; }
+function _ctPair(h) { h = parseFloat(h); return h > 0 ? { hot: h } : null; }   // 污染只分冷區／熱區：一個分界值
 function _setContamTh(a, b) {
   var changed = JSON.stringify(CONTAM_TH) !== JSON.stringify({ a: a, b: b });
   CONTAM_TH = { a: a, b: b };
@@ -1379,10 +1379,10 @@ function _contamParse(s) {
   if (!isNaN(v) && /cpm/i.test(s)) v = v / 60;
   return { type: type, cps: v };
 }
-// 污染值顏色：有設定閾值 → 綠／橘／紅；沒設定 → α 紫、β 藍；沒標 α/β → 灰
+// 污染值顏色：有設定閾值 → 冷區綠、熱區紅；沒設定 → α 紫、β 藍；沒標 α/β → 灰
 function _contamColor(s) {
   var p = _contamParse(s), th = p.type === 'α' ? CONTAM_TH.a : p.type === 'β' ? CONTAM_TH.b : null;
-  if (th && !isNaN(p.cps)) return p.cps >= th.hot ? '#dc2626' : p.cps >= th.warm ? '#f97316' : '#16a34a';
+  if (th && !isNaN(p.cps)) return p.cps >= th.hot ? '#dc2626' : '#16a34a';
   return p.type === 'α' ? '#7c3aed' : p.type === 'β' ? '#0ea5e9' : '#94a3b8';
 }
 
@@ -1486,7 +1486,7 @@ function _msrNewBadge(msrs) {
 // 父頁面（index.html 閾值設定 Modal）儲存後即時通知
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'contamThresholds') {   // 父頁面儲存污染閾值後即時通知
-    if (_setContamTh(_ctPair(e.data.aWarm, e.data.aHot), _ctPair(e.data.bWarm, e.data.bHot))) _refreshDoseColors();
+    if (_setContamTh(_ctPair(e.data.aHot), _ctPair(e.data.bHot))) _refreshDoseColors();
     return;
   }
   if (!e.data || e.data.type !== 'doseThresholds') return;
@@ -3801,7 +3801,7 @@ function loadMeasurements(idx, force) {
 
 // ── 這個事件有沒有開任何量測圖層 ──
 function _anyMsrLayerOn(idx) {
-  return ['msr', 'msr_contam', 'msrdot', 'contamdot'].some(function(k) { return isLayerOn(idx, k); });
+  return ['msr', 'msr_contam'].some(function(k) { return isLayerOn(idx, k); });   // 「不顯示數值」兩個圖層已移除（改用符號模式）
 }
 function _anyShownMsrOn() {
   for (var i = 0; i < _events.length; i++) if (isEventShown(i) && _anyMsrLayerOn(i)) return true;
@@ -3949,7 +3949,7 @@ function renderMsrMarkers(eventId) {
   // 把 valid 替換成 singles，繼續原本流程
   valid = singles;
 
-  var LW = _msrSym ? 34 : 144, LH = 34;  // 標籤估計寬高（px）；符號模式是 34px 的圓
+  var LW = _msrSym ? 27 : 144, LH = _msrSym ? 27 : 34;  // 標籤估計寬高（px）；符號模式是 25px 的圓
   var DOT_R = 14;          // 量測點圓圈佔位半徑
   var EV_R  = 26;          // 事發地點佔位半徑
 
@@ -4167,7 +4167,7 @@ function renderMsrMarkers(eventId) {
          '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>')
       : ('<span style="font-size:12px;color:#94a3b8;font-family:inherit">' + (msr.reporter||'回報') + '</span>');
     var labelIcon = _msrSym
-      ? L.divIcon({ className: '', html: _msrSymHtml('γ', col, _msrNewBadge(msr)), iconSize: [33, 33], iconAnchor: [16.5, 16.5] })
+      ? L.divIcon({ className: '', html: _msrSymHtml('γ', col, _msrNewBadge(msr)), iconSize: [25, 25], iconAnchor: [12.5, 12.5] })
       : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
@@ -4179,7 +4179,7 @@ function renderMsrMarkers(eventId) {
       iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
-    if (_msrSym) label.bindTooltip(hasVal ? _fmtDoseStr(msr.value) : (msr.reporter || '回報'), { direction: 'top', offset: [0, -14] });   // 符號模式：滑過看數值，點一下看詳細
+    if (_msrSym) label.bindTooltip(hasVal ? _fmtDoseStr(msr.value) : (msr.reporter || '回報'), { direction: 'top', offset: [0, -11] });   // 符號模式：滑過看數值，點一下看詳細
 
     var dtStr = '';
     try {
@@ -4242,8 +4242,6 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '        +c('msr')       +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測劑量率</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr_contam" '   +c('msr_contam') +' onchange="onMsrContamChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #7c3aed"></span>量測污染值</label>' +
       '<div class="msr-mode-row" title="量測劑量率、污染值的標籤顯示方式">顯示<span class="msr-seg"><button data-sym="0" class="' + (_msrSym ? '' : 'on') + '" onclick="setMsrSym(false)">數值</button><button data-sym="1" class="' + (_msrSym ? 'on' : '') + '" onclick="setMsrSym(true)" title="圓圈裡顯示 γ（劑量率）、α／β（污染），底色依閾值">符號</button></span></div>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" '       +c('msrdot')     +' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測劑量率(不顯示數值)</label>' +
-      '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" '    +c('contamdot')  +' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>量測污染值(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'pending\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wind" ' + (_windLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'wind\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);border:1.5px solid #38bdf8"></span>風向</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_wxstn" ' + (_wxLayerOn ? 'checked' : '') + ' onchange="onWxStnChk(this.checked)"><span class="layer-dot" style="background:#fff;border:1.5px solid #111;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">' + _WX_SVG.replace('width="40" height="50"', 'width="12" height="15"') + '</span>氣象站</label>' +
@@ -4324,7 +4322,7 @@ function renderMsrContamLayer(idx) {
   if (!valid.length) return;
 
   // 與 renderMsrMarkers 相同的防重疊常數
-  var LW = _msrSym ? 34 : 120, LH = _msrSym ? 34 : 28;   // 符號模式是 34px 的圓
+  var LW = _msrSym ? 27 : 120, LH = _msrSym ? 27 : 28;   // 符號模式是 25px 的圓
   var DOT_R  = 7;
   var LINE_LEN = 55;
   var R_MAX    = LINE_LEN + 300;
@@ -4485,7 +4483,7 @@ function renderMsrContamLayer(idx) {
 
     // 標籤：用 display:inline-flex 讓白框自動包住文字（同劑量率標籤的做法）
     var labelIcon = _msrSym
-      ? L.divIcon({ className: '', html: _msrSymHtml(_contamParse(contam).type || '?', col, _msrNewBadge(msr)), iconSize: [33, 33], iconAnchor: [16.5, 16.5] })
+      ? L.divIcon({ className: '', html: _msrSymHtml(_contamParse(contam).type || '?', col, _msrNewBadge(msr)), iconSize: [25, 25], iconAnchor: [12.5, 12.5] })
       : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
@@ -4519,6 +4517,7 @@ var _contamDotMarkers = [];
 function renderContamDotLayer(idx) {
   var _ev0 = _events[idx];
   var _contamDotMarkers = _ev0 ? _bucketClear(_contamDotStore, _ev0.id) : [];
+  return;   // 「量測污染值(不顯示數值)」圖層已移除：只清掉舊的點，不再畫（以前勾過的也不會出現）
   if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'contamdot')) return;
   var ev = _events[idx];
@@ -4561,6 +4560,7 @@ var _msrDotMarkers = [];
 function renderMsrDotLayer(idx) {
   var _ev0 = _events[idx];
   var _msrDotMarkers = _ev0 ? _bucketClear(_msrDotStore, _ev0.id) : [];
+  return;   // 「量測劑量率(不顯示數值)」圖層已移除：只清掉舊的點，不再畫
   if (!_ev0 || !isEventShown(idx)) return;
   if (!isLayerOn(idx, 'msrdot')) return;
   var ev = _events[idx];
