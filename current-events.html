@@ -411,6 +411,16 @@ transition: all .12s; flex-shrink: 0;
 .msr-new-1, .msr-new-2 { background: linear-gradient(90deg,#ef4444,#f59e0b,#22c55e,#3b82f6,#a855f7); }
 .msr-new-1 { animation: msrNewBlink 1s ease-in-out infinite; }   /* 最新：彩色＋閃爍 */
 .msr-new-3 { background: #1e2a3a; }                               /* 第三新：黑白 */
+/* ── 量測標籤「符號」模式：圓圈裡 γ／α／β，底色依閾值 ── */
+.msr-sym { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35); color: #fff; display: flex; align-items: center; justify-content: center;
+  font: italic 700 18px/1 'Times New Roman', 'Noto Serif', serif; box-sizing: content-box; }
+.msr-sym .msr-new { top: -12px; left: -14px; }
+.msr-mode-row { display: flex; align-items: center; gap: 6px; padding: 2px 0 6px 24px; font-size: 13px; color: #6b7a92; white-space: nowrap; }
+.msr-seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+.msr-seg button { border: none; background: #fff; color: #475569; font-size: 13px; padding: 2px 7px; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+.msr-seg button + button { border-left: 1px solid #cbd5e1; }
+.msr-seg button.on { background: #1a56db; color: #fff; }
 @keyframes msrNewBlink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .2; transform: scale(.9); } }
 .msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
 font-family: var(--font-mono); }
@@ -1343,15 +1353,61 @@ function _loadDoseThresholds() {
     var changed = (w !== DOSE_TH.warm || h !== DOSE_TH.hot);
     DOSE_TH.warm = w; DOSE_TH.hot = h;
     try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: w, hot: h })); } catch(e) {}
+    if (_setContamTh(_ctPair(d.aWarm, d.aHot), _ctPair(d.bWarm, d.bHot))) changed = true;   // GAS v34 起才有污染閾值
     if (changed) _refreshDoseColors();
   });
+}
+
+// ── 污染值顏色閾值（cps；α、β 各自一組）：沒設定時維持 α 紫、β 藍 ──
+var CONTAM_TH = { a: null, b: null };
+try {
+  var _ctCached = JSON.parse(localStorage.getItem('radContamTh') || 'null');
+  if (_ctCached) CONTAM_TH = { a: _ctCached.a || null, b: _ctCached.b || null };
+} catch(e) {}
+function _ctPair(w, h) { w = parseFloat(w); h = parseFloat(h); return (w > 0 && h > w) ? { warm: w, hot: h } : null; }
+function _setContamTh(a, b) {
+  var changed = JSON.stringify(CONTAM_TH) !== JSON.stringify({ a: a, b: b });
+  CONTAM_TH = { a: a, b: b };
+  try { localStorage.setItem('radContamTh', JSON.stringify(CONTAM_TH)); } catch(e) {}
+  return changed;
+}
+// 污染值字串（例如「α 120 cps」「β 30 cpm」）→ { type: 'α'|'β'|'', cps: 數值（cpm 換成 cps）}
+function _contamParse(s) {
+  s = String(s || '');
+  var type = s.indexOf('α') >= 0 ? 'α' : (s.indexOf('β') >= 0 ? 'β' : '');
+  var m = s.match(/(\d+(?:\.\d+)?)/), v = m ? parseFloat(m[1]) : NaN;
+  if (!isNaN(v) && /cpm/i.test(s)) v = v / 60;
+  return { type: type, cps: v };
+}
+// 污染值顏色：有設定閾值 → 綠／橘／紅；沒設定 → α 紫、β 藍；沒標 α/β → 灰
+function _contamColor(s) {
+  var p = _contamParse(s), th = p.type === 'α' ? CONTAM_TH.a : p.type === 'β' ? CONTAM_TH.b : null;
+  if (th && !isNaN(p.cps)) return p.cps >= th.hot ? '#dc2626' : p.cps >= th.warm ? '#f97316' : '#16a34a';
+  return p.type === 'α' ? '#7c3aed' : p.type === 'β' ? '#0ea5e9' : '#94a3b8';
+}
+
+// ── 量測標籤顯示方式：數值（預設）或符號（圓圈裡 γ／α／β）；記在這台裝置 ──
+var _msrSym = false;
+try { _msrSym = localStorage.getItem('msrSymMode') === '1'; } catch(e) {}
+function setMsrSym(on) {
+  _msrSym = !!on;
+  try { localStorage.setItem('msrSymMode', on ? '1' : '0'); } catch(e) {}
+  document.querySelectorAll('.msr-seg button').forEach(function(b) { b.classList.toggle('on', (b.getAttribute('data-sym') === '1') === _msrSym); });
+  _rerenderMsrAll();
+}
+function _rerenderMsrAll() {
+  if (!gMap || !_events) return;
+  _events.forEach(function(ev, i) { if (isEventShown(i) && _msrCache[ev.id] && _anyMsrLayerOn(i)) loadMeasurements(i, false); });
+}
+function _msrSymHtml(sym, col, badge) {
+  return '<div class="msr-sym" style="background:' + col + '">' + (badge || '') + sym + '</div>';
 }
 
 function _refreshDoseColors() {
   try {
     if (!_events || !_events[_curIdx]) return;
     renderCard(_curIdx);
-    if (gMap && _msrCache[_events[_curIdx].id] && _anyMsrLayerOn(_curIdx)) loadMeasurements(_curIdx, false);
+    _rerenderMsrAll();
   } catch(e) {}
 }
 
@@ -1429,6 +1485,10 @@ function _msrNewBadge(msrs) {
 
 // 父頁面（index.html 閾值設定 Modal）儲存後即時通知
 window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'contamThresholds') {   // 父頁面儲存污染閾值後即時通知
+    if (_setContamTh(_ctPair(e.data.aWarm, e.data.aHot), _ctPair(e.data.bWarm, e.data.bHot))) _refreshDoseColors();
+    return;
+  }
   if (!e.data || e.data.type !== 'doseThresholds') return;
   var w = parseFloat(e.data.warm), h = parseFloat(e.data.hot);
   if (!(w > 0) || !(h > w)) return;
@@ -3862,8 +3922,10 @@ function renderMsrMarkers(eventId) {
       className: '',
       html: '<div class="msr-cluster" style="position:relative;width:'+sz+'px;height:'+sz+'px;background:'+col+';color:white;box-shadow:0 2px 10px rgba(0,0,0,.4)">' +
             _msrNewBadge(grp.members) +
-            '<div style="font-size:10px;font-weight:900;line-height:1.1">' + _fmtDose(val).val + '</div>' +
-            '<div style="font-size:9px;opacity:.85">' + _fmtDose(val).unit + '</div>' +
+            (_msrSym
+              ? '<div style="font:italic 700 18px/1 \'Times New Roman\',serif">γ</div>'
+              : '<div style="font-size:10px;font-weight:900;line-height:1.1">' + _fmtDose(val).val + '</div>' +
+                '<div style="font-size:9px;opacity:.85">' + _fmtDose(val).unit + '</div>') +
             '<div style="font-size:8px;opacity:.7">×'+grp.members.length+'</div>' +
             '</div>',
       iconSize: [sz,sz], iconAnchor: [sz/2,sz/2]
@@ -3887,7 +3949,7 @@ function renderMsrMarkers(eventId) {
   // 把 valid 替換成 singles，繼續原本流程
   valid = singles;
 
-  var LW = 144, LH = 34;  // 標籤估計寬高（px）
+  var LW = _msrSym ? 34 : 144, LH = 34;  // 標籤估計寬高（px）；符號模式是 34px 的圓
   var DOT_R = 14;          // 量測點圓圈佔位半徑
   var EV_R  = 26;          // 事發地點佔位半徑
 
@@ -4104,7 +4166,9 @@ function renderMsrMarkers(eventId) {
          _fmtDose(val).val + '</span>' +
          '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>')
       : ('<span style="font-size:12px;color:#94a3b8;font-family:inherit">' + (msr.reporter||'回報') + '</span>');
-    var labelIcon = L.divIcon({
+    var labelIcon = _msrSym
+      ? L.divIcon({ className: '', html: _msrSymHtml('γ', col, _msrNewBadge(msr)), iconSize: [33, 33], iconAnchor: [16.5, 16.5] })
+      : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
@@ -4115,6 +4179,7 @@ function renderMsrMarkers(eventId) {
       iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
+    if (_msrSym) label.bindTooltip(hasVal ? _fmtDoseStr(msr.value) : (msr.reporter || '回報'), { direction: 'top', offset: [0, -14] });   // 符號模式：滑過看數值，點一下看詳細
 
     var dtStr = '';
     try {
@@ -4176,6 +4241,7 @@ function renderLayerPanel() {
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_sector" '+c('sector')+' onchange="onLayerChk('+i+',\'sector\',this.checked)"><span class="layer-dot" style="background:#8b5cf6;border:1.5px solid #8b5cf6"></span>5km十點偵測</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr" '        +c('msr')       +' onchange="onMsrChk('+i+',this.checked)"><span class="layer-dot" style="background:#f59e0b;border:1.5px solid #f59e0b"></span>量測劑量率</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msr_contam" '   +c('msr_contam') +' onchange="onMsrContamChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #7c3aed"></span>量測污染值</label>' +
+      '<div class="msr-mode-row" title="量測劑量率、污染值的標籤顯示方式">顯示<span class="msr-seg"><button data-sym="0" class="' + (_msrSym ? '' : 'on') + '" onclick="setMsrSym(false)">數值</button><button data-sym="1" class="' + (_msrSym ? 'on' : '') + '" onclick="setMsrSym(true)" title="圓圈裡顯示 γ（劑量率）、α／β（污染），底色依閾值">符號</button></span></div>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_msrdot" '       +c('msrdot')     +' onchange="onMsrDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#16a34a,#f97316,#dc2626);border:1.5px solid #f59e0b"></span>量測劑量率(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_'+i+'_contamdot" '    +c('contamdot')  +' onchange="onContamDotChk('+i+',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);border:1.5px solid #0ea5e9"></span>量測污染值(不顯示數值)</label>' +
       '<label class="layer-row"><input type="checkbox" id="lyr_pending" ' + (_pendingLayerOn ? 'checked' : '') + ' onchange="onGlobalChk(\'pending\',this.checked)"><span class="layer-dot" style="background:linear-gradient(135deg,#f97316,#7c3aed);border:1.5px solid #7c3aed"></span>待量測數值</label>' +
@@ -4258,7 +4324,7 @@ function renderMsrContamLayer(idx) {
   if (!valid.length) return;
 
   // 與 renderMsrMarkers 相同的防重疊常數
-  var LW = 120, LH = 28;
+  var LW = _msrSym ? 34 : 120, LH = _msrSym ? 34 : 28;   // 符號模式是 34px 的圓
   var DOT_R  = 7;
   var LINE_LEN = 55;
   var R_MAX    = LINE_LEN + 300;
@@ -4399,7 +4465,7 @@ function renderMsrContamLayer(idx) {
     var msr    = pt.msr;
     var contam = (msr.contamination || '').trim();
     var isAlpha = contam.indexOf('α') >= 0;
-    var col    = isAlpha ? '#7c3aed' : '#0ea5e9';
+    var col    = _msrSym ? _contamColor(contam) : (isAlpha ? '#7c3aed' : '#0ea5e9');   // 符號模式：底色依污染閾值
     var offLL  = pt.offLL;
 
     // 圓點（與劑量率點樣式一致）
@@ -4418,7 +4484,9 @@ function renderMsrContamLayer(idx) {
     }).addTo(gMap));
 
     // 標籤：用 display:inline-flex 讓白框自動包住文字（同劑量率標籤的做法）
-    var labelIcon = L.divIcon({
+    var labelIcon = _msrSym
+      ? L.divIcon({ className: '', html: _msrSymHtml(_contamParse(contam).type || '?', col, _msrNewBadge(msr)), iconSize: [33, 33], iconAnchor: [16.5, 16.5] })
+      : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
             'border-radius:5px;padding:4px 10px 4px 8px;' +
