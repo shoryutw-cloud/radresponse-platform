@@ -744,7 +744,7 @@ function _verBanner(file) {
 }
 
 // ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
-var NEED_GAS = 35;
+var NEED_GAS = 36;
 function _gasVerCheck() {
   _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
     if (!d) return;   // 連不上（例如離線）就不提示，避免誤報
@@ -2732,6 +2732,10 @@ function closeLiveWin() {
   .pn-hist .pn-ev-btns { flex-wrap: nowrap; }
   .pn-hist td:first-child { color: #1e2a3a; }
   .pn-hist td { vertical-align: middle; }
+  /* 歷史事件查詢多了結束時間、處理時間兩欄：版面放寬、欄距縮小，操作按鈕不必左右捲動才看得到 */
+  .panel-body.pn-wide { max-width: 1440px; }
+  .pn-table.pn-hist th, .pn-table.pn-hist td { padding-left: 12px; padding-right: 12px; }
+  .pn-table.pn-hist .pn-col-main { min-width: 180px; }
   @media (max-width: 600px) { .pn-f, .pn-f input[type=search], .pn-f select { width: 100%; } }
   .pn-btn-replay:hover { background: #1648b8; }
   @media (max-width: 600px) { .pn-btn-replay { display: none; } }   /* 回放目前只支援電腦版 */
@@ -2824,6 +2828,7 @@ var PANEL_LOG_TYPE = { '各帳號登入紀錄': 'login', '各帳號異動紀錄'
 var _panelCur = '';
 function _panelLoad(title) {
   _panelCur = title;
+  var pb = document.getElementById('panelBody'); if (pb) pb.classList.toggle('pn-wide', title === '歷史事件查詢');
   if (title === '歷史事件查詢') { _panelLoadHistory(); return; }
   if (PANEL_LOG_TYPE[title])   { _panelLoadLog(title); return; }
 }
@@ -2831,13 +2836,18 @@ function _panelLoad(title) {
 function _panelLoadHistory() {
   var body = document.getElementById('panelBody');
   body.innerHTML = '<div class="pn-empty">載入中…</div>';
-  _jsonpGet(SHEETS_URL + '?action=events', function(data) {
+  _jsonpGet(SHEETS_URL + '?action=events&closedAt=1', function(data) {
     if (_panelCur !== '歷史事件查詢') return;
     if (!data || !data.events) { body.innerHTML = '<div class="pn-err">讀取失敗，請確認網路連線後再試。</div>'; return; }
     var list = data.events.filter(function(ev) { return _pnIsClosed(ev.status); }).map(function(ev) {
       var o = _pnOccur(ev);
+      // 結束時間（GAS v36 起）與處理時間＝結束時間－發生時間
+      var cMs = Number(ev.closedAt), cs = String(ev.closedAtStr || ''), dur = NaN;
+      if (cMs > 0 && o.ms > 0) dur = Math.round((cMs - o.ms) / 60000);
       return { id: String(ev.id || ''), name: String(ev.name || ''), type: String(ev.type || ''), address: twAddr(ev.address || ''),
-               ymd: o.ymd, hm: o.hm, key: o.key };
+               ymd: o.ymd, hm: o.hm, key: o.key,
+               cymd: cs.slice(0, 10), chm: cs.slice(11, 16), ckey: cMs > 0 ? cMs : -1,
+               dur: dur >= 0 ? dur : -1 };
     });
     if (!list.length) { body.innerHTML = '<div class="pn-empty">尚無歷史事件。<br>事件由管理員在「後台功能 → 事件管理 → 結束事件」結束後，會出現在這裡。</div>'; return; }
     var types = [];
@@ -2872,11 +2882,18 @@ function _pnOccur(ev) {
   else if ((m = ts.match(/(\d{1,2}):(\d{2})/))) { h = +m[1]; mi = +m[2]; }
   var p2 = function(n) { return (n < 10 ? '0' : '') + n; };
   return { ymd: y ? y + '/' + p2(mo) + '/' + p2(d) : '', hm: h >= 0 ? p2(h) + ':' + p2(mi) : '',
-           key: (((y * 100 + mo) * 100 + d) * 100 + Math.max(h, 0)) * 100 + mi };
+           key: (((y * 100 + mo) * 100 + d) * 100 + Math.max(h, 0)) * 100 + mi,
+           ms: (y && h >= 0) ? Date.UTC(y, mo - 1, d, h, mi) - 8 * 3600000 : NaN };   // 發生時間（臺灣時間）的毫秒，算處理時間用
 }
 
 var _pnHist = null;
-var _PN_HCOLS = [['id', '事件編號'], ['key', '發生日期'], ['name', '事件名稱'], ['type', '事件類型'], ['address', '事件地點']];
+var _PN_HCOLS = [['id', '事件編號'], ['key', '發生日期'], ['ckey', '結束時間'], ['dur', '處理時間'], ['name', '事件名稱'], ['type', '事件類型'], ['address', '事件地點']];
+// 處理時間（分鐘）→「3 小時 25 分」；未滿 1 小時只顯示分鐘
+function _pnDur(m) {
+  if (!(m >= 0)) return '—';
+  var h = Math.floor(m / 60), mm = m % 60;
+  return h ? h + ' 小時 ' + mm + ' 分' : mm + ' 分';
+}
 function _pnHistReset() {
   ['hfKw', 'hfType', 'hfFrom', 'hfTo'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
   _pnHistRender();
@@ -2884,7 +2901,7 @@ function _pnHistReset() {
 function _pnHistSort(col) {
   if (!_pnHist) return;
   if (_pnHist.col === col) _pnHist.asc = !_pnHist.asc;
-  else { _pnHist.col = col; _pnHist.asc = col !== 'key'; }   // 發生日期第一次點是新→舊，其他由小到大
+  else { _pnHist.col = col; _pnHist.asc = col !== 'key' && col !== 'ckey'; }   // 發生、結束時間第一次點是新→舊，其他由小到大
   _pnHistRender();
 }
 function _pnHistRender() {
@@ -2904,7 +2921,7 @@ function _pnHistRender() {
   });
   var dir = H.asc ? 1 : -1, c = H.col;
   rows.sort(function(a, b) {
-    var r = c === 'key' ? a.key - b.key : String(a[c]).localeCompare(String(b[c]), 'zh-Hant', { numeric: true });
+    var r = (c === 'key' || c === 'ckey' || c === 'dur') ? a[c] - b[c] : String(a[c]).localeCompare(String(b[c]), 'zh-Hant', { numeric: true });
     return r * dir || b.key - a.key;
   });
   document.getElementById('hfCount').textContent = '共 ' + H.list.length + ' 筆已結束事件' + (rows.length !== H.list.length ? '，符合條件 ' + rows.length + ' 筆' : '') + '。點表頭可排序。';
@@ -2919,6 +2936,8 @@ function _pnHistRender() {
       var id = _pnEsc(x.id);
       return '<tr><td class="pn-col-fit">' + id + '</td>' +
         '<td class="pn-col-fit">' + (x.ymd ? '<div class="pn-d">' + x.ymd + '</div>' + (x.hm ? '<div class="pn-t">' + x.hm + '</div>' : '') : '—') + '</td>' +
+        '<td class="pn-col-fit">' + (x.cymd ? '<div class="pn-d">' + x.cymd + '</div><div class="pn-t">' + x.chm + '</div>' : '<span title="結束紀錄查不到（事件在紀錄功能上線前結束，或 GAS 尚未更新）">—</span>') + '</td>' +
+        '<td class="pn-col-fit" style="white-space:nowrap">' + _pnDur(x.dur) + '</td>' +
         '<td class="pn-col-fit pn-hname">' + _pnEsc(x.name || '—') + '</td>' +
         '<td class="pn-col-fit">' + (x.type ? '<span class="pn-ev-type" style="margin-left:0">' + _pnEsc(x.type) + '</span>' : '—') + '</td>' +
         '<td class="pn-col-main">' + _pnEsc(x.address || '—') + '</td>' +
