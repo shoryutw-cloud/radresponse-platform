@@ -3889,7 +3889,11 @@ function renderMsrMarkers(eventId) {
 
   var list = _msrForMap(eventId);   // 只取最近 N 筆（量測數值設定）
   var valid = list.filter(function(msr) {
-    return !isNaN(parseFloat(msr.lat)) && !isNaN(parseFloat(msr.lng));
+    if (isNaN(parseFloat(msr.lat)) || isNaN(parseFloat(msr.lng))) return false;
+    // 只回報污染值、沒有劑量率的：交給「量測污染值」圖層，劑量率圖層不另外畫一個回報者標籤
+    var hasDose = String(msr.value == null ? '' : msr.value).trim() !== '' && !isNaN(parseFloat(msr.value));
+    if (!hasDose && String(msr.contamination || '').trim()) return false;
+    return true;
   });
   if (!valid.length) return;
 
