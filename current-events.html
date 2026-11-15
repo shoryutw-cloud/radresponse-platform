@@ -1399,6 +1399,24 @@ function _rerenderMsrAll() {
   if (!gMap || !_events) return;
   _events.forEach(function(ev, i) { if (isEventShown(i) && _msrCache[ev.id] && _anyMsrLayerOn(i)) loadMeasurements(i, false); });
 }
+// 量測標記的滑鼠提示：第一行數值，下面回報人員、回報時間
+function _msrTimeStr(t) {
+  var d = new Date(t);
+  if (isNaN(d.getTime())) {   // 「2026/11/12 10:01:00」這種字串 Safari 也讀得到，讀不到就照原字串顯示
+    var m = String(t || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})/);
+    if (!m) return String(t || '');
+    d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  }
+  var p = function(n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function _msrHoverHtml(msr, valText) {
+  var who = String(msr.reporter || '').trim(), tm = _msrTimeStr(msr.time);
+  return '<div style="line-height:1.55"><b style="font-size:14px">' + _esc(valText) + '</b>' +
+    (msr.source === 'auto' ? '<br>🤖 自動量測' : '') +
+    (who ? '<br>回報人員：' + _esc(who) : '') +
+    (tm ? '<br>回報時間：' + _esc(tm) : '') + '</div>';
+}
 function _msrSymHtml(sym, col, badge) {
   return '<div class="msr-sym" style="background:' + col + '">' + (badge || '') + sym + '</div>';
 }
@@ -4187,7 +4205,8 @@ function renderMsrMarkers(eventId) {
       iconAnchor: [LW/2, LH/2]
     });
     var label = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
-    if (_msrSym) label.bindTooltip(hasVal ? _fmtDoseStr(msr.value) : (msr.reporter || '回報'), { direction: 'top', offset: [0, -11] });   // 符號模式：滑過看數值，點一下看詳細
+    // 滑鼠移過去：數值、回報人員、回報時間（符號、數值兩種模式都一樣）；點一下看詳細
+    label.bindTooltip(_msrHoverHtml(msr, hasVal ? _fmtDoseStr(msr.value) : '（未填劑量率）'), { direction: 'top', offset: [0, _msrSym ? -11 : -14] });
 
     var dtStr = '';
     try {
@@ -4508,8 +4527,7 @@ function renderMsrContamLayer(idx) {
       iconAnchor: [LW/2, LH/2]
     });
     var mk = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
-    mk.bindTooltip((msr.reporter||'') + (contam ? ' · '+contam : ''),
-                   { sticky: true, direction: 'top', offset: [0, -8] });
+    mk.bindTooltip(_msrHoverHtml(msr, contam), { direction: 'top', offset: [0, _msrSym ? -11 : -14] });   // 數值、回報人員、回報時間
     _msrContamMarkers.push(mk);
   });
 }
