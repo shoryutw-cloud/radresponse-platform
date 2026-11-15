@@ -4157,12 +4157,14 @@ function renderMsrMarkers(eventId) {
             'box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>',
       iconSize: [13,13], iconAnchor: [6,6]
     });
-    _msrMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
+    if (!_msrSym) {   // 符號模式：不畫圓點和指引線，符號直接放在回報位置
+      _msrMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
 
-    // 指引線
-    _msrMarkers.push(L.polyline([pt.ll, offLL], {
-      color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
-    }).addTo(gMap));
+      // 指引線
+      _msrMarkers.push(L.polyline([pt.ll, offLL], {
+        color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
+      }).addTo(gMap));
+    }
 
     // 數值標籤（有值顯示劑量率，無值顯示回報者）
     var labelContent = hasVal
@@ -4171,7 +4173,9 @@ function renderMsrMarkers(eventId) {
          '<span style="font-size:10px;color:#6b7a92;font-family:ui-monospace,monospace">' + _fmtDose(val).unit + '</span>')
       : ('<span style="font-size:12px;color:#94a3b8;font-family:inherit">' + (msr.reporter||'回報') + '</span>');
     var labelIcon = _msrSym
-      ? L.divIcon({ className: '', html: _msrSymHtml('γ', col, _msrNewBadge(msr)), iconSize: [25, 25], iconAnchor: [12.5, 12.5] })
+      ? L.divIcon({ className: '', html: _msrSymHtml('γ', col, _msrNewBadge(msr)), iconSize: [25, 25],
+          // 同一筆也有污染值、且污染值圖層開著：γ 往左、α／β 往右，兩個並排在回報位置
+          iconAnchor: (evIdx >= 0 && isLayerOn(evIdx, 'msr_contam') && String(msr.contamination || '').trim()) ? [25.5, 12.5] : [12.5, 12.5] })
       : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
@@ -4182,7 +4186,7 @@ function renderMsrMarkers(eventId) {
             '</div>',
       iconAnchor: [LW/2, LH/2]
     });
-    var label = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
+    var label = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
     if (_msrSym) label.bindTooltip(hasVal ? _fmtDoseStr(msr.value) : (msr.reporter || '回報'), { direction: 'top', offset: [0, -11] });   // 符號模式：滑過看數值，點一下看詳細
 
     var dtStr = '';
@@ -4478,16 +4482,20 @@ function renderMsrContamLayer(idx) {
             'box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>',
       iconSize: [13,13], iconAnchor: [6,6]
     });
-    _msrContamMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
+    if (!_msrSym) {   // 符號模式：不畫圓點和指引線，符號直接放在回報位置
+      _msrContamMarkers.push(L.marker(pt.ll, { icon: dotIcon, interactive: false }).addTo(gMap));
 
-    // 指引線
-    _msrContamMarkers.push(L.polyline([pt.ll, offLL], {
-      color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
-    }).addTo(gMap));
+      // 指引線
+      _msrContamMarkers.push(L.polyline([pt.ll, offLL], {
+        color: col, weight: 2.5, opacity: 0.85, dashArray: '6 3'
+      }).addTo(gMap));
+    }
+    // 同一筆回報也有劑量率、且劑量率圖層開著：γ 往左、污染符號往右並排（new 標記只留在 γ 上）
+    var _symShift = _msrSym && isLayerOn(idx, 'msr') && String(msr.value == null ? '' : msr.value).trim() !== '' && !isNaN(parseFloat(msr.value));
 
     // 標籤：用 display:inline-flex 讓白框自動包住文字（同劑量率標籤的做法）
     var labelIcon = _msrSym
-      ? L.divIcon({ className: '', html: _msrSymHtml(_contamParse(contam).type || '?', col, _msrNewBadge(msr)), iconSize: [25, 25], iconAnchor: [12.5, 12.5] })
+      ? L.divIcon({ className: '', html: _msrSymHtml(_contamParse(contam).type || '?', col, _symShift ? '' : _msrNewBadge(msr)), iconSize: [25, 25], iconAnchor: _symShift ? [-0.5, 12.5] : [12.5, 12.5] })
       : L.divIcon({
       className: '',
       html: '<div style="position:relative;background:white;border-left:4px solid ' + col + ';' +
@@ -4499,7 +4507,7 @@ function renderMsrContamLayer(idx) {
             _msrNewBadge(msr) + _esc(contam) + '</div>',
       iconAnchor: [LW/2, LH/2]
     });
-    var mk = L.marker(offLL, { icon: labelIcon }).addTo(gMap);
+    var mk = L.marker(_msrSym ? pt.ll : offLL, { icon: labelIcon }).addTo(gMap);
     mk.bindTooltip((msr.reporter||'') + (contam ? ' · '+contam : ''),
                    { sticky: true, direction: 'top', offset: [0, -8] });
     _msrContamMarkers.push(mk);
