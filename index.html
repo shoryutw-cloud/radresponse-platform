@@ -2093,7 +2093,7 @@ function thOnInput() {
     document.getElementById('thRgO').textContent = wS + ' ～ < ' + hS;
     document.getElementById('thRgR').textContent = '≥ ' + hS;
   }
-  document.getElementById('thBtnSave').disabled = !!r.err;
+  _msAllCheck();
 }
 
 function thRenderMeta(d) {
@@ -2111,10 +2111,12 @@ function thLoad(cb) {
   _jsonpGet(SHEETS_URL + '?action=getThresholds', function(d) {
     if (!d || !d.ok) {
       document.getElementById('thMeta').textContent = '讀取失敗，請確認 GAS 已加入 getThresholds 並重新部署。';
+      _msLoaded.th = null;
       if (cb) cb(null);
       return;
     }
     d.warm = parseFloat(d.warm); d.hot = parseFloat(d.hot);
+    _msLoaded.th = { warm: d.warm, hot: d.hot };
     thSetInputs(d.warm, d.hot);
     thRenderMeta(d);
     try { localStorage.setItem('radDoseTh', JSON.stringify({ warm: d.warm, hot: d.hot })); } catch(e) {}
@@ -2128,46 +2130,6 @@ function thNotifyFrame(w, h) {
     var f = document.getElementById('contentFrame');
     if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'doseThresholds', warm: w, hot: h }, '*');
   } catch(e) {}
-}
-
-function thPost(w, h, okMsg, btn, label) {
-  var bS = document.getElementById('thBtnSave'), bR = document.getElementById('thBtnReset');
-  bS.disabled = true; bR.disabled = true;
-  btn.textContent = '儲存中…';
-  var who = '';
-  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
-
-  fetch(SHEETS_URL, {
-    method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify({ action: 'saveThresholds', warm: w, hot: h, updatedBy: who })
-  })
-  .then(function() {
-    setTimeout(function() {
-      thLoad(function(d) {
-        btn.textContent = label; bR.disabled = false; thOnInput();
-        if (d && d.warm === w && d.hot === h) {
-          thNotifyFrame(w, h);
-          document.getElementById('thErr').style.color = '#15803d';
-          document.getElementById('thErr').textContent = '✓ ' + okMsg;
-          setTimeout(function(){ var e = document.getElementById('thErr'); e.style.color = ''; e.textContent = ''; }, 2500);
-        } else {
-          document.getElementById('thErr').textContent = '儲存後讀回的數值不一致，請稍後再試';
-        }
-      });
-    }, 800);
-  })
-  .catch(function() {
-    btn.textContent = label; bR.disabled = false; thOnInput();
-    document.getElementById('thErr').textContent = '儲存失敗，請確認網路連線';
-  });
-}
-
-function thSave() {
-  var r = thRead();
-  if (r.err) return;
-  thPost(r.warm, r.hot, '閾值已儲存', document.getElementById('thBtnSave'), '儲存');
 }
 
 // ── 污染值顏色分界（GAS v35：getThresholds 的 aHot/bHot，saveContamThresholds）：α、β 各一個熱區閾值 ──
@@ -2196,7 +2158,7 @@ function ctRead() {
 function ctOnInput() {
   var r = ctRead();
   var e = document.getElementById('ctErr'); e.style.color = ''; e.textContent = r.err;
-  document.getElementById('ctBtnSave').disabled = !!r.err;
+  _msAllCheck();
 }
 function ctMeta(d) {
   var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
@@ -2211,11 +2173,13 @@ function ctLoad(cb) {
   _jsonpGet(SHEETS_URL + '?action=getThresholds', function(d) {
     if (!d || !d.ok || !('aHot' in d) || ('aWarm' in d)) {
       document.getElementById('ctMeta').textContent = '讀取失敗或 GAS 版本太舊（需要 GAS v35），請貼上新版並重新部署。';
-      document.getElementById('ctBtnSave').disabled = true; document.getElementById('ctBtnClear').disabled = true;
+      document.getElementById('ctBtnClear').disabled = true;
+      _msLoaded.ct = null; _msAllCheck();
       if (cb) cb(null);
       return;
     }
     document.getElementById('ctBtnClear').disabled = false;
+    _msLoaded.ct = { aHot: d.aHot > 0 ? d.aHot : null, bHot: d.bHot > 0 ? d.bHot : null };
     ctFill(d); ctMeta(d);
     if (cb) cb(d);
   });
@@ -2226,46 +2190,15 @@ function ctInit() {
   try { var c = JSON.parse(localStorage.getItem('radContamTh') || 'null'); if (c) ctFill({ aHot: c.a && c.a.hot, bHot: c.b && c.b.hot }); } catch(e) {}
   ctLoad();
 }
-function ctPost(v, okMsg, btn, label) {
-  var bS = document.getElementById('ctBtnSave'), bC = document.getElementById('ctBtnClear');
-  bS.disabled = true; bC.disabled = true; btn.textContent = '儲存中…';
-  var who = '';
-  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
-  fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'saveContamThresholds', aHot: v.aHot, bHot: v.bHot, updatedBy: who }) })
-  .then(function() {
-    setTimeout(function() {
-      ctLoad(function(d) {
-        btn.textContent = label; bC.disabled = false; ctOnInput();
-        var same = function(x, y) { return (x === '' ? null : x) === (y > 0 ? y : null); };
-        var e = document.getElementById('ctErr');
-        if (d && same(v.aHot, d.aHot) && same(v.bHot, d.bHot)) {
-          try {
-            var one = function(h) { return h > 0 ? { hot: h } : null; };
-            localStorage.setItem('radContamTh', JSON.stringify({ a: one(d.aHot), b: one(d.bHot) }));
-            var f = document.getElementById('contentFrame');
-            if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'contamThresholds', aHot: d.aHot, bHot: d.bHot }, '*');
-          } catch(err) {}
-          e.style.color = '#15803d'; e.textContent = '✓ ' + okMsg;
-          setTimeout(function(){ e.style.color = ''; e.textContent = ''; }, 2500);
-        } else {
-          e.textContent = '儲存後讀回的數值不一致，請稍後再試';
-        }
-      });
-    }, 800);
-  })
-  .catch(function() { btn.textContent = label; bC.disabled = false; ctOnInput(); document.getElementById('ctErr').textContent = '儲存失敗，請確認網路連線'; });
+// 還原／清除：只把欄位改回預設，按下方「儲存」才會生效
+function thResetDefault() {
+  thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot);
+  _msAllHint();
 }
-function ctSave() { var r = ctRead(); if (r.err) return; ctPost(r, '污染值分界已儲存', document.getElementById('ctBtnSave'), '儲存'); }
 function ctClear() {
   ['ctAH', 'ctBH'].forEach(function(id) { document.getElementById(id).value = ''; });
   ctOnInput();
-  ctPost({ aHot: '', bHot: '' }, '已清除（不分級）', document.getElementById('ctBtnClear'), '清除（不分級）');
-}
-
-function thResetDefault() {
-  thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot);
-  thPost(TH_DEFAULT.warm, TH_DEFAULT.hot, '已還原預設值', document.getElementById('thBtnReset'), '還原預設值');
+  _msAllHint();
 }
 </script>
 
@@ -2304,6 +2237,23 @@ function thResetDefault() {
   #msModal .ms-btn:disabled { opacity:.5; cursor:not-allowed; }
   #msModal .ms-sec-title { font-size:15px; font-weight:700; color:#1e2a3a; margin:2px 0 10px; display:flex; align-items:center; }
   #msModal .ms-sep { border-top:1px solid #e2e8f0; margin:18px -20px 16px; }
+  /* 桌面版：左污染、中劑量率、右筆數三欄；窄螢幕改成上下排 */
+  #msModal .ms-box { max-width:1120px; }
+  #msModal .ms-body { padding:0; }
+  #msModal .ms-cols { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  #msModal .ms-col { padding:18px 22px 20px; min-width:0; }
+  #msModal .ms-col + .ms-col { border-left:1px solid #e2e8f0; }
+  #msModal .ms-foot { display:flex; align-items:center; gap:10px; padding:12px 20px; border-top:1px solid #e2e8f0; background:#f8fafc; }
+  #msModal .ms-status { flex:1; font-size:14px; color:#6b7a92; min-height:18px; line-height:1.5; }
+  #msModal .ms-foot .ms-btn { flex:0 0 auto; min-width:96px; padding:9px 18px; }
+  @media (max-width: 900px) {
+    #msModal .ms-box { max-width:440px; }
+    #msModal .ms-cols { grid-template-columns:1fr; }
+    #msModal .ms-col + .ms-col { border-left:none; border-top:1px solid #e2e8f0; }
+    #msModal .ms-foot { flex-wrap:wrap; }
+    #msModal .ms-status { flex-basis:100%; }
+    #msModal .ms-foot .ms-btn { flex:1; }
+  }
 </style>
 
 <div id="msModal" onclick="if(event.target===this)closeMsrLimitModal()">
@@ -2313,6 +2263,31 @@ function thResetDefault() {
       <button class="ms-x" onclick="closeMsrLimitModal()">✕</button>
     </div>
     <div class="ms-body">
+     <div class="ms-cols">
+      <!-- 左：污染 -->
+      <section class="ms-col">
+      <div class="ms-sec-title">污染值顏色分界<span id="ctTag"></span></div>
+      <div style="font-size:14px;color:#6b7a92;margin-bottom:8px;line-height:1.6">
+        地圖標籤切換成「符號」時，α／β 圓圈的底色：低於熱區閾值為冷區（綠），達到或超過為熱區（紅）。單位 cps（以 cpm 回報的會自動換算）。<br>
+        空白＝不分級，α 顯示紫色、β 顯示藍色。
+      </div>
+      <div class="th-field">
+        <label>α 熱區閾值 <span class="th-hint">（cps）</span></label>
+        <div class="th-inrow"><input type="number" id="ctAH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
+      </div>
+      <div class="th-field">
+        <label>β 熱區閾值 <span class="th-hint">（cps）</span></label>
+        <div class="th-inrow"><input type="number" id="ctBH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
+      </div>
+      <div class="th-err" id="ctErr"></div>
+      <div class="th-btns">
+        <button class="th-btn th-btn-reset" id="ctBtnClear" onclick="ctClear()">清除（不分級）</button>
+      </div>
+      <div class="th-meta" id="ctMeta"></div>
+      </section>
+
+      <!-- 中：劑量率 -->
+      <section class="ms-col">
       <div class="ms-sec-title">劑量率顏色分界<span id="thTag"></span></div>
       <div style="font-size:14px;color:#6b7a92;margin-bottom:8px;line-height:1.6">
         地圖量測點、量測查詢表與事件「最大劑量率」的顏色分界：
@@ -2341,30 +2316,12 @@ function thResetDefault() {
       <div class="th-err" id="thErr"></div>
       <div class="th-btns">
         <button class="th-btn th-btn-reset" id="thBtnReset" onclick="thResetDefault()">還原預設值</button>
-        <button class="th-btn th-btn-save" id="thBtnSave" onclick="thSave()">儲存</button>
       </div>
       <div class="th-meta" id="thMeta"></div>
-      <div class="ms-sep"></div>
-      <div class="ms-sec-title">污染值顏色分界<span id="ctTag"></span></div>
-      <div style="font-size:14px;color:#6b7a92;margin-bottom:8px;line-height:1.6">
-        地圖標籤切換成「符號」時，α／β 圓圈的底色：低於熱區閾值為冷區（綠），達到或超過為熱區（紅）。單位 cps（以 cpm 回報的會自動換算）。<br>
-        空白＝不分級，α 顯示紫色、β 顯示藍色。
-      </div>
-      <div class="th-field">
-        <label>α 熱區閾值 <span class="th-hint">（cps）</span></label>
-        <div class="th-inrow"><input type="number" id="ctAH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
-      </div>
-      <div class="th-field">
-        <label>β 熱區閾值 <span class="th-hint">（cps）</span></label>
-        <div class="th-inrow"><input type="number" id="ctBH" step="any" min="0" inputmode="decimal" placeholder="空白＝不分級" oninput="ctOnInput()"></div>
-      </div>
-      <div class="th-err" id="ctErr"></div>
-      <div class="th-btns">
-        <button class="th-btn th-btn-reset" id="ctBtnClear" onclick="ctClear()">清除（不分級）</button>
-        <button class="th-btn th-btn-save" id="ctBtnSave" onclick="ctSave()">儲存</button>
-      </div>
-      <div class="th-meta" id="ctMeta"></div>
-      <div class="ms-sep"></div>
+      </section>
+
+      <!-- 右：筆數 -->
+      <section class="ms-col">
       <div class="ms-sec-title">地圖顯示的量測筆數</div>
       <div class="ms-desc">
         設定地圖上顯示的量測數值筆數。手動與自動量測合併計算，依回報時間取最近的筆數。<br>
@@ -2384,10 +2341,16 @@ function thResetDefault() {
       <div class="ms-err" id="msErr"></div>
       <div class="ms-btns">
         <button class="ms-btn ms-btn-reset" id="msBtnReset" onclick="msResetDefault()">還原預設值</button>
-        <button class="ms-btn ms-btn-save" id="msBtnSave" onclick="msSave()">儲存</button>
       </div>
       <div class="ms-meta" id="msMeta"></div>
-      <div class="ms-btns" style="margin-top:18px"><button class="ms-btn ms-btn-cancel" onclick="closeMsrLimitModal()">關閉</button></div>
+      </section>
+     </div>
+    </div>
+    <!-- 底部：一個儲存（只送出有變更的設定） -->
+    <div class="ms-foot">
+      <div class="ms-status" id="msAllStatus"></div>
+      <button class="ms-btn ms-btn-cancel" onclick="closeMsrLimitModal()">關閉</button>
+      <button class="ms-btn ms-btn-save" id="msAllSave" onclick="msAllSave()">儲存</button>
     </div>
   </div>
 </div>
@@ -2397,6 +2360,8 @@ var MS_DEFAULT = 15;
 
 function openMsrLimitModal() {
   document.getElementById('msModal').style.display = 'flex';
+  _msLoaded = { th: null, ct: null, ms: null }; _msSaving = false; _msStatus('');
+  var sb = document.getElementById('msAllSave'); if (sb) sb.textContent = '儲存';
   _thInit();
   ctInit();
   document.getElementById('msErr').textContent = '';
@@ -2439,7 +2404,7 @@ function msOnInput() {
   var r = msRead();
   document.getElementById('msErr').style.color = '';
   document.getElementById('msErr').textContent = r.err;
-  document.getElementById('msBtnSave').disabled = !!r.err;
+  _msAllCheck();
 }
 function msDesc(n) { return n === 0 ? '顯示全部筆數' : '最近 ' + n + ' 筆'; }
 
@@ -2447,10 +2412,12 @@ function msLoad(cb) {
   _jsonpGet(SHEETS_URL + '?action=getMsrLimit', function(d) {
     if (!d || !d.ok) {
       document.getElementById('msMeta').textContent = '讀取失敗，請確認 GAS 已更新並重新部署。';
+      _msLoaded.ms = null;
       if (cb) cb(null);
       return;
     }
     var n = parseInt(d.limit, 10);
+    _msLoaded.ms = n;
     msSetInputs(n);
     var esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var m = '目前生效：' + msDesc(n) + (n === MS_DEFAULT ? '（預設值）' : '');
@@ -2461,50 +2428,85 @@ function msLoad(cb) {
   });
 }
 
-function msPost(n, okMsg, btn, label) {
-  var bS = document.getElementById('msBtnSave'), bR = document.getElementById('msBtnReset');
-  bS.disabled = true; bR.disabled = true;
-  btn.textContent = '儲存中…';
-  var who = '';
-  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
-  fetch(SHEETS_URL, {
-    method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify({ action: 'saveMsrLimit', limit: n, updatedBy: who })
-  })
-  .then(function() {
-    setTimeout(function() {
-      msLoad(function(got) {
-        btn.textContent = label; bR.disabled = false; msOnInput();
-        if (got === n) {
-          // 通知地圖 iframe 立即套用
-          try {
-            var f = document.getElementById('contentFrame');
-            if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'msrLimit', limit: n }, '*');
-          } catch(e) {}
-          document.getElementById('msErr').style.color = '#15803d';
-          document.getElementById('msErr').textContent = '✓ ' + okMsg;
-          setTimeout(function(){ var e = document.getElementById('msErr'); e.style.color = ''; e.textContent = ''; }, 2500);
-        } else {
-          document.getElementById('msErr').textContent = '儲存後讀回的數值不一致，請稍後再試';
-        }
-      });
-    }, 800);
-  })
-  .catch(function() {
-    btn.textContent = label; bR.disabled = false; msOnInput();
-    document.getElementById('msErr').textContent = '儲存失敗，請確認網路連線';
-  });
-}
-function msSave() {
-  var r = msRead();
-  if (r.err) return;
-  msPost(r.limit, '已儲存：' + msDesc(r.limit), document.getElementById('msBtnSave'), '儲存');
-}
 function msResetDefault() {
   msSetInputs(MS_DEFAULT);
-  msPost(MS_DEFAULT, '已還原預設值（最近 15 筆）', document.getElementById('msBtnReset'), '還原預設值');
+  _msAllHint();
+}
+
+// ── 底部的「儲存」：三種設定一起檢查，只送出有變更的，存完讀回確認並通知地圖 ──
+var _msLoaded = { th: null, ct: null, ms: null };   // 從 GAS 讀到的目前值（用來判斷有沒有變更）
+var _msSaving = false;
+function _msStatus(t, color) { var e = document.getElementById('msAllStatus'); if (!e) return; e.style.color = color || ''; e.textContent = t || ''; }
+function _msAllHint() { _msStatus('已改回預設，按「儲存」才會生效', '#6b7a92'); }
+function _msAllChanges() {
+  var ch = [], t = thRead(), c = ctRead(), m = msRead();
+  var nz = function(v) { return v === '' || v == null ? null : v; };
+  if (!t.err && _msLoaded.th && (t.warm !== _msLoaded.th.warm || t.hot !== _msLoaded.th.hot)) ch.push('th');
+  if (!c.err && _msLoaded.ct && (nz(c.aHot) !== _msLoaded.ct.aHot || nz(c.bHot) !== _msLoaded.ct.bHot)) ch.push('ct');
+  if (!m.err && _msLoaded.ms != null && m.limit !== _msLoaded.ms) ch.push('ms');
+  return { list: ch, err: t.err || c.err || m.err, t: t, c: c, m: m };
+}
+function _msAllCheck() {
+  var b = document.getElementById('msAllSave');
+  if (!b || _msSaving) return;
+  var x = _msAllChanges();
+  b.disabled = !!x.err;
+}
+function msAllSave() {
+  var x = _msAllChanges();
+  if (x.err) { _msStatus('有欄位不正確，請先修正紅字的地方', '#dc2626'); return; }
+  if (!x.list.length) { _msStatus('沒有變更，不需要儲存'); return; }
+  var who = '';
+  try { var a = JSON.parse(localStorage.getItem('radAuth') || 'null'); who = (a && a.name) || ''; } catch(e) {}
+  var bodies = [];
+  if (x.list.indexOf('ct') >= 0) bodies.push({ action: 'saveContamThresholds', aHot: x.c.aHot, bHot: x.c.bHot, updatedBy: who });
+  if (x.list.indexOf('th') >= 0) bodies.push({ action: 'saveThresholds', warm: x.t.warm, hot: x.t.hot, updatedBy: who });
+  if (x.list.indexOf('ms') >= 0) bodies.push({ action: 'saveMsrLimit', limit: x.m.limit, updatedBy: who });
+  var btn = document.getElementById('msAllSave');
+  _msSaving = true; btn.disabled = true; btn.textContent = '儲存中…'; _msStatus('');
+  Promise.all(bodies.map(function(bd) {
+    return fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(bd) });
+  })).then(function() {
+    setTimeout(function() {
+      // 讀回三種設定，確認有變更的真的存進去了
+      var left = 3, got = {};
+      var done = function() {
+        if (--left) return;
+        _msSaving = false; btn.textContent = '儲存';
+        var bad = [], names = { ct: '污染值分界', th: '劑量率分界', ms: '顯示筆數' };
+        var nz = function(v) { return v === '' || v == null ? null : v; };
+        if (x.list.indexOf('ct') >= 0) {
+          var d = got.ct;
+          if (d && nz(x.c.aHot) === (d.aHot > 0 ? d.aHot : null) && nz(x.c.bHot) === (d.bHot > 0 ? d.bHot : null)) {
+            try {
+              var one = function(h) { return h > 0 ? { hot: h } : null; };
+              localStorage.setItem('radContamTh', JSON.stringify({ a: one(d.aHot), b: one(d.bHot) }));
+              var f1 = document.getElementById('contentFrame');
+              if (f1 && f1.contentWindow) f1.contentWindow.postMessage({ type: 'contamThresholds', aHot: d.aHot, bHot: d.bHot }, '*');
+            } catch(err) {}
+          } else bad.push('ct');
+        }
+        if (x.list.indexOf('th') >= 0) {
+          var t = got.th;
+          if (t && t.warm === x.t.warm && t.hot === x.t.hot) thNotifyFrame(t.warm, t.hot); else bad.push('th');
+        }
+        if (x.list.indexOf('ms') >= 0) {
+          if (got.ms === x.m.limit) {
+            try { var f2 = document.getElementById('contentFrame'); if (f2 && f2.contentWindow) f2.contentWindow.postMessage({ type: 'msrLimit', limit: x.m.limit }, '*'); } catch(e) {}
+          } else bad.push('ms');
+        }
+        _msAllCheck();
+        if (bad.length) _msStatus('以下設定儲存後讀回的值不一致，請稍後再試：' + bad.map(function(k) { return names[k]; }).join('、'), '#dc2626');
+        else _msStatus('✓ 已儲存：' + x.list.map(function(k) { return names[k]; }).join('、'), '#15803d');
+      };
+      ctLoad(function(d) { got.ct = d; done(); });
+      thLoad(function(d) { got.th = d; done(); });
+      msLoad(function(n) { got.ms = n; done(); });
+    }, 800);
+  }).catch(function() {
+    _msSaving = false; btn.textContent = '儲存'; _msAllCheck();
+    _msStatus('儲存失敗，請確認網路連線', '#dc2626');
+  });
 }
 </script>
 
