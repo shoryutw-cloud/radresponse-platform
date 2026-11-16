@@ -744,7 +744,7 @@ function _verBanner(file) {
 }
 
 // ── GAS 版本防呆：後端版本低於網頁需要的版本時，畫面上方提示 ──
-var NEED_GAS = 36;
+var NEED_GAS = 38;
 function _gasVerCheck() {
   _jsonpGet(SHEETS_URL + '?action=getVersion', function(d) {
     if (!d) return;   // 連不上（例如離線）就不提示，避免誤報
@@ -2763,6 +2763,10 @@ function closeLiveWin() {
   #endEvModal .ee-go { border: none; background: #dc2626; color: white; border-radius: 8px; padding: 9px 18px;
     font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
   #endEvModal .ee-go:disabled { opacity: .45; cursor: not-allowed; }
+  #endEvModal .ee-pend { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+  #endEvModal .ee-pend.bad { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  #endEvModal .ee-pend.ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  #endEvModal .ee-pend ul { margin: 6px 0 0; padding-left: 20px; max-height: 160px; overflow-y: auto; }
 </style>
 
 <div id="endEvModal" onclick="if(event.target===this)closeEndEventModal()">
@@ -2770,7 +2774,8 @@ function closeLiveWin() {
     <div class="ee-head"><span>結束事件</span><button class="ee-x" onclick="closeEndEventModal()">✕</button></div>
     <div class="ee-body">
       <label for="endEvSelect">要結束的事件</label>
-      <select id="endEvSelect" onchange="_endEvReset()"><option value="">載入中…</option></select>
+      <select id="endEvSelect" onchange="document.getElementById('endEvConfirm').checked=false;_endEvReset()"><option value="">載入中…</option></select>
+      <div class="ee-pend" id="endEvPend" style="display:none"></div>
       <div class="ee-warn">結束後，這個事件會從「目前事件」移到「歷史事件查詢」，只能唯讀檢視，不能再回報或派送任務。</div>
       <label class="ee-chk"><input type="checkbox" id="endEvConfirm" onchange="_endEvSync()" style="margin-top:3px"><span>我確認要結束這個事件</span></label>
       <div class="ee-msg" id="endEvMsg"></div>
@@ -3066,13 +3071,13 @@ function openEndEventModal() {
   document.getElementById('endEvModal').style.display = 'flex';
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     var list = (data && data.events ? data.events : []).filter(function(ev) { return !_pnIsClosed(ev.status); });
-    if (!list.length) { sel.innerHTML = '<option value="">目前沒有進行中的事件</option>'; _endEvSync(); return; }
+    if (!list.length) { sel.innerHTML = '<option value="">目前沒有進行中的事件</option>'; _endEvReset(); return; }
     var cur = 0;
     try { cur = parseInt(sessionStorage.getItem('currentEventIdx'), 10) || 0; } catch (e) {}
     sel.innerHTML = list.map(function(ev, i) {
       return '<option value="' + _pnEsc(ev.id) + '"' + (i === cur ? ' selected' : '') + '>' + _pnEsc((ev.name || ev.id) + '（' + ev.id + '）') + '</option>';
     }).join('');
-    _endEvSync();
+    _endEvReset();
   });
 }
 function closeEndEventModal() { document.getElementById('endEvModal').style.display = 'none'; }
@@ -3080,10 +3085,34 @@ function _endEvReset() {
   _endEvStep = 0;
   document.getElementById('endEvMsg').textContent = '';
   document.getElementById('endEvGo').textContent = '結束事件';
+  _endEvCheckTasks();
   _endEvSync();
 }
+// 結束前檢查：選定事件還有沒完成的任務（含待量測數值）就不能結束（GAS v38 也會擋）
+var _endEvPend = { id: '', n: -1 };
+function _endEvCheckTasks() {
+  var id = document.getElementById('endEvSelect').value, box = document.getElementById('endEvPend');
+  _endEvPend = { id: id, n: -1 };
+  if (!id) { box.style.display = 'none'; return; }
+  box.className = 'ee-pend'; box.style.display = 'block'; box.textContent = '檢查未完成的任務中…';
+  _jsonpGet(SHEETS_URL + '?action=tasks&eventId=' + encodeURIComponent(id), function(d) {
+    if (document.getElementById('endEvSelect').value !== id) return;
+    if (!d || !d.tasks) { box.className = 'ee-pend bad'; box.textContent = '無法讀取任務清單，請稍後再試。'; _endEvPend = { id: id, n: -1 }; _endEvSync(); return; }
+    var pend = d.tasks.filter(function(t) { return t.status !== 'done'; });
+    _endEvPend = { id: id, n: pend.length };
+    if (!pend.length) { box.className = 'ee-pend ok'; box.textContent = '✓ 這個事件的任務都已完成，可以結束。'; }
+    else {
+      box.className = 'ee-pend bad';
+      box.innerHTML = '<b>還有 ' + pend.length + ' 個任務未完成，不能結束事件：</b><ul>' + pend.map(function(t) {
+        return '<li>' + _pnEsc(t.title || '（未命名任務）') + (t.target ? '　→ ' + _pnEsc(t.target) : '') + '</li>';
+      }).join('') + '</ul>請先請負責的隊伍在地圖上「回報任務」完成後再結束。';
+    }
+    _endEvSync();
+  });
+}
 function _endEvSync() {
-  var ok = document.getElementById('endEvConfirm').checked && !!document.getElementById('endEvSelect').value;
+  var id = document.getElementById('endEvSelect').value;
+  var ok = document.getElementById('endEvConfirm').checked && !!id && _endEvPend.id === id && _endEvPend.n === 0;
   document.getElementById('endEvGo').disabled = !ok;
   if (!ok) { _endEvStep = 0; document.getElementById('endEvGo').textContent = '結束事件'; }
 }
@@ -3116,7 +3145,8 @@ function submitEndEvent() {
           alert('事件已結束，可在「歷史事件查詢」查看。');
         } else {
           btn.disabled = false; _endEvStep = 0; btn.textContent = '結束事件';
-          msg.textContent = '尚未確認結束成功，請稍後再試一次。';
+          msg.textContent = '事件沒有結束：可能剛好有新的任務尚未完成，或網路較慢，請再確認一次。';
+          _endEvCheckTasks();
         }
       });
     }, 1800);
