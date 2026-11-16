@@ -9078,8 +9078,8 @@ function pickMsrTask(i) {
   user-select: none;
   flex-direction: row;
   align-items: flex-start;
-  /* 待機位置：右下角 */
-  bottom: 20px; right: 16px;
+  /* 待機位置：右下角（bottom 需高過 Leaflet 比例尺＋版權列，約 52px，否則會蓋住比例尺）*/
+  bottom: 64px; right: 16px;
   /* 位置飛行動畫 */
   transition: top    .55s cubic-bezier(.34,1.15,.64,1),
               left   .55s cubic-bezier(.34,1.15,.64,1),
@@ -9227,7 +9227,7 @@ function pickMsrTask(i) {
 .bird-quick-pill:hover { border-color:#1a56db; color:#1a56db; background:#eff6ff; }
 
 @media (max-width:600px) {
-  #aiBirdGroup { bottom:20px!important; right:8px!important; top:auto!important; left:auto!important; }
+  #aiBirdGroup { bottom:64px!important; right:8px!important; top:auto!important; left:auto!important; }
   #aiBirdCircle { width:72px; height:72px; }
   #aiBirdPanel  { min-height:300px; max-height:calc(100vh - 80px); font-size:12px; border-radius:12px 12px 12px 0; }
   .bird-panel-hd { height:48px; }
@@ -9304,7 +9304,7 @@ function pickMsrTask(i) {
 // ══════════════════════════════════════════════════════════
 // AI 鳥 v8：flex row [鳥|面板]，鳥縮小飛到右上角
 // ══════════════════════════════════════════════════════════
-var BIRD_REST_BOTTOM = 20;
+var BIRD_REST_BOTTOM = 64;   // 高過比例尺＋版權列
 var BIRD_REST_RIGHT  = 16;
 var BIRD_PANEL_W     = 322; // 面板展開寬度
 
@@ -9624,14 +9624,14 @@ function _birdSnapToEdge() {
   var wr = grp.getBoundingClientRect();
   var bW=wr.width, bH=wr.height;
   var cx=wr.left+bW/2, cy=wr.top+bH/2;
-  var mg=8;
+  var mg=8, mgB=64;   // mgB：貼底時要讓開比例尺＋版權列
   var dL=cx-mR.left, dR=mR.right-cx, dT=cy-mR.top, dB=mR.bottom-cy;
   var mn=Math.min(dL,dR,dT,dB);
   var tL, tT;
-  if(mn===dL)      { tL=mR.left+mg; tT=Math.max(mR.top+4,Math.min(mR.bottom-bH-mg,wr.top)); }
-  else if(mn===dR) { tL=mR.right-bW-mg; tT=Math.max(mR.top+4,Math.min(mR.bottom-bH-mg,wr.top)); }
+  if(mn===dL)      { tL=mR.left+mg; tT=Math.max(mR.top+4,Math.min(mR.bottom-bH-mgB,wr.top)); }
+  else if(mn===dR) { tL=mR.right-bW-mg; tT=Math.max(mR.top+4,Math.min(mR.bottom-bH-mgB,wr.top)); }
   else if(mn===dT) { tT=mR.top+4+mg; tL=Math.max(mR.left+mg,Math.min(mR.right-bW-mg,wr.left)); }
-  else             { tT=mR.bottom-bH-mg; tL=Math.max(mR.left+mg,Math.min(mR.right-bW-mg,wr.left)); }
+  else             { tT=mR.bottom-bH-mgB; tL=Math.max(mR.left+mg,Math.min(mR.right-bW-mg,wr.left)); }
   BIRD_REST_BOTTOM = window.innerHeight-tT-bH;
   BIRD_REST_RIGHT  = window.innerWidth -tL-bW;
   // 放開後「飛」到邊緣：先用 top/left 做明顯的滑動 + 回彈動畫，結束後再切回 bottom/right 定位
