@@ -10493,7 +10493,7 @@ async function birdCheckAlert(measurements, eventId){
 
 <div id="historyBanner">
   <span>📁 歷史事件檢視（唯讀）</span>
-  <button onclick="railBackToHistory()">回到歷史事件</button>
+  <button onclick="railBackToLive()">返回目前事件</button>
 </div>
 
 <!-- 現場其他事情回報 -->
@@ -10707,11 +10707,6 @@ function goMyLocation() {
 
 function railBackToLive() {
   if (!_railParent('showIframe', 'current-events.html')) location.href = 'current-events.html';
-}
-// 歷史檢視／回放上方的「回到歷史事件」：回到平台首頁的「歷史事件查詢」清單
-function railBackToHistory() {
-  if (_rpOn && typeof _rp !== 'undefined') _rp.playing = false;
-  _railParent('openPanel', '歷史事件查詢');
 }
 
 (function railInit() {
@@ -11759,9 +11754,6 @@ body.rp-on .ev-card, body.rp-on .layer-panel { max-height: calc(100vh - 24px - v
 body.rp-on #aiBirdGroup { display: none !important; }
 body.rp-on .leaflet-bottom { bottom: var(--rp-h, 120px) !important; }
 body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
-/* 回放動畫：新出現的圖示、任務點位彈出（Leaflet 會改外層的 transform，所以動畫加在內層） */
-.rp-pop > * { animation: rpPop .5s cubic-bezier(.3,1.6,.5,1) both; }
-@keyframes rpPop { 0% { transform: scale(0); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 </style>
 
 <div id="rpBar">
@@ -11772,7 +11764,7 @@ body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
       <button class="rp-btn rp-play" id="rpPlay" title="播放／暫停（空白鍵）" onclick="rpToggle()">▶</button>
       <button class="rp-btn" id="rpNext" title="下一件事（→）" onclick="rpStep(1)">⏭</button>
       <select id="rpSpeed" title="播放速度" onchange="rpSetSpeed(this.value)">
-        <option value="1">1×</option><option value="5">5×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option>
+        <option value="1">1×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option>
       </select>
       <div class="rp-clock"><div id="rpClock">—</div><div id="rpElapsed"></div></div>
       <div id="rpWind" style="display:none" title="離事件最近的氣象站當時的觀測風向（只是紀錄，不會轉動十點偵測）"></div>
@@ -12226,8 +12218,7 @@ function _rpTasks(T, force) {
   var st = _rp.batches.map(function(b) { return T < b.t ? 0 : (b.doneT && T >= b.doneT ? 2 : 1); });
   var sig = st.join('') + (_rp.show.task ? 'y' : 'n');
   if (!force && sig === _rp.sigTask) return;
-  var prevSt = _rp.taskSt || [];
-  _rp.sigTask = sig; _rp.taskSt = st;
+  _rp.sigTask = sig;
   if (!_rp.taskGroup) _rp.taskGroup = L.layerGroup().addTo(gMap);
   _rp.taskGroup.clearLayers();
   if (!_rp.show.task) return;
@@ -12235,9 +12226,7 @@ function _rpTasks(T, force) {
     if (!st[i]) return;
     var targets = b.rows.map(function(r) { return r.target; }).filter(Boolean).join('、');
     b.pts.forEach(function(p) {
-      var tic = _rpTaskIcon(p.label, st[i] === 2);
-      if (_rp.playing && !force && prevSt[i] !== st[i]) tic.options.className = 'rp-pop';   // 播放中剛派送／剛完成：彈出
-      L.marker([p.lat, p.lng], { icon: tic, zIndexOffset: st[i] === 2 ? -200 : 300 })
+      L.marker([p.lat, p.lng], { icon: _rpTaskIcon(p.label, st[i] === 2), zIndexOffset: st[i] === 2 ? -200 : 300 })
         .bindTooltip('<b>' + _esc(p.label) + ' ' + _esc(b.title || '任務') + '</b><br>' + _esc(targets) + '<br>' +
                      (st[i] === 2 ? '已完成（' + _rpFmtT(b.doneT) + '）' : '待量測（' + _rpFmtT(b.t) + ' 派送）'), { direction: 'top', offset: [0, -16] })
         .addTo(_rp.taskGroup);
@@ -12245,76 +12234,12 @@ function _rpTasks(T, force) {
   });
 }
 
-// ── 回放動畫（播放中才有；暫停、拖時間軸、點清單時直接顯示完成的樣子）──
-// 動畫長度以「真實播放時間」計算，換成事件時間要乘上倍速
-function _rpEase(f) { return 1 - (1 - f) * (1 - f); }
-function _rpDrawW(x) {
-  var n = (x.pts || []).length, real;
-  if (x.shape) real = x.shape.type === 'poly' ? Math.min(3200, 450 * Math.max(3, n)) : 900;
-  else real = Math.min(2500, Math.max(800, n * 25));
-  return real * _rp.speed;
-}
-// 沿著路線取前面 f（0～1）比例的長度
-function _rpPartPath(a, f) {
-  var lls = a.lls;
-  if (lls.length < 2 || !a.tot) return lls.slice();
-  var want = a.tot * f, acc = 0, out = [lls[0]];
-  for (var i = 0; i < a.seg.length; i++) {
-    if (acc + a.seg[i] >= want) {
-      var r = a.seg[i] ? (want - acc) / a.seg[i] : 1, p = lls[i], q = lls[i + 1];
-      out.push(L.latLng(p.lat + (q.lat - p.lat) * r, p.lng + (q.lng - p.lng) * r));
-      return out;
-    }
-    acc += a.seg[i]; out.push(lls[i + 1]);
-  }
-  return out;
-}
-// 畫到一半的樣子：畫筆、多邊形、矩形從第一點沿著畫出來（最後才填色）；圓形從圓心長大
-function _rpDrawAnim(x, f) {
-  if (!_rp.drawAnim) _rp.drawAnim = {};
-  var col = x.color || '#dc2626', w = x.weight || 4, an = _rp.drawAnim[x.id];
-  if (!x._an) {
-    var lls = (x.pts || []).map(function(p) { return L.latLng(p[0], p[1]); }), path = lls, c = null;
-    if (x.shape && x.shape.type === 'circle' && lls.length >= 2) c = _circleOf(lls[0], lls[1]);
-    else if (x.shape && x.shape.type === 'rect' && lls.length >= 2) { path = _rectCorners(lls[0], lls[1]); path = path.concat([path[0]]); }
-    else if (x.shape && lls.length >= 2) path = lls.concat([lls[0]]);
-    var seg = [], tot = 0;
-    for (var i = 1; i < path.length; i++) { var dd = path[i - 1].distanceTo(path[i]); seg.push(dd); tot += dd; }
-    x._an = { lls: path, seg: seg, tot: tot, circ: c };
-  }
-  var a = x._an;
-  if (!an) {
-    an = _rp.drawAnim[x.id] = { g: L.featureGroup().addTo(gMap) };
-    if (a.circ) {
-      an.c = L.circle(a.circ.c, { radius: 1, color: col, weight: w, opacity: 0.9, fillColor: col, fillOpacity: 0, interactive: false }).addTo(an.g);
-      L.circleMarker(a.circ.c, { radius: 3.5, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1, interactive: false }).addTo(an.g);
-    } else {
-      an.line = L.polyline([], { color: col, weight: w, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(an.g);
-      an.tip = L.circleMarker(a.lls[0] || [0, 0], { radius: Math.max(4, w), color: '#fff', weight: 2, fillColor: col, fillOpacity: 1, interactive: false }).addTo(an.g);
-    }
-  }
-  if (a.circ) { var e = _rpEase(f); an.c.setRadius(Math.max(1, a.circ.r * e)); an.c.setStyle({ fillOpacity: 0.15 * e }); }
-  else if (a.lls.length) { var pp = _rpPartPath(a, f); an.line.setLatLngs(pp); an.tip.setLatLng(pp[pp.length - 1]); }
-}
-function _rpDrawAnimEnd(id) {
-  var an = _rp.drawAnim && _rp.drawAnim[id];
-  if (an) { an.g.remove(); delete _rp.drawAnim[id]; }
-}
-
 // 繪圖：畫的時候出現、擦掉的時候消失、改名的時候換名稱
 function _rpDrawings(T) {
   if (!_rp.drawLayers) _rp.drawLayers = {};
-  var busy = false;
   _rp.d.drawings.forEach(function(x) {
     var vis = _rp.show.draw && x.t <= T && (!x.del || T < x.del);
     var ly = _rp.drawLayers[x.id];
-    var f = (vis && _rp.playing) ? (T - x.t) / _rpDrawW(x) : 1;
-    if (f < 1) {                                   // 播放中、還在畫：先用動畫圖層
-      if (ly) { if (typeof _dimOwner !== 'undefined' && _dimOwner === ly) { _shapeClearDims(); gMap.closePopup(); } ly.remove(); delete _rp.drawLayers[x.id]; }
-      _rpDrawAnim(x, Math.max(0, f)); busy = true;
-      return;
-    }
-    _rpDrawAnimEnd(x.id);
     if (vis && !ly) {
       var dd = { id: x.id, color: x.color, weight: x.weight, pts: x.pts };
       if (x.shape) dd.shape = { type: x.shape.type, name: _rpDrawName(x, T) };
@@ -12327,7 +12252,6 @@ function _rpDrawings(T) {
       if (ly._shape.name !== nm) _shapeSetName(ly, nm);
     }
   });
-  _rp.animDraw = busy;
 }
 
 // 地圖圖示：依時間出現、改名、移動、換圖示、消失
@@ -12335,43 +12259,20 @@ function _rpIcons(T, force) {
   var st = {};
   (_rp.d.icons || []).forEach(function(x) {
     if (x.t > T) return;
-    if (x.op === 'delete') { delete st[x.id]; return; }
-    var pv = st[x.id];
-    st[x.id] = { emoji: x.emoji, name: x.name, lat: x.lat, lng: x.lng, size: x.size,
-                 at: pv ? pv.at : x.t,
-                 mt: (x.op === 'move' && pv) ? x.t : 0, from: (x.op === 'move' && pv) ? [pv.lat, pv.lng] : null };
+    if (x.op === 'delete') delete st[x.id];
+    else st[x.id] = { emoji: x.emoji, name: x.name, lat: x.lat, lng: x.lng, size: x.size };
   });
   if (!_rp.show.icon) st = {};
-  var sig = JSON.stringify(Object.keys(st).map(function(id) { var s = st[id]; return [id, s.emoji, s.name, s.lat, s.lng, s.size]; }));
-  if (!_rp.iconMks) _rp.iconMks = {};
-  if (force || sig !== _rp.sigIcon) {
-    _rp.sigIcon = sig;
-    if (!_rp.iconGroup) _rp.iconGroup = L.layerGroup().addTo(gMap);
-    var old = _rp.iconMks;
-    _rp.iconGroup.clearLayers(); _rp.iconMks = {};
-    Object.keys(st).forEach(function(id) {
-      var s = st[id];
-      if (isNaN(s.lat) || isNaN(s.lng)) return;
-      var ic = _miIcon(s);
-      if (_rp.playing && !old[id] && !force) ic.options.className += ' rp-pop';    // 播放中新放上去的圖示：彈出
-      _rp.iconMks[id] = L.marker([s.lat, s.lng], { icon: ic, zIndexOffset: 600, interactive: false }).addTo(_rp.iconGroup);
-    });
-  }
-  // 移動：播放中從舊位置滑到新位置
-  var busy = false, W = 900 * _rp.speed;
-  Object.keys(_rp.iconMks).forEach(function(id) {
-    var s = st[id], mk = _rp.iconMks[id];
-    if (!s || !mk) return;
-    var pos = [s.lat, s.lng];
-    if (_rp.playing && s.mt && s.from && T - s.mt < W && !isNaN(s.from[0]) && !isNaN(s.from[1])) {
-      var e = _rpEase(Math.max(0, (T - s.mt) / W));
-      pos = [s.from[0] + (s.lat - s.from[0]) * e, s.from[1] + (s.lng - s.from[1]) * e];
-      busy = true;
-    }
-    var cur = mk.getLatLng();
-    if (cur.lat !== pos[0] || cur.lng !== pos[1]) mk.setLatLng(pos);
+  var sig = JSON.stringify(st);
+  if (!force && sig === _rp.sigIcon) return;
+  _rp.sigIcon = sig;
+  if (!_rp.iconGroup) _rp.iconGroup = L.layerGroup().addTo(gMap);
+  _rp.iconGroup.clearLayers();
+  Object.keys(st).forEach(function(id) {
+    var s = st[id];
+    if (isNaN(s.lat) || isNaN(s.lng)) return;
+    L.marker([s.lat, s.lng], { icon: _miIcon(s), zIndexOffset: 600, interactive: false }).addTo(_rp.iconGroup);
   });
-  _rp.animIcon = busy;
 }
 
 // 人員軌跡：位置隨時間移動（兩個紀錄點之間補成平順移動），走過的路線留在地圖上
@@ -12500,7 +12401,6 @@ function _rpLoop(ts) {
   if (T >= _rp.t1) { T = _rp.t1; _rp.playing = false; }
   _rp.t = T;
   if (!_rp.playing || ts - (_rp.lastApply || 0) >= 66) { _rp.lastApply = ts; _rpApply(); }
-  else if (_rp.animDraw || _rp.animIcon) { _rpDrawings(T); _rpIcons(T, false); }   // 動畫進行中：每一格都更新，畫面才順
   if (_rp.playing) requestAnimationFrame(_rpLoop);
 }
 function rpSetSpeed(v) { _rp.speed = parseFloat(v) || 60; }
