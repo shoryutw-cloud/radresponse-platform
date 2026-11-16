@@ -12250,7 +12250,7 @@ function _rpTasks(T, force) {
 function _rpEase(f) { return 1 - (1 - f) * (1 - f); }
 function _rpDrawW(x) {
   var n = (x.pts || []).length, real;
-  if (x.shape) real = x.shape.type === 'poly' ? Math.min(3200, 450 * Math.max(3, n)) : 900;
+  if (x.shape) real = x.shape.type === 'poly' ? Math.min(4000, 550 * Math.max(2, n - 1) + 300) : 1000;
   else real = Math.min(2500, Math.max(800, n * 25));
   return real * _rp.speed;
 }
@@ -12269,32 +12269,54 @@ function _rpPartPath(a, f) {
   }
   return out;
 }
-// 畫到一半的樣子：畫筆、多邊形、矩形從第一點沿著畫出來（最後才填色）；圓形從圓心長大
+// 畫到一半的樣子：照編輯功能實際畫的方式重現（虛線預覽，畫完才換成正式圖形）
+//  · 畫筆：線跟著筆尖一路畫出來
+//  · 圓形：從直徑一端拖到另一端，圓跟著游標變大，顯示半徑
+//  · 矩形：從一角拖到對角，顯示各邊長
+//  · 多邊形：一個一個點頂點，游標移向下一點時顯示這段長度
 function _rpDrawAnim(x, f) {
   if (!_rp.drawAnim) _rp.drawAnim = {};
-  var col = x.color || '#dc2626', w = x.weight || 4, an = _rp.drawAnim[x.id];
+  var col = x.color || '#dc2626', w = x.weight || 4;
   if (!x._an) {
-    var lls = (x.pts || []).map(function(p) { return L.latLng(p[0], p[1]); }), path = lls, c = null;
-    if (x.shape && x.shape.type === 'circle' && lls.length >= 2) c = _circleOf(lls[0], lls[1]);
-    else if (x.shape && x.shape.type === 'rect' && lls.length >= 2) { path = _rectCorners(lls[0], lls[1]); path = path.concat([path[0]]); }
-    else if (x.shape && lls.length >= 2) path = lls.concat([lls[0]]);
-    var seg = [], tot = 0;
-    for (var i = 1; i < path.length; i++) { var dd = path[i - 1].distanceTo(path[i]); seg.push(dd); tot += dd; }
-    x._an = { lls: path, seg: seg, tot: tot, circ: c };
+    var lls = (x.pts || []).map(function(p) { return L.latLng(p[0], p[1]); }), seg = [], tot = 0;
+    for (var i = 1; i < lls.length; i++) { var dd = lls[i - 1].distanceTo(lls[i]); seg.push(dd); tot += dd; }
+    x._an = { lls: lls, seg: seg, tot: tot };
   }
-  var a = x._an;
-  if (!an) {
-    an = _rp.drawAnim[x.id] = { g: L.featureGroup().addTo(gMap) };
-    if (a.circ) {
-      an.c = L.circle(a.circ.c, { radius: 1, color: col, weight: w, opacity: 0.9, fillColor: col, fillOpacity: 0, interactive: false }).addTo(an.g);
-      L.circleMarker(a.circ.c, { radius: 3.5, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1, interactive: false }).addTo(an.g);
+  var a = x._an, lls = a.lls, an = _rp.drawAnim[x.id];
+  if (!an) an = _rp.drawAnim[x.id] = { g: L.featureGroup().addTo(gMap) };
+  var type = x.shape ? x.shape.type : 'pen';
+  if (type === 'pen') {                           // 畫筆：保留同一條線，只更新長度
+    if (!an.line) an.line = L.polyline([], { color: col, weight: w, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(an.g);
+    an.line.setLatLngs(lls.length ? _rpPartPath(a, f) : []);
+    return;
+  }
+  an.g.clearLayers();
+  if (lls.length < 2) return;
+  var opt = { color: col, weight: w, fillColor: col, fillOpacity: 0.15, dashArray: '6 4', interactive: false };
+  var lerp = function(p, q, r) { return L.latLng(p.lat + (q.lat - p.lat) * r, p.lng + (q.lng - p.lng) * r); };
+  if (type === 'circle' || type === 'rect') {
+    var cur = lerp(lls[0], lls[1], _rpEase(f));
+    if (type === 'circle') {
+      var o = _circleOf(lls[0], cur), e = _eastOf(o.c, o.r);
+      an.g.addLayer(L.circle(o.c, L.extend({ radius: Math.max(1, o.r) }, opt)));
+      an.g.addLayer(L.circleMarker(o.c, { radius: 3.5, color: '#fff', weight: 1, fillColor: col, fillOpacity: 1, interactive: false }));
+      an.g.addLayer(L.polyline([o.c, e], { color: col, weight: 2, dashArray: '4 4', interactive: false }));
+      an.g.addLayer(_lbl(_mid(o.c, e), '半徑 ' + _fmtLen(o.r), 'shp-dim up'));
     } else {
-      an.line = L.polyline([], { color: col, weight: w, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(an.g);
-      an.tip = L.circleMarker(a.lls[0] || [0, 0], { radius: Math.max(4, w), color: '#fff', weight: 2, fillColor: col, fillOpacity: 1, interactive: false }).addTo(an.g);
+      var cs = _rectCorners(lls[0], cur);
+      an.g.addLayer(L.polygon(cs, opt));
+      _edgeLabels(an.g, cs);
     }
+    return;
   }
-  if (a.circ) { var e = _rpEase(f); an.c.setRadius(Math.max(1, a.circ.r * e)); an.c.setStyle({ fillOpacity: 0.15 * e }); }
-  else if (a.lls.length) { var pp = _rpPartPath(a, f); an.line.setLatLngs(pp); an.tip.setLatLng(pp[pp.length - 1]); }
+  // 多邊形：時間平均分給每一段「移向下一個頂點、點下去」
+  var n = lls.length, pos = f * (n - 1), k = Math.min(n - 1, Math.floor(pos)), r = pos - k;
+  var placed = lls.slice(0, k + 1), cursor = k < n - 1 ? lerp(lls[k], lls[k + 1], _rpEase(Math.min(1, r * 1.25))) : null;
+  var pts = placed.slice(); if (cursor) pts.push(cursor);
+  if (pts.length >= 3) an.g.addLayer(L.polygon(pts, opt));
+  else if (pts.length === 2) an.g.addLayer(L.polyline(pts, opt));
+  placed.forEach(function(p) { an.g.addLayer(L.circleMarker(p, { radius: 4, color: '#fff', weight: 1.5, fillColor: col, fillOpacity: 1, interactive: false })); });
+  if (cursor) { var last = placed[placed.length - 1]; an.g.addLayer(_lbl(_mid(last, cursor), _fmtLen(gMap.distance(last, cursor)))); }
 }
 function _rpDrawAnimEnd(id) {
   var an = _rp.drawAnim && _rp.drawAnim[id];
