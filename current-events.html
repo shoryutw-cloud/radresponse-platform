@@ -11753,6 +11753,7 @@ setInterval(_refreshEventsFromSheet, 60000);
 .rp-it-t { flex-shrink: 0; width: 42px; color: #6b7a92; font-variant-numeric: tabular-nums; font-size: 13px; padding-top: 1px; }
 .rp-it-x { flex: 1; min-width: 0; word-break: break-word; color: #1e2a3a; }
 .rp-it-s { display: block; font-size: 12px; color: #6b7a92; }
+.rp-grp { color: #6b7a92; font-weight: 400; }
 .rp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
 body.rp-on .layer-panel { right: 316px !important; }
 body.rp-on .ev-card, body.rp-on .layer-panel { max-height: calc(100vh - 24px - var(--rp-h, 120px)) !important; }
@@ -11829,6 +11830,59 @@ function _rpCount(arr, T) {
   return lo;
 }
 function _rpWho(s) { return String(s || '').replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim(); }
+
+// ── 人名、組別（回放裡每個人都標出所屬組別）──
+// 組別名稱：技術組的小隊顯示成「技術組 北一小隊」；參謀組、新聞組照原樣
+function _rpGrp(sq) {
+  sq = String(sq || '').trim();
+  if (!sq || sq === '未分配') return '';
+  if (/^技術組/.test(sq)) return sq.replace(/^技術組\s*[-－:：]?\s*/, '技術組 ').trim();
+  if (/組$/.test(sq)) return sq;
+  return '技術組 ' + sq;
+}
+// 任務對象（例如「技術組-北一小隊」「參謀組」）→ 顯示用文字
+function _rpTarget(t) { return _rpGrp(String(t || '').replace(/^技術組\s*[-－]\s*/, '技術組-')) || String(t || ''); }
+// 「隊別:姓名」→ { name, sq }
+function _rpPerParse(item) {
+  item = String(item || '').trim();
+  var c = item.lastIndexOf(':'); if (c < 0) c = item.lastIndexOf('：');
+  return c > 0 ? { name: item.slice(c + 1).trim(), sq: item.slice(0, c).trim() } : { name: item, sq: '' };
+}
+// 某人所屬組別：先看這個事件出勤名單（含歷次異動），再看編組名單
+function _rpSqOf(name) {
+  name = _rpWho(name);
+  if (!name) return '';
+  if (_rp.who && _rp.who[name]) return _rp.who[name];
+  try { var m = _pmBuildLookup(_PM_CE_TYPE_GROUP[_rp.ev && _rp.ev.type] || 'tech-rdd').nameToSquad; if (m[name]) return m[name]; } catch (e) {}
+  return '';
+}
+// 顯示「姓名（組別）」；sq 可直接指定
+function _rpPer(name, sq) {
+  var p = _rpPerParse(_rpWho(name));
+  if (!p.name) return '';
+  var g = _rpGrp(sq || p.sq || _rpSqOf(p.name));
+  return _esc(p.name) + (g ? '<span class="rp-grp">（' + _esc(g) + '）</span>' : '');
+}
+// 一串人（「隊別:姓名」清單）依組別整理：「技術組 北一小隊：王小明、陳大文」，一組一行
+function _rpPerGroups(list) {
+  var order = [], by = {};
+  list.forEach(function(it) {
+    var p = _rpPerParse(it); if (!p.name) return;
+    var g = _rpGrp(p.sq || _rpSqOf(p.name)) || '未分組';
+    if (!by[g]) { by[g] = []; order.push(g); }
+    by[g].push(p.name);
+  });
+  return order.map(function(g) { return '<b>' + _esc(g) + '</b>：' + _esc(by[g].join('、')); }).join('<br>');
+}
+// 某個時間點，某個任務對象（小隊／組）裡有哪些出勤人員
+function _rpMembersAt(target, T) {
+  var g = _rpTarget(target), out = [];
+  _rpList(_rpValAt('personnel', T)).forEach(function(it) {
+    var p = _rpPerParse(it);
+    if (p.name && _rpGrp(p.sq || _rpSqOf(p.name)) === g) out.push(p.name);
+  });
+  return out;
+}
 function _rpList(s) { return String(s || '').split(/[,，]/).map(function(x) { return x.trim(); }).filter(Boolean); }
 function _rpCut(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) + '…' : s; }
 function _rpMsg(t) {
@@ -11872,8 +11926,10 @@ function _rpLoad() {
       _rpMsg(known ? '讀取回放資料失敗：' + d.error : '讀取回放資料失敗。請確認後端程式（GAS）已更新到 v27 並重新部署。');
       return;
     }
-    try { _rpPrepare(d); _rpStart(); }
-    catch (err) { _rpMsg('回放資料處理失敗：' + err.message); if (window.console) console.error(err); }
+    // 先載入編組名單（為了標出每個人的組別）；最多等 6 秒，載不到就只用出勤名單裡的隊別
+    var go = false, run = function() { if (go) return; go = true; try { _rpPrepare(d); _rpStart(); } catch (err) { _rpMsg('回放資料處理失敗：' + err.message); if (window.console) console.error(err); } };
+    try { _pmLoadAll(ev, run); } catch (e2) { run(); }
+    setTimeout(run, 6000);
   });
 }
 
@@ -11891,6 +11947,12 @@ function _rpPrepare(d) {
     var list = d.changes.filter(function(c) { return c.key === k; }).sort(byT);
     _rp.fields[k] = { init: list.length ? String(list[0].old) : String(cur[k] == null ? '' : cur[k]), list: list };
   });
+  // 姓名 → 組別（出勤名單裡寫了隊別的，含歷次異動前後）
+  _rp.who = {};
+  var pl = [_rp.fields.personnel.init];
+  _rp.fields.personnel.list.forEach(function(c) { pl.push(c.old, c.val); });
+  pl.forEach(function(str) { _rpList(str).forEach(function(it) { var q = _rpPerParse(it); if (q.name && q.sq && !_rp.who[q.name]) _rp.who[q.name] = q.sq; }); });
+  (d.tracks || []).forEach(function(tr) { if (tr.name && tr.team && !_rp.who[tr.name]) _rp.who[tr.name] = tr.team; });
 
   // 任務：同一批派送（標題、內容相同，60 秒內）合成一批；解析量測點位
   _rp.batches = [];
@@ -11968,16 +12030,28 @@ function _rpPrepare(d) {
     else add(occur, C.ev, '🚨 事件發生', e(twAddr(_rp.fields.address.init || '')), evLL);
   }
   if (created !== null) add(created, C.ev, '📝 在平台建立事件', '', evLL);
+  // 一開始派出勤的人員、攜帶的儀器（第一次異動前的名單）
+  var tStart = created !== null ? created : (occur !== null ? occur : t0);
+  var p0 = _rpList(_rp.fields.personnel.init), i0 = _rpList(_rp.fields.instrument.init);
+  if (p0.length) add(tStart, C.ppl, '👥 派出勤人員（' + p0.length + ' 人）', _rpPerGroups(p0));
+  if (i0.length) add(tStart, C.ppl, '🧰 攜帶儀器（' + i0.length + ' 項）', e(i0.join('、')));
 
   // 事件欄位的修改
   var seenLL = {};
   d.changes.forEach(function(c) {
-    var who = _rpWho(c.who), by = who ? e(who) + ' ' : '';
+    var who = _rpWho(c.who), by = who ? _rpPer(who) + ' ' : '';
     if (c.key === 'personnel' || c.key === 'instrument') {
       var a = _rpList(c.old), b = _rpList(c.val);
       var plus = b.filter(function(x) { return a.indexOf(x) < 0; }), minus = a.filter(function(x) { return b.indexOf(x) < 0; });
       if (!plus.length && !minus.length) return;
-      var sub = (plus.length ? '加入：' + e(plus.join('、')) : '') + (plus.length && minus.length ? '<br>' : '') + (minus.length ? '移除：' + e(minus.join('、')) : '');
+      var sub;
+      if (c.key === 'personnel') {
+        sub = (plus.length ? '<div>➕ 加入 ' + plus.length + ' 人：<br>' + _rpPerGroups(plus) + '</div>' : '') +
+              (minus.length ? '<div>➖ 移除 ' + minus.length + ' 人：<br>' + _rpPerGroups(minus) + '</div>' : '') +
+              '<div>出勤共 ' + b.length + ' 人</div>';
+      } else {
+        sub = (plus.length ? '➕ 加入：' + e(plus.join('、')) : '') + (plus.length && minus.length ? '<br>' : '') + (minus.length ? '➖ 移除：' + e(minus.join('、')) : '');
+      }
       add(c.t, C.ppl, (c.key === 'personnel' ? '👥 ' + by + '異動出勤人員' : '🧰 ' + by + '異動攜帶儀器'), sub);
     } else if (c.key === 'windDir') {
       var o1 = _validWindDir(c.old) === null ? '（無）' : c.old + '°', n1 = _validWindDir(c.val) === null ? '（無）' : c.val + '°';
@@ -12009,32 +12083,44 @@ function _rpPrepare(d) {
       if (lvRank[lv] > autoLvl) { autoLvl = lvRank[lv]; add(m.t, LV[lv], '🤖 自動量測升到' + (lv === 'red' ? '熱區' : '暖區'), dot + txt, [m.lat, m.lng]); }
       return;
     }
-    add(m.t, LV[lv], '☢️ ' + e(m.reporter || '未具名') + ' 回報量測值', dot + txt + (m.photoId ? ' 📷' : ''), [m.lat, m.lng]);
+    add(m.t, LV[lv], '☢️ ' + (m.reporter ? _rpPer(m.reporter) : '未具名') + ' 回報量測值', dot + txt + (m.photoId ? ' 📷' : ''), [m.lat, m.lng]);
   });
 
   // 任務
   _rp.batches.forEach(function(b) {
-    var targets = b.rows.map(function(r) { return r.target; }).filter(Boolean).join('、');
-    var sub = b.pts.length ? '點位：' + e(b.pts.map(function(p) { return p.label; }).join('、')) : e(_rpCut(b.content, 40));
+    var tg = [];
+    b.rows.forEach(function(r) { if (r.target && tg.indexOf(r.target) < 0) tg.push(r.target); });
+    var targets = tg.map(_rpTarget).join('、');
+    var sub = (b.pts.length ? '點位：' + e(b.pts.map(function(p) { return p.label; }).join('、')) : e(_rpCut(b.content, 40)));
+    tg.forEach(function(t) {
+      var mem = _rpMembersAt(t, b.t);
+      sub += '<br><b>' + e(_rpTarget(t)) + '</b>：' + (mem.length ? e(mem.join('、')) : '（出勤名單中無此組人員）');
+    });
     add(b.t, C.task, '📋 派送「' + e(b.title || '任務') + '」給 ' + e(targets || '—'), sub, b.pts);
-    b.rows.forEach(function(r) { if (r.doneT) add(r.doneT, C.task, '✅ ' + e(r.target || '') + ' 完成「' + e(r.title || '任務') + '」' + (r.photoId ? ' 📷' : ''), '', b.pts); });
+    b.rows.forEach(function(r) {
+      if (!r.doneT) return;
+      var mem = _rpMembersAt(r.target, r.doneT);
+      add(r.doneT, C.task, '✅ ' + e(_rpTarget(r.target)) + ' 完成「' + e(r.title || '任務') + '」' + (r.photoId ? ' 📷' : ''),
+          mem.length ? '成員：' + e(mem.join('、')) : '', b.pts);
+    });
   });
 
   // 現場其他事情回報
   d.reports.forEach(function(r) {
-    add(r.t, C.fr, '📣 ' + e(r.reporter || '未具名') + ' 現場回報' + (r.photoId ? ' 📷' : ''), (r.category ? '［' + e(r.category) + '］' : '') + e(_rpCut(r.text, 60)), [r.lat, r.lng]);
+    add(r.t, C.fr, '📣 ' + (r.reporter ? _rpPer(r.reporter) : '未具名') + ' 現場回報' + (r.photoId ? ' 📷' : ''), (r.category ? '［' + e(r.category) + '］' : '') + e(_rpCut(r.text, 60)), [r.lat, r.lng]);
   });
 
   // 繪圖：連續的畫筆筆跡（同一人 60 秒內）合成一則；擦除（5 秒內）合成一則
   var SH = { circle: '圓形', rect: '矩形', poly: '多邊形' };
   var pen = null;
   d.drawings.slice().sort(byT).forEach(function(x) {
-    if (x.shape) { add(x.t, C.draw, '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫了' + SH[x.shape.type] + (x.shape.name ? '「' + e(x.shape.name) + '」' : ''), '', x.pts); pen = null; }
-    else if (pen && pen.by === x.by && x.t - pen.last < 60000) { pen.last = x.t; pen.n++; pen.item.html = '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫筆標註（' + pen.n + ' 筆）'; }
-    else { add(x.t, C.draw, '🖍️ ' + (x.by ? e(x.by) + ' ' : '') + '畫筆標註', '', x.pts); pen = { by: x.by, last: x.t, n: 1, item: items[items.length - 1] }; }
+    var dby = x.by ? _rpPer(x.by) + ' ' : '';
+    if (x.shape) { add(x.t, C.draw, '🖍️ ' + dby + '畫了' + SH[x.shape.type] + (x.shape.name ? '「' + e(x.shape.name) + '」' : ''), '', x.pts); pen = null; }
+    else if (pen && pen.by === x.by && x.t - pen.last < 60000) { pen.last = x.t; pen.n++; pen.item.html = '🖍️ ' + dby + '畫筆標註（' + pen.n + ' 筆）'; }
+    else { add(x.t, C.draw, '🖍️ ' + dby + '畫筆標註', '', x.pts); pen = { by: x.by, last: x.t, n: 1, item: items[items.length - 1] }; }
     x.names.forEach(function(n, i) {
       var prev = i ? x.names[i - 1][1] : (x.shape ? x.shape.name : '');
-      add(n[0], C.draw, '🖍️ ' + (n[2] ? e(_rpWho(n[2])) + ' ' : '') + '圖形改名', e(prev || '（未命名）') + ' → ' + e(n[1] || '（未命名）'), x.pts);
+      add(n[0], C.draw, '🖍️ ' + (n[2] ? _rpPer(n[2]) + ' ' : '') + '圖形改名', e(prev || '（未命名）') + ' → ' + e(n[1] || '（未命名）'), x.pts);
     });
   });
   var dels = d.drawings.filter(function(x) { return x.del; }).sort(function(a, b) { return a.del - b.del; }), dg = null;
@@ -12047,7 +12133,7 @@ function _rpPrepare(d) {
   var ICN = function(x) { return '<span class="rp-emo">' + e(x.emoji) + '</span>' + (x.name ? '「' + e(x.name) + '」' : ''); };
   var lastMove = {}, prevSt = {};
   (d.icons || []).forEach(function(x) {
-    var by = x.by ? e(_rpWho(x.by)) + ' ' : '', ll = [x.lat, x.lng], pv = prevSt[x.id];
+    var by = x.by ? _rpPer(x.by) + ' ' : '', ll = [x.lat, x.lng], pv = prevSt[x.id];
     if (x.op === 'add') add(x.t, C.icon, '📍 ' + by + '放置圖示 ' + ICN(x), '', ll);
     else if (x.op === 'rename') add(x.t, C.icon, '✏️ ' + by + '圖示改名', '<span class="rp-emo">' + e(x.emoji) + '</span> ' + e(pv && pv.name || '（未命名）') + ' → ' + e(x.name || '（未命名）'), ll);
     else if (x.op === 'emoji') add(x.t, C.icon, '🔄 ' + by + '更換圖示', '<span class="rp-emo">' + e(pv ? pv.emoji : '') + '</span> → ' + ICN(x), ll);
@@ -12065,7 +12151,7 @@ function _rpPrepare(d) {
   // 量測點位調整／還原（3 秒內的多個還原合成一則）
   var rg = null;
   d.ptOverrides.forEach(function(o) {
-    var by = o.by ? e(_rpWho(o.by)) + ' ' : '';
+    var by = o.by ? _rpPer(o.by) + ' ' : '';
     if (!o.restore) { add(o.t, C.pt, '📌 ' + by + '調整量測點 ' + e(o.label), '', [o.lat, o.lng]); rg = null; }
     else if (rg && o.t - rg.last < 3000) { rg.last = o.t; rg.n++; rg.item.html = '↺ ' + by + '還原 ' + rg.n + ' 個量測點'; }
     else { add(o.t, C.pt, '↺ ' + by + '還原量測點 ' + e(o.label)); rg = { last: o.t, n: 1, item: items[items.length - 1] }; }
@@ -12081,7 +12167,7 @@ function _rpPrepare(d) {
   });
 
   // 人員開始分享位置
-  d.tracks.forEach(function(tr) { if (tr.points.length) add(tr.points[0][0], C.trk, '📡 ' + e(tr.name) + ' 開始分享位置', e(tr.team || ''), [tr.points[0][1], tr.points[0][2]]); });
+  d.tracks.forEach(function(tr) { if (tr.points.length) add(tr.points[0][0], C.trk, '📡 ' + _rpPer(tr.name, tr.team) + ' 開始分享位置', '', [tr.points[0][1], tr.points[0][2]]); });
 
   items = items.map(function(x, i) { x.k = i; return x; }).sort(function(a, b) { return a.t - b.t || a.k - b.k; });
   _rp.items = items;
@@ -12233,7 +12319,7 @@ function _rpTasks(T, force) {
   if (!_rp.show.task) return;
   _rp.batches.forEach(function(b, i) {
     if (!st[i]) return;
-    var targets = b.rows.map(function(r) { return r.target; }).filter(Boolean).join('、');
+    var targets = b.rows.map(function(r) { return _rpTarget(r.target); }).filter(Boolean).join('、');
     b.pts.forEach(function(p) {
       var tic = _rpTaskIcon(p.label, st[i] === 2);
       if (_rp.playing && !force && prevSt[i] !== st[i]) tic.options.className = 'rp-pop';   // 播放中剛派送／剛完成：彈出
