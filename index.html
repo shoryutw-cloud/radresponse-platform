@@ -2894,7 +2894,8 @@ function _pnOccur(ev) {
 }
 
 var _pnHist = null;
-var _PN_HCOLS = [['id', '事件編號'], ['key', '發生日期'], ['ckey', '結束時間'], ['dur', '處理時間'], ['name', '事件名稱'], ['type', '事件類型'], ['address', '事件地點']];
+// 欄位順序：發生日期 → 事件名稱 → 事件類型 → 事件編號 → 結束時間 → 處理時間 → 事件地點（最後是操作）
+var _PN_HCOLS = [['key', '發生日期'], ['name', '事件名稱'], ['type', '事件類型'], ['id', '事件編號'], ['ckey', '結束時間'], ['dur', '處理時間'], ['address', '事件地點']];
 // 處理時間（分鐘）→「3 小時 25 分」；未滿 1 小時只顯示分鐘
 function _pnDur(m) {
   if (!(m >= 0)) return '—';
@@ -2941,13 +2942,17 @@ function _pnHistRender() {
     }).join('') + '<th class="pn-col-fit">操作</th></tr></thead><tbody>' +
     rows.map(function(x) {
       var id = _pnEsc(x.id);
-      return '<tr><td class="pn-col-fit">' + id + '</td>' +
-        '<td class="pn-col-fit">' + (x.ymd ? '<div class="pn-d">' + x.ymd + '</div>' + (x.hm ? '<div class="pn-t">' + x.hm + '</div>' : '') : '—') + '</td>' +
-        '<td class="pn-col-fit">' + (x.cymd ? '<div class="pn-d">' + x.cymd + '</div><div class="pn-t">' + x.chm + '</div>' : '<span title="結束紀錄查不到（事件在紀錄功能上線前結束，或 GAS 尚未更新）">—</span>') + '</td>' +
-        '<td class="pn-col-fit" style="white-space:nowrap">' + _pnDur(x.dur) + '</td>' +
-        '<td class="pn-col-fit pn-hname">' + _pnEsc(x.name || '—') + '</td>' +
-        '<td class="pn-col-fit">' + (x.type ? '<span class="pn-ev-type" style="margin-left:0">' + _pnEsc(x.type) + '</span>' : '—') + '</td>' +
-        '<td class="pn-col-main">' + _pnEsc(x.address || '—') + '</td>' +
+      // 各欄內容；輸出順序跟著上面的 _PN_HCOLS
+      var cell = {
+        id:      '<td class="pn-col-fit">' + id + '</td>',
+        key:     '<td class="pn-col-fit">' + (x.ymd ? '<div class="pn-d">' + x.ymd + '</div>' + (x.hm ? '<div class="pn-t">' + x.hm + '</div>' : '') : '—') + '</td>',
+        ckey:    '<td class="pn-col-fit">' + (x.cymd ? '<div class="pn-d">' + x.cymd + '</div><div class="pn-t">' + x.chm + '</div>' : '<span title="結束紀錄查不到（事件在紀錄功能上線前結束，或 GAS 尚未更新）">—</span>') + '</td>',
+        dur:     '<td class="pn-col-fit" style="white-space:nowrap">' + _pnDur(x.dur) + '</td>',
+        name:    '<td class="pn-col-fit pn-hname">' + _pnEsc(x.name || '—') + '</td>',
+        type:    '<td class="pn-col-fit">' + (x.type ? '<span class="pn-ev-type" style="margin-left:0">' + _pnEsc(x.type) + '</span>' : '—') + '</td>',
+        address: '<td class="pn-col-main">' + _pnEsc(x.address || '—') + '</td>'
+      };
+      return '<tr>' + _PN_HCOLS.map(function(h) { return cell[h[0]]; }).join('') +
         '<td class="pn-col-fit"><div class="pn-ev-btns">' +
           '<button class="pn-btn" data-evid="' + id + '" onclick="showHistoryEvent(this.getAttribute(\'data-evid\'))">在地圖檢視</button>' +
           '<button class="pn-btn pn-btn-replay" data-evid="' + id + '" onclick="showReplayEvent(this.getAttribute(\'data-evid\'))">▶ 回放</button>' +
