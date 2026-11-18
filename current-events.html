@@ -6179,6 +6179,8 @@ var _historyId = (function() {
   var m = location.search.match(/[?&]history=([^&]+)/);
   return m ? decodeURIComponent(m[1]) : '';
 })();
+// 歷史事件看的是最終結果：每次打開都預設勾選「量測數值」和「現場回報」（看的時候仍可自己關掉）
+if (_historyId) { try { saveLayerPref(_historyId, 'msr', true); saveLayerPref(_historyId, 'fr', true); } catch (e) {} }
 // 回放模式（?history=事件編號&replay=1）：沿用歷史檢視（唯讀），另外加上時間軸播放器。
 // 回放時不讀即時資料（量測、繪圖、點位調整、任務、現場回報），改由回放器依時間點提供。目前只支援電腦版。
 var _rpWanted = !!_historyId && /[?&]replay=1(&|$)/.test(location.search);
