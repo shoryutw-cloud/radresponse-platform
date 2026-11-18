@@ -1911,6 +1911,25 @@ function _normEvWind(ev) {
 }
 function _windNeedsFill(ev) { return _validWindDir(ev.windDir) === null; }
 // 十點偵測（扇形、橫切面、附近場域、編號點）的方向：有設定「扇形方向」就用它，否則跟著事件風向；都沒有回傳 null
+// 歷史事件畫不出扇形時的說明（扇形方向＝手動調整的十點偵測方向，沒有就用事件風向）
+//  · 在地圖檢視：看的是事件結束時的資料
+//  · 回放：看的是播到的那個時間點；之後才設定的，告訴使用者什麼時候會出現
+function _histNoDirMsg() {
+  var base = '十點偵測扇形與橫切面是依「事件風向」或「手動調整的十點偵測方向」畫的，';
+  if (typeof _rpOn !== 'undefined' && _rpOn && typeof _rp !== 'undefined' && _rp.ready) {
+    var nx = null;
+    ['windDir', 'layerDir'].forEach(function(k) {
+      (_rp.fields[k].list || []).forEach(function(c) {
+        if (c.t > _rp.t && _validWindDir(c.val) !== null && (nx === null || c.t < nx)) nx = c.t;
+      });
+    });
+    return '播到的這個時間點兩者都還沒設定，所以地圖上暫時畫不出來' +
+           (nx !== null ? '；' + _rpFmtD(nx) + ' ' + _rpFmtT(nx) + ' 設定後就會出現。' : '，之後也沒有設定。') +
+           '<br><span style="opacity:.8">（' + base + '這不代表當時沒有做十點偵測，量測結果仍會顯示。）</span>';
+  }
+  return '事件結束時兩者都沒有設定，所以地圖上畫不出來。<br><span style="opacity:.8">（' + base +
+         '這不代表當時沒有做十點偵測，量測結果仍會顯示。）</span>';
+}
 function _layerDirOf(ev) {
   var ld = _validWindDir(ev && ev.layerDir);
   if (ld !== null) return ld;
@@ -4347,7 +4366,7 @@ function renderLayerPanel() {
 
   body.innerHTML =
     (isRddEvent(ev) && _layerDirOf(ev) === null ? (_historyId
-      ? '<div class="layer-warn">ℹ️ ' + (_rpOn ? '這個時間點' : '此事件') + '沒有風向紀錄，因此沒有十點偵測扇形與橫切面。</div>'
+      ? '<div class="layer-warn">ℹ️ ' + _histNoDirMsg() + '</div>'
       : '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>') : '') +
     (_events.length > 1 ? '<div class="layer-for">事件名稱：' + _esc(ev.name || ev.id) + '</div>' : '') +
     '<div class="layer-ev-block">' +
@@ -5244,7 +5263,7 @@ function onWindChk(checked) {
   if (checked) {
     var ev = _events[_curIdx];
     if (!ev || !ev.windDir || ev.windDir === '') {
-      showToast(_historyId ? '此事件沒有風向紀錄' : '⚠️ 請先設定風向');
+      showToast(_historyId ? (_rpOn ? '播到的這個時間點還沒有風向紀錄' : '事件結束時沒有風向紀錄') : '⚠️ 請先設定風向');
       document.getElementById('lyr_wind').checked = false;
       _windLayerOn = false;
       return;
