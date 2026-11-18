@@ -8926,7 +8926,7 @@ function myTaskRender() {
   var pc = { '高':'#dc2626','中':'#d97706','低':'#16a34a','high':'#dc2626','mid':'#d97706','low':'#16a34a' };
   var html = '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
-  ['#','事件','任務標題','優先','時間','狀態','回報'].forEach(function(h){
+  ['#','事件','任務標題','優先','時間','狀態','操作'].forEach(function(h){
     html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
@@ -8954,14 +8954,16 @@ function myTaskRender() {
     html += '<td style="padding:9px 12px">'+stBadge+'</td>';
     if (!isDone) {
       html += '<td style="padding:9px 10px;white-space:nowrap">' +
-        '<button onclick="myTaskDone(\'' + _esc(t.taskId) + '\')" style="' +
-        'padding:4px 12px;border:none;border-radius:16px;background:#16a34a;' +
-        'color:white;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">' +
-        '✔ 完成</button></td>';
+        // 這是「按了才回報」的按鈕，做成外框按鈕，避免看起來像已完成的狀態標籤
+        '<button onclick="myTaskDone(\'' + _esc(t.taskId) + '\')" title="任務做完後，按這裡回報完成（可附照片）" style="' +
+        'padding:5px 12px;border:1.5px solid #1a56db;border-radius:8px;background:white;' +
+        'color:#1a56db;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer" ' +
+        'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'white\'">' +
+        '📝 回報完成</button></td>';
     } else {
-      html += '<td style="padding:9px 10px">' + (t.photoId
+      html += '<td style="padding:9px 10px;white-space:nowrap;font-size:12px;color:#94a3b8">' + (t.photoId
         ? '<a href="' + _esc(t.photoUrl) + '" target="_blank" rel="noopener" title="回報照片"><img alt="回報照片" loading="lazy" src="' + _frThumb(t, 160) + '" style="display:block;height:36px;max-width:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
-        : '') + '</td>';
+        : '已回報') + '</td>';
     }
     html += '</tr>';
     if (t.content) {
