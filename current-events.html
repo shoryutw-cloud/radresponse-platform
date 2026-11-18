@@ -2385,6 +2385,7 @@ function openMsrQueryModal() {
   _checkModalConflict('msrQuery', function() {
     document.getElementById('msrQueryModal').classList.add('show');
     var _xb = document.getElementById('mqExportBtn'); if (_xb) _xb.style.display = _loginIsAdmin ? '' : 'none';
+    var _rb = document.getElementById('mqRefreshBtn'); if (_rb) _rb.style.display = _historyId ? 'none' : '';   // 歷史事件不會再有新資料
     _setActiveModal('msrQuery');
     _mqFilter   = 'all';
     _mqSortDesc = true;
@@ -2401,14 +2402,19 @@ function closeMsrQueryModal() {
   if (btn) btn.style.color = 'var(--text-muted)';
 }
 
+// 查詢表用的資料：回放時用整個事件的全部量測（地圖上只畫到目前時間點，表格仍列全部）
+function _mqRows(ev) {
+  if (typeof _rpOn !== 'undefined' && _rpOn && typeof _rp !== 'undefined' && _rp.ready && _rp.d) return _rp.d.measurements;
+  return ev ? _msrCache[ev.id] : undefined;
+}
 function _renderMsrQuery() {
   var ev = _events[_curIdx];
   var body = document.getElementById('msrQueryBody');
   if (!ev) { body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">目前無進行中事件</div>'; return; }
 
   // 用 current-events 既有的 _msrCache
-  if (_msrCache[ev.id] !== undefined) {
-    _drawMsrTable(_msrCache[ev.id]);
+  if (_mqRows(ev) !== undefined) {
+    _drawMsrTable(_mqRows(ev));
   } else {
     body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入量測數據中…</div>';
     _jsonpGet(SHEETS_URL + '?action=measurements&eventId=' + encodeURIComponent(ev.id), function(data) {
@@ -2572,14 +2578,14 @@ function _mqUpdateFilterBtns() {
 function mqSetFilter(level) {
   _mqFilter = level;
   var ev = _events[_curIdx];
-  if (ev && _msrCache[ev.id] !== undefined) _drawMsrTable(_msrCache[ev.id]);
+  if (ev && _mqRows(ev) !== undefined) _drawMsrTable(_mqRows(ev));
 }
 function mqToggleSort() {
   _mqSortDesc = !_mqSortDesc;
   var btn = document.getElementById('mqSortBtn');
   if (btn) btn.textContent = _mqSortDesc ? '⇩ 最新在前' : '⇧ 最舊在前';
   var ev = _events[_curIdx];
-  if (ev && _msrCache[ev.id] !== undefined) _drawMsrTable(_msrCache[ev.id]);
+  if (ev && _mqRows(ev) !== undefined) _drawMsrTable(_mqRows(ev));
 }
 function mqToggleAutoRefresh() {
   _mqAutoRefresh = !_mqAutoRefresh;
@@ -2606,7 +2612,7 @@ function mqExportCSV() {
   if (!_loginIsAdmin) { showToast('僅管理員可匯出'); return; }
   var ev = _events[_curIdx];
   if (!ev) { showToast('無可匯出的事件'); return; }
-  var rows = _msrCache[ev.id];
+  var rows = _mqRows(ev);
   if (!rows || !rows.length) { showToast('尚無量測資料可匯出'); return; }
   var bom  = '\uFEFF';
   var head = '\u56de\u5831\u7de8\u865f,\u4e8b\u4ef6\u7de8\u865f,\u56de\u5831\u4eba\u54e1,\u6578\u5024(\u03bcSv/h),\u4f7f\u7528\u5100\u5668,\u7def\u5ea6,\u7d93\u5ea6,\u6642\u9593\r\n';
@@ -10464,7 +10470,7 @@ async function birdCheckAlert(measurements, eventId){
 <div id="railBar">
   <button class="rail-btn" id="railBtn_ev" data-tip="事件狀態" onclick="railToggle('ev')">🚨<span class="rail-lbl">事件</span></button>
   <button class="rail-btn" id="railBtn_layers" data-tip="圖層顯示" onclick="railToggle('layers')">🗺️<span class="rail-lbl">圖層</span></button>
-  <button class="rail-btn rail-live" id="railBtn_report" data-tip="回報" onclick="railToggle('report')">📝<span class="rail-lbl">回報</span></button>
+  <button class="rail-btn" id="railBtn_report" data-tip="回報" onclick="railToggle('report')">📝<span class="rail-lbl">回報</span></button>
   <button class="rail-btn rail-live" id="railBtn_task" data-tip="任務" onclick="railToggle('task')">📋<span class="rail-lbl">任務</span><span class="rail-badge" id="railTaskBadge">0</span></button>
   <button class="rail-btn rail-live" id="railBtn_nav" data-tip="導航至量測點" onclick="railAction('nav')">🧭<span class="rail-lbl">導航</span></button>
   <button class="rail-btn" id="railBtn_people" data-tip="人員位置" onclick="railToggle('people')">📡<span class="rail-lbl">位置</span></button>
@@ -10478,9 +10484,9 @@ async function birdCheckAlert(measurements, eventId){
 
 <div class="rail-menu" id="railMenu_report">
   <div class="rail-menu-hd">回報</div>
-  <button class="rail-menu-item" id="railItemReport" onclick="railAction('reportToggle')">我要回報</button>
+  <button class="rail-menu-item rail-live" id="railItemReport" onclick="railAction('reportToggle')">我要回報</button>
   <button class="rail-menu-item" onclick="railAction('msrQuery')">回報數值查詢</button>
-  <button class="rail-menu-item" onclick="railAction('fieldReport')">現場其他事情回報</button>
+  <button class="rail-menu-item rail-live" onclick="railAction('fieldReport')">現場其他事情回報</button>
 </div>
 <div class="rail-menu" id="railMenu_people" style="width:250px"></div>
 <div class="rail-menu" id="railMenu_more"></div>
