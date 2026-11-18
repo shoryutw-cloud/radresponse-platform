@@ -688,6 +688,7 @@ var PANELS = {
 // src = 要載入的 HTML 檔名（例如 group.html）
 // 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
 function showIframe(src) {
+  reportFabsOff();   // 換頁：回報按鈕關掉
   // mapLayer 已永久隱藏，不需控制
   var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
   hideEls.forEach(function(sel) {
@@ -804,7 +805,7 @@ window.addEventListener('message', function(e) {
     if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
     // 若回報 FAB 開啟中，補回浮動按鈕
     if (_reportFabsVisible) { setTimeout(function(){ sendReportFabMsg(true); }, 300); }
-    if (_pendingReportFab) { _pendingReportFab = false; setTimeout(sendReportFabMsg, 400); }
+    if (_pendingReportFab) { _pendingReportFab = false; setTimeout(function(){ sendReportFabMsg(true); }, 400); }
     if (_pendingTaskDispatch) {
       _pendingTaskDispatch = false;
       setTimeout(function() {
@@ -830,7 +831,7 @@ window.addEventListener('message', function(e) {
 
   // iframe FAB 的「回報任務」按鈕 → 開啟隊別任務 Modal
   if (e.data && e.data.type === 'openMyTaskFromFab') {
-    openMyTaskModal();
+    openMyTaskModal(undefined, true);
     return;
   }
 
@@ -952,6 +953,7 @@ function loadDashStats() {
   });
 }
 function openPanel(title) {
+  reportFabsOff();
   var d = PANELS[title] || [title, '此功能尚未開放。'];
   document.getElementById('panelTitle').textContent = d[0];
   document.getElementById('panelBody').innerHTML =
@@ -1271,10 +1273,10 @@ function onReportBtnClick(e) {
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
   if (!isOnMap) {
     // 先載入地圖，載入後再通知顯示 FAB
-    _pendingReportFab = true;
     showIframe('current-events.html');
+    _pendingReportFab = true;
   } else {
-    sendReportFabMsg();
+    sendReportFabMsg(true);
   }
 }
 var _pendingReportFab = false;
@@ -1297,14 +1299,29 @@ function toggleReportFabs() {
 
   if (_reportFabsVisible) {
     if (!isOnMap) {
-      _pendingReportFab = true;
-      showIframe('current-events.html');
+      showIframe('current-events.html');   // 換頁會把回報按鈕關掉，所以載入後再打開
+      _reportFabsVisible = true;
+      if (btn) btn.textContent = '我要回報（開啟中）';
+      if (drawerBtn) drawerBtn.textContent = '我要回報（開啟中）';
     } else {
       sendReportFabMsg(true);
     }
   } else {
     if (isOnMap) sendReportFabMsg(false);
   }
+}
+
+// 回報按鈕（回報劑量／回報任務）自動關閉：換頁、開其他功能（查詢、任務、後台設定…）時呼叫，
+// 回到地圖時按鈕不再出現，左欄「回報」圖示也恢復沒按的樣子
+function reportFabsOff() {
+  _pendingReportFab = false;
+  if (!_reportFabsVisible) return;
+  _reportFabsVisible = false;
+  var btn = document.getElementById('btnReportActive');
+  if (btn) btn.textContent = '我要回報';
+  var drawerBtn = document.getElementById('drawerReportActive');
+  if (drawerBtn) drawerBtn.textContent = '我要回報';
+  sendReportFabMsg(false);
 }
 
 function sendReportFabMsg(show) {
@@ -1601,6 +1618,7 @@ function sendMapEditMsg() {
 <script>
 // 開啟回報數值查詢（通知 current-events iframe 開 Modal）
 function openMsrQueryInIframe() {
+  reportFabsOff();
   closeAllMenus(); closeSidebar();
   var frame = document.getElementById('contentFrame');
   var layer = document.getElementById('iframeLayer');
@@ -1900,6 +1918,7 @@ function _updateEditEventBtn() {
 var _pendingTaskDispatch = false;
 var _pendingTaskView = false;   // 原本未宣告，iframe 載入時會出現 ReferenceError
 function openTaskDispatchViaIframe() {
+  reportFabsOff();
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
   if (src.indexOf('current-events.html') === -1) {
@@ -1913,6 +1932,7 @@ function openTaskDispatchViaIframe() {
 }
 
 function openTaskViewModal() {
+  reportFabsOff();
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
   // 只要 iframe 有載入（src 不是空的），就直接送 postMessage
@@ -1948,7 +1968,8 @@ function _getMyTaskFilterKey() {
   if (group === '技術組') return team ? group + '-' + team : group; // "技術組-北三小隊"
   return group; // "參謀組" or "新聞組"
 }
-function openMyTaskModal(team) {
+function openMyTaskModal(team, keepFab) {
+  if (!keepFab) reportFabsOff();   // 從回報按鈕的「回報任務」開的不算換頁
   var frame = document.getElementById('contentFrame');
   var src = frame ? (frame.src || '') : '';
   if (!src || src === '' || src.indexOf('current-events') === -1) {
@@ -2359,6 +2380,7 @@ function ctClear() {
 var MS_DEFAULT = 15;
 
 function openMsrLimitModal() {
+  reportFabsOff();
   document.getElementById('msModal').style.display = 'flex';
   _msLoaded = { th: null, ct: null, ms: null }; _msSaving = false; _msStatus('');
   var sb = document.getElementById('msAllSave'); if (sb) sb.textContent = '儲存';

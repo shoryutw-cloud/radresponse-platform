@@ -7265,11 +7265,13 @@ function showReportFabs() {
   el.appendChild(btn2);
   document.body.appendChild(el);
   _reportFabEl = el;
+  if (typeof _railMark === 'function') _railMark();
   updateFabPosition(); // ★ 立即更新位置
 }
 
 function hideReportFabs() {
   if (_reportFabEl) { _reportFabEl.remove(); _reportFabEl = null; }
+  if (typeof _railMark === 'function') _railMark();
 }
 
 
@@ -10700,7 +10702,9 @@ function _railMark() {
   Object.keys(RAIL_PANELS).forEach(function(k) {
     var b = document.getElementById('railBtn_' + k);
     if (!b) return;
-    b.classList.toggle('active', RAIL_TOGGLE[k] ? !!_railOn[k] : _railOpen === k);
+    // 「回報」：選單打開中，或回報按鈕（回報劑量／回報任務）顯示中，圖示都亮著
+    var fabOn = k === 'report' && typeof _reportFabEl !== 'undefined' && !!_reportFabEl;
+    b.classList.toggle('active', RAIL_TOGGLE[k] ? !!_railOn[k] : (_railOpen === k || fabOn));
   });
   var it = document.getElementById('railItemReport');
   if (it) it.textContent = (typeof _reportFabEl !== 'undefined' && _reportFabEl) ? '我要回報（開啟中）' : '我要回報';
@@ -10756,6 +10760,12 @@ function railToggle(k) {
   railShow(k);
 }
 
+// 回報按鈕自動關閉（平台首頁記住的開關一起關，回到地圖才不會又出現）
+function _fabAutoOff() {
+  try { if (parent && parent !== window && typeof parent.reportFabsOff === 'function') parent.reportFabsOff(); } catch (e) {}
+  hideReportFabs();
+}
+
 function _railParent(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   try {
@@ -10771,6 +10781,8 @@ function railAction(a) {
   if (_railIsMob() && lp) lp.classList.remove('mob-show');
   if (a === 'nav')          { _railParent('openNavSelectModal'); return; }
   if (a === 'reportToggle') { _railParent('toggleReportFabs'); setTimeout(_railMark, 400); return; }
+  // 開其他功能＝離開地圖操作：回報按鈕關掉（導航至量測點除外，導航到點後常要接著回報）
+  if (a === 'msrQuery' || a === 'fieldReport' || a === 'allTask' || a === 'dispatch') _fabAutoOff();
   if (a === 'msrQuery')     { openMsrQueryModal(); return; }
   if (a === 'fieldReport')  { frOpen(); return; }
   if (a === 'myTask')       { _railParent('openMyTaskModal'); return; }
