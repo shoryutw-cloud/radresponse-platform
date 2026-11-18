@@ -1910,7 +1910,6 @@ function _normEvWind(ev) {
   ev.layerDir = _validWindDir(ld) === null ? '' : ld;
 }
 function _windNeedsFill(ev) { return _validWindDir(ev.windDir) === null; }
-// 十點偵測（扇形、橫切面、附近場域、編號點）的方向：有設定「扇形方向」就用它，否則跟著事件風向；都沒有回傳 null
 // 歷史事件畫不出扇形時的說明（扇形方向＝手動調整的十點偵測方向，沒有就用事件風向）
 //  · 在地圖檢視：看的是事件結束時的資料
 //  · 回放：看的是播到的那個時間點；之後才設定的，告訴使用者什麼時候會出現
@@ -1930,6 +1929,7 @@ function _histNoDirMsg() {
   return '事件結束時兩者都沒有設定，所以地圖上畫不出來。<br><span style="opacity:.8">（' + base +
          '這不代表當時沒有做十點偵測，量測結果仍會顯示。）</span>';
 }
+// 十點偵測（扇形、橫切面、附近場域、編號點）的方向：有設定「扇形方向」就用它，否則跟著事件風向；都沒有回傳 null
 function _layerDirOf(ev) {
   var ld = _validWindDir(ev && ev.layerDir);
   if (ld !== null) return ld;
