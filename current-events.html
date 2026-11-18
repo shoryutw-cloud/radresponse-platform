@@ -7144,6 +7144,8 @@ function updateFabPosition() {
 }
 function showReportFabs() {
   hideReportFabs();
+  // 歷史事件（在地圖檢視、回放）是唯讀的，不顯示回報按鈕；回到目前事件時，平台會再通知顯示
+  if (_historyId) return;
   var el = document.createElement('div');
   el.id = 'reportFabWrap';
   // ★ 持續顯示，不自動收起；避免與畫筆工具列重疊（畫筆工具列 bottom:24px，高約52px）
