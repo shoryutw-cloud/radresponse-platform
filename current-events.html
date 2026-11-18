@@ -4346,7 +4346,9 @@ function renderLayerPanel() {
   function c(type) { return chk[type] ? 'checked' : ''; }
 
   body.innerHTML =
-    (isRddEvent(ev) && _layerDirOf(ev) === null ? '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>' : '') +
+    (isRddEvent(ev) && _layerDirOf(ev) === null ? (_historyId
+      ? '<div class="layer-warn">ℹ️ ' + (_rpOn ? '這個時間點' : '此事件') + '沒有風向紀錄，因此沒有十點偵測扇形與橫切面。</div>'
+      : '<div class="layer-warn">⚠️ 目前沒有有效風向，扇形與橫切面暫時無法顯示。請在「編輯事件」手動設定風向，或按「從氣象局抓取」。</div>') : '') +
     (_events.length > 1 ? '<div class="layer-for">事件名稱：' + _esc(ev.name || ev.id) + '</div>' : '') +
     '<div class="layer-ev-block">' +
     '<div class="layer-ev-cbs">' +
@@ -5242,7 +5244,7 @@ function onWindChk(checked) {
   if (checked) {
     var ev = _events[_curIdx];
     if (!ev || !ev.windDir || ev.windDir === '') {
-      showToast('⚠️ 請先設定風向');
+      showToast(_historyId ? '此事件沒有風向紀錄' : '⚠️ 請先設定風向');
       document.getElementById('lyr_wind').checked = false;
       _windLayerOn = false;
       return;
