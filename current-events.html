@@ -6215,6 +6215,8 @@ function loadEvents() {
   loadSquads(function(squads) { TECH_SQUADS = squads.concat(['未分配']); });
   _jsonpGet(SHEETS_URL + '?action=events', function(data) {
     _events = (data && data.events) ? data.events : [];
+    // 所有事件（含已結束）的名稱，給任務清單等地方用：已結束的事件不在 _events 裡，否則只會顯示編號
+    _events.forEach(function(ev) { if (ev && ev.id) _allEvNames[ev.id] = ev.name || ''; });
     // 已結束事件不列入目前事件；歷史檢視（?history=事件編號）時只顯示該筆
     _events = _events.filter(function(ev) {
       return _historyId ? String(ev.id) === _historyId : !_isClosedEvStatus(ev.status);
@@ -8664,6 +8666,13 @@ function _tdEsc(s) {
 <script>
 var _tvTasks = [];
 var _tvEvMap = {};
+var _allEvNames = {};   // 事件編號 → 事件名稱（含已結束事件；loadEvents 時填入）
+// 任務清單的「事件」欄：事件名稱（粗體）＋下面小字事件編號；查不到名稱才只顯示編號
+function _taskEvCell(evId) {
+  var nm = _allEvNames[evId] || _tvEvMap[evId] || _myTaskEvMap[evId] || '';
+  return nm ? '<div>' + _esc(nm) + '</div><div style="font-size:12px;font-weight:400;color:#94a3b8;font-family:monospace">' + _esc(evId) + '</div>'
+            : _esc(evId || '—');
+}
 
 function openTaskViewModal() {
   _checkModalConflict('taskView', function() {
@@ -8732,7 +8741,6 @@ function tvRender() {
   });
   html += '</tr></thead><tbody>';
   grouped.forEach(function(t, idx) {
-    var evName = _tvEvMap[t.eventId] || t.eventId;
     var ts = '—';
     try { var d=new Date(t.createdAt); if(!isNaN(d.getTime())) ts=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); } catch(e){}
     var isDone = t.status === 'done';
@@ -8744,7 +8752,7 @@ function tvRender() {
     var rowStyle = 'border-bottom:' + (t.content ? 'none' : '1px solid #f0f4f8') + (isDone?';opacity:.65':'');
     html += '<tr style="' + rowStyle + '">';
     html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;color:#3d5070">'+_esc(targetStr)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
@@ -8932,7 +8940,6 @@ function myTaskRender() {
   });
   html += '</tr></thead><tbody>';
   list.forEach(function(t, idx) {
-    var evName = _myTaskEvMap[t.eventId] || t.eventId;
     var ts = '—';
     try {
       var d = new Date(t.createdAt);
@@ -8947,7 +8954,7 @@ function myTaskRender() {
     var rowStyle = 'border-bottom:' + (t.content ? 'none' : '1px solid #f0f4f8') + (isDone?';opacity:.65':'');
     html += '<tr style="' + rowStyle + '">';
     html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_esc(evName)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
     html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
     html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
