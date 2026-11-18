@@ -785,6 +785,26 @@ cursor: pointer; transition: background .15s;
         <option value="放射性物料事件">放射性物料事件</option>
       </select>
     </div>
+    <!-- 射源資訊（必填）：下拉選單，選「人工填寫」才出現輸入框；改了會記進異動紀錄，回放會出現字卡 -->
+    <div class="ev-edit-row" id="editSrcBox" style="background:#fff7f7;border:1px solid #fecaca;border-radius:6px;padding:8px 8px 10px;gap:6px">
+      <label class="ev-edit-lbl" style="color:#b91c1c">☢️ 射源種類 <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcNuclide" onchange="editSrcSel('srcNuclide')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="銫Cs-137">銫 Cs-137</option><option value="銥Ir-192">銥 Ir-192</option>
+        <option value="鈷Co-60">鈷 Co-60</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcNuclideTxt" placeholder="輸入射源種類" style="display:none">
+      <label class="ev-edit-lbl" style="color:#b91c1c">活度 (Bq) <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcActivity" onchange="editSrcSel('srcActivity')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcActivityTxt" placeholder="輸入活度（Bq），例如 3.7e10" inputmode="decimal" style="display:none">
+      <label class="ev-edit-lbl" style="color:#b91c1c">型態 <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcForm" onchange="editSrcSel('srcForm')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="固體">固體</option><option value="液體">液體</option><option value="氣體">氣體</option>
+        <option value="粉末">粉末</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcFormTxt" placeholder="輸入型態" style="display:none">
+    </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl">日期與時間</label>
       <div style="display:flex;gap:6px">
@@ -1621,6 +1641,58 @@ window.addEventListener('message', function(e) {
 // GAS 可能回傳：
 //   日期："2026-03-15" 或 "Sun Mar 15 2026 00:00:00 GMT+0800..."
 //   時間："14:34" 或 "Sat Dec 30 1899 14:34:00 GMT+0800..."（Sheets 時間型別）
+// ════════ 射源資訊（射源種類、活度(Bq)、型態）════════
+var SRC_KEYS = ['srcNuclide', 'srcActivity', 'srcForm'];
+var SRC_LABEL = { srcNuclide: '射源種類', srcActivity: '活度', srcForm: '型態' };
+var SRC_OPTS = { srcNuclide: ['銫Cs-137', '銥Ir-192', '鈷Co-60', '不明'], srcActivity: ['不明'], srcForm: ['固體', '液體', '氣體', '粉末', '不明'] };
+var _EDIT_SRC_ID = { srcNuclide: 'editSrcNuclide', srcActivity: 'editSrcActivity', srcForm: 'editSrcForm' };
+// 顯示用文字：空白＝未填；活度是數字就寫成「3.7 × 10¹⁰ Bq（≈ 1 Ci）」
+function _fmtSrc(k, v) {
+  v = String(v == null ? '' : v).trim();
+  if (!v) return '未填';
+  if (k === 'srcNuclide') return v.replace(/^(銫|銥|鈷)(?=[A-Z])/, '$1 ');
+  if (k !== 'srcActivity') return v;
+  var n = Number(v.replace(/,/g, ''));
+  if (!(n > 0) || !isFinite(n)) return v;
+  var sup = function(x) { return String(x).replace(/[-0-9]/g, function(c) { return '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'.charAt(c === '-' ? 0 : +c + 1); }); };
+  var txt;
+  if (n >= 1e4) { var ex = Math.floor(Math.log10(n)), m = n / Math.pow(10, ex); txt = parseFloat(m.toPrecision(3)) + ' × 10' + sup(ex) + ' Bq'; }
+  else txt = parseFloat(n.toPrecision(4)) + ' Bq';
+  var ci = n / 3.7e10, cu = ci >= 1 ? [ci, 'Ci'] : ci >= 1e-3 ? [ci * 1e3, 'mCi'] : [ci * 1e6, 'μCi'];
+  return txt + '（≈ ' + parseFloat(cu[0].toPrecision(3)) + ' ' + cu[1] + '）';
+}
+function editSrcSel(k) {
+  var id = _EDIT_SRC_ID[k], man = document.getElementById(id).value === '__manual';
+  document.getElementById(id + 'Txt').style.display = man ? '' : 'none';
+  if (man) document.getElementById(id + 'Txt').focus();
+}
+// 打開編輯面板：清單裡有的值直接選；其他值（人工填過的）選「人工填寫」並填入
+function _editSrcFill(ev) {
+  SRC_KEYS.forEach(function(k) {
+    var id = _EDIT_SRC_ID[k], v = String(ev[k] || '').trim(), inList = SRC_OPTS[k].indexOf(v) >= 0;
+    document.getElementById(id).value = !v ? '' : (inList ? v : '__manual');
+    document.getElementById(id + 'Txt').value = (v && !inList) ? v : '';
+    document.getElementById(id + 'Txt').style.display = (v && !inList) ? '' : 'none';
+  });
+}
+// 儲存前取值：{ vals, err }
+function _editSrcRead() {
+  var vals = {}, miss = [], err = '';
+  SRC_KEYS.forEach(function(k) {
+    var id = _EDIT_SRC_ID[k], sel = document.getElementById(id).value;
+    var v = sel === '__manual' ? document.getElementById(id + 'Txt').value.trim() : sel;
+    if (k === 'srcActivity' && sel === '__manual' && v) {
+      v = v.replace(/,/g, '');
+      var n = Number(v);
+      if (!(n > 0) || !isFinite(n)) err = '活度請輸入大於 0 的數字（可用 3.7e10 這種寫法）';
+    }
+    if (!v) miss.push(SRC_LABEL[k]);
+    vals[k] = v;
+  });
+  if (!err && miss.length) err = '射源資訊必填，尚未填寫：' + miss.join('、');
+  return { vals: vals, err: err };
+}
+
 function formatDateTime(dateVal, timeVal) {
   var dateStr = '', timeStr = '';
 
@@ -1698,6 +1770,7 @@ function toggleEditPanel() {
     var ev = _events[_curIdx];
     document.getElementById('editName').value    = ev.name    || '';
     document.getElementById('editType').value    = ev.type    || '輻射彈事件';
+    _editSrcFill(ev);
     // 日期時間：格式 "YYYY年MM月DD日 HH時MM分" → date/time input
     var _dtRaw = (ev.date || '') + ' ' + (ev.time || '');
     var _dtM = _dtRaw.match(/(\d{4}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{2})/);
@@ -2076,6 +2149,8 @@ function startCwaAutoFetch() {
 function saveEdit() {
   var ev  = _events[_curIdx];
   if (!ev) return;
+  var src = _editSrcRead();
+  if (src.err) { alert(src.err); return; }
   var btn = document.getElementById('evEditSave');
   btn.disabled = true; btn.textContent = '儲存中…';
 
@@ -2098,6 +2173,8 @@ function saveEdit() {
     time:     timeVal,
     address:  addrVal
   };
+  // 射源資訊：有改才送（沒改不寫，免得在資料修改紀錄留下空的異動）
+  SRC_KEYS.forEach(function(k) { if (src.vals[k] !== String(ev[k] || '').trim()) payload[k] = src.vals[k]; });
 
   var _ldSave = _editLayerDirToSave();
   if (_ldSave !== null) payload.layerDir = _ldSave;
@@ -2135,6 +2212,7 @@ function saveEdit() {
     if (payload.date)    ev.date    = payload.date;
     if (payload.time)    ev.time    = payload.time;
     if (payload.address) ev.address = payload.address;
+    SRC_KEYS.forEach(function(k) { if (payload[k] !== undefined) ev[k] = payload[k]; });
     // 更新座標（若有地圖點選）並飛到新位置
     if (payload.lat !== undefined) {
       ev.lat = String(payload.lat);
@@ -2286,6 +2364,15 @@ function renderCard(idx) {
   html += '<span class="ev-lbl">事件類型</span>';
   html += '<span class="ev-val"><span class="ev-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span></span>';
   html += '</div>';
+
+  // 射源資訊（輻災重點資訊）
+  SRC_KEYS.forEach(function(k) {
+    var miss = !String(ev[k] || '').trim();
+    html += '<div class="ev-row">';
+    html += '<span class="ev-lbl" style="color:#b91c1c">' + (k === 'srcActivity' ? '活度' : SRC_LABEL[k]) + '</span>';
+    html += '<span class="ev-val" style="' + (miss ? 'color:#94a3b8' : 'font-weight:600;color:#b91c1c') + '">' + _esc(_fmtSrc(k, ev[k])) + '</span>';
+    html += '</div>';
+  });
 
   // 日期與時間
   html += '<div class="ev-row">';
@@ -11795,6 +11882,10 @@ setInterval(_refreshEventsFromSheet, 60000);
 .rp-it-t { flex-shrink: 0; width: 42px; color: #6b7a92; font-variant-numeric: tabular-nums; font-size: 13px; padding-top: 1px; }
 .rp-it-x { flex: 1; min-width: 0; word-break: break-word; color: #1e2a3a; }
 .rp-it-s { display: block; font-size: 12px; color: #6b7a92; }
+/* 射源資訊（建立事件、修改射源）：輻災重點資訊，醒目顯示 */
+.rp-it.rp-it-hl { background: #fef2f2; border-left: 3px solid #dc2626; }
+.rp-it.rp-it-hl .rp-it-s { color: #7f1d1d; font-size: 14px; }
+.rp-it.rp-it-hl.cur { background: #fee2e2; box-shadow: inset 3px 0 0 #1a56db; }
 .rp-grp { color: #6b7a92; font-weight: 400; }
 .rp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
 body.rp-on .layer-panel { right: 316px !important; }
@@ -11836,7 +11927,7 @@ body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
 <script>
 var _rp = { ready: false, playing: false, speed: 5, skip: true, t: 0, t0: 0, t1: 0,
             show: { msr: true, trk: true, task: true, fr: true, draw: true, icon: true } };
-var _RP_KEYS = ['personnel', 'instrument', 'windDir', 'windSpeed', 'layerDir', 'name', 'type', 'address', 'lat', 'lng'];
+var _RP_KEYS = ['personnel', 'instrument', 'windDir', 'windSpeed', 'layerDir', 'name', 'type', 'address', 'lat', 'lng', 'srcNuclide', 'srcActivity', 'srcForm'];
 var _RP_GAP = 180000;      // 人員軌跡：相鄰兩點超過 3 分鐘 → 中間沒有資料（畫虛線、不補移動）
 
 // ── 時間工具：一律以台灣時間（UTC+8）顯示 ──
@@ -11994,7 +12085,8 @@ function _rpPrepare(d) {
 
   // 事件欄位隨時間的值：起始值＝第一次修改前的舊值；沒有修改紀錄就用現在的值
   var cur = { personnel: E.personnel, instrument: E.instrument, windDir: E.windDir, windSpeed: E.windSpeed, layerDir: E.layerDir,
-              name: E.name, type: E.type, address: E.address, lat: E.lat, lng: E.lng };
+              name: E.name, type: E.type, address: E.address, lat: E.lat, lng: E.lng,
+              srcNuclide: E.srcNuclide, srcActivity: E.srcActivity, srcForm: E.srcForm };
   _rp.fields = {};
   _RP_KEYS.forEach(function(k) {
     var list = d.changes.filter(function(c) { return c.key === k; }).sort(byT);
@@ -12074,7 +12166,7 @@ function _rpPrepare(d) {
   var add = function(t, color, html, sub, ll) { items.push({ t: Math.min(Math.max(t, t0), t1), color: color, html: html, sub: sub || '', ll: _rpLL(ll) }); };
   var evLL = [_rp.fields.lat.init, _rp.fields.lng.init];
   var e = _esc;
-  var C = { ev: '#1e2a3a', ppl: '#64748b', wind: '#7c3aed', task: '#2563eb', fr: '#ea580c', draw: '#db2777', pt: '#a855f7', trk: '#0ea5e9', obs: '#0ea5e9', icon: '#ca8a04' };
+  var C = { ev: '#1e2a3a', src: '#dc2626', ppl: '#64748b', wind: '#7c3aed', task: '#2563eb', fr: '#ea580c', draw: '#db2777', pt: '#a855f7', trk: '#0ea5e9', obs: '#0ea5e9', icon: '#ca8a04' };
   var LV = { green: '#16a34a', orange: '#f97316', red: '#dc2626', unknown: '#94a3b8' };
 
   if (occur !== null) {
@@ -12082,7 +12174,14 @@ function _rpPrepare(d) {
                       '比平台上第一筆紀錄早 ' + _rpDurText(firstAct - occur) + '，時間軸從第一筆紀錄前 5 分鐘開始', evLL);
     else add(occur, C.ev, '🚨 事件發生', e(twAddr(_rp.fields.address.init || '')), evLL);
   }
-  if (created !== null) add(created, C.ev, '📝 在平台建立事件', '', evLL);
+  // 射源資訊（建立時的值＝第一次修改前的值）
+  var srcLine = function(get) {
+    return SRC_KEYS.map(function(k) { return '<b>' + SRC_LABEL[k] + '</b>：' + e(_fmtSrc(k, get(k))); }).join('<br>');
+  };
+  if (created !== null) {
+    add(created, C.src, '📝 在平台建立事件', srcLine(function(k) { return _rp.fields[k].init; }), evLL);
+    items[items.length - 1].hl = true;
+  }
   // 一開始派出勤的人員、攜帶的儀器（第一次異動前的名單）
   var tStart = created !== null ? created : (occur !== null ? occur : t0);
   var p0 = _rpList(_rp.fields.personnel.init), i0 = _rpList(_rp.fields.instrument.init);
@@ -12112,6 +12211,11 @@ function _rpPrepare(d) {
     } else if (c.key === 'layerDir') {
       add(c.t, C.wind, '🧭 ' + by + '調整十點偵測方向 ' + e(_validWindDir(c.old) === null ? '（跟著風向）' : c.old + '°') + ' → ' +
                        e(_validWindDir(c.val) === null ? '（跟著風向）' : c.val + '°'));
+    } else if (SRC_LABEL[c.key]) {
+      // 射源資訊異動（輻災重點資訊）：醒目顯示
+      add(c.t, C.src, '☢️ ' + by + '修改' + (c.key === 'srcActivity' ? '活度' : SRC_LABEL[c.key]),
+          e(_fmtSrc(c.key, c.old)) + ' → <b>' + e(_fmtSrc(c.key, c.val)) + '</b>');
+      items[items.length - 1].hl = true;
     } else if (c.key === 'name') add(c.t, C.ev, '✏️ ' + by + '修改事件名稱', e(c.old) + ' → ' + e(c.val));
     else if (c.key === 'type') add(c.t, C.ev, '✏️ ' + by + '修改事件類型', e(c.old) + ' → ' + e(c.val));
     else if (c.key === 'address') add(c.t, C.ev, '📍 ' + by + '修改事件地點', e(twAddr(c.val)));
@@ -12274,7 +12378,7 @@ function _rpStart() {
   items.forEach(function(x, i) {
     var day = _rpFmtD(x.t);
     if (day !== lastDay) { fh += '<div class="rp-day">' + day + '</div>'; lastDay = day; }
-    fh += '<div class="rp-it future" data-i="' + i + '" onclick="rpSeekItem(' + i + ')"><span class="rp-it-t">' + _rpFmtT(x.t) + '</span>' +
+    fh += '<div class="rp-it future' + (x.hl ? ' rp-it-hl' : '') + '" data-i="' + i + '" onclick="rpSeekItem(' + i + ')"><span class="rp-it-t">' + _rpFmtT(x.t) + '</span>' +
           '<span class="rp-it-x">' + x.html + (x.sub ? '<span class="rp-it-s">' + x.sub + '</span>' : '') + '</span></div>';
   });
   var list = document.getElementById('rpFeedList');
@@ -12315,13 +12419,14 @@ function _rpApply(force) {
     if (o.restore) delete po[o.label]; else po[o.label] = { lat: o.lat, lng: o.lng, by: o.by, time: '' };
   }
   var sigGeo = [v.windDir, v.windSpeed, v.layerDir, v.type, v.lat, v.lng, _ptSig(po)].join('~');
-  var sigCard = sigGeo + '~' + [v.personnel, v.instrument, v.name, v.address].join('~');
+  var sigCard = sigGeo + '~' + [v.personnel, v.instrument, v.name, v.address, v.srcNuclide, v.srcActivity, v.srcForm].join('~');
   var sigMk = [v.lat, v.lng, v.name, v.type].join('~');
   if (force || sigCard !== _rp.sigCard) {
     ev.personnelStr = ev.personnel = v.personnel;
     ev.instrumentStr = ev.instrument = v.instrument;
     ev.windDir = v.windDir; ev.windSpeed = v.windSpeed; ev.layerDir = v.layerDir;
     ev.name = v.name; ev.type = v.type; ev.address = v.address;
+    ev.srcNuclide = v.srcNuclide; ev.srcActivity = v.srcActivity; ev.srcForm = v.srcForm;
     if (v.lat !== '' && v.lng !== '') { ev.lat = v.lat; ev.lng = v.lng; }
     ev.doseMax = '';                     // 最大劑量率改由「到這個時間點為止的量測值」決定
     _normEvWind(ev);

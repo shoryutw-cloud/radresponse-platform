@@ -123,6 +123,17 @@
   .ce-dtrow > div { flex: 1; }
   .ce-div { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
+  /* 射源資訊（射源種類、活度、型態）：下拉選單＋人工填寫 */
+  .ce-src { background: #fff7f7; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 12px 4px; margin-bottom: 16px; }
+  .ce-src-hd { font-size: 14px; font-weight: 700; color: #b91c1c; margin-bottom: 10px; }
+  .ce-src .ce-group { margin-bottom: 10px; }
+  .ce-src select.ce-inp { cursor: pointer; }
+  .ce-src-man { display: none; margin-top: 6px; position: relative; }
+  .ce-src-man.show { display: block; }
+  .ce-src-unit { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-muted); pointer-events: none; }
+  .ce-src-err { font-size: 14px; color: #dc2626; margin-top: 4px; display: none; }
+  .ce-src-err.show { display: block; }
+
   /* 事件類型標籤 */
   .ce-pills { display: flex; gap: 6px; flex-wrap: wrap; }
   .ce-pill {
@@ -507,6 +518,48 @@
           <div class="ce-pill" data-c="p-blue"   onclick="cePick(this,'放射性物料事件')">&#x2622;&#xFE0F; 放射性物料事件</div>
         </div>
         <input type="hidden" id="ceType">
+      </div>
+      <!-- 射源資訊（必填）：下拉選單，選「人工填寫」才出現輸入框 -->
+      <div class="ce-src">
+        <div class="ce-src-hd">☢️ 射源資訊</div>
+        <div class="ce-group">
+          <label class="ce-lbl">射源種類 <span class="req">*</span></label>
+          <select class="ce-inp" id="ceSrcNuclide" onchange="ceSrcSel('srcNuclide')">
+            <option value="">請選擇</option>
+            <option value="銫Cs-137">銫 Cs-137</option>
+            <option value="銥Ir-192">銥 Ir-192</option>
+            <option value="鈷Co-60">鈷 Co-60</option>
+            <option value="不明">不明</option>
+            <option value="__manual">人工填寫</option>
+          </select>
+          <div class="ce-src-man" id="ceSrcNuclideMan"><input class="ce-inp" id="ceSrcNuclideTxt" placeholder="輸入射源種類，例如 鍶 Sr-90" oninput="ceVal()"></div>
+        </div>
+        <div class="ce-group">
+          <label class="ce-lbl" style="text-transform:none">活度 (Bq) <span class="req">*</span></label>
+          <select class="ce-inp" id="ceSrcActivity" onchange="ceSrcSel('srcActivity')">
+            <option value="">請選擇</option>
+            <option value="不明">不明</option>
+            <option value="__manual">人工填寫</option>
+          </select>
+          <div class="ce-src-man" id="ceSrcActivityMan">
+            <input class="ce-inp" id="ceSrcActivityTxt" placeholder="輸入活度，例如 3.7e10" inputmode="decimal" style="padding-right:42px" oninput="ceVal()">
+            <span class="ce-src-unit">Bq</span>
+          </div>
+          <div class="ce-src-err" id="ceSrcActivityErr">活度請輸入大於 0 的數字（可用 3.7e10 這種寫法）</div>
+        </div>
+        <div class="ce-group">
+          <label class="ce-lbl">型態 <span class="req">*</span></label>
+          <select class="ce-inp" id="ceSrcForm" onchange="ceSrcSel('srcForm')">
+            <option value="">請選擇</option>
+            <option value="固體">固體</option>
+            <option value="液體">液體</option>
+            <option value="氣體">氣體</option>
+            <option value="粉末">粉末</option>
+            <option value="不明">不明</option>
+            <option value="__manual">人工填寫</option>
+          </select>
+          <div class="ce-src-man" id="ceSrcFormMan"><input class="ce-inp" id="ceSrcFormTxt" placeholder="輸入型態" oninput="ceVal()"></div>
+        </div>
       </div>
       <div class="ce-group">
         <label class="ce-lbl">日期與時間 <span class="req">*</span></label>
@@ -898,8 +951,35 @@ function goPage2back() {
 // ════════════════════════════════════════
 // 第一頁：表單驗證
 // ════════════════════════════════════════
+// ── 射源資訊 ──
+var CE_SRC_IDS = { srcNuclide: 'ceSrcNuclide', srcActivity: 'ceSrcActivity', srcForm: 'ceSrcForm' };
+var CE_SRC_LBL = { srcNuclide: '射源種類', srcActivity: '活度', srcForm: '型態' };
+function ceSrcSel(k) {
+  var id = CE_SRC_IDS[k], man = document.getElementById(id).value === '__manual';
+  document.getElementById(id + 'Man').classList.toggle('show', man);
+  if (man) document.getElementById(id + 'Txt').focus();
+  ceVal();
+}
+// 取值：{ val: 要存的文字（空白＝還沒填）, bad: 填了但格式不對 }
+function ceSrcVal(k) {
+  var id = CE_SRC_IDS[k], sel = document.getElementById(id).value;
+  if (sel !== '__manual') return { val: sel, bad: false };
+  var t = document.getElementById(id + 'Txt').value.trim();
+  if (k === 'srcActivity' && t !== '') {
+    var n = Number(t.replace(/,/g, ''));
+    if (!(n > 0) || !isFinite(n)) return { val: '', bad: true };
+    t = t.replace(/,/g, '');
+  }
+  return { val: t, bad: false };
+}
+
 function ceVal() {
+  var srcMiss = [];
+  ['srcNuclide', 'srcActivity', 'srcForm'].forEach(function(k) { if (!ceSrcVal(k).val) srcMiss.push(CE_SRC_LBL[k]); });
+  var actBad = ceSrcVal('srcActivity').bad;
+  document.getElementById('ceSrcActivityErr').classList.toggle('show', actBad);
   var ok = document.getElementById('ceName').value.trim() &&
+           !srcMiss.length &&
            document.getElementById('ceType').value &&
            document.getElementById('ceDate').value &&
            document.getElementById('ceTime').value &&
@@ -912,6 +992,7 @@ function ceVal() {
     var ms = [];
     if (!document.getElementById('ceName').value.trim()) ms.push('事件名稱');
     if (!document.getElementById('ceType').value) ms.push('事件類型');
+    ms = ms.concat(srcMiss);
     if (!document.getElementById('ceDate').value || !document.getElementById('ceTime').value) ms.push('日期時間');
     if (_ceLat === null) ms.push('事件地點');
     document.getElementById('ceFSt').innerHTML = '尚未填寫：' + ms.join('、');
@@ -996,6 +1077,12 @@ function _ceAst(t, m) {
 function clearP1() {
   ['ceName','ceType','ceNote','ceAddr'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.querySelectorAll('.ce-pill').forEach(function(p){ p.className = 'ce-pill'; });
+  Object.keys(CE_SRC_IDS).forEach(function(k) {
+    var id = CE_SRC_IDS[k];
+    document.getElementById(id).value = '';
+    document.getElementById(id + 'Txt').value = '';
+    document.getElementById(id + 'Man').classList.remove('show');
+  });
   _ceLat = null; _ceLng = null;
   document.getElementById('ceCo').style.display = 'none';
   document.getElementById('ceAst').innerHTML = '';
@@ -1385,6 +1472,7 @@ function _renderP4() {
     '\n類型：' + evType +
     '\n時間：' + evDate + ' ' + evTime +
     '\n地點：' + evAddr +
+    '\n射源：' + ceSrcVal('srcNuclide').val + '／活度 ' + ceSrcVal('srcActivity').val + (/^[\d.]/.test(ceSrcVal('srcActivity').val) ? ' Bq' : '') + '／' + ceSrcVal('srcForm').val +
     '\n請準備出勤，並回報確認。';
   var ta = document.getElementById('ceSmsContent');
   ta.value = tmpl;
@@ -1489,7 +1577,10 @@ function ceDo() {
     status:        'active',
     personnelStr:  _ceSkipPersonnel ? '' : _getPersonnel().map(function(p){ return p.squad + ':' + p.name; }).join(', '),
     instrumentStr: _ceSkipInstruments ? '' : _getInstruments(),
-    attachmentUrl: _attachUrl || ''
+    attachmentUrl: _attachUrl || '',
+    srcNuclide:    ceSrcVal('srcNuclide').val,    // 射源種類
+    srcActivity:   ceSrcVal('srcActivity').val,   // 活度(Bq)
+    srcForm:       ceSrcVal('srcForm').val        // 型態
   };
 
   // 建立事件的當下，向氣象署取得最近測站的風向、風速，一併記進試算表；之後事件的風向固定，不再跟著氣象署變動
