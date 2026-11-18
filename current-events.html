@@ -11184,6 +11184,7 @@ function _msrEndPick(quiet) {
   <button type="button" onclick="trkSetShare(false)" style="border:1px solid rgba(255,255,255,.7);background:none;color:#fff;border-radius:14px;padding:3px 12px;font-family:inherit;font-size:12px;cursor:pointer">停止</button>
 </div>
 <style>
+.trk-grp { font-weight: 400; color: #6b7a92; }
 .trk-tip { font-weight: 700; font-size: 12px; color: #1e2a3a; background: rgba(255,255,255,.93); border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 .trk-mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 14px; color: var(--text); cursor: pointer; }
 .trk-mrow input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
@@ -11378,8 +11379,9 @@ function _trkDraw(tracks) {
     var stale = ageMin > 5;
     var d = new Date(last[0]);
     var hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    var tg = _trkGrp(t.name, t.team);
     L.circleMarker([last[1], last[2]], { radius: 8, color: '#fff', weight: 2, fillColor: col, fillOpacity: stale ? 0.45 : 1 }).addTo(_trkGroup)
-      .bindTooltip(_esc(t.name || '?') + ' · ' + hhmm + (stale ? '（' + ageMin + ' 分鐘前）' : ''), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
+      .bindTooltip(_esc(t.name || '?') + (tg ? '<span class="trk-grp">（' + _esc(tg) + '）</span>' : '') + ' · ' + hhmm + (stale ? '（' + ageMin + ' 分鐘前）' : ''), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
   });
 }
 
@@ -11828,6 +11830,17 @@ function _rpCount(arr, T) {
   var lo = 0, hi = arr.length;
   while (lo < hi) { var mid = (lo + hi) >> 1; var t = arr[mid].t !== undefined ? arr[mid].t : arr[mid][0]; if (t <= T) lo = mid + 1; else hi = mid; }
   return lo;
+}
+// 地圖上人員名牌的組別：位置資料帶的隊別優先，其次事件出勤名單、編組名單
+function _trkGrp(name, team) {
+  var nm = _rpWho(name);
+  var sq = team || (_rpOn && _rp.who ? _rp.who[nm] : '');
+  if (!sq) {
+    var ev = _events[_curIdx];
+    _rpList(ev && ev.personnelStr).forEach(function(it) { var q = _rpPerParse(it); if (!sq && q.name === nm && q.sq) sq = q.sq; });
+  }
+  if (!sq) { try { sq = _pmBuildLookup(_PM_CE_TYPE_GROUP[(_events[_curIdx] || {}).type] || 'tech-rdd').nameToSquad[nm] || ''; } catch (e) {} }
+  return _rpGrp(sq);
 }
 function _rpWho(s) { return String(s || '').replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim(); }
 
@@ -12519,15 +12532,17 @@ function _rpTracks(T, force) {
     if (!st.head) st.head = L.polyline([], solid).addTo(st.grp);
     st.head.setLatLngs(moving ? [[cur[1], cur[2]], pos] : []);
     var stale = !moving && T - cur[0] > 300000;
-    var label = (tr.name || '?') + (stale ? '（' + _rpDurText(T - cur[0]) + '前）' : '');
+    if (st.grp2 === undefined) st.grp2 = _trkGrp(tr.name, tr.team);
+    var label = _esc(tr.name || '?') + (st.grp2 ? '<span class="trk-grp">（' + _esc(st.grp2) + '）</span>' : '') +
+                (stale ? '<span class="trk-grp"> · ' + _rpDurText(T - cur[0]) + '前</span>' : '');
     if (!st.mk) {
       st.mk = L.circleMarker(pos, { radius: 9, color: '#fff', weight: 2, fillColor: st.col, fillOpacity: 1 }).addTo(st.grp);
-      st.mk.bindTooltip(_esc(label), { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
+      st.mk.bindTooltip(label, { permanent: true, direction: 'right', offset: [10, 0], className: 'trk-tip' });
       st.mk.on('click', function(e) { L.DomEvent.stopPropagation(e); if (_rp.followTrk === tr) _rpUnfollow(); else _rpFollow(tr); });
       st.label = label; st.op = 1;
     }
     st.mk.setLatLng(pos);
-    if (label !== st.label) { st.mk.setTooltipContent(_esc(label)); st.label = label; }
+    if (label !== st.label) { st.mk.setTooltipContent(label); st.label = label; }
     var op = stale ? 0.45 : 1;
     if (op !== st.op) { st.mk.setStyle({ fillOpacity: op }); st.op = op; }
     if (_rp.followTrk === tr) _rpCenterOn(L.latLng(pos[0], pos[1]), false);
