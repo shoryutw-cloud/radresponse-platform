@@ -187,11 +187,7 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   }
   .ce-count-bar strong { color: var(--accent); font-size: 15px; }
-  .ce-sel-count {
-    font-size: 14px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
-    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
-  }
-  .ce-sel-count strong { color: var(--accent); font-size: 15px; }
+
   .ce-squad { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .ce-squad-hd {
     display: flex; align-items: center; gap: 10px; padding: 10px 16px;
@@ -231,11 +227,7 @@
   .ce-instr-wrap { flex: 1; overflow-y: auto; padding: 0; min-height: 0; }
   .ce-instr-wrap::-webkit-scrollbar { width: 3px; }
   .ce-instr-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .ce-instr-count {
-    font-size: 14px; color: var(--text-muted); margin-bottom: 14px; padding: 8px 12px;
-    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
-  }
-  .ce-instr-count strong { color: var(--accent); font-size: 15px; }
+
   .ce-instr-tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
   .ce-instr-tbl th {
     font-size: 14px; color: var(--text-muted); font-weight: 600;
@@ -296,8 +288,6 @@
   .ce-ok-msg { font-size: 14px; color: var(--text-muted); }
   .ce-ok-btns { display: flex; gap: 10px; margin-top: 8px; }
 
-  /* ── 附件上傳 ── */
-  .ce-attach-wrap { margin-top: 4px; }
   .ce-attach-label {
     display: flex; align-items: center; gap: 8px;
     padding: 9px 12px; border: 1.5px dashed var(--border);
@@ -315,10 +305,6 @@
   .ce-attach-status.ok   { color: #16a34a; }
   .ce-attach-status.err  { color: #dc2626; }
   .ce-attach-status.loading { color: var(--text-muted); }
-  .ce-attach-name {
-    font-size: 14px; color: var(--text); font-weight: 500;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
-  }
 
   /* ── loading spinner ── */
   .ce-spin {
@@ -327,7 +313,6 @@
     border-radius: 50%; animation: spin .7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
 
   /* ── 第四頁：通報單上傳 + 簡訊確認 ── */
   /* ── 第四頁：三欄 ── */
@@ -422,11 +407,6 @@
   .ce-sms-status.ok { color: #16a34a; font-weight: 600; }
   .ce-sms-status.err { color: #dc2626; }
   .ce-sms-status.loading { color: var(--text-muted); }
-  .ce-sms-note {
-    font-size: 14px; color: var(--text-muted); background: white;
-    border: 1px solid var(--border); border-radius: 5px;
-    padding: 7px 10px; line-height: 1.6;
-  }
 
   /* ── RWD：平板（<900px）──  */
   @media (max-width: 900px) {

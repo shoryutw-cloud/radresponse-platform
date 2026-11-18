@@ -125,14 +125,6 @@
   .top-drop-l3-btn:hover { background: rgba(255,255,255,0.08); color: #e8f0fa; }
 
   /* ────── 登出按鈕（右側）────── */
-  .topbar-logout {
-    margin-left: 0; flex-shrink: 0;
-    padding: 6px 14px; background: none;
-    border: 1px solid rgba(255,255,255,0.18); border-radius: var(--radius);
-    color: #8da0b8; font-family: var(--font); font-size: 13px; cursor: pointer;
-    transition: all .15s; white-space: nowrap;
-  }
-  .topbar-logout:hover { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,0.1); }
 
 
   /* ────── 手機版姓名標籤 ────── */
@@ -213,12 +205,10 @@
     .topbar { padding: 0 14px; }
     .tnav-btn { padding: 0 12px; font-size: 13px; }
     .logo-text { font-size: 18px; }
-    .topbar-logout { padding: 5px 10px; font-size: 12px; }
   }
   @media (max-width: 600px) {
     /* 桌機版 nav 整個隱藏 */
     .top-nav { display: none !important; }
-    .topbar-logout { display: none !important; }
     /* 顯示漢堡 */
     .hamburger-btn { display: flex; }
     /* 手機版只顯示 logo 圖示，隱藏文字 */
@@ -245,43 +235,7 @@
     flex-direction: column; gap: 12px; color: #6b7a92; font-size: 14px;
   }
   /* 儀表板卡片 */
-  .dash-card {
-    background: white; border: 2px solid #e2e8f0; border-radius: 16px;
-    padding: 24px 20px; display: flex; flex-direction: column; align-items: center;
-    gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: all .2s;
-  }
-  .dash-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.12); transform: translateY(-2px); }
-  .dash-card-icon { border-radius: 50%; }
-  .dash-card-label { font-size: 13px; font-weight: 600; color: #6b7a92;
-                     letter-spacing: .06em; text-transform: uppercase; }
-  .dash-card-val { font-size: 56px; font-weight: 800; line-height: 1;
-                   font-family: ui-monospace, monospace;
-                   min-height: 60px; display: flex; align-items: center; justify-content: center; }
-  .dash-card-sub { font-size: 12px; color: #94a3b8; }
 
-  .map-badge {
-    position: absolute; top: 14px; right: 14px; background: white;
-    border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 10px 14px;
-    font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column;
-    gap: 6px; min-width: 160px; z-index: 10;
-  }
-  .map-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .map-badge-row .val { font-weight: 600; color: var(--text); font-family: var(--font-mono); font-size: 13px; }
-  .val.green { color: #16a34a; }
-  .map-controls { position: absolute; bottom: 30px; right: 14px; display: flex; flex-direction: column; gap: 2px; z-index: 10; }
-  .map-ctrl-btn {
-    width: 32px; height: 32px; background: white; border: 1px solid #d0d8e4;
-    border-radius: 4px; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; font-size: 18px; color: var(--text-muted);
-    box-shadow: var(--shadow-sm); transition: background .15s; font-weight: 300;
-  }
-  .map-ctrl-btn:hover { background: #f0f4ff; color: var(--accent); }
-  .map-compass {
-    position: absolute; bottom: 30px; right: 54px; width: 34px; height: 34px;
-    background: white; border-radius: 50%; box-shadow: var(--shadow-sm);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; color: #dc2626; font-weight: 700; border: 1px solid #d0d8e4; z-index: 10;
-  }
 
   /* ────── CONTENT PANEL ────── */
   .content-panel { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; display: none; z-index: 10; }
@@ -290,12 +244,6 @@
     position: sticky; top: 0; background: white; border-bottom: 1px solid var(--border);
     padding: 13px 24px; display: flex; align-items: center; gap: 12px; z-index: 1; box-shadow: var(--shadow-sm);
   }
-  .panel-back {
-    display: flex; align-items: center; gap: 5px; color: var(--accent); cursor: pointer;
-    font-size: 16px; font-weight: 500; background: none; border: none; padding: 4px 0;
-    font-family: var(--font); transition: opacity .15s;
-  }
-  .panel-back:hover { opacity: .7; }
   .panel-title { font-size: 20px; font-weight: 700; color: var(--text); }
   .panel-body { padding: 24px; max-width: 1100px; margin: 0 auto; }   /* 內容置中 */
   .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
@@ -325,7 +273,6 @@
   }
   .login-logo { font-size: 48px; line-height: 1; }
   .login-title { font-size: 20px; font-weight: 700; color: #e8f0fa; text-align: center; line-height: 1.4; }
-  .login-subtitle { font-size: 14px; color: #7aa3cc; margin-top: -10px; }
   .login-field {
     width: 100%; padding: 11px 14px; border-radius: 8px;
     border: 1px solid #2d3f55; background: #0f1820; color: #e8f0fa;
@@ -348,8 +295,6 @@
 
   /* ────── 未登入時隱藏的元素 ────── */
   .auth-hidden { display: none !important; }
-  /* 已移到地圖左側圖示列的項目：保留元素（JS 仍會更新角標），只是不顯示 */
-  .rail-moved { display: none !important; }
 
   /* ────── 登入按鈕（topbar，未登入才顯示）────── */
   #topbarLoginBtn {
@@ -407,26 +352,6 @@
         <span id="topbarName">—</span> <span class="tnav-arrow">&#9664;</span>
       </button>
     </div>
-    <div class="tnav-item rail-moved" id="tnav-dashboard">
-      <button class="tnav-btn">事件儀表板 <span class="tnav-arrow">&#9664;</span></button>
-    </div>
-    <div class="tnav-item rail-moved" id="tnav-report">
-      <button class="tnav-btn">
-        <span id="taskBadge" style="display:none"></span>回報 <span class="tnav-arrow">&#9664;</span>
-      </button>
-    </div>
-    <div class="tnav-item auth-hidden rail-moved" id="tnav-taskview">
-      <button class="tnav-btn" style="position:relative">
-        查看任務
-        <span id="taskViewBadge" style="
-          display:none;position:absolute;top:4px;right:16px;
-          background:#dc2626;color:white;border-radius:10px;
-          font-size:11px;font-weight:700;line-height:1;
-          padding:2px 5px;min-width:16px;text-align:center;
-          pointer-events:none;z-index:1">0</span>
-        <span class="tnav-arrow">&#9664;</span>
-      </button>
-    </div>
     <div class="tnav-item" id="tnav-history">
       <button class="tnav-btn" onclick="openPanel('歷史事件查詢')">歷史事件查詢</button>
     </div>
@@ -445,14 +370,6 @@
   <!-- 手機漢堡按鈕 -->
   <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="選單" style="position:relative">
     <span></span><span></span><span></span>
-    <div id="hamburgerBadge" class="rail-moved" style="
-      display:none;position:absolute;top:-2px;right:-2px;
-      background:#dc2626;color:white;border-radius:50%;
-      font-size:10px;font-weight:700;line-height:1;
-      width:18px;height:18px;
-      display:none;align-items:center;justify-content:center;
-      pointer-events:none;z-index:1;
-      box-shadow:0 1px 3px rgba(0,0,0,.3)">0</div>
   </button>
 </div>
 
@@ -474,21 +391,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">事件儀表板</div>
       <button class="drawer-item" onclick="showIframe('current-events.html');closeDrawer()">目前事件</button>
-      <button class="drawer-item rail-moved" onclick="openNavSelectModal();closeDrawer()">導航至量測點</button>
       <button class="drawer-item" onclick="openPanel('歷史事件查詢');closeDrawer()">歷史事件查詢</button>
-    </div>
-
-    <div class="drawer-section rail-moved">
-      <div class="drawer-section-title">回報</div>
-      <button class="drawer-item" id="drawerReportActive" onclick="toggleReportFabs();closeDrawer()">我要回報</button>
-      <button class="drawer-item" onclick="openMsrQueryInIframe();closeDrawer()">回報數值查詢</button>
-      <button class="drawer-item" onclick="openPanel('現場其他事情回報');closeDrawer()">現場其他事情回報</button>
-    </div>
-
-    <div class="drawer-section rail-moved">
-      <div class="drawer-section-title">查看任務 <span id="taskBadgeMobile" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 5px;margin-left:4px">0</span></div>
-      <button class="drawer-item" onclick="closeDrawer();openMyTaskModal()">隊別任務 <span id="drawerMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
-      <button class="drawer-item" onclick="closeDrawer();setTimeout(openTaskViewModal,100)">所有任務 <span id="drawerAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px">0</span></button>
     </div>
 
     <div class="drawer-section">
@@ -523,55 +426,6 @@
 <!-- LAYOUT -->
 <div class="layout">
   <main class="map-area" id="mapArea" style="position:relative">
-    <div id="mapLayer" style="position:absolute;inset:0;z-index:1;background:#f0f2f5;display:none;align-items:center;justify-content:center">
-      <div id="dashboard" style="max-width:640px;width:100%;padding:0 32px 24px;display:flex;flex-direction:column;gap:16px">
-        <div style="text-align:center;padding-top:8px">
-          <div style="font-size:48px;line-height:1">☢️</div>
-          <!-- 歡迎文字：登入後顯示 -->
-          <div id="dashWelcome" style="display:none;font-size:15px;font-weight:600;color:#1e2a3a;margin-top:8px">
-            <span id="dashWelcomeName" style="color:#1a56db"></span>，歡迎使用輻災應變決策資訊平台(demo)
-          </div>
-        </div>
-
-        <!-- 統計卡片：固定高度 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-
-          <!-- 目前事件：卡片固定高度，dashByType固定高度不含skeleton -->
-          <div class="dash-card" onclick="showIframe('current-events.html')" style="cursor:pointer;border-color:#fed7aa;height:340px;justify-content:flex-start;padding:20px 16px;box-sizing:border-box;overflow:hidden">
-            <div class="dash-card-icon" style="background:#fff7ed;color:#f97316;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">🚨</div>
-            <div class="dash-card-label" style="font-size:14px;margin-top:2px">目前事件數</div>
-            <div class="dash-card-val" id="dashActiveVal" style="color:#f97316;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <span id="dashActiveSpinner" style="display:inline-block;width:48px;height:12px;background:#fed7aa;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
-            </div>
-            <!-- 固定高度容器，初始空白，資料來了填入不撐高 -->
-            <div id="dashByType" style="display:flex;flex-direction:column;gap:4px;width:100%;height:86px;flex-shrink:0;overflow:hidden"></div>
-            <div style="margin-top:auto;padding-top:8px;color:#f97316;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
-          </div>
-
-          <!-- 歷史事件 -->
-          <div class="dash-card" style="border-color:#bbf7d0;height:340px;justify-content:flex-start;padding:20px 16px;cursor:pointer;box-sizing:border-box;overflow:hidden" onclick="openPanel('歷史事件查詢')">
-            <div class="dash-card-icon" style="background:#f0fdf4;color:#16a34a;font-size:28px;padding:10px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✅</div>
-            <div class="dash-card-label" style="font-size:14px;margin-top:2px">歷史事件數</div>
-            <div class="dash-card-val" id="dashClosedVal" style="color:#16a34a;font-size:52px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <span id="dashClosedSpinner" style="display:inline-block;width:48px;height:12px;background:#bbf7d0;border-radius:6px;animation:skPulse 1.2s ease infinite"></span>
-            </div>
-            <!-- 佔位區，與左欄同高 -->
-            <div style="height:86px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-              <span style="font-size:12px;color:#94a3b8">已結束事件</span>
-            </div>
-            <div style="margin-top:auto;padding-top:8px;color:#16a34a;font-size:13px;font-weight:500;flex-shrink:0">▶ 點擊查看</div>
-          </div>
-
-        </div>
-
-        <!-- 快捷按鈕 -->
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button onclick="showIframe('create-event.html')" style="padding:11px;background:white;color:#1e2a3a;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s" onmouseover="this.style.borderColor='#1a56db';this.style.color='#1a56db'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e2a3a'">
-            <span style="font-size:18px">➕</span> 建立新事件
-          </button>
-        </div>
-      </div>
-    </div>
     <div id="iframeLayer" style="position:absolute;inset:0;z-index:2;display:block">
       <iframe id="contentFrame" src="" style="width:100%;height:100%;border:none"></iframe>
     </div>
@@ -586,25 +440,6 @@
 </div>
 
 <!-- 桌機版下拉選單（position:fixed，不被 layout 裁切）-->
-<div class="top-drop" id="drop-dashboard">
-  <button class="top-drop-btn" onclick="showIframe('current-events.html');closeAllMenus()">目前事件</button>
-  <button class="top-drop-btn" onclick="openNavSelectModal();closeAllMenus()">導航至量測點</button>
-  <button class="top-drop-btn" onclick="openPanel('歷史事件查詢');closeAllMenus()">歷史事件查詢</button>
-</div>
-<div class="top-drop" id="drop-report">
-  <button class="top-drop-btn" id="btnReportActive" onclick="toggleReportFabs();closeAllMenus()">我要回報</button>
-  <button class="top-drop-btn" onclick="openMsrQueryInIframe();closeAllMenus()">回報數值查詢</button>
-  <button class="top-drop-btn" onclick="openPanel('現場其他事情回報');closeAllMenus()">現場其他事情回報</button>
-</div>
-<div class="top-drop" id="drop-settings" style="display:none"></div>
-<div class="top-drop" id="drop-taskview">
-  <button class="top-drop-btn" onclick="closeAllMenus();openMyTaskModal()">
-    隊別任務 <span id="dropMyTaskBadge" style="display:none;background:#dc2626;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
-  </button>
-  <button class="top-drop-btn" onclick="closeAllMenus();setTimeout(openTaskViewModal,50)">
-    所有任務 <span id="dropAllTaskBadge" style="display:none;background:#1a56db;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:6px">0</span>
-  </button>
-</div>
 <div class="top-drop" id="drop-user">
   <button class="top-drop-btn" onclick="showIframe('profile.html');closeAllMenus()">個人資料維護</button>
   <button class="top-drop-btn" onclick="doLogout()" style="color:#f87171">登出</button>
@@ -657,7 +492,6 @@ function twAddr(s) {
 // ════════════════════════════════════════════════════════════
 
 // ── 全域變數 ──
-var gMap = null;
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 var _jsonpCounter = 0;
 
@@ -689,12 +523,8 @@ var PANELS = {
 // 同時更新網址 hash，讓 F5 重整後可以恢復同一頁面
 function showIframe(src) {
   reportFabsOff();   // 換頁：回報按鈕關掉
-  // mapLayer 已永久隱藏，不需控制
-  var hideEls = ['.map-badge', '.map-controls', '.map-compass', '.content-panel'];
-  hideEls.forEach(function(sel) {
-    var el = document.querySelector(sel);
-    if (el) el.style.visibility = 'hidden';
-  });
+  var cp = document.querySelector('.content-panel');
+  if (cp) cp.style.visibility = 'hidden';
   var layer = document.getElementById('iframeLayer');
   var frame = document.getElementById('contentFrame');
   layer.style.display = 'block';
@@ -715,7 +545,6 @@ function showIframe(src) {
   var hashBase = cleanSrc.replace('.html', '');
   window.location.hash = hashBase;
   closeAllMenus();
-  closeSidebar();
 }
 
 // ── 版本防呆：地圖頁載入後會回報自己的版本；沒回報（舊檔案）或版本太舊，就在畫面上方提示 ──
@@ -799,25 +628,10 @@ window.addEventListener('message', function(e) {
     // 若編輯地圖模式開啟中，通知新載入的 iframe
     if (_mapEditOn) sendMapEditMsg();
     _sendRailBadge();
-    // 若有待處理的導航指令
-    if (_pendingNav) sendNavMsg();
     // 若有等待中的導航點位 Modal
     if (_pendingNavModal) { _pendingNavModal = false; setTimeout(openNavSelectModal, 300); }
     // 若回報 FAB 開啟中，補回浮動按鈕
     if (_reportFabsVisible) { setTimeout(function(){ sendReportFabMsg(true); }, 300); }
-    if (_pendingReportFab) { _pendingReportFab = false; setTimeout(function(){ sendReportFabMsg(true); }, 400); }
-    if (_pendingTaskDispatch) {
-      _pendingTaskDispatch = false;
-      setTimeout(function() {
-        try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
-      }, 400);
-    }
-    if (_pendingTaskView) {
-      _pendingTaskView = false;
-      setTimeout(function() {
-        try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
-      }, 400);
-    }
     if (_pendingMyTask) {
       _pendingMyTask = false;
       var fKey = _getMyTaskFilterKey();
@@ -835,10 +649,6 @@ window.addEventListener('message', function(e) {
     return;
   }
 
-  // iframe 要求導覽到另一個頁面（帶 idx）
-  if (e.data && e.data.type === 'navigate') {
-    showIframe(e.data.src + '?idx=' + e.data.idx);
-  }
 
   // ── current-events 回傳點位清單，填入選擇格子 ──
   // iframe 通知有新量測點，重新取最新導航點位
@@ -914,44 +724,6 @@ function showMap() {
   showIframe('current-events.html');
 }
 
-// ── 載入儀表板統計數字 ──
-function loadDashStats() {
-  _jsonpGet(SHEETS_URL + '?action=eventStats', function(data) {
-    if (!data) return;
-    var actEl = document.getElementById('dashActiveVal');
-    var cloEl = document.getElementById('dashClosedVal');
-    var typeEl = document.getElementById('dashByType');
-    if (actEl) {
-      var sp1 = document.getElementById('dashActiveSpinner');
-      if (sp1) sp1.remove();
-      actEl.textContent = (data.active !== undefined) ? data.active : '—';
-    }
-    if (cloEl) {
-      var sp2 = document.getElementById('dashClosedSpinner');
-      if (sp2) sp2.remove();
-      cloEl.textContent = (data.closed !== undefined) ? data.closed : '—';
-    }
-    // 移除 dashByType skeleton rows（固定高度容器保留，只換內容）
-    // 各類型小計
-    if (typeEl && data.byType) {
-      var colors = {
-        '輻射彈事件':     '#dc2626',
-        '放射性物質事件': '#d97706',
-        '放射性物料事件': '#1a56db'
-      };
-      var types = ['輻射彈事件','放射性物質事件','放射性物料事件'];
-      typeEl.innerHTML = types.map(function(t) {
-        var n = data.byType[t] || 0;
-        var col = colors[t] || '#6b7a92';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;' +
-               'padding:3px 10px;background:#fff7f0;border-radius:4px;font-size:12px">' +
-               '<span style="color:#6b7a92">' + t + '</span>' +
-               '<span style="font-weight:700;color:' + col + '">' + n + '</span>' +
-               '</div>';
-      }).join('');
-    }
-  });
-}
 function openPanel(title) {
   reportFabsOff();
   var d = PANELS[title] || [title, '此功能尚未開放。'];
@@ -961,20 +733,11 @@ function openPanel(title) {
   document.getElementById('contentPanel').classList.add('active');
   document.getElementById('contentPanel').style.visibility = 'visible';
   closeAllMenus();
-  closeSidebar();
-  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
   _panelLoad(title);
 }
 
-// ── 關閉功能面板、回到上一個畫面（地圖或先前開啟的頁面）──
-// 按「← 返回上一頁」時呼叫
-// 移除 .content-panel 的 .active，並重新計算地圖大小
-function closePanel() {
-  document.getElementById('contentPanel').classList.remove('active');
-  setTimeout(function(){ if(gMap) gMap.invalidateSize(); }, 150);
-}
 
-// positionMenu/closeSidebar/closeAllMenus: 定義在 DOMContentLoaded 後方
+// positionMenu/closeAllMenus: 定義在 DOMContentLoaded 後方
 
 // ════════════════════════════════════════════════════════════
 // DOMContentLoaded：頁面 HTML 載入完成後執行
@@ -1026,8 +789,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.location.hash) history.replaceState('', document.title, window.location.pathname);
   }
 
-  // ── 載入儀表板統計（只有登入後才有意義）──
-  if (_authUser) loadDashStats();
 
   // ── Hash 路由（只有登入後才執行）──
   function restoreFromHash() {
@@ -1048,10 +809,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // tnav-item id → 對應 drop id
   var NAV_MAP = {
-    'tnav-dashboard': 'drop-dashboard',
-    'tnav-report':    'drop-report',
-    'tnav-settings':  'drop-settings',
-    'tnav-taskview':  'drop-taskview',
     'tnav-admin':     'drop-admin',
     'tnav-user':      'drop-user'
   };
@@ -1255,45 +1012,17 @@ function closeAllMenus() {
   });
 }
 
-// ── closeSidebar（openCreateEvent 等地方仍會呼叫，保留空函數避免錯誤）──
-function closeSidebar() {}
 
 // ════════════════════════════════════════════
 // 導航模式詢問
 // ════════════════════════════════════════════
-function isMobile() { return window.innerWidth <= 600; }
 
-// 手機版「回報」按鈕點擊：顯示浮動按鈕；桌機版維持下拉選單
-function onReportBtnClick(e) {
-  if (!isMobile()) return; // 桌機版讓原有下拉選單處理
-  e.stopPropagation(); // 阻止觸發下拉選單
-  closeAllMenus();
-  // 確保目前是地圖（current-events）頁面
-  var frame = document.getElementById('contentFrame');
-  var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
-  if (!isOnMap) {
-    // 先載入地圖，載入後再通知顯示 FAB
-    showIframe('current-events.html');
-    _pendingReportFab = true;
-  } else {
-    sendReportFabMsg(true);
-  }
-}
-var _pendingReportFab = false;
-// sendReportFabMsg 已在 toggleReportFabs 上方定義
 
 // ── 我要回報：toggle 持續浮動按鈕 ──
 var _reportFabsVisible = false;
 
 function toggleReportFabs() {
   _reportFabsVisible = !_reportFabsVisible;
-  // 桌機版下拉按鈕
-  var btn = document.getElementById('btnReportActive');
-  if (btn) btn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
-  // 手機版抽屜按鈕
-  var drawerBtn = document.getElementById('drawerReportActive');
-  if (drawerBtn) drawerBtn.textContent = _reportFabsVisible ? '我要回報（開啟中）' : '我要回報';
-
   var frame = document.getElementById('contentFrame');
   var isOnMap = frame && frame.src && frame.src.indexOf('current-events') !== -1;
 
@@ -1301,8 +1030,6 @@ function toggleReportFabs() {
     if (!isOnMap) {
       showIframe('current-events.html');   // 換頁會把回報按鈕關掉，所以載入後再打開
       _reportFabsVisible = true;
-      if (btn) btn.textContent = '我要回報（開啟中）';
-      if (drawerBtn) drawerBtn.textContent = '我要回報（開啟中）';
     } else {
       sendReportFabMsg(true);
     }
@@ -1314,13 +1041,8 @@ function toggleReportFabs() {
 // 回報按鈕（回報劑量／回報任務）自動關閉：換頁、開其他功能（查詢、任務、後台設定…）時呼叫，
 // 回到地圖時按鈕不再出現，左欄「回報」圖示也恢復沒按的樣子
 function reportFabsOff() {
-  _pendingReportFab = false;
   if (!_reportFabsVisible) return;
   _reportFabsVisible = false;
-  var btn = document.getElementById('btnReportActive');
-  if (btn) btn.textContent = '我要回報';
-  var drawerBtn = document.getElementById('drawerReportActive');
-  if (drawerBtn) drawerBtn.textContent = '我要回報';
   sendReportFabMsg(false);
 }
 
@@ -1331,11 +1053,6 @@ function sendReportFabMsg(show) {
   }
 }
 
-function askNavThenReport() {
-  showIframe('measurement-report.html');
-}
-function navAskNo() {}
-function navAskYes() {}
 
 // ── 導航點位選擇 Modal（兩步驟流程）──
 var _navSelectedLabel = null;
@@ -1468,16 +1185,6 @@ function selectNavPoint(label) {
     btn.style.background  = sel ? (c + '18') : 'white';
   });
   document.getElementById('navStartBtn').style.background = '#8b5cf6';
-}
-var _pendingNav = false;
-function sendNavMsg() {
-  try {
-    var frame = document.getElementById('contentFrame');
-    if (frame && frame.contentWindow) {
-      frame.contentWindow.postMessage({ type: 'startNavigation' }, '*');
-    }
-  } catch(e) {}
-  _pendingNav = false;
 }
 
 // ── 編輯地圖模式（全域旗標）──
@@ -1615,31 +1322,6 @@ function sendMapEditMsg() {
   </div>
 </div>
 
-<script>
-// 開啟回報數值查詢（通知 current-events iframe 開 Modal）
-function openMsrQueryInIframe() {
-  reportFabsOff();
-  closeAllMenus(); closeSidebar();
-  var frame = document.getElementById('contentFrame');
-  var layer = document.getElementById('iframeLayer');
-  if (!frame || !layer) return;
-  var src = frame.src || '';
-  if (src.indexOf('current-events.html') === -1) {
-    showIframe('current-events.html');
-    setTimeout(function() {
-      try { document.getElementById('contentFrame').contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
-    }, 1500);
-  } else {
-    if (layer.style.display === 'none' || !layer.style.display) {
-      layer.style.display = 'block';
-      ['.map-badge','.map-controls','.map-compass','.content-panel'].forEach(function(sel){
-        var el = document.querySelector(sel); if (el) el.style.visibility = 'hidden';
-      });
-    }
-    try { frame.contentWindow.postMessage({ type: 'openMsrQuery' }, '*'); } catch(e) {}
-  }
-}
-</script>
 <!-- ════════════════════════════════════════════
      登入遮罩（預設顯示；登入成功後隱藏）
      ════════════════════════════════════════════ -->
@@ -1710,7 +1392,6 @@ function submitLogin() {
 
     _applyAuthUI(user);
     document.getElementById('loginOverlay').classList.add('hide');
-    loadDashStats();
     showIframe('current-events.html');
   });
 }
@@ -1768,11 +1449,6 @@ function _applyAuthUI(user) {
   var nameMobileEl = document.getElementById('topbarNameMobile');
   if (nameMobileEl) nameMobileEl.textContent = label;
 
-  // 隱藏 dashboard 歡迎文字（若還存在）
-  var dashW = document.getElementById('dashWelcome');
-  var dashN = document.getElementById('dashWelcomeName');
-  if (dashW && dashN) { dashN.textContent = user.name; dashW.style.display = 'block'; }
-
   // 隱藏抽屜中的「登入」區塊
   var drawerLogin = document.getElementById('drawerLoginSection');
   if (drawerLogin) drawerLogin.style.display = 'none';
@@ -1819,66 +1495,12 @@ function _fetchTaskBadge() {
       }
     });
 
-    // 回報角標（隊別任務數，只有有 filterKey 才顯示）
-    _updateTaskBadge(filterKey ? myCount : 0);
     // 同步給地圖左側圖示列的「任務」角標
     window._railBadge = { my: filterKey ? myCount : 0, all: allCount };
     _sendRailBadge();
-
-    // 任務查看 nav 角標（隊別任務數）
-    var tvBadge = document.getElementById('taskViewBadge');
-    if (tvBadge) {
-      if (filterKey && myCount > 0) { tvBadge.textContent = myCount; tvBadge.style.display = 'inline-block'; }
-      else { tvBadge.style.display = 'none'; }
-    }
-
-    // 漢堡角標（手機，隊別任務數）
-    var hBadge = document.getElementById('hamburgerBadge');
-    if (hBadge) {
-      if (filterKey && myCount > 0) { hBadge.textContent = myCount; hBadge.style.display = 'flex'; }
-      else { hBadge.style.display = 'none'; }
-    }
-
-    // 下拉選項：隊別任務 badge
-    var myBadge = document.getElementById('dropMyTaskBadge');
-    if (myBadge) {
-      if (filterKey && myCount > 0) { myBadge.textContent = myCount; myBadge.style.display = 'inline'; }
-      else { myBadge.style.display = 'none'; }
-    }
-    // 抽屜：隊別任務 badge
-    var dMyBadge = document.getElementById('drawerMyTaskBadge');
-    if (dMyBadge) {
-      if (filterKey && myCount > 0) { dMyBadge.textContent = myCount; dMyBadge.style.display = 'inline'; }
-      else { dMyBadge.style.display = 'none'; }
-    }
-
-    // 下拉選項：所有任務 badge（橘色）
-    var allBadge = document.getElementById('dropAllTaskBadge');
-    if (allBadge) {
-      if (allCount > 0) { allBadge.textContent = allCount; allBadge.style.display = 'inline'; }
-      else { allBadge.style.display = 'none'; }
-    }
-    var dAllBadge = document.getElementById('drawerAllTaskBadge');
-    if (dAllBadge) {
-      if (allCount > 0) { dAllBadge.textContent = allCount; dAllBadge.style.display = 'inline'; }
-      else { dAllBadge.style.display = 'none'; }
-    }
   });
 }
 
-function _updateTaskBadge(count) {
-  // taskBadge（回報按鈕）不顯示數字，已整合到任務查看
-  // 手機版
-  var badgeMobile = document.getElementById('taskBadgeMobile');
-  if (badgeMobile) {
-    if (count > 0) {
-      badgeMobile.textContent = count;
-      badgeMobile.style.display = 'inline';
-    } else {
-      badgeMobile.style.display = 'none';
-    }
-  }
-}
 function onLogoClick(e) {
   try {
     var s = localStorage.getItem('radAuth');
@@ -1897,60 +1519,15 @@ function openEditEventPage() {
   var src = frame ? (frame.src || '') : '';
   if (src.indexOf('current-events.html') === -1) {
     _mapEditOn = true;
-    _updateEditEventBtn();
     showIframe('current-events.html');
     return;
   }
   _mapEditOn = !_mapEditOn;
-  _updateEditEventBtn();
   sendMapEditMsg();
 }
 
-// ── 更新「編輯事件」按鈕文字（桌機 L3 + 手機抽屜）──
-function _updateEditEventBtn() {
-  var btnDesktop = document.getElementById('btnEditEvent');
-  if (btnDesktop) btnDesktop.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
-  var btnDrawer = document.getElementById('drawerEditEventBtn');
-  if (btnDrawer) btnDrawer.textContent = _mapEditOn ? '編輯事件（開啟中）' : '編輯事件';
-}
 
-// ── 任務派送：確保在地圖頁，再通知 iframe 開啟 Modal ──
-var _pendingTaskDispatch = false;
-var _pendingTaskView = false;   // 原本未宣告，iframe 載入時會出現 ReferenceError
-function openTaskDispatchViaIframe() {
-  reportFabsOff();
-  var frame = document.getElementById('contentFrame');
-  var src = frame ? (frame.src || '') : '';
-  if (src.indexOf('current-events.html') === -1) {
-    _pendingTaskDispatch = true;
-    showIframe('current-events.html');
-    return;
-  }
-  setTimeout(function() {
-    try { frame.contentWindow.postMessage({ type: 'openTaskDispatch' }, '*'); } catch(e) {}
-  }, 50);
-}
 
-function openTaskViewModal() {
-  reportFabsOff();
-  var frame = document.getElementById('contentFrame');
-  var src = frame ? (frame.src || '') : '';
-  // 只要 iframe 有載入（src 不是空的），就直接送 postMessage
-  // 如果還沒進地圖頁，先跳過去
-  if (!src || src === '' || src === window.location.href) {
-    _pendingTaskView = true;
-    showIframe('current-events.html');
-    return;
-  }
-  if (src.indexOf('current-events') === -1) {
-    _pendingTaskView = true;
-    showIframe('current-events.html');
-    return;
-  }
-  setTimeout(function() {
-    try { frame.contentWindow.postMessage({ type: 'openTaskView' }, '*'); } catch(e) {}
-  }, 50);
-}
 
 var _pendingMyTask = false;
 function _getMyTeam() {
@@ -2008,17 +1585,6 @@ document.getElementById('loginOverlay').addEventListener('keydown', function(e) 
      存試算表「系統設定」分頁（GAS: getThresholds / saveThresholds，一律以 μSv/h 儲存）
 ════════════════════════════════════════════════════════════ -->
 <style>
-  #thModal { display:none; position:fixed; inset:0; z-index:99999;
-    background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
-  #msModal .th-box { background:white; border-radius:14px; max-width:440px; width:92%;
-    box-shadow:0 8px 32px rgba(0,0,0,.25); display:flex; flex-direction:column;
-    overflow:hidden; max-height:92vh;
-    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei','PingFang TC',sans-serif; }
-  #msModal .th-head { display:flex; align-items:center; justify-content:space-between;
-    padding:16px 20px; border-bottom:1px solid #e2e8f0; background:#f8fafc; }
-  #msModal .th-title { font-size:16px; font-weight:700; color:#1e2a3a; }
-  #msModal .th-x { background:none; border:none; font-size:18px; cursor:pointer; color:#94a3b8; line-height:1; }
-  #msModal .th-body { padding:16px 20px 20px; overflow-y:auto; }
   #msModal .th-lv { display:flex; align-items:center; gap:10px; padding:8px 0;
     border-bottom:1px solid #f1f5f9; font-size:14px; color:#1e2a3a; }
   #msModal .th-lv:last-child { border-bottom:none; }
@@ -2041,8 +1607,6 @@ document.getElementById('loginOverlay').addEventListener('keydown', function(e) 
   #msModal .th-btns { display:flex; gap:8px; margin-top:14px; }
   #msModal .th-btn { padding:9px; border-radius:8px; font-family:inherit; font-size:14px; cursor:pointer; }
   #msModal .th-btn-reset { flex:1; border:1px solid #e2e8f0; background:white; color:#1e2a3a; }
-  #msModal .th-btn-cancel { flex:1; border:1px solid #e2e8f0; background:none; color:#6b7a92; }
-  #msModal .th-btn-save { flex:1.4; border:none; background:#1a56db; color:white; font-weight:700; }
   #msModal .th-btn:disabled { opacity:.5; cursor:not-allowed; }
   #msModal .th-tag { display:inline-block; font-size:14px; padding:1px 8px; border-radius:10px; margin-left:6px; font-weight:400; }
   #msModal .th-tag-def { background:#ecfdf5; color:#15803d; border:1px solid #bbf7d0; }
@@ -2052,7 +1616,6 @@ document.getElementById('loginOverlay').addEventListener('keydown', function(e) 
 <script>
 var TH_DEFAULT = { warm: 0.5, hot: 100 };   // μSv/h
 
-function openThresholdModal() { openMsrLimitModal(); }
 // 量測數值設定視窗開啟時，一併載入顏色分界
 function _thInit() {
   document.getElementById('thErr').textContent = '';
@@ -2065,8 +1628,6 @@ function _thInit() {
   } catch(e) { thSetInputs(TH_DEFAULT.warm, TH_DEFAULT.hot); }
   thLoad();
 }
-
-function closeThresholdModal() { closeMsrLimitModal(); }
 
 // 數值格式化（去掉浮點尾數）
 function thFmt(v) { return String(parseFloat(v.toPrecision(10))); }
@@ -2257,7 +1818,6 @@ function ctClear() {
   #msModal .ms-btn-save { flex:1.4; border:none; background:#1a56db; color:white; font-weight:700; }
   #msModal .ms-btn:disabled { opacity:.5; cursor:not-allowed; }
   #msModal .ms-sec-title { font-size:15px; font-weight:700; color:#1e2a3a; margin:2px 0 10px; display:flex; align-items:center; }
-  #msModal .ms-sep { border-top:1px solid #e2e8f0; margin:18px -20px 16px; }
   /* 桌面版：左污染、中劑量率、右筆數三欄；窄螢幕改成上下排 */
   #msModal .ms-box { max-width:1120px; }
   #msModal .ms-body { padding:0; }
@@ -2732,11 +2292,6 @@ function closeLiveWin() {
   .pn-table tbody tr:nth-child(even) td { background: #fafcff; }
   .pn-table tbody tr:hover td { background: #f0f6ff; }
   .pn-ok { color: #16a34a; font-weight: 700; } .pn-bad { color: #dc2626; font-weight: 700; }
-  .pn-ev { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
-    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .pn-ev-main { flex: 1; min-width: 200px; }
-  .pn-ev-name { font-size: 18px; font-weight: 700; color: #1e2a3a; }
-  .pn-ev-meta { font-size: 16px; color: #6b7a92; margin-top: 4px; line-height: 1.6; }
   .pn-ev-type { display: inline-block; font-size: 14px; font-weight: 700; padding: 1px 8px; border-radius: 10px;
     background: #f1f5f9; color: #3d5070; margin-left: 8px; vertical-align: 2px; }
   .pn-btn { border: 1px solid #1a56db; background: white; color: #1a56db; border-radius: 8px; padding: 9px 16px;
@@ -3167,7 +2722,6 @@ function submitEndEvent() {
         if (ev && _pnIsClosed(ev.status)) {
           closeEndEventModal();
           try { sessionStorage.setItem('currentEventIdx', 0); } catch (e) {}
-          if (typeof loadDashStats === 'function') loadDashStats();
           showIframe('current-events.html');
           alert('事件已結束，可在「歷史事件查詢」查看。');
         } else {

@@ -77,15 +77,6 @@ transition: all .12s;
 .ev-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
 .ev-nav-label { font-family: var(--font-mono); min-width: 32px; text-align: center; font-size: 11px; }
 
-/* 收合按鈕 */
-.ev-collapse-btn {
-width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border);
-background: none; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 12px; color: var(--text-muted);
-transition: all .12s; flex-shrink: 0;
-}
-.ev-collapse-btn:hover { background: var(--bg); color: var(--accent); }
-
 /* ── 卡片內容 ── */
 .ev-card-body {
 padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
@@ -97,8 +88,6 @@ min-height: 0;      /* flex 子元素需要才能正確捲動 */
 .ev-card-body::-webkit-scrollbar { width: 4px; }
 .ev-card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .ev-card-body::-webkit-scrollbar-thumb:hover { background: #b0bec5; }
-.ev-card.collapsed .ev-card-body { display: none; }
-.ev-card.collapsed .ev-card-header { border-bottom: none; }
 
 .ev-row {
 display: flex; gap: 8px; align-items: flex-start;
@@ -123,9 +112,6 @@ border-left: 3px solid #f97316;
 .ev-dose-val {
 font-size: 16px !important; font-weight: 700 !important;
 color: #ea580c !important; font-family: var(--font-mono);
-}
-.ev-dose-max {
-color: #dc2626 !important;
 }
 
 /* 類型標籤 */
@@ -175,14 +161,7 @@ color: var(--text); background: white; outline: none;
 transition: border-color .15s;
 }
 .ev-edit-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
-.ev-edit-sel {
-width: 100%; padding: 7px 10px; border: 1px solid var(--border);
-border-radius: 5px; font-family: var(--font); font-size: 13px;
-color: var(--text); background: white; outline: none; cursor: pointer;
-appearance: none;
-background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘8’%3E%3Cpath d=‘M1 1l5 5 5-5’ stroke=’%236b7a92’ stroke-width=‘1.5’ fill=‘none’ stroke-linecap=‘round’/%3E%3C/svg%3E”);
-background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
-}
+
 .ev-edit-btns { display: flex; gap: 6px; margin-top: 4px; }
 .ev-edit-save {
 flex: 1; padding: 8px; border-radius: 5px; border: none;
@@ -324,19 +303,6 @@ cursor: pointer; transition: all .15s;
 .ce-instr-user-sel:focus { border-color: var(--accent); outline: none; }
 .ce-instr-empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
 
-/* 快捷按鈕 */
-.ev-shortcuts {
-display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border);
-margin-top: 2px;
-}
-.ev-shortcut-btn {
-flex: 1; padding: 6px 8px; border-radius: 5px;
-border: 1px solid var(--border); background: none;
-font-family: var(--font); font-size: 12px; color: var(--text-muted);
-cursor: pointer; transition: all .15s; text-align: center; white-space: nowrap;
-}
-.ev-shortcut-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
-
 /* 無事件狀態 */
 .ev-empty {
 text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px;
@@ -361,15 +327,11 @@ font-size: 13px; font-weight: 700; color: var(--text); user-select: none;
 max-height: calc(100vh - 200px); overflow-y: auto; }
 .layer-panel-body::-webkit-scrollbar { width: 3px; }
 .layer-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.layer-panel.collapsed .layer-panel-body { display: none; }
-.layer-panel.collapsed .layer-panel-header { border-bottom: none; }
+
 /* 每個事件的圖層區塊 */
 .layer-ev-block { padding: 6px 12px; border-bottom: 1px solid var(--border); }
 .layer-ev-block:last-child { border-bottom: none; }
-.layer-ev-name {
-font-size: 12px; font-weight: 700; color: var(--text);
-margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+
 .layer-ev-cbs { display: flex; flex-direction: column; gap: 4px; }
 .layer-row {
 display: flex; align-items: center; gap: 6px;
@@ -382,13 +344,6 @@ flex-shrink: 0;
 .layer-dot {
 width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
 }
-.layer-collapse-btn {
-width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
-background: none; cursor: pointer; display: flex; align-items: center;
-justify-content: center; font-size: 11px; color: var(--text-muted);
-transition: all .12s; flex-shrink: 0;
-}
-.layer-collapse-btn:hover { background: var(--bg); }
 
 /* ── 聚合圓圈 ── */
 .msr-cluster {
@@ -399,8 +354,7 @@ transition: all .12s; flex-shrink: 0;
   transition: transform .15s;
 }
 .msr-cluster:hover { transform: scale(1.15); }
-/* ── 量測標記 popup ── */
-.msr-popup { font-family: var(--font); min-width: 140px; }
+
 /* ── 最新 3 筆量測的 new 標記（標籤左上角）── */
 .msr-new {
   position: absolute; top: -10px; left: -8px; z-index: 1;
@@ -422,22 +376,6 @@ transition: all .12s; flex-shrink: 0;
 .msr-seg button + button { border-left: 1px solid #cbd5e1; }
 .msr-seg button.on { background: #1a56db; color: #fff; }
 @keyframes msrNewBlink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .2; transform: scale(.9); } }
-.msr-popup-val { font-size: 18px; font-weight: 800; color: #f97316;
-font-family: var(--font-mono); }
-.msr-popup-unit { font-size: 11px; color: #6b7a92; margin-left: 2px; }
-.msr-popup-info { font-size: 12px; color: #6b7a92; margin-top: 3px; }
-
-/* ── 右下角返回按鈕 ── */
-.back-btn {
-position: fixed; bottom: 24px; right: 24px; z-index: 1000;
-display: flex; align-items: center; gap: 6px;
-background: white; border: 1px solid var(--border);
-border-radius: var(--radius); padding: 8px 16px;
-font-family: var(--font); font-size: 13px; color: var(--text-muted);
-cursor: pointer; box-shadow: var(--shadow-md);
-transition: all .15s;
-}
-.back-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── 右下角圖釘（回到定位）── */
 .locate-btn {
@@ -485,8 +423,6 @@ transition: background .1s;
 }
 .map-ctx-item:hover { background: var(--hover); color: var(--accent); }
 .map-ctx-item .ctx-icon { font-size: 16px; flex-shrink: 0; }
-.map-ctx-sep { border: none; border-top: 1px solid var(--border); margin: 3px 0; }
-
 
 /* ── 指南針 ── */
 /* compass removed */
@@ -496,11 +432,6 @@ transition: background .1s;
   margin-right: 8px;
 }
 
-.compass-arrow {
-  font-size: 22px; line-height: 1;
-  transition: transform .3s;
-  user-select: none;
-}
 /* ── 量測點分派 Modal ── */
 .modal-overlay {
 position: fixed; inset: 0; z-index: 7000;
@@ -616,15 +547,6 @@ cursor: pointer; transition: background .15s;
   }
   .layer-panel.mob-show { display: block !important; }
 
-  /* 圖層開關浮動按鈕 */
-  .mob-layer-btn {
-    display: flex !important;
-  }
-  /* 事件資訊 icon 按鈕 */
-  .mob-ev-btn {
-    display: flex !important;
-  }
-
   /* ── 畫筆工具列：精簡版，隱藏粗細文字和顏色 ── */
   .draw-toolbar {
     bottom: 58px !important; /* 往上移，避免蓋到卡片把手 */
@@ -636,13 +558,8 @@ cursor: pointer; transition: background .15s;
   .draw-tool-btn { width: 32px !important; height: 32px !important; font-size: 15px !important; }
   .draw-toolbar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; border-radius: 18px !important; }
 
-  /* ── 桌機版的收合按鈕在手機版隱藏（改用點擊 header 收合）── */
-  .ev-collapse-btn { display: none !important; }
 }
 
-/* 手機版圖層按鈕預設隱藏（桌機不顯示）*/
-.mob-layer-btn { display: none; }
-.mob-ev-btn { display: none; }
 /* 手機版事件資訊面板 */
 .mob-ev-panel {
   display: none;
@@ -765,7 +682,6 @@ cursor: pointer; transition: background .15s;
       <button class="ev-nav-btn" id="evNext" onclick="navEvent(1)" title="下一筆">&#9654;</button>
     </div>
     <button class="ev-edit-btn" id="evEditBtn" onclick="toggleEditPanel()" title="編輯" style="display:none">&#x270F;&#xFE0F; 編輯</button>
-    <button class="ev-collapse-btn" id="evCollapseBtn" onclick="toggleCollapse()" title="收合">&#x25B2;</button>
   </div>
   <div class="ev-sel-bar" id="evSelBar" style="display:none"></div>
   <div class="ev-card-body" id="evCardBody">
@@ -1231,25 +1147,6 @@ cursor: pointer; transition: background .15s;
   </div>
 </div>
 
-<!-- 手機版：圖層開關浮動按鈕（右上角）-->
-<button class="mob-layer-btn" id="mobLayerBtn" onclick="toggleMobLayer()"
-  style="position:fixed;top:12px;right:12px;z-index:1001;
-         width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
-         background:white;box-shadow:0 2px 8px rgba(0,0,0,.15);
-         font-size:18px;cursor:pointer;
-         align-items:center;justify-content:center;">
-  🗺️
-</button>
-
-<!-- 手機版：事件資訊 icon 按鈕（圖層按鈕下方）-->
-<button class="mob-ev-btn" id="mobEvBtn" onclick="toggleMobEvPanel()"
-  style="position:fixed;top:58px;right:12px;z-index:1001;
-         width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
-         background:white;box-shadow:0 2px 8px rgba(0,0,0,.15);
-         font-size:18px;cursor:pointer;
-         align-items:center;justify-content:center;">
-  🚨
-</button>
 
 
 <!-- 手機版事件資訊面板 -->
@@ -1269,7 +1166,6 @@ cursor: pointer; transition: background .15s;
 <div class="layer-panel" id="layerPanel">
   <div class="layer-panel-header">
     &#x1F5FA;&#xFE0F; 圖層顯示
-    <button class="layer-collapse-btn" id="layerCollapseBtn" onclick="toggleLayerPanel()" style="margin-left:auto">&#x25B2;</button>
   </div>
   <div class="layer-panel-body" id="layerPanelBody">
     <div style="text-align:center;color:#b0bec5;font-size:12px;padding:8px 0">載入中…</div>
@@ -1344,7 +1240,7 @@ function _jsonpGet(url, cb) {
 }
 
 function _esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2248,14 +2144,6 @@ function saveEdit() {
   });
 }
 
-// ── 收合 ──
-function toggleCollapse() {
-  var card = document.getElementById('evCard');
-  var btn  = document.getElementById('evCollapseBtn');
-  var collapsed = card.classList.toggle('collapsed');
-  btn.innerHTML = collapsed ? '&#x25BC;' : '&#x25B2;';
-  btn.title = collapsed ? '展開' : '收合';
-}
 
 // ── 切換事件 ──
 function navEvent(dir) {
@@ -2333,14 +2221,6 @@ function renderCard(idx) {
   } else {
     nav.style.display = 'none';
   }
-
-  // 同步圖層面板導覽
-  var lnc = document.getElementById('layerNavCount');
-  var lpp = document.getElementById('layerEvPrev');
-  var lpn = document.getElementById('layerEvNext');
-  if (lnc) lnc.textContent = (idx + 1) + '/' + _events.length;
-  if (lpp) lpp.disabled = (idx === 0);
-  if (lpn) lpn.disabled = (idx === _events.length - 1);
 
   var ev = _events[idx];
   var techCount  = parseTechCount(ev.personnelStr || '');
@@ -2473,11 +2353,6 @@ function notifyReady() {
   // 讓 parent 的 navBannerBar「結束導航」按鈕可以呼叫 iframe 裡的 stopNavMode
   try { parent.window.__stopNav = function() { stopNavMode(); }; } catch(e) {}
 }
-// 快捷按鈕：觀看模式 → 開唯讀 Modal
-function goPersonnel() { openPersonnelViewModal(); }
-function goInstruments() { openInstrViewModal(); }
-// 開啟回報數值查詢 Modal
-function goMeasurements() { openMsrQueryModal(); }
 
 // ════════════════════════════════════════════════════════
 // 回報數值查詢 Modal
@@ -2745,13 +2620,6 @@ function mqExportCSV() {
 
 // ════════════════════════════════════════════════════════
 // 出勤人員 唯讀檢視 Modal
-// ════════════════════════════════════════════════════════
-// 事件類型 → 技術組分頁 ID 對照
-function _evTypeToTechId(type) {
-  if ((type || '').indexOf('放射性物料') !== -1) return 'tech-material';
-  if ((type || '').indexOf('放射性物質') !== -1) return 'tech-substance';
-  return 'tech-rdd'; // 輻射彈事件（預設）
-}
 
 function openPersonnelViewModal() {
   var ev = _events[_curIdx]; if (!ev) return;
@@ -2959,7 +2827,6 @@ var _PM_CE_TYPE_GROUP = {
   '放射性物質事件': 'tech-substance',
   '放射性物料事件': 'tech-material'
 };
-var _PM_NON_TECH = ['參謀組', '新聞組'];
 
 function _pmLoadGroup(groupId, cb) {
   if (_pmGroupCache[groupId]) { cb(); return; }
@@ -3994,9 +3861,6 @@ function updateLayers(lat, lng) {
   refreshShownEvents();
 }
 
-function removeLayers() {
-  _events.forEach(function(_, i) { removeEventLayers(i); });
-}
 
 // ── 定時刷新計時器 ──
 var _msrTimer = null;
@@ -4730,15 +4594,6 @@ function renderMsrContamLayer(idx) {
   });
 }
 
-function onContamDotChk(idx, checked) {
-  var ev = _events[idx];
-  if (ev) saveLayerPref(ev.id, 'contamdot', checked);
-  if (checked && ev && !_msrCache[ev.id]) {
-    loadMeasurements(idx);
-  } else {
-    renderContamDotLayer(idx);
-  }
-}
 
 // ── 污染值點位圖層 ──
 var _contamDotMarkers = [];
@@ -4773,15 +4628,6 @@ function renderContamDotLayer(idx) {
   });
 }
 
-function onMsrDotChk(idx, checked) {
-  var ev = _events[idx];
-  if (ev) saveLayerPref(ev.id, 'msrdot', checked);
-  if (checked && ev && !_msrCache[ev.id]) {
-    loadMeasurements(idx);
-  } else {
-    renderMsrDotLayer(idx);
-  }
-}
 
 // ── 量測點：只顯示彩色圓點，不顯示數字 ──
 var _msrDotMarkers = [];
@@ -6090,12 +5936,6 @@ function toggleMsrLayer(idx) {
   }
 }
 
-function toggleLayerPanel() {
-  var panel = document.getElementById('layerPanel');
-  var btn   = document.getElementById('layerCollapseBtn');
-  var collapsed = panel.classList.toggle('collapsed');
-  btn.innerHTML = collapsed ? '&#x25BC;' : '&#x25B2;';
-}
 
 // ── 在地圖放置所有事件標記 ──
 function placeMarkers() {
@@ -6124,8 +5964,6 @@ function placeMarkers() {
       renderLayerPanel();
       refreshShownEvents();
       _refreshMobEvPanel();
-      var card = document.getElementById('evCard');
-      if (card.classList.contains('collapsed')) toggleCollapse();
       if (window.railShow) railShow('ev');
     });
     _markers.push(marker);
@@ -6266,9 +6104,6 @@ window.addEventListener('message', function(e) {
     }
   }
   // 新式 eventId（從建立事件頁跳過來）
-  if (e.data && e.data.type === 'openMsrQuery') { openMsrQueryModal(); return; }
-  if (e.data && e.data.type === 'openTaskDispatch') { openTdModal(); return; }
-  if (e.data && e.data.type === 'openTaskView') { openTaskViewModal(); return; }
   if (e.data && e.data.type === 'openMyTask') { openMyTaskModal(e.data.team || '', e.data.label || ''); return; }
   if (e.data.type === 'setEventId' && e.data.id) {
     if (_events.length > 0) {
@@ -6700,7 +6535,6 @@ function startDrawingSyncTimer() {
 var _navRoute     = null;  // 路線 Polyline
 var _navDestMk    = null;  // 目的地標記
 var _navFollowing = false; // 是否跟隨使用者移動
-var _navBanner    = null;  // 頂部導航提示列
 var _navTargetPt  = null;  // { label, pt } 使用者選擇的目標點位
 
 function startNavMode() {
@@ -8151,7 +7985,7 @@ function updateUserDirCone() {
   display: flex; align-items: center; gap: 12px;
   padding: 0 20px; background: #1e2a3a; height: 48px; flex-shrink: 0;
 }
-#tdHeader .td-title { font-size: 15px; font-weight: 700; color: #e8f0fa; flex: 1; }
+
 #tdHeader button {
   background: none; border: none; color: #8da0b8; font-size: 22px;
   cursor: pointer; line-height: 1; padding: 0 4px;
@@ -8161,24 +7995,14 @@ function updateUserDirCone() {
   display: flex; align-items: center; padding: 10px 20px;
   background: white; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; gap: 0;
 }
-.td-step { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #6b7a92; }
-.td-step-num {
-  width: 22px; height: 22px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; background: #e2e8f0; color: #6b7a92; transition: all .2s;
-}
-.td-step.active .td-step-num { background: #1a56db; color: white; }
-.td-step.active .td-step-label { color: #1a56db; font-weight: 600; }
-.td-step.done .td-step-num { background: #16a34a; color: white; }
-.td-step.done .td-step-label { color: #16a34a; }
-.td-step-sep { flex: 1; height: 1px; background: #e2e8f0; margin: 0 10px; max-width: 60px; }
+
 /* 主體 */
 #tdBody { flex: 1; overflow-y: auto; min-height: 0; }
 #tdBody::-webkit-scrollbar { width: 4px; }
 #tdBody::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
 .td-panel { display: none; padding: 20px; max-width: 680px; margin: 0 auto; }
 .td-panel.active { display: block; }
-.td-panel-wide { max-width: 100% !important; }
+
 /* 表單 */
 .td-form-group { margin-bottom: 18px; }
 .td-form-lbl {
@@ -8205,39 +8029,7 @@ function updateUserDirCone() {
 .td-priority-pill.sel-high   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
 .td-priority-pill.sel-medium { border-color: #d97706; background: #fffbeb; color: #d97706; }
 .td-priority-pill.sel-low    { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
-/* 事件卡片 */
-.td-event-list { display: flex; flex-direction: column; gap: 8px; }
-.td-event-card {
-  padding: 14px 16px; background: white; border: 2px solid #e2e8f0;
-  border-radius: 8px; cursor: pointer; transition: all .15s;
-  display: flex; align-items: center; gap: 12px;
-}
-.td-event-card:hover { border-color: #1a56db; background: #f1f5ff; }
-.td-event-card.selected { border-color: #1a56db; background: #eff6ff; }
-.td-event-name { font-size: 15px; font-weight: 700; color: #1e2a3a; }
-.td-event-meta { font-size: 12px; color: #6b7a92; margin-top: 3px; }
-.td-badge {
-  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
-}
-.td-badge-rdd      { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-.td-badge-substance{ background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
-.td-badge-material { background: #eff6ff; color: #1a56db; border: 1px solid #93c5fd; }
-/* 兩欄版 */
-.td-two-col { display: flex; gap: 20px; align-items: flex-start; }
-.td-info-col {
-  width: 200px; flex-shrink: 0; background: white; border: 1px solid #e2e8f0;
-  border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-}
-.td-info-col-title {
-  padding: 8px 12px; font-size: 12px; font-weight: 700; color: #6b7a92;
-  letter-spacing: .06em; text-transform: uppercase;
-  background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-}
-.td-info-col-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-.td-sel-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #eff6ff; border: 1px solid #bfdbfe; }
-.td-sel-lbl { font-size: 12px; font-weight: 600; color: #6b7a92; white-space: nowrap; min-width: 52px; }
-.td-sel-val { font-size: 13px; font-weight: 600; color: #1a56db; }
-.td-main-col { flex: 1; min-width: 0; }
+
 /* 組別格子 */
 .td-squad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .td-squad-btn {
@@ -8281,9 +8073,7 @@ function updateUserDirCone() {
 @media (max-width: 600px) {
   #tdBox { height: 100vh; width: 100vw; border-radius: 0; }
   .td-squad-grid { grid-template-columns: repeat(2,1fr); }
-  .td-step-label { display: none; }
-  .td-two-col { flex-direction: column; }
-  .td-info-col { width: 100%; }
+
 }
 </style>
 
@@ -8354,8 +8144,6 @@ function updateUserDirCone() {
           <input type="hidden" id="tdTaskPriority">
         </div>
 
-        <!-- 隱藏的第二步資訊（保留 id 供 JS 相容）-->
-        <div id="tdStep2Info" style="display:none"></div>
       </div>
       <!-- 成功畫面 -->
       <div id="tdSuccessBox">
@@ -8577,8 +8365,6 @@ function tdSelectSquad(btn) {
   tdValidateAll();
 }
 
-function tdGoStep2() {}
-function tdGoStep1() {}
 
 function tdSelectPriority(el) {
   document.querySelectorAll('.td-priority-pill').forEach(function(p){ p.className='td-priority-pill'; });
@@ -8604,7 +8390,6 @@ function tdValidateAll() {
   }
 }
 
-function tdValidateStep2() { tdValidateAll(); }
 
 function tdSubmitTask() {
   var ev = _events[_curIdx];
@@ -8664,7 +8449,6 @@ function tdSubmitTask() {
         document.getElementById('tdSuccessSub').textContent =
           '事件：' + ev.name + '｜對象：' + _tdSelectedSquads.join('、') + (priority ? '｜優先：' + priority : '');
         document.getElementById('tdSuccessBox').classList.add('show');
-        try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
       }, 200);
       return;
     }
@@ -9526,7 +9310,6 @@ function _birdToggleLang(e){
 }
 
 
-function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── 初始化 ──
 function _initBirdBtn() {
@@ -10015,10 +9798,6 @@ function _birdAppendMsg(role, html) {
   chat.scrollTop = chat.scrollHeight;
   return bbl; // 回傳泡泡元素，可後續替換內容
 }
-// 保留舊介面相容（birdCheckAlert 等地方仍用 birdResult 直接寫）
-function _birdRenderResult(parsed,srcNames){
-  _birdAppendMsg('ai', _birdRenderAiHtml(parsed, srcNames));
-}
 
 function _parseBirdResponse(text){
   // 1. 移除 markdown 圍欄（Gemini 有時會加 ```json ... ```）
@@ -10495,7 +10274,6 @@ async function birdCheckAlert(measurements, eventId){
   color: var(--text-muted); flex-shrink: 0; padding: 0; font-family: var(--font);
 }
 .rail-hd-btn:hover { background: var(--bg); color: var(--accent); }
-.rail-hd-btn.pinned { background: #e0e9ff; border-color: var(--accent); }
 
 /* ── 桌機：事件狀態（左上）與圖層顯示（右上）各自用圖示開關，可同時開著 ── */
 @media (min-width: 601px) {
@@ -10514,7 +10292,7 @@ async function birdCheckAlert(measurements, eventId){
   .ev-card.rail-on { display: flex; left: calc(var(--rail-w) + 8px); z-index: 1040; }
   .layer-panel { display: none; z-index: 1050; }
   .layer-panel.rail-on { display: block; z-index: 1040; }
-  .ev-collapse-btn, .layer-collapse-btn { display: none !important; }
+
 }
 
 /* ── 手機：圖示列改到底部橫排，圖示下方直接顯示文字；不提供釘住 ── */
@@ -10537,7 +10315,7 @@ async function birdCheckAlert(measurements, eventId){
   .rail-mobonly { display: flex !important; }
   .rail-badge { top: 0; right: 2px; }
   .rail-sep, .rail-spacer { display: none !important; }
-  .mob-layer-btn, .mob-ev-btn { display: none !important; }
+
   .rail-menu {
     left: 8px; right: 8px; top: auto; width: auto;
     bottom: calc(var(--mobbar-h) + 8px + env(safe-area-inset-bottom, 0px));    z-index: 3100;
@@ -10726,7 +10504,6 @@ function _railSetOn(k, on) {
   var el = _railEl(k);
   if (!el) return;
   _railOn[k] = !!on;
-  el.classList.remove('collapsed');
   el.classList.toggle('rail-on', !!on);
   _railApplyOff();
   _railMark();
@@ -10844,9 +10621,6 @@ function goMyLocation() {
   }, { enableHighAccuracy: true, timeout: 8000 });
 }
 
-function railBackToLive() {
-  if (!_railParent('showIframe', 'current-events.html')) location.href = 'current-events.html';
-}
 // 歷史檢視／回放上方的「回到歷史事件」：回到平台首頁的「歷史事件查詢」清單
 function railBackToHistory() {
   if (_rpOn && typeof _rp !== 'undefined') _rp.playing = false;
@@ -11201,7 +10975,6 @@ function submitTaskDone() {
     // 重新讀取任務清單（取得照片連結），並通知首頁更新任務角標
     setTimeout(function() {
       myTaskLoad();
-      try { parent.postMessage({ type: 'refreshTasks' }, '*'); } catch(e) {}
     }, 1200);
   }).catch(function() {
     btn.disabled = false; btn.textContent = '✅ 確認完成';
