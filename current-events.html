@@ -8639,15 +8639,15 @@ function _tdEsc(s) {
       display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
       <select id="tvStatusSel" onchange="tvRender()" style="
         padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;
-        font-family:inherit;font-size:13px;color:#1e2a3a;background:white;outline:none">
+        font-family:inherit;font-size:14px;color:#1e2a3a;background:white;outline:none">
         <option value="">全部狀態</option>
         <option value="pending">待執行</option>
         <option value="done">已完成</option>
       </select>
-      <span id="tvCount" style="font-size:13px;color:#6b7a92"></span>
+      <span id="tvCount" style="font-size:14px;color:#6b7a92"></span>
       <button onclick="tvLoad()" style="
         margin-left:auto;padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;
-        background:white;font-family:inherit;font-size:13px;color:#6b7a92;cursor:pointer">
+        background:white;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
         🔄 重新整理
       </button>
     </div>
@@ -8670,7 +8670,7 @@ var _allEvNames = {};   // 事件編號 → 事件名稱（含已結束事件；
 // 任務清單的「事件」欄：事件名稱（粗體）＋下面小字事件編號；查不到名稱才只顯示編號
 function _taskEvCell(evId) {
   var nm = _allEvNames[evId] || _tvEvMap[evId] || _myTaskEvMap[evId] || '';
-  return nm ? '<div>' + _esc(nm) + '</div><div style="font-size:12px;font-weight:400;color:#94a3b8;font-family:monospace">' + _esc(evId) + '</div>'
+  return nm ? '<div>' + _esc(nm) + '</div><div style="font-size:14px;font-weight:400;color:#94a3b8;font-family:monospace">' + _esc(evId) + '</div>'
             : _esc(evId || '—');
 }
 
@@ -8736,7 +8736,7 @@ function tvRender() {
   var html = '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['#','事件','派送對象','任務標題','優先','時間','狀態'].forEach(function(h){
-    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
+    html += '<th style="font-size:14px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
@@ -8745,18 +8745,18 @@ function tvRender() {
     try { var d=new Date(t.createdAt); if(!isNaN(d.getTime())) ts=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); } catch(e){}
     var isDone = t.status === 'done';
     var stBadge = isDone
-      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">✅ 已完成</span>'
-      : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
+      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:14px;font-weight:600">✅ 已完成</span>'
+      : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:14px;font-weight:600">⏳ 待執行</span>';
     var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
     var targetStr = t.targets.filter(Boolean).join('、');
     var rowStyle = 'border-bottom:' + (t.content ? 'none' : '1px solid #f0f4f8') + (isDone?';opacity:.65':'');
     html += '<tr style="' + rowStyle + '">';
-    html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;color:#3d5070">'+_esc(targetStr)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
+    html += '<td style="padding:9px 10px;font-size:14px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;color:#3d5070">'+_esc(targetStr)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
-    html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
     var phLinks = (t.photos || []).map(function(ph) {
       return '<a href="' + _esc(ph.url) + '" target="_blank" rel="noopener" title="' + _esc((ph.target || '') + ' 回報照片') + '" style="text-decoration:none">📷</a>';
     }).join(' ');
@@ -8764,7 +8764,7 @@ function tvRender() {
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
-      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:12px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
+      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:14px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
       html += '</tr>';
     }
   });
@@ -8796,18 +8796,18 @@ function tvRender() {
     </div>
     <div style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;
       display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
-      <span id="myTaskTeamLabel" style="font-size:13px;font-weight:600;color:#1a56db"></span>
+      <span id="myTaskTeamLabel" style="font-size:14px;font-weight:600;color:#1a56db"></span>
       <select id="myTaskStatusSel" onchange="myTaskRender()" style="
         padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;
-        font-family:inherit;font-size:13px;color:#1e2a3a;background:white;outline:none">
+        font-family:inherit;font-size:14px;color:#1e2a3a;background:white;outline:none">
         <option value="">全部狀態</option>
         <option value="pending">待執行</option>
         <option value="done">已完成</option>
       </select>
-      <span id="myTaskCount" style="font-size:13px;color:#6b7a92"></span>
+      <span id="myTaskCount" style="font-size:14px;color:#6b7a92"></span>
       <button onclick="myTaskLoad()" style="
         margin-left:auto;padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;
-        background:white;font-family:inherit;font-size:13px;color:#6b7a92;cursor:pointer">
+        background:white;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">
         🔄 重新整理
       </button>
     </div>
@@ -8935,7 +8935,7 @@ function myTaskRender() {
   var html = '<table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr style="background:#f1f5f9">';
   ['#','事件','任務標題','優先','時間','狀態','操作'].forEach(function(h){
-    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
+    html += '<th style="font-size:14px;color:#6b7a92;font-weight:600;padding:9px 12px;' +
             'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
@@ -8948,34 +8948,34 @@ function myTaskRender() {
     } catch(e) {}
     var isDone = t.status === 'done';
     var stBadge = isDone
-      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">✅ 已完成</span>'
-      : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">⏳ 待執行</span>';
+      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:10px;font-size:14px;font-weight:600">✅ 已完成</span>'
+      : '<span style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;padding:2px 8px;border-radius:10px;font-size:14px;font-weight:600">⏳ 待執行</span>';
     var pr = t.priority ? '<span style="color:'+(pc[t.priority]||'#6b7a92')+';font-weight:700">'+t.priority+'</span>' : '—';
     var rowStyle = 'border-bottom:' + (t.content ? 'none' : '1px solid #f0f4f8') + (isDone?';opacity:.65':'');
     html += '<tr style="' + rowStyle + '">';
-    html += '<td style="padding:9px 10px;font-size:12px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
+    html += '<td style="padding:9px 10px;font-size:14px;color:#94a3b8;font-family:monospace;text-align:center;white-space:nowrap">'+(idx+1)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a;white-space:nowrap">'+_taskEvCell(t.eventId)+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">'+_esc(t.title)+'</td>';
     html += '<td style="padding:9px 12px;text-align:center">'+pr+'</td>';
-    html += '<td style="padding:9px 12px;font-size:12px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
+    html += '<td style="padding:9px 12px;font-size:14px;color:#94a3b8;white-space:nowrap">'+ts+'</td>';
     html += '<td style="padding:9px 12px">'+stBadge+'</td>';
     if (!isDone) {
       html += '<td style="padding:9px 10px;white-space:nowrap">' +
         // 這是「按了才回報」的按鈕，做成外框按鈕，避免看起來像已完成的狀態標籤
         '<button onclick="myTaskDone(\'' + _esc(t.taskId) + '\')" title="任務做完後，按這裡回報完成（可附照片）" style="' +
         'padding:5px 12px;border:1.5px solid #1a56db;border-radius:8px;background:white;' +
-        'color:#1a56db;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer" ' +
+        'color:#1a56db;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" ' +
         'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'white\'">' +
         '📝 回報完成</button></td>';
     } else {
-      html += '<td style="padding:9px 10px;white-space:nowrap;font-size:12px;color:#94a3b8">' + (t.photoId
+      html += '<td style="padding:9px 10px;white-space:nowrap;font-size:14px;color:#94a3b8">' + (t.photoId
         ? '<a href="' + _esc(t.photoUrl) + '" target="_blank" rel="noopener" title="回報照片"><img alt="回報照片" loading="lazy" src="' + _frThumb(t, 160) + '" style="display:block;height:36px;max-width:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"></a>'
         : '已回報') + '</td>';
     }
     html += '</tr>';
     if (t.content) {
       html += '<tr style="border-bottom:1px solid #f0f4f8' + (isDone?';opacity:.65':'') + '">';
-      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:12px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
+      html += '<td colspan="7" style="padding:4px 12px 10px 36px;font-size:14px;color:#6b7a92;white-space:pre-wrap;line-height:1.6"><span style="font-weight:600;color:#94a3b8;font-size:14px;letter-spacing:.04em">任務說明：</span>\n'+_esc(t.content)+'</td>';
       html += '</tr>';
     }
   });
@@ -11013,10 +11013,10 @@ setInterval(function() {
     <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:16px;font-weight:700">回報任務完成</div>
     <div style="padding:14px 18px">
       <div id="taskDoneTitle" style="font-size:14px;color:#1e2a3a;font-weight:600;word-break:break-all"></div>
-      <div style="font-size:12px;font-weight:600;color:#6b7a92;margin:14px 0 6px">📷 現場照片（選填）</div>
+      <div style="font-size:14px;font-weight:600;color:#6b7a92;margin:14px 0 6px">📷 現場照片（選填）</div>
       <input id="taskDonePhotoInp" type="file" accept="image/*" onchange="taskDoneOnPhoto(this)" style="font-size:14px;max-width:100%">
       <div id="taskDonePhotoPrev"></div>
-      <div id="taskDoneErr" style="color:#dc2626;font-size:13px;min-height:18px;margin-top:8px"></div>
+      <div id="taskDoneErr" style="color:#dc2626;font-size:14px;min-height:18px;margin-top:8px"></div>
     </div>
     <div style="display:flex;gap:8px;padding:12px 18px 16px;justify-content:flex-end">
       <button onclick="closeTaskDone()" style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;font-family:inherit;font-size:14px;color:#6b7a92;cursor:pointer">取消</button>
