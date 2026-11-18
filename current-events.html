@@ -11775,7 +11775,7 @@ body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
       <button class="rp-btn rp-play" id="rpPlay" title="播放／暫停（空白鍵）" onclick="rpToggle()">▶</button>
       <button class="rp-btn" id="rpNext" title="下一件事（→）" onclick="rpStep(1)">⏭</button>
       <select id="rpSpeed" title="播放速度" onchange="rpSetSpeed(this.value)">
-        <option value="1">1×</option><option value="5">5×</option><option value="10">10×</option><option value="60" selected>60×</option><option value="300">300×</option>
+        <option value="1">1×</option><option value="5" selected>5×</option><option value="10">10×</option><option value="60">60×</option><option value="300">300×</option>
       </select>
       <div class="rp-clock"><div id="rpClock">—</div><div id="rpElapsed"></div></div>
       <div id="rpWind" style="display:none" title="離事件最近的氣象站當時的觀測風向（只是紀錄，不會轉動十點偵測）"></div>
@@ -11794,7 +11794,7 @@ body.rp-on .leaflet-bottom.leaflet-right { right: 308px !important; }
 <div id="rpFeed"><div class="rp-feed-hd">事件經過<span id="rpFeedN"></span></div><div id="rpFeedList"></div></div>
 
 <script>
-var _rp = { ready: false, playing: false, speed: 60, skip: true, t: 0, t0: 0, t1: 0,
+var _rp = { ready: false, playing: false, speed: 5, skip: true, t: 0, t0: 0, t1: 0,
             show: { msr: true, trk: true, task: true, fr: true, draw: true, icon: true } };
 var _RP_KEYS = ['personnel', 'instrument', 'windDir', 'windSpeed', 'layerDir', 'name', 'type', 'address', 'lat', 'lng'];
 var _RP_GAP = 180000;      // 人員軌跡：相鄰兩點超過 3 分鐘 → 中間沒有資料（畫虛線、不補移動）
@@ -12626,7 +12626,7 @@ function _rpLoop(ts) {
   else if (_rp.animDraw || _rp.animIcon) { _rpDrawings(T); _rpIcons(T, false); }   // 動畫進行中：每一格都更新，畫面才順
   if (_rp.playing) requestAnimationFrame(_rpLoop);
 }
-function rpSetSpeed(v) { _rp.speed = parseFloat(v) || 60; }
+function rpSetSpeed(v) { _rp.speed = parseFloat(v) || 5; }
 function rpSeek(T) {
   if (!_rp.ready) return;
   _rp.t = Math.min(Math.max(T, _rp.t0), _rp.t1);
