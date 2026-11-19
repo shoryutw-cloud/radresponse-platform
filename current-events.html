@@ -226,17 +226,19 @@ cursor: pointer; transition: all .15s;
 }
 .chg-modal-bd::-webkit-scrollbar { width: 4px; }
 /* 出勤人員檢視：統計列＋隊別卡片（自動多欄） */
-.pv-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.pv-modal { width: max-content; min-width: min(360px, 96vw); max-width: min(1180px, 96vw); max-height: 90vh; }   /* 寬度跟著卡片數量，人少就窄 */
+.pv-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; justify-content: center; }
 .pv-stat { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 1px solid #e2e8f0; border-left: 3px solid #1a56db;
   border-radius: 6px; background: #fff; font-size: 14px; color: #6b7a92; }
 .pv-stat b { font-size: 18px; color: #1e2a3a; font-family: var(--font-mono); }
 .pv-stat.pv-total { background: #1e2a3a; border-color: #1e2a3a; color: #b8cce0; }
 .pv-stat.pv-total b { color: #fff; }
-.pv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; align-items: start; }
-.pv-card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; overflow: hidden; min-width: 0; }
+.pv-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: center; }   /* 卡片置中排列 */
+.pv-card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; overflow: hidden; flex: 0 0 270px; max-width: 100%; }
 .pv-card-hd { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc;
   border-top: 3px solid #1a56db; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700; }
 .pv-card-hd em { font-style: normal; font-size: 14px; font-weight: 600; color: #6b7a92; }
+@media (max-width: 600px) { .pv-card { flex: 1 1 100%; } }   /* 手機：卡片撐滿寬度 */
 .pv-row { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
 .pv-row:last-child { border-bottom: none; }
 .pv-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -911,7 +913,7 @@ cursor: pointer; transition: background .15s;
      出勤人員 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="personnelViewModal">
-  <div class="chg-modal" style="width:min(1180px,96vw);max-height: 90vh">
+  <div class="chg-modal pv-modal">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
       <span>👥 事件出勤人員</span>
       <button class="chg-modal-close" onclick="closePersonnelViewModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
@@ -929,7 +931,7 @@ cursor: pointer; transition: background .15s;
      出動儀器 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="instrViewModal">
-  <div class="chg-modal" style="width:min(1180px,96vw);max-height: 90vh">
+  <div class="chg-modal pv-modal">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
       <span>攜帶儀器</span>
       <button class="chg-modal-close" onclick="closeInstrViewModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
@@ -2851,7 +2853,6 @@ function _doRenderInstrView(body, instruments, instrList, ev) {
                 '<div class="pv-sub" style="font-family:var(--font)">' +
                   (u ? '<span class="pv-t" style="color:#1a56db;font-weight:600">👤 ' + _esc(u) + (sq ? '<span style="color:#6b7a92;font-weight:400">（' + _esc(sq) + '）</span>' : '') + '</span>'
                      : '<span class="pv-none">未指定使用者</span>') +
-                  (x.info && x.info.location ? '<i>·</i><span class="pv-t">📍 ' + _esc(x.info.location) + '</span>' : '') +
                 '</div>' +
               '</div>';
     });
