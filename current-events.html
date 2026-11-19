@@ -238,8 +238,10 @@ cursor: pointer; transition: all .15s;
 .pv-card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; overflow: hidden; flex: 0 0 270px; max-width: 100%; }
 .pv-card-hd { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; background: #f8fafc;
   border-top: 3px solid #1a56db; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700; }
-.pv-card-hd small, .pv-stat small { font-size: 14px; font-weight: 600; margin-left: -4px; }
-.pv-card-hd small { color: #6b7a92; }
+.pv-modal .chg-modal-hd { padding: 7px 12px 7px 16px; }   /* 標題列矮一點 */
+.pv-modal .chg-modal-close { width: 26px; height: 26px; }
+/* 單位（人／台）：和前面的組別、儀器名稱（底部是「出勤總人數」等字）同字級同顏色 */
+.pv-card-hd small, .pv-stat small { font-size: inherit; font-weight: inherit; color: inherit; margin-left: -4px; }
 .pv-card-hd b { font-size: 18px; color: #1e2a3a; font-family: var(--font-mono); }   /* 人數／台數：和下方總數同樣的字型大小 */
 @media (max-width: 600px) { .pv-card { flex: 1 1 100%; } }   /* 手機：卡片撐滿寬度 */
 .pv-row { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
@@ -2760,7 +2762,7 @@ function _doRenderPersonnelView(body, techId, personnel) {
   order.forEach(function(squad) {
     var c = grpColor(squad);
     html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + c + '">' +
-            '<span style="color:' + c + '">' + _esc(squad) + '</span><b>' + squads[squad].length + '</b><small>人</small></div>';
+            '<span style="color:' + c + '">' + _esc(squad) + '</span><b>' + squads[squad].length + '</b><small style="color:' + c + '">人</small></div>';
     squads[squad].forEach(function(p) {
       var m = lookup[squad + ':' + p.name] || lookup[p.name] || {};   // 「隊別:姓名」優先，職稱才對
       var tel = [];
@@ -2873,7 +2875,7 @@ function _doRenderInstrView(body, instruments, instrList, ev) {
   document.getElementById('instrViewStats').innerHTML = st;
   var html = '<div class="pv-grid">';
   kinds.forEach(function(k) {
-    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><b>' + byKind[k].length + '</b><small>台</small></div>';
+    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><b>' + byKind[k].length + '</b><small style="color:' + kc[k] + '">台</small></div>';
     byKind[k].forEach(function(x) {
       var u = x.instr.user, sq = userSq[u];
       html += '<div class="pv-row">' +
