@@ -109,6 +109,7 @@ background: #fff8f0; border-radius: 6px;
 padding: 6px 8px; margin: 0 -4px;
 border-left: 3px solid #f97316;
 }
+.ev-row-contam { background: #f5f3ff; border-left-color: #7c3aed; margin-top: 4px; }
 .ev-dose-val {
 font-size: 16px !important; font-weight: 700 !important;
 color: #ea580c !important; font-family: var(--font-mono);
@@ -2233,6 +2234,42 @@ function renderCard(idx) {
 
   var html = '';
 
+  // 最大劑量率（取 ev.doseMax 與量測數值中的最大值）
+  var _msrVals = (_msrCache[ev.id] || []).map(function(m){ return parseFloat(m.value); }).filter(function(v){ return !isNaN(v); });
+  var _msrMax  = _msrVals.length ? Math.max.apply(null, _msrVals) : null;
+  var _storedMax = parseFloat(ev.doseMax);
+  var _storedMax = isNaN(_storedMax) ? null : _storedMax;
+  var _finalMax;
+  if (_msrMax !== null && _storedMax !== null) _finalMax = Math.max(_msrMax, _storedMax);
+  else if (_msrMax !== null) _finalMax = _msrMax;
+  else if (_storedMax !== null) _finalMax = _storedMax;
+  else _finalMax = null;
+  var doseMaxDisplay = _finalMax !== null ? _fmtDoseStr(_finalMax) : '—';
+  html += '<div class="ev-row ev-row-dose">';
+  html += '<span class="ev-lbl">最大劑量率</span>';
+  var _doseColor = _finalMax === null ? '#6b7a92' : _finalMax >= DOSE_TH.hot ? '#dc2626' : _finalMax >= DOSE_TH.warm ? '#d97706' : '#16a34a';
+  html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
+  html += '</div>';
+
+  // 最大污染值：α、β 各取最大的一筆（cpm 換成 cps 比大小，顯示當初回報的原始數值），顏色依污染閾值
+  var _ctMax = { 'α': null, 'β': null };
+  (_msrCache[ev.id] || []).forEach(function(m) {
+    var raw = String(m.contamination || '').trim(); if (!raw) return;
+    var p = _contamParse(raw);
+    if (!p.type || isNaN(p.cps)) return;
+    if (!_ctMax[p.type] || p.cps > _ctMax[p.type].cps) _ctMax[p.type] = { cps: p.cps, raw: raw };
+  });
+  var _ctParts = ['α', 'β'].filter(function(t) { return _ctMax[t]; }).map(function(t) {
+    var r = _ctMax[t].raw.replace(/\s+/g, ' ');
+    if (r.indexOf(t) !== 0) r = t + ' ' + r.replace(/[αβ]\s*/g, '');
+    return '<span style="color:' + _contamColor(_ctMax[t].raw) + '">' + _esc(r) + '</span>';
+  });
+  html += '<div class="ev-row ev-row-dose ev-row-contam">';
+  html += '<span class="ev-lbl">最大污染值</span>';
+  html += '<span class="ev-val ev-dose-val" style="color:#6b7a92!important">' + (_ctParts.length ? _ctParts.join('<span style="color:#cbd5e1;font-weight:400"> ／ </span>') : '—') + '</span>';
+  html += '</div>';
+  html += '<hr class="ev-divider">';
+
   // 事件名稱
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">事件名稱</span>';
@@ -2268,22 +2305,6 @@ function renderCard(idx) {
 
   html += '<hr class="ev-divider">';
 
-  // 最大劑量率（取 ev.doseMax 與量測數值中的最大值）
-  var _msrVals = (_msrCache[ev.id] || []).map(function(m){ return parseFloat(m.value); }).filter(function(v){ return !isNaN(v); });
-  var _msrMax  = _msrVals.length ? Math.max.apply(null, _msrVals) : null;
-  var _storedMax = parseFloat(ev.doseMax);
-  var _storedMax = isNaN(_storedMax) ? null : _storedMax;
-  var _finalMax;
-  if (_msrMax !== null && _storedMax !== null) _finalMax = Math.max(_msrMax, _storedMax);
-  else if (_msrMax !== null) _finalMax = _msrMax;
-  else if (_storedMax !== null) _finalMax = _storedMax;
-  else _finalMax = null;
-  var doseMaxDisplay = _finalMax !== null ? _fmtDoseStr(_finalMax) : '—';
-  html += '<div class="ev-row ev-row-dose">';
-  html += '<span class="ev-lbl">最大劑量率</span>';
-  var _doseColor = _finalMax === null ? '#6b7a92' : _finalMax >= DOSE_TH.hot ? '#dc2626' : _finalMax >= DOSE_TH.warm ? '#d97706' : '#16a34a';
-  html += '<span class="ev-val ev-dose-val" style="color:' + _doseColor + '!important">' + _esc(doseMaxDisplay) + '</span>';
-  html += '</div>';
 
   // 風向 + 風速 + 抓取時間（三欄分開顯示）
   var _wdRaw = ev.windDirRaw || ev.windDir || '';
