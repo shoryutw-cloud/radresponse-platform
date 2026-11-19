@@ -150,6 +150,10 @@ display: none; flex-direction: column; gap: 10px;
 padding: 14px 16px;
 }
 .ev-edit-panel.show { display: flex; }
+/* 欄位多時面板內可捲動（卡片最大高度＝螢幕高度，超出的部分捲動，不會被切掉） */
+.ev-edit-panel { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.ev-edit-panel::-webkit-scrollbar { width: 4px; }
+.ev-edit-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .ev-edit-row { display: flex; flex-direction: column; gap: 4px; }
 .ev-edit-lbl {
 font-size: 11px; font-weight: 600; color: var(--text-muted);
@@ -1631,6 +1635,22 @@ function formatDateTime(dateVal, timeVal) {
   return (dateStr + (timeStr ? ' ' + timeStr : '')) || '—';
 }
 
+// 事件日期、時間 → { date: 'YYYY-MM-DD', time: 'HH:MM' }（解析不了的給空字串）
+// 試算表可能存成文字「2026-11-18」「2026年11月18日」「21:30」「21時30分」，
+// 也可能是日期格式，傳過來變成「Wed Nov 18 2026 00:00:00 GMT+0800 (…)」「Sat Dec 30 1899 21:30:00 GMT+0806 (…)」
+function _evDateParts(ev) {
+  var p2 = function(n) { return String(n).padStart(2, '0'); };
+  var date = '', time = '';
+  var ds = String(ev.date || '').trim(), ts = String(ev.time || '').trim(), m;
+  var MON = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+  if ((m = ds.match(/^(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})/))) date = m[1] + '-' + p2(m[2]) + '-' + p2(m[3]);
+  else if ((m = ds.match(/^[A-Za-z]{3} ([A-Za-z]{3}) (\d{1,2}) (\d{4})/)) && MON[m[1]] && m[3] !== '1899') date = m[3] + '-' + p2(MON[m[1]]) + '-' + p2(m[2]);   // 直接讀文字，不受時區影響
+  else if (ds) { var d = new Date(ds); if (!isNaN(d.getTime()) && d.getFullYear() !== 1899) date = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  if ((m = ts.match(/(\d{1,2})[:時](\d{2})/))) time = p2(m[1]) + ':' + m[2];
+  else if (ts) { var t = new Date(ts); if (!isNaN(t.getTime())) time = p2(t.getHours()) + ':' + p2(t.getMinutes()); }
+  return { date: date, time: time };
+}
+
 function goBack() {
   try { parent.showMap(); } catch(e) { history.back(); }
 }
@@ -1668,13 +1688,10 @@ function toggleEditPanel() {
     document.getElementById('editName').value    = ev.name    || '';
     document.getElementById('editType').value    = ev.type    || '輻射彈事件';
     _editSrcFill(ev);
-    // 日期時間：格式 "YYYY年MM月DD日 HH時MM分" → date/time input
-    var _dtRaw = (ev.date || '') + ' ' + (ev.time || '');
-    var _dtM = _dtRaw.match(/(\d{4}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{1,2}).*?(\d{2})/);
-    if (_dtM) {
-      document.getElementById('editDate').value = _dtM[1] + '-' + _dtM[2].padStart(2,'0') + '-' + _dtM[3].padStart(2,'0');
-      document.getElementById('editTime').value = _dtM[4].padStart(2,'0') + ':' + _dtM[5];
-    }
+    // 日期時間 → date/time input（日期、時間分開解析，支援各種存法）
+    var _dp = _evDateParts(ev);
+    document.getElementById('editDate').value = _dp.date;
+    document.getElementById('editTime').value = _dp.time;
     document.getElementById('editAddress').value = twAddr(ev.address || '');
     document.getElementById('editWindDir').value   = ev.windDirRaw || ev.windDir || '';
     document.getElementById('editWindSpeed').value  = ev.windSpeed || '';
