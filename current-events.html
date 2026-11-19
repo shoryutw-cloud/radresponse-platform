@@ -228,7 +228,7 @@ cursor: pointer; transition: all .15s;
 /* 出勤人員檢視：統計列＋隊別卡片（自動多欄） */
 .pv-modal { width: max-content; min-width: min(360px, 96vw); max-width: min(1180px, 96vw); max-height: 90vh; }   /* 寬度跟著卡片數量，人少就窄 */
 .pv-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; justify-content: center; }
-.pv-ft-stats { margin-bottom: 0; justify-content: flex-start; flex: 1; min-width: 0; }
+.pv-ft-stats { margin-bottom: 0; justify-content: flex-end; flex: 1; min-width: 0; }   /* 總數靠右，貼在「關閉」左邊 */
 .pv-stat { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 1px solid #e2e8f0; border-left: 3px solid #1a56db;
   border-radius: 6px; background: #fff; font-size: 14px; color: #6b7a92; }
 .pv-stat b { font-size: 18px; color: #1e2a3a; font-family: var(--font-mono); }
@@ -236,9 +236,9 @@ cursor: pointer; transition: all .15s;
 .pv-stat.pv-total b { color: #fff; }
 .pv-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: center; }   /* 卡片置中排列 */
 .pv-card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; overflow: hidden; flex: 0 0 270px; max-width: 100%; }
-.pv-card-hd { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc;
+.pv-card-hd { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; background: #f8fafc;
   border-top: 3px solid #1a56db; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700; }
-.pv-card-hd em { font-style: normal; font-size: 14px; font-weight: 600; color: #6b7a92; }
+.pv-card-hd b { font-size: 18px; color: #1e2a3a; font-family: var(--font-mono); }   /* 人數／台數：和下方總數同樣的字型大小 */
 @media (max-width: 600px) { .pv-card { flex: 1 1 100%; } }   /* 手機：卡片撐滿寬度 */
 .pv-row { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
 .pv-row:last-child { border-bottom: none; }
@@ -2753,15 +2753,12 @@ function _doRenderPersonnelView(body, techId, personnel) {
 
   // 人數統計放在下方，和「關閉」同一行
   var st = '<div class="pv-stat pv-total"><span>出勤總人數</span><b>' + total + '</b></div>';
-  order.forEach(function(s) {
-    st += '<div class="pv-stat" style="border-left-color:' + grpColor(s) + '"><span>' + _esc(s) + '</span><b>' + squads[s].length + '</b></div>';
-  });
   document.getElementById('personnelViewStats').innerHTML = st;
   var html = '<div class="pv-grid">';
   order.forEach(function(squad) {
     var c = grpColor(squad);
     html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + c + '">' +
-            '<span style="color:' + c + '">' + _esc(squad) + '</span><em>' + squads[squad].length + ' 人</em></div>';
+            '<span style="color:' + c + '">' + _esc(squad) + '</span><b>' + squads[squad].length + '</b></div>';
     squads[squad].forEach(function(p) {
       var m = lookup[squad + ':' + p.name] || lookup[p.name] || {};   // 「隊別:姓名」優先，職稱才對
       var tel = [];
@@ -2871,11 +2868,10 @@ function _doRenderInstrView(body, instruments, instrList, ev) {
   // 數量統計放在下方，和「關閉」同一行
   var kc = _instrKindColors(instrList, kinds);
   var st = '<div class="pv-stat pv-total"><span>攜帶儀器數量</span><b>' + instruments.length + '</b></div>';
-  kinds.forEach(function(k) { st += '<div class="pv-stat" style="border-left-color:' + kc[k] + '"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
   document.getElementById('instrViewStats').innerHTML = st;
   var html = '<div class="pv-grid">';
   kinds.forEach(function(k) {
-    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><em>' + byKind[k].length + ' 台</em></div>';
+    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>';
     byKind[k].forEach(function(x) {
       var u = x.instr.user, sq = userSq[u];
       html += '<div class="pv-row">' +
