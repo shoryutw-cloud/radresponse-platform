@@ -228,6 +228,7 @@ cursor: pointer; transition: all .15s;
 /* 出勤人員檢視：統計列＋隊別卡片（自動多欄） */
 .pv-modal { width: max-content; min-width: min(360px, 96vw); max-width: min(1180px, 96vw); max-height: 90vh; }   /* 寬度跟著卡片數量，人少就窄 */
 .pv-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; justify-content: center; }
+.pv-ft-stats { margin-bottom: 0; justify-content: flex-start; flex: 1; min-width: 0; }
 .pv-stat { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 1px solid #e2e8f0; border-left: 3px solid #1a56db;
   border-radius: 6px; background: #fff; font-size: 14px; color: #6b7a92; }
 .pv-stat b { font-size: 18px; color: #1e2a3a; font-family: var(--font-mono); }
@@ -921,7 +922,8 @@ cursor: pointer; transition: background .15s;
     <div class="chg-modal-bd" id="personnelViewBody">
       <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
     </div>
-    <div class="chg-modal-ft" style="justify-content:flex-end">
+    <div class="chg-modal-ft">
+      <div class="pv-stats pv-ft-stats" id="personnelViewStats"></div>
       <button class="chg-btn-cancel" onclick="closePersonnelViewModal()">關閉</button>
     </div>
   </div>
@@ -939,7 +941,8 @@ cursor: pointer; transition: background .15s;
     <div class="chg-modal-bd" id="instrViewBody">
       <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入中…</div>
     </div>
-    <div class="chg-modal-ft" style="justify-content:flex-end">
+    <div class="chg-modal-ft">
+      <div class="pv-stats pv-ft-stats" id="instrViewStats"></div>
       <button class="chg-btn-cancel" onclick="closeInstrViewModal()">關閉</button>
     </div>
   </div>
@@ -2696,6 +2699,7 @@ function closePersonnelViewModal() {
 }
 function _renderPersonnelView(ev) {
   var body = document.getElementById('personnelViewBody');
+  document.getElementById('personnelViewStats').innerHTML = '';
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入人員資料中…</div>';
 
   // 解析 personnelStr，同時保留隊別（新格式）或標記空字串（舊格式）
@@ -2741,11 +2745,13 @@ function _doRenderPersonnelView(body, techId, personnel) {
   var order = squadOrder.filter(function(s) { return s !== '未分配'; });
   if (squads['未分配']) order.push('未分配');
 
-  var html = '<div class="pv-stats"><div class="pv-stat pv-total"><span>出勤總人數</span><b>' + total + '</b></div>';
+  // 人數統計放在下方，和「關閉」同一行
+  var st = '<div class="pv-stat pv-total"><span>出勤總人數</span><b>' + total + '</b></div>';
   order.forEach(function(s) {
-    html += '<div class="pv-stat" style="border-left-color:' + grpColor(s) + '"><span>' + _esc(s) + '</span><b>' + squads[s].length + '</b></div>';
+    st += '<div class="pv-stat" style="border-left-color:' + grpColor(s) + '"><span>' + _esc(s) + '</span><b>' + squads[s].length + '</b></div>';
   });
-  html += '</div><div class="pv-grid">';
+  document.getElementById('personnelViewStats').innerHTML = st;
+  var html = '<div class="pv-grid">';
   order.forEach(function(squad) {
     var c = grpColor(squad);
     html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + c + '">' +
@@ -2786,6 +2792,7 @@ function closeInstrViewModal() {
 
 function _renderInstrView(ev) {
   var body = document.getElementById('instrViewBody');
+  document.getElementById('instrViewStats').innerHTML = '';
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 載入儀器資料中…</div>';
   var instruments = _parseInstrStr(ev.instrumentStr);
   if (!instruments.length) {
@@ -2855,10 +2862,12 @@ function _doRenderInstrView(body, instruments, instrList, ev) {
     if (!byKind[k]) { byKind[k] = []; kinds.push(k); }
     byKind[k].push({ instr: instr, info: matched[i] });
   });
-  var html = '<div class="pv-stats"><div class="pv-stat pv-total"><span>攜帶儀器數量</span><b>' + instruments.length + '</b></div>';
+  // 數量統計放在下方，和「關閉」同一行
   var kc = _instrKindColors(instrList, kinds);
-  kinds.forEach(function(k) { html += '<div class="pv-stat" style="border-left-color:' + kc[k] + '"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
-  html += '</div><div class="pv-grid">';
+  var st = '<div class="pv-stat pv-total"><span>攜帶儀器數量</span><b>' + instruments.length + '</b></div>';
+  kinds.forEach(function(k) { st += '<div class="pv-stat" style="border-left-color:' + kc[k] + '"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
+  document.getElementById('instrViewStats').innerHTML = st;
+  var html = '<div class="pv-grid">';
   kinds.forEach(function(k) {
     html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><em>' + byKind[k].length + ' 台</em></div>';
     byKind[k].forEach(function(x) {
