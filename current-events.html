@@ -929,7 +929,7 @@ cursor: pointer; transition: background .15s;
      出動儀器 唯讀檢視 Modal（觀看模式，無編輯）
 ════════════════════════════════════════════ -->
 <div class="chg-modal-overlay" id="instrViewModal">
-  <div class="chg-modal" style="width:min(820px,96vw);max-height: 88vh">
+  <div class="chg-modal" style="width:min(1180px,96vw);max-height: 90vh">
     <div class="chg-modal-hd" style="background:#1e2a3a;border-bottom:none;color:#e8f0fa">
       <span>攜帶儀器</span>
       <button class="chg-modal-close" onclick="closeInstrViewModal()" style="color:#8da0b8;border-color:#2d3f54">✕</button>
@@ -2790,10 +2790,10 @@ function _renderInstrView(ev) {
     body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">此事件無攜帶儀器紀錄</div>';
     return;
   }
-  if (_imCache) { _doRenderInstrView(body, instruments, _imCache.rows||[]); return; }
+  if (_imCache) { _doRenderInstrView(body, instruments, _imCache.rows||[], ev); return; }
   _jsonpGet(SHEETS_URL + '?action=instruments', function(data) {
     if (data && data.rows) _imCache = data;
-    _doRenderInstrView(body, instruments, (data&&data.rows)?data.rows:[]);
+    _doRenderInstrView(body, instruments, (data&&data.rows)?data.rows:[], ev);
   });
 }
 
@@ -2811,15 +2811,7 @@ function _parseInstrStr(str) {
   }).filter(Boolean);
 }
 
-function _doRenderInstrView(body, instruments, instrList) {
-  var kindCnt = {};
-  instruments.forEach(function(i){ if(i.kind) kindCnt[i.kind]=(kindCnt[i.kind]||0)+1; });
-
-  var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
-  html += _viewStatCard('出動儀器數量', instruments.length);
-  Object.keys(kindCnt).forEach(function(k){ html += _viewStatCard(k, kindCnt[k]); });
-  html += '</div>';
-
+function _doRenderInstrView(body, instruments, instrList, ev) {
   // 比對儀器清單取項次、存放地點
   var usedIdx = [];
   var matched = instruments.map(function(instr) {
@@ -2833,35 +2825,40 @@ function _doRenderInstrView(body, instruments, instrList) {
     }
     return null;
   });
-
-  html += '<table style="width:100%;border-collapse:collapse">';
-  html += '<thead><tr style="background:#f1f5f9">';
-  ['項次','儀器種類','儀器名稱','存放地點','使用者'].forEach(function(h){
-    html += '<th style="font-size:12px;color:#6b7a92;font-weight:600;padding:9px 12px;'
-          + 'border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap">' + _esc(h) + '</th>';
+  // 使用者的隊別（從這個事件的出勤名單「隊別:姓名」找）
+  var userSq = {};
+  String((ev && ev.personnelStr) || '').split(',').forEach(function(it) {
+    it = it.trim(); var c = it.indexOf(':');
+    if (c > 0) userSq[it.slice(c + 1).trim()] = it.slice(0, c).trim();
   });
-  html += '</tr></thead><tbody>';
+
+  // 版面跟出勤人員一樣：上方統計，下面每個儀器種類一張卡片，螢幕寬就多欄並排
+  var kinds = [], byKind = {};
   instruments.forEach(function(instr, i) {
-    var info = matched[i];
-    html += '<tr style="border-bottom:1px solid #f0f4f8">';
-    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92;font-family:monospace">' + (info?_esc(info.seq):'—') + '</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + _esc(instr.kind||'—') + '</td>';
-    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1e2a3a">' + _esc(instr.name) + '</td>';
-    html += '<td style="padding:9px 12px;font-size:13px;color:#6b7a92">' + (info?_esc(info.location):'—') + '</td>';
-    html += '<td style="padding:9px 12px;font-size:14px;font-weight:600;color:#1a56db">' + _esc(instr.user||'—') + '</td>';
-    html += '</tr>';
+    var k = instr.kind || '未分類';
+    if (!byKind[k]) { byKind[k] = []; kinds.push(k); }
+    byKind[k].push({ instr: instr, info: matched[i] });
   });
-  html += '</tbody></table>';
+  var html = '<div class="pv-stats"><div class="pv-stat pv-total"><span>攜帶儀器數量</span><b>' + instruments.length + '</b></div>';
+  kinds.forEach(function(k) { html += '<div class="pv-stat" style="border-left-color:#0891b2"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
+  html += '</div><div class="pv-grid">';
+  kinds.forEach(function(k) {
+    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:#0891b2"><span style="color:#0e7490">' + _esc(k) + '</span><em>' + byKind[k].length + ' 台</em></div>';
+    byKind[k].forEach(function(x) {
+      var u = x.instr.user, sq = userSq[u];
+      html += '<div class="pv-row">' +
+                '<div class="pv-main"><b>' + _esc(x.instr.name) + '</b>' + (x.info && x.info.seq ? '<span>項次 ' + _esc(x.info.seq) + '</span>' : '') + '</div>' +
+                '<div class="pv-sub" style="font-family:var(--font)">' +
+                  (u ? '<span class="pv-t" style="color:#1a56db;font-weight:600">👤 ' + _esc(u) + (sq ? '<span style="color:#6b7a92;font-weight:400">（' + _esc(sq) + '）</span>' : '') + '</span>'
+                     : '<span class="pv-none">未指定使用者</span>') +
+                  (x.info && x.info.location ? '<i>·</i><span class="pv-t">📍 ' + _esc(x.info.location) + '</span>' : '') +
+                '</div>' +
+              '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
   body.innerHTML = html;
-}
-
-// 統計卡片（唯讀 Modal 用）
-function _viewStatCard(label, value) {
-  return '<div style="background:white;border:1px solid #e2e8f0;border-radius:8px;'
-    + 'padding:10px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">'
-    + '<div style="font-size:11px;color:#6b7a92;font-weight:600;letter-spacing:.05em;text-transform:uppercase">' + _esc(String(label)) + '</div>'
-    + '<div style="font-size:22px;font-weight:700;color:#1a56db;font-family:monospace">' + _esc(String(value)) + '</div>'
-    + '</div>';
 }
 
 // ════════════════════════════════════════════════════════
