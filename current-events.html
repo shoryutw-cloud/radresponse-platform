@@ -2813,6 +2813,20 @@ function _parseInstrStr(str) {
   }).filter(Boolean);
 }
 
+// 儀器種類 → 顏色：依「儀器管理」清單裡種類第一次出現的順序配色，所以同一種儀器在每個事件都是同一個顏色；
+// 前 8 種用固定的易分辨色，之後新增的種類用黃金角自動產生新顏色（不會和前面重複）
+var _INSTR_PAL = ['#0891b2', '#ea580c', '#7c3aed', '#16a34a', '#db2777', '#ca8a04', '#2563eb', '#dc2626'];
+function _instrKindColors(instrList, extraKinds) {
+  var order = [];
+  (instrList || []).forEach(function(r) { var k = String((r.values || [])[1] || '').trim(); if (k && order.indexOf(k) < 0) order.push(k); });
+  (extraKinds || []).forEach(function(k) { if (order.indexOf(k) < 0) order.push(k); });
+  var out = {};
+  order.forEach(function(k, i) {
+    out[k] = i < _INSTR_PAL.length ? _INSTR_PAL[i] : 'hsl(' + Math.round((i * 137.508 + 20) % 360) + ',65%,38%)';
+  });
+  return out;
+}
+
 function _doRenderInstrView(body, instruments, instrList, ev) {
   // 比對儀器清單取項次、存放地點
   var usedIdx = [];
@@ -2842,10 +2856,11 @@ function _doRenderInstrView(body, instruments, instrList, ev) {
     byKind[k].push({ instr: instr, info: matched[i] });
   });
   var html = '<div class="pv-stats"><div class="pv-stat pv-total"><span>攜帶儀器數量</span><b>' + instruments.length + '</b></div>';
-  kinds.forEach(function(k) { html += '<div class="pv-stat" style="border-left-color:#0891b2"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
+  var kc = _instrKindColors(instrList, kinds);
+  kinds.forEach(function(k) { html += '<div class="pv-stat" style="border-left-color:' + kc[k] + '"><span>' + _esc(k) + '</span><b>' + byKind[k].length + '</b></div>'; });
   html += '</div><div class="pv-grid">';
   kinds.forEach(function(k) {
-    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:#0891b2"><span style="color:#0e7490">' + _esc(k) + '</span><em>' + byKind[k].length + ' 台</em></div>';
+    html += '<div class="pv-card"><div class="pv-card-hd" style="border-top-color:' + kc[k] + '"><span style="color:' + kc[k] + '">' + _esc(k) + '</span><em>' + byKind[k].length + ' 台</em></div>';
     byKind[k].forEach(function(x) {
       var u = x.instr.user, sq = userSq[u];
       html += '<div class="pv-row">' +
