@@ -499,6 +499,27 @@
         </div>
         <input type="hidden" id="ceType">
       </div>
+      <div class="ce-group">
+        <label class="ce-lbl">日期與時間 <span class="req">*</span></label>
+        <div class="ce-dtrow">
+          <div><input class="ce-inp" type="date" id="ceDate" oninput="ceVal()"></div>
+          <div><input class="ce-inp" type="time" id="ceTime" oninput="ceVal()"></div>
+        </div>
+      </div>
+      <hr class="ce-div">
+      <div class="ce-group">
+        <label class="ce-lbl">事件地點 <span class="req">*</span></label>
+        <div class="ce-awrap" id="ceAWrap">
+          <input class="ce-inp" id="ceAddr" placeholder="輸入地址或地名搜尋…" oninput="ceAIn()" onkeydown="ceAKey(event)" autocomplete="off">
+          <button class="ce-asearch" onclick="ceSrch()">&#x1F50D;</button>
+          <div class="ce-sugg" id="ceSugg"></div>
+        </div>
+        <div class="ce-ast" id="ceAst"></div>
+        <div class="ce-coords" id="ceCo" style="display:none">
+          <div class="ce-cbox"><div class="ce-clbl">緯度</div><div class="ce-cval" id="ceLt">—</div></div>
+          <div class="ce-cbox"><div class="ce-clbl">經度</div><div class="ce-cval" id="ceLn">—</div></div>
+        </div>
+      </div>
       <!-- 射源資訊（必填）：下拉選單，選「人工填寫」才出現輸入框 -->
       <div class="ce-src">
         <div class="ce-src-hd">☢️ 射源資訊</div>
@@ -539,27 +560,6 @@
             <option value="__manual">人工填寫</option>
           </select>
           <div class="ce-src-man" id="ceSrcFormMan"><input class="ce-inp" id="ceSrcFormTxt" placeholder="輸入型態" oninput="ceVal()"></div>
-        </div>
-      </div>
-      <div class="ce-group">
-        <label class="ce-lbl">日期與時間 <span class="req">*</span></label>
-        <div class="ce-dtrow">
-          <div><input class="ce-inp" type="date" id="ceDate" oninput="ceVal()"></div>
-          <div><input class="ce-inp" type="time" id="ceTime" oninput="ceVal()"></div>
-        </div>
-      </div>
-      <hr class="ce-div">
-      <div class="ce-group">
-        <label class="ce-lbl">事件地點 <span class="req">*</span></label>
-        <div class="ce-awrap" id="ceAWrap">
-          <input class="ce-inp" id="ceAddr" placeholder="輸入地址或地名搜尋…" oninput="ceAIn()" onkeydown="ceAKey(event)" autocomplete="off">
-          <button class="ce-asearch" onclick="ceSrch()">&#x1F50D;</button>
-          <div class="ce-sugg" id="ceSugg"></div>
-        </div>
-        <div class="ce-ast" id="ceAst"></div>
-        <div class="ce-coords" id="ceCo" style="display:none">
-          <div class="ce-cbox"><div class="ce-clbl">緯度</div><div class="ce-cval" id="ceLt">—</div></div>
-          <div class="ce-cbox"><div class="ce-clbl">經度</div><div class="ce-cval" id="ceLn">—</div></div>
         </div>
       </div>
       <div class="ce-group">

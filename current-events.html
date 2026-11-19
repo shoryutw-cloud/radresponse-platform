@@ -730,26 +730,6 @@ cursor: pointer; transition: background .15s;
         <option value="放射性物料事件">放射性物料事件</option>
       </select>
     </div>
-    <!-- 射源資訊（必填）：下拉選單，選「人工填寫」才出現輸入框；改了會記進異動紀錄，回放會出現字卡 -->
-    <div class="ev-edit-row" id="editSrcBox" style="background:#fff7f7;border:1px solid #fecaca;border-radius:6px;padding:8px 8px 10px;gap:6px">
-      <label class="ev-edit-lbl" style="color:#b91c1c">☢️ 射源種類 <span style="color:#dc2626">*</span></label>
-      <select class="ev-edit-inp" id="editSrcNuclide" onchange="editSrcSel('srcNuclide')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
-        <option value="">請選擇</option><option value="銫Cs-137">銫 Cs-137</option><option value="銥Ir-192">銥 Ir-192</option>
-        <option value="鈷Co-60">鈷 Co-60</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
-      </select>
-      <input class="ev-edit-inp" id="editSrcNuclideTxt" placeholder="輸入射源種類" style="display:none">
-      <label class="ev-edit-lbl" style="color:#b91c1c">活度 (Bq) <span style="color:#dc2626">*</span></label>
-      <select class="ev-edit-inp" id="editSrcActivity" onchange="editSrcSel('srcActivity')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
-        <option value="">請選擇</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
-      </select>
-      <input class="ev-edit-inp" id="editSrcActivityTxt" placeholder="輸入活度（Bq），例如 3.7e10" inputmode="decimal" style="display:none">
-      <label class="ev-edit-lbl" style="color:#b91c1c">型態 <span style="color:#dc2626">*</span></label>
-      <select class="ev-edit-inp" id="editSrcForm" onchange="editSrcSel('srcForm')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
-        <option value="">請選擇</option><option value="固體">固體</option><option value="液體">液體</option><option value="氣體">氣體</option>
-        <option value="粉末">粉末</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
-      </select>
-      <input class="ev-edit-inp" id="editSrcFormTxt" placeholder="輸入型態" style="display:none">
-    </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl">日期與時間</label>
       <div style="display:flex;gap:6px">
@@ -772,6 +752,26 @@ cursor: pointer; transition: background .15s;
         box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:9999;
         max-height:200px;overflow-y:auto;font-size:13px;"></div>
       <div id="editLocCoord" style="font-size:11px;color:#6b7a92;margin-top:3px;display:none"></div>
+    </div>
+    <!-- 射源資訊（必填）：下拉選單，選「人工填寫」才出現輸入框；改了會記進異動紀錄，回放會出現字卡 -->
+    <div class="ev-edit-row" id="editSrcBox" style="background:#fff7f7;border:1px solid #fecaca;border-radius:6px;padding:8px 8px 10px;gap:6px">
+      <label class="ev-edit-lbl" style="color:#b91c1c">☢️ 射源種類 <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcNuclide" onchange="editSrcSel('srcNuclide')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="銫Cs-137">銫 Cs-137</option><option value="銥Ir-192">銥 Ir-192</option>
+        <option value="鈷Co-60">鈷 Co-60</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcNuclideTxt" placeholder="輸入射源種類" style="display:none">
+      <label class="ev-edit-lbl" style="color:#b91c1c">活度 (Bq) <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcActivity" onchange="editSrcSel('srcActivity')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcActivityTxt" placeholder="輸入活度（Bq），例如 3.7e10" inputmode="decimal" style="display:none">
+      <label class="ev-edit-lbl" style="color:#b91c1c">型態 <span style="color:#dc2626">*</span></label>
+      <select class="ev-edit-inp" id="editSrcForm" onchange="editSrcSel('srcForm')" style="appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a92' stroke-width='1.5' fill='none'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;cursor:pointer" >
+        <option value="">請選擇</option><option value="固體">固體</option><option value="液體">液體</option><option value="氣體">氣體</option>
+        <option value="粉末">粉末</option><option value="不明">不明</option><option value="__manual">人工填寫</option>
+      </select>
+      <input class="ev-edit-inp" id="editSrcFormTxt" placeholder="輸入型態" style="display:none">
     </div>
     <div class="ev-edit-row">
       <label class="ev-edit-lbl" style="display:flex;align-items:center;justify-content:space-between">
@@ -1658,6 +1658,12 @@ function formatDateTime(dateVal, timeVal) {
     }
   } catch(e) {}
 
+  // 上面看不懂的寫法（例如試算表裡手打的「2026年11月18日」「21時30分」）改用 _evDateParts 再解析一次
+  if (!dateStr || !timeStr) {
+    var dp = _evDateParts({ date: dateVal, time: timeVal });
+    if (!dateStr && dp.date) { var d3 = dp.date.split('-'); dateStr = d3[0] + '年' + d3[1] + '月' + d3[2] + '日'; }
+    if (!timeStr && dp.time) { var t2 = dp.time.split(':'); timeStr = t2[0] + '時' + t2[1] + '分'; }
+  }
   return (dateStr + (timeStr ? ' ' + timeStr : '')) || '—';
 }
 
@@ -2289,15 +2295,6 @@ function renderCard(idx) {
   html += '<span class="ev-val"><span class="ev-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span></span>';
   html += '</div>';
 
-  // 射源資訊（輻災重點資訊）
-  SRC_KEYS.forEach(function(k) {
-    var miss = !String(ev[k] || '').trim();
-    html += '<div class="ev-row">';
-    html += '<span class="ev-lbl" style="color:#b91c1c">' + (k === 'srcActivity' ? '活度' : SRC_LABEL[k]) + '</span>';
-    html += '<span class="ev-val" style="' + (miss ? 'color:#94a3b8' : 'font-weight:600;color:#b91c1c') + '">' + _esc(_fmtSrc(k, ev[k])) + '</span>';
-    html += '</div>';
-  });
-
   // 日期與時間
   html += '<div class="ev-row">';
   html += '<span class="ev-lbl">日期與時間</span>';
@@ -2309,6 +2306,15 @@ function renderCard(idx) {
   html += '<span class="ev-lbl">事件地點</span>';
   html += '<span class="ev-val">' + _esc(twAddr(ev.address) || '—') + '</span>';
   html += '</div>';
+
+  // 射源資訊（輻災重點資訊）
+  SRC_KEYS.forEach(function(k) {
+    var miss = !String(ev[k] || '').trim();
+    html += '<div class="ev-row">';
+    html += '<span class="ev-lbl" style="color:#b91c1c">' + (k === 'srcActivity' ? '活度' : SRC_LABEL[k]) + '</span>';
+    html += '<span class="ev-val" style="' + (miss ? 'color:#94a3b8' : 'font-weight:600;color:#b91c1c') + '">' + _esc(_fmtSrc(k, ev[k])) + '</span>';
+    html += '</div>';
+  });
 
   html += '<hr class="ev-divider">';
 
