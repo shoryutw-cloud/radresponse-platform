@@ -2234,6 +2234,41 @@ function renderCard(idx) {
 
   var html = '';
 
+  // 事件名稱
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件名稱</span>';
+  html += '<span class="ev-val em">' + _esc(ev.name) + '</span>';
+  html += '</div>';
+
+  // 事件類型
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件類型</span>';
+  html += '<span class="ev-val"><span class="ev-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span></span>';
+  html += '</div>';
+
+  // 射源資訊（輻災重點資訊）
+  SRC_KEYS.forEach(function(k) {
+    var miss = !String(ev[k] || '').trim();
+    html += '<div class="ev-row">';
+    html += '<span class="ev-lbl" style="color:#b91c1c">' + (k === 'srcActivity' ? '活度' : SRC_LABEL[k]) + '</span>';
+    html += '<span class="ev-val" style="' + (miss ? 'color:#94a3b8' : 'font-weight:600;color:#b91c1c') + '">' + _esc(_fmtSrc(k, ev[k])) + '</span>';
+    html += '</div>';
+  });
+
+  // 日期與時間
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">日期與時間</span>';
+  html += '<span class="ev-val">' + _esc(formatDateTime(ev.date, ev.time)) + '</span>';
+  html += '</div>';
+
+  // 事件地點
+  html += '<div class="ev-row">';
+  html += '<span class="ev-lbl">事件地點</span>';
+  html += '<span class="ev-val">' + _esc(twAddr(ev.address) || '—') + '</span>';
+  html += '</div>';
+
+  html += '<hr class="ev-divider">';
+
   // 最大劑量率（取 ev.doseMax 與量測數值中的最大值）
   var _msrVals = (_msrCache[ev.id] || []).map(function(m){ return parseFloat(m.value); }).filter(function(v){ return !isNaN(v); });
   var _msrMax  = _msrVals.length ? Math.max.apply(null, _msrVals) : null;
@@ -2268,41 +2303,6 @@ function renderCard(idx) {
   html += '<span class="ev-lbl">最大污染值</span>';
   html += '<span class="ev-val ev-dose-val" style="color:#6b7a92!important">' + (_ctParts.length ? _ctParts.join('<span style="color:#cbd5e1;font-weight:400"> ／ </span>') : '—') + '</span>';
   html += '</div>';
-  html += '<hr class="ev-divider">';
-
-  // 事件名稱
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">事件名稱</span>';
-  html += '<span class="ev-val em">' + _esc(ev.name) + '</span>';
-  html += '</div>';
-
-  // 事件類型
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">事件類型</span>';
-  html += '<span class="ev-val"><span class="ev-type-badge ' + typeClass + '">' + _esc(ev.type) + '</span></span>';
-  html += '</div>';
-
-  // 射源資訊（輻災重點資訊）
-  SRC_KEYS.forEach(function(k) {
-    var miss = !String(ev[k] || '').trim();
-    html += '<div class="ev-row">';
-    html += '<span class="ev-lbl" style="color:#b91c1c">' + (k === 'srcActivity' ? '活度' : SRC_LABEL[k]) + '</span>';
-    html += '<span class="ev-val" style="' + (miss ? 'color:#94a3b8' : 'font-weight:600;color:#b91c1c') + '">' + _esc(_fmtSrc(k, ev[k])) + '</span>';
-    html += '</div>';
-  });
-
-  // 日期與時間
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">日期與時間</span>';
-  html += '<span class="ev-val">' + _esc(formatDateTime(ev.date, ev.time)) + '</span>';
-  html += '</div>';
-
-  // 事件地點
-  html += '<div class="ev-row">';
-  html += '<span class="ev-lbl">事件地點</span>';
-  html += '<span class="ev-val">' + _esc(twAddr(ev.address) || '—') + '</span>';
-  html += '</div>';
-
   html += '<hr class="ev-divider">';
 
 
